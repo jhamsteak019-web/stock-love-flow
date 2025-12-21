@@ -88,7 +88,7 @@ export const useInventory = () => {
   const addItem = async (item: Partial<InventoryItem>) => {
     const price = item.price || 0;
     const totalStock = item.total_stock || 0;
-    const amount = price * totalStock;
+    const amount = item.amount || 0;
 
     const insertData = {
       item_name: item.item_name!,

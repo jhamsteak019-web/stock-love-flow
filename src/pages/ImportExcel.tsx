@@ -95,12 +95,7 @@ const ImportExcel = () => {
   const handleFieldChange = (id: string, field: keyof ParsedItem, value: string | number) => {
     setParsedItems(prev => prev.map(item => {
       if (item.id !== id) return item;
-      const updated = { ...item, [field]: value };
-      // Recalculate amount when qty or price changes
-      if (field === 'qty' || field === 'price') {
-        updated.amount = updated.qty * updated.price;
-      }
-      return updated;
+      return { ...item, [field]: value };
     }));
   };
 
@@ -138,6 +133,7 @@ const ImportExcel = () => {
           category_id: categoryId,
           total_stock: item.qty,
           price: item.price,
+          amount: item.amount,
           supplier: item.supplier || undefined,
           date_received: item.dateReceived || undefined,
           created_by: user?.id,
@@ -361,10 +357,11 @@ const ImportExcel = () => {
                         </TableCell>
                         <TableCell className="border-r p-1">
                           <Input
-                            type="text"
-                            value={item.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                            disabled
-                            className="h-8 text-sm text-right bg-muted"
+                            type="number"
+                            step="0.01"
+                            value={item.amount}
+                            onChange={(e) => handleFieldChange(item.id, 'amount', Number(e.target.value))}
+                            className="h-8 text-sm text-right"
                           />
                         </TableCell>
                         <TableCell className="border-r p-1">

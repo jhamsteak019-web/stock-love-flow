@@ -19,6 +19,10 @@ interface AllocationBillModalProps {
 const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, allocationBill }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const totalQty = releases.reduce((sum, r) => sum + r.boxes_released, 0);
+  const totalAmount = releases.reduce((sum, r) => {
+    const price = r.inventory_item?.price || 0;
+    return sum + (r.boxes_released * price);
+  }, 0);
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';
 
   const handlePrint = () => {
@@ -75,19 +79,28 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 <th>Product Code</th>
                 <th>Product Description</th>
                 <th class="text-center">Qty</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Amount</th>
               </tr>
             </thead>
             <tbody>
-              ${releases.map((release) => `
+              ${releases.map((release) => {
+                const price = release.inventory_item?.price || 0;
+                const amount = release.boxes_released * price;
+                return `
                 <tr>
                   <td>${release.inventory_item?.item_code || 'N/A'}</td>
                   <td>${release.inventory_item?.item_name || 'N/A'}</td>
                   <td class="text-center">${release.boxes_released}</td>
+                  <td class="text-right">${price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                  <td class="text-right">${amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 </tr>
-              `).join('')}
+              `}).join('')}
               <tr class="total-row">
-                <td colspan="2" class="text-right">Total Qty:</td>
+                <td colspan="2" class="text-right">Total:</td>
                 <td class="text-center">${totalQty}</td>
+                <td></td>
+                <td class="text-right">${totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
               </tr>
             </tbody>
           </table>
@@ -118,7 +131,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
@@ -158,20 +171,30 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 <TableRow className="bg-muted">
                   <TableHead className="font-bold border-r">Product Code</TableHead>
                   <TableHead className="font-bold border-r">Product Description</TableHead>
-                  <TableHead className="font-bold text-center w-[80px]">Qty</TableHead>
+                  <TableHead className="font-bold text-center w-[70px] border-r">Qty</TableHead>
+                  <TableHead className="font-bold text-right w-[100px] border-r">Price</TableHead>
+                  <TableHead className="font-bold text-right w-[120px]">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {releases.map((release) => (
-                  <TableRow key={release.id}>
-                    <TableCell className="border-r font-mono text-sm">{release.inventory_item?.item_code}</TableCell>
-                    <TableCell className="border-r">{release.inventory_item?.item_name}</TableCell>
-                    <TableCell className="text-center">{release.boxes_released}</TableCell>
-                  </TableRow>
-                ))}
+                {releases.map((release) => {
+                  const price = release.inventory_item?.price || 0;
+                  const amount = release.boxes_released * price;
+                  return (
+                    <TableRow key={release.id}>
+                      <TableCell className="border-r font-mono text-sm">{release.inventory_item?.item_code}</TableCell>
+                      <TableCell className="border-r">{release.inventory_item?.item_name}</TableCell>
+                      <TableCell className="text-center border-r">{release.boxes_released}</TableCell>
+                      <TableCell className="text-right border-r">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right font-semibold">{amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                    </TableRow>
+                  );
+                })}
                 <TableRow className="bg-muted/50 font-bold">
-                  <TableCell colSpan={2} className="text-right border-r">Total Qty:</TableCell>
-                  <TableCell className="text-center">{totalQty}</TableCell>
+                  <TableCell colSpan={2} className="text-right border-r">Total:</TableCell>
+                  <TableCell className="text-center border-r">{totalQty}</TableCell>
+                  <TableCell className="border-r"></TableCell>
+                  <TableCell className="text-right">{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

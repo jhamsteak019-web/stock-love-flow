@@ -49,6 +49,7 @@ const Inventory = () => {
     category_id: '',
     total_stock: 0,
     price: 0,
+    amount: 0,
     supplier: '',
     date_received: '',
     low_stock_threshold: 10,
@@ -70,6 +71,7 @@ const Inventory = () => {
       category_id: '',
       total_stock: 0,
       price: 0,
+      amount: 0,
       supplier: '',
       date_received: '',
       low_stock_threshold: 10,
@@ -163,6 +165,7 @@ const Inventory = () => {
       category_id: item.category_id || '',
       total_stock: item.total_stock,
       price: item.price || 0,
+      amount: item.amount || 0,
       supplier: item.supplier || '',
       date_received: item.date_received || '',
       low_stock_threshold: item.low_stock_threshold,
@@ -256,10 +259,11 @@ const Inventory = () => {
           <Label htmlFor="amount">Amount</Label>
           <Input
             id="amount"
-            type="text"
-            value={(formData.price * formData.total_stock).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-            disabled
-            className="bg-muted"
+            type="number"
+            step="0.01"
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+            placeholder="0.00"
           />
         </div>
       </div>
