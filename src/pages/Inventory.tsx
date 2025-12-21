@@ -17,13 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,12 +83,17 @@ const Inventory = () => {
     }
 
     try {
-      let categoryId = formData.category_id;
+      let categoryId: string | undefined;
       
-      // Create new category if specified
-      if (newCategory && !categoryId) {
-        const cat = await addCategory(newCategory);
-        categoryId = cat.id;
+      // Create category if specified
+      if (newCategory) {
+        const existing = categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase());
+        if (existing) {
+          categoryId = existing.id;
+        } else {
+          const cat = await addCategory(newCategory);
+          categoryId = cat.id;
+        }
       }
 
       await addItem({
@@ -222,37 +220,14 @@ const Inventory = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select
-              value={localForm.category_id}
-              onValueChange={(value) => {
-                handleChange('category_id', value);
-                setFormData(prev => ({ ...prev, category_id: value }));
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="new_category">Or Create New</Label>
-            <Input
-              id="new_category"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="New category name"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+          <Input
+            id="category"
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+            placeholder="Enter category name"
+          />
         </div>
 
         <div className="grid grid-cols-3 gap-4">

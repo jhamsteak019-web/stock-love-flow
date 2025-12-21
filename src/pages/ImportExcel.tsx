@@ -37,22 +37,40 @@ const ImportExcel = () => {
 
   // Helper to find column value with multiple possible names
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
+    const keys = Object.keys(row);
+    
     for (const name of possibleNames) {
-      // Check exact match
-      if (row[name] !== undefined && row[name] !== null) return String(row[name]);
-      // Check case-insensitive match
-      const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
-      if (key && row[key] !== undefined && row[key] !== null) return String(row[key]);
-      // Check partial match
-      const partialKey = Object.keys(row).find(k => k.toLowerCase().includes(name.toLowerCase()));
-      if (partialKey && row[partialKey] !== undefined && row[partialKey] !== null) return String(row[partialKey]);
+      // Check exact match first
+      if (row[name] !== undefined && row[name] !== null && String(row[name]).trim() !== '') {
+        return String(row[name]).trim();
+      }
+      
+      // Check case-insensitive exact match
+      const exactKey = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
+      if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && String(row[exactKey]).trim() !== '') {
+        return String(row[exactKey]).trim();
+      }
     }
+    
+    // If no exact match, try partial matching
+    for (const name of possibleNames) {
+      const partialKey = keys.find(k => 
+        k.toLowerCase().includes(name.toLowerCase()) || 
+        name.toLowerCase().includes(k.toLowerCase())
+      );
+      if (partialKey && row[partialKey] !== undefined && row[partialKey] !== null && String(row[partialKey]).trim() !== '') {
+        return String(row[partialKey]).trim();
+      }
+    }
+    
     return '';
   };
 
   const findNumericValue = (row: Record<string, unknown>, ...possibleNames: string[]): number => {
     const val = findColumnValue(row, ...possibleNames);
-    return Number(val) || 0;
+    // Remove any currency symbols and commas
+    const cleanVal = val.replace(/[₱$,]/g, '').trim();
+    return Number(cleanVal) || 0;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,38 +82,73 @@ const ImportExcel = () => {
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { cellDates: true });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
+      
+      // Try different parsing options
+      let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+      
+      // If no rows found, try with header option
+      if (rows.length === 0) {
+        rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown as Record<string, unknown>[];
+        // Convert array format to object format using first row as headers
+        if (Array.isArray(rows) && rows.length > 1) {
+          const headers = rows[0] as unknown as string[];
+          rows = (rows.slice(1) as unknown as unknown[][]).map(row => {
+            const obj: Record<string, unknown> = {};
+            headers.forEach((header, i) => {
+              if (header) obj[String(header)] = row[i];
+            });
+            return obj;
+          });
+        }
+      }
+
+      console.log('Parsed Excel rows:', rows);
+      console.log('First row keys:', rows[0] ? Object.keys(rows[0]) : 'No rows');
 
       const items: ParsedItem[] = rows.map((row, index) => {
-        const qty = findNumericValue(row, 'Qty', 'Quantity', 'Total Stock', 'total_stock', 'Stock', 'Boxes', 'Units');
-        const price = findNumericValue(row, 'Price', 'Unit Price', 'Cost', 'price');
-        const amount = findNumericValue(row, 'Amount', 'Total', 'Total Amount', 'amount');
+        // Get all keys for debugging
+        const keys = Object.keys(row);
+        console.log(`Row ${index} keys:`, keys, 'values:', row);
+        
+        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'Total Stock', 'total_stock', 'Stock', 'Boxes', 'Units', 'Pcs', 'pcs');
+        const price = findNumericValue(row, 'Price', 'PRICE', 'Unit Price', 'Cost', 'Unit Cost');
+        const amount = findNumericValue(row, 'Amount', 'AMOUNT', 'Total', 'Total Amount', 'Subtotal');
         
         return {
           id: `item-${index}-${Date.now()}`,
-          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'sheet_no', 'Sheet', 'No.', 'No'),
-          itemCode: findColumnValue(row, 'Item Code', 'SKU', 'item_code', 'Product Code', 'Code', 'Barcode', 'ID'),
-          itemName: findColumnValue(row, 'Item Name', 'item_name', 'Product Description', 'Description', 'Name', 'Product', 'Item'),
-          deliverTo: findColumnValue(row, 'Deliver To', 'deliver_to', 'Destination', 'Location', 'Ship To'),
-          supplier: findColumnValue(row, 'Supplier', 'Vendor', 'supplier'),
+          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'No.', 'No', 'NO'),
+          itemCode: findColumnValue(row, 'Item Code', 'ITEM CODE', 'SKU', 'Product Code', 'PRODUCT CODE', 'Code', 'CODE', 'Barcode', 'ID'),
+          itemName: findColumnValue(row, 'Item Name', 'ITEM NAME', 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION', 'Name', 'NAME', 'Product', 'PRODUCT', 'Item', 'ITEM'),
+          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'Destination', 'DESTINATION', 'Location', 'LOCATION', 'Ship To'),
+          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER', 'Vendor', 'VENDOR'),
           qty,
           price,
           amount: amount > 0 ? amount : qty * price,
-          remarks: findColumnValue(row, 'Remarks', 'remarks', 'Notes', 'Note', 'Comment', 'Comments'),
-          category: findColumnValue(row, 'Category', 'category', 'Type', 'Group'),
-          dateReceived: findColumnValue(row, 'Date Received', 'date_received', 'Date', 'Received Date', 'Received'),
+          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Note', 'Comment', 'Comments'),
+          category: findColumnValue(row, 'Category', 'CATEGORY', 'Type', 'TYPE', 'Group', 'GROUP'),
+          dateReceived: findColumnValue(row, 'Date Received', 'DATE RECEIVED', 'Date', 'DATE', 'Received Date', 'Received'),
         };
       });
 
-      // Filter out empty rows
-      const validItems = items.filter(item => item.itemName || item.itemCode);
+      // Filter out empty rows - check if any key field has value
+      const validItems = items.filter(item => 
+        item.itemName || item.itemCode || item.qty > 0
+      );
+
+      console.log('Valid items:', validItems);
 
       setParsedItems(validItems);
-      toast({ title: 'File Parsed', description: `${validItems.length} items found. Review and edit before saving.` });
+      toast({ 
+        title: 'File Parsed', 
+        description: validItems.length > 0 
+          ? `${validItems.length} items found. Review and edit before saving.`
+          : 'No items found. Check if your Excel has correct column headers.'
+      });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to read file', variant: 'destructive' });
+      console.error('Excel parse error:', error);
+      toast({ title: 'Error', description: 'Failed to read file. Make sure it is a valid Excel file.', variant: 'destructive' });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
