@@ -24,6 +24,7 @@ const ReleaseStock = () => {
     { id: crypto.randomUUID(), itemId: '', boxes: 1 }
   ]);
   const [destination, setDestination] = useState('');
+  const [courier, setCourier] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,11 +76,13 @@ const ReleaseStock = () => {
         validItems.map(r => ({ itemId: r.itemId, boxes: r.boxes })),
         destination,
         user!.id,
-        notes || undefined
+        notes || undefined,
+        courier || undefined
       );
       toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
       setReleaseItems([{ id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
       setDestination('');
+      setCourier('');
       setNotes('');
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
@@ -161,6 +164,11 @@ const ReleaseStock = () => {
           <div className="space-y-2">
             <Label>Destination *</Label>
             <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Store / Branch / Customer" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Courier (Optional)</Label>
+            <Input value={courier} onChange={(e) => setCourier(e.target.value)} placeholder="Courier name / company" />
           </div>
 
           <div className="space-y-2">

@@ -113,6 +113,7 @@ export type Database = {
         Row: {
           batch_id: string | null
           boxes_released: number
+          courier: string | null
           created_at: string
           date_delivered: string | null
           date_released: string
@@ -127,6 +128,7 @@ export type Database = {
         Insert: {
           batch_id?: string | null
           boxes_released: number
+          courier?: string | null
           created_at?: string
           date_delivered?: string | null
           date_released?: string
@@ -141,6 +143,7 @@ export type Database = {
         Update: {
           batch_id?: string | null
           boxes_released?: number
+          courier?: string | null
           created_at?: string
           date_delivered?: string | null
           date_released?: string

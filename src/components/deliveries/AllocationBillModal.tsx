@@ -5,17 +5,18 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
-import { Package, MapPin, Calendar, FileText, Printer } from 'lucide-react';
+import { Package, MapPin, Calendar, FileText, Printer, Truck } from 'lucide-react';
 
 interface AllocationBillModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   releases: StockRelease[];
   destination: string;
+  courier: string | null;
   dateReleased: string;
 }
 
-const AllocationBillModal = ({ open, onOpenChange, releases, destination, dateReleased }: AllocationBillModalProps) => {
+const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const totalBoxes = releases.reduce((sum, r) => sum + r.boxes_released, 0);
 
@@ -64,6 +65,10 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, dateRe
             <div class="info-item">
               <span class="info-label">Destination:</span>
               <span class="info-value">${destination}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Courier:</span>
+              <span class="info-value">${courier || 'N/A'}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Date Released:</span>
@@ -156,6 +161,11 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, dateRe
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Destination:</span>
               <span className="font-medium">{destination}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Truck className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Courier:</span>
+              <span className="font-medium">{courier || 'N/A'}</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />

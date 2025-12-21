@@ -163,7 +163,8 @@ export const useInventory = () => {
     items: { itemId: string; boxes: number }[],
     destination: string,
     releasedBy: string,
-    notes?: string
+    notes?: string,
+    courier?: string
   ) => {
     const batchId = crypto.randomUUID();
     
@@ -173,6 +174,7 @@ export const useInventory = () => {
       destination,
       released_by: releasedBy,
       notes,
+      courier,
       batch_id: batchId,
     }));
 
