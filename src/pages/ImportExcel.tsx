@@ -16,6 +16,8 @@ interface ParsedItem {
   deliverTo: string;
   supplier: string;
   qty: number;
+  price: number;
+  amount: number;
   remarks: string;
   category: string;
   dateReceived: string;
@@ -46,18 +48,24 @@ const ImportExcel = () => {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
 
-      const items: ParsedItem[] = rows.map((row, index) => ({
-        id: `item-${index}-${Date.now()}`,
-        sheetNo: String(row['Sheet No.'] || row['Sheet No'] || row['sheet_no'] || ''),
-        itemCode: String(row['Item Code'] || row['SKU'] || row['item_code'] || row['Product Code'] || ''),
-        itemName: String(row['Item Name'] || row['item_name'] || row['Product Description'] || ''),
-        deliverTo: String(row['Deliver To'] || row['deliver_to'] || row['Destination'] || ''),
-        supplier: String(row['Supplier'] || row['supplier'] || ''),
-        qty: Number(row['Qty'] || row['Total Stock'] || row['total_stock'] || 0),
-        remarks: String(row['Remarks'] || row['remarks'] || row['Notes'] || ''),
-        category: String(row['Category'] || row['category'] || ''),
-        dateReceived: String(row['Date Received'] || row['date_received'] || ''),
-      }));
+      const items: ParsedItem[] = rows.map((row, index) => {
+        const qty = Number(row['Qty'] || row['Total Stock'] || row['total_stock'] || 0);
+        const price = Number(row['Price'] || row['price'] || 0);
+        return {
+          id: `item-${index}-${Date.now()}`,
+          sheetNo: String(row['Sheet No.'] || row['Sheet No'] || row['sheet_no'] || ''),
+          itemCode: String(row['Item Code'] || row['SKU'] || row['item_code'] || row['Product Code'] || ''),
+          itemName: String(row['Item Name'] || row['item_name'] || row['Product Description'] || ''),
+          deliverTo: String(row['Deliver To'] || row['deliver_to'] || row['Destination'] || ''),
+          supplier: String(row['Supplier'] || row['supplier'] || ''),
+          qty,
+          price,
+          amount: qty * price,
+          remarks: String(row['Remarks'] || row['remarks'] || row['Notes'] || ''),
+          category: String(row['Category'] || row['category'] || ''),
+          dateReceived: String(row['Date Received'] || row['date_received'] || ''),
+        };
+      });
 
       setParsedItems(items);
       toast({ title: 'File Parsed', description: `${items.length} items found. Review and edit before saving.` });
@@ -85,9 +93,15 @@ const ImportExcel = () => {
   };
 
   const handleFieldChange = (id: string, field: keyof ParsedItem, value: string | number) => {
-    setParsedItems(prev => prev.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setParsedItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const updated = { ...item, [field]: value };
+      // Recalculate amount when qty or price changes
+      if (field === 'qty' || field === 'price') {
+        updated.amount = updated.qty * updated.price;
+      }
+      return updated;
+    }));
   };
 
   const handleSaveAll = async () => {
@@ -123,6 +137,7 @@ const ImportExcel = () => {
           item_code: item.itemCode,
           category_id: categoryId,
           total_stock: item.qty,
+          price: item.price,
           supplier: item.supplier || undefined,
           date_received: item.dateReceived || undefined,
           created_by: user?.id,
@@ -155,6 +170,7 @@ const ImportExcel = () => {
     if (items.length === 0) return;
     
     const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
+    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -197,27 +213,29 @@ const ImportExcel = () => {
                 <th>Sheet No.</th>
                 <th>Product Code</th>
                 <th>Product Description</th>
-                <th>Deliver To</th>
-                <th>Supplier</th>
                 <th class="text-center">Qty</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Amount</th>
                 <th>Remarks</th>
               </tr>
             </thead>
             <tbody>
-              ${items.map((item) => `
+              \${items.map((item) => \`
                 <tr>
-                  <td>${item.sheetNo || '-'}</td>
-                  <td>${item.itemCode}</td>
-                  <td>${item.itemName}</td>
-                  <td>${item.deliverTo || '-'}</td>
-                  <td>${item.supplier || '-'}</td>
-                  <td class="text-center">${item.qty}</td>
-                  <td>${item.remarks || '-'}</td>
+                  <td>\${item.sheetNo || '-'}</td>
+                  <td>\${item.itemCode}</td>
+                  <td>\${item.itemName}</td>
+                  <td class="text-center">\${item.qty}</td>
+                  <td class="text-right">\${item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                  <td class="text-right">\${item.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                  <td>\${item.remarks || '-'}</td>
                 </tr>
-              `).join('')}
+              \`).join('')}
               <tr class="total-row">
-                <td colspan="5" class="text-right">Total Qty:</td>
-                <td class="text-center">${totalQty}</td>
+                <td colspan="3" class="text-right">Total:</td>
+                <td class="text-center">\${totalQty}</td>
+                <td></td>
+                <td class="text-right">\${totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td></td>
               </tr>
             </tbody>
@@ -244,6 +262,7 @@ const ImportExcel = () => {
   };
 
   const totalQty = parsedItems.reduce((sum, item) => sum + item.qty, 0);
+  const totalAmount = parsedItems.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -251,7 +270,7 @@ const ImportExcel = () => {
       <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
         <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
         <h2 className="text-xl font-semibold mb-2">Import Inventory from Excel</h2>
-        <p className="text-muted-foreground mb-6">Upload .xlsx or .csv file with columns: Sheet No., Item Code, Item Name, Deliver To, Supplier, Qty, Remarks</p>
+        <p className="text-muted-foreground mb-6">Upload .xlsx or .csv file with columns: Sheet No., Product Code, Product Description, Qty, Price, Remarks</p>
         
         <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="hidden" id="file-upload" />
         <Button asChild size="lg" className="gap-2">
@@ -290,11 +309,11 @@ const ImportExcel = () => {
                   <TableHead className="font-bold border-r w-[120px]">Sheet No.</TableHead>
                   <TableHead className="font-bold border-r w-[140px]">Product Code</TableHead>
                   <TableHead className="font-bold border-r">Product Description</TableHead>
-                  <TableHead className="font-bold border-r w-[150px]">Deliver To</TableHead>
-                  <TableHead className="font-bold border-r w-[120px]">Supplier</TableHead>
-                  <TableHead className="font-bold border-r text-center w-[80px]">Qty</TableHead>
-                  <TableHead className="font-bold border-r w-[150px]">Remarks</TableHead>
-                  <TableHead className="font-bold text-center w-[100px]">Actions</TableHead>
+                  <TableHead className="font-bold border-r text-center w-[70px]">Qty</TableHead>
+                  <TableHead className="font-bold border-r text-right w-[100px]">Price</TableHead>
+                  <TableHead className="font-bold border-r text-right w-[100px]">Amount</TableHead>
+                  <TableHead className="font-bold border-r w-[120px]">Remarks</TableHead>
+                  <TableHead className="font-bold text-center w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -325,24 +344,27 @@ const ImportExcel = () => {
                         </TableCell>
                         <TableCell className="border-r p-1">
                           <Input
-                            value={item.deliverTo}
-                            onChange={(e) => handleFieldChange(item.id, 'deliverTo', e.target.value)}
-                            className="h-8 text-sm"
-                          />
-                        </TableCell>
-                        <TableCell className="border-r p-1">
-                          <Input
-                            value={item.supplier}
-                            onChange={(e) => handleFieldChange(item.id, 'supplier', e.target.value)}
-                            className="h-8 text-sm"
+                            type="number"
+                            value={item.qty}
+                            onChange={(e) => handleFieldChange(item.id, 'qty', Number(e.target.value))}
+                            className="h-8 text-sm text-center"
                           />
                         </TableCell>
                         <TableCell className="border-r p-1">
                           <Input
                             type="number"
-                            value={item.qty}
-                            onChange={(e) => handleFieldChange(item.id, 'qty', Number(e.target.value))}
-                            className="h-8 text-sm text-center"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(e) => handleFieldChange(item.id, 'price', Number(e.target.value))}
+                            className="h-8 text-sm text-right"
+                          />
+                        </TableCell>
+                        <TableCell className="border-r p-1">
+                          <Input
+                            type="text"
+                            value={item.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                            disabled
+                            className="h-8 text-sm text-right bg-muted"
                           />
                         </TableCell>
                         <TableCell className="border-r p-1">
@@ -368,9 +390,9 @@ const ImportExcel = () => {
                         <TableCell className="border-r text-sm">{item.sheetNo || '-'}</TableCell>
                         <TableCell className="border-r font-mono text-sm">{item.itemCode}</TableCell>
                         <TableCell className="border-r text-sm">{item.itemName}</TableCell>
-                        <TableCell className="border-r text-sm">{item.deliverTo || '-'}</TableCell>
-                        <TableCell className="border-r text-sm">{item.supplier || '-'}</TableCell>
                         <TableCell className="border-r text-center">{item.qty}</TableCell>
+                        <TableCell className="border-r text-right">{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="border-r text-right font-semibold">{item.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell className="border-r text-sm">{item.remarks || '-'}</TableCell>
                         <TableCell className="p-1">
                           <div className="flex justify-center gap-1">
@@ -387,8 +409,10 @@ const ImportExcel = () => {
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/50 font-bold">
-                  <TableCell colSpan={5} className="text-right border-r">Total Qty:</TableCell>
+                  <TableCell colSpan={3} className="text-right border-r">Total:</TableCell>
                   <TableCell className="text-center border-r">{totalQty}</TableCell>
+                  <TableCell className="border-r"></TableCell>
+                  <TableCell className="text-right border-r">{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell colSpan={2}></TableCell>
                 </TableRow>
               </TableBody>

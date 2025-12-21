@@ -48,6 +48,7 @@ const Inventory = () => {
     item_code: '',
     category_id: '',
     total_stock: 0,
+    price: 0,
     supplier: '',
     date_received: '',
     low_stock_threshold: 10,
@@ -68,6 +69,7 @@ const Inventory = () => {
       item_code: '',
       category_id: '',
       total_stock: 0,
+      price: 0,
       supplier: '',
       date_received: '',
       low_stock_threshold: 10,
@@ -160,6 +162,7 @@ const Inventory = () => {
       item_code: item.item_code,
       category_id: item.category_id || '',
       total_stock: item.total_stock,
+      price: item.price || 0,
       supplier: item.supplier || '',
       date_received: item.date_received || '',
       low_stock_threshold: item.low_stock_threshold,
@@ -228,7 +231,7 @@ const Inventory = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="total_stock">Total Stock (Boxes)</Label>
           <Input
@@ -239,14 +242,35 @@ const Inventory = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
+          <Label htmlFor="price">Price</Label>
           <Input
-            id="low_stock_threshold"
+            id="price"
             type="number"
-            value={formData.low_stock_threshold}
-            onChange={(e) => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 10 })}
+            step="0.01"
+            value={formData.price}
+            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+            placeholder="0.00"
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="amount">Amount</Label>
+          <Input
+            id="amount"
+            type="text"
+            value={(formData.price * formData.total_stock).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            disabled
+            className="bg-muted"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
+        <Input
+          id="low_stock_threshold"
+          type="number"
+          value={formData.low_stock_threshold}
+          onChange={(e) => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 10 })}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -335,6 +359,8 @@ const Inventory = () => {
               <TableHead>Code</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Stock</TableHead>
+              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Received</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
@@ -343,7 +369,7 @@ const Inventory = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-12">
+                <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-12">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No items found</p>
                 </TableCell>
@@ -368,6 +394,12 @@ const Inventory = () => {
                       {item.available_stock}
                     </span>
                     <span className="text-muted-foreground"> / {item.total_stock}</span>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {(item.price || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {(item.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{item.supplier || '-'}</TableCell>
                   <TableCell className="text-muted-foreground">
