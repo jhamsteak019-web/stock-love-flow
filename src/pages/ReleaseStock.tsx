@@ -23,6 +23,7 @@ interface AllocationBillGroup {
   batch_id: string;
   destination: string;
   courier: string | null;
+  allocation_bill: string | null;
   date_released: string;
   delivery_status: string;
   releases: StockRelease[];
@@ -38,6 +39,7 @@ const ReleaseStock = () => {
   ]);
   const [destination, setDestination] = useState('');
   const [courier, setCourier] = useState('');
+  const [allocationBill, setAllocationBill] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedBill, setSelectedBill] = useState<AllocationBillGroup | null>(null);
@@ -90,12 +92,14 @@ const ReleaseStock = () => {
         destination,
         user!.id,
         notes || undefined,
-        courier || undefined
+        courier || undefined,
+        allocationBill || undefined
       );
       toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
       setReleaseItems([{ id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
       setDestination('');
       setCourier('');
+      setAllocationBill('');
       setNotes('');
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
@@ -115,6 +119,7 @@ const ReleaseStock = () => {
           date_released: release.date_released,
           delivery_status: release.delivery_status,
           courier: release.courier,
+          allocation_bill: release.allocation_bill,
           releases: []
         };
       }
@@ -204,6 +209,11 @@ const ReleaseStock = () => {
           </div>
 
           <div className="space-y-2">
+            <Label>Allocation Bill (Optional)</Label>
+            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Allocation bill number / reference" />
+          </div>
+
+          <div className="space-y-2">
             <Label>Notes (Optional)</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes..." />
           </div>
@@ -234,40 +244,48 @@ const ReleaseStock = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Allocation Bill</TableHead>
                   <TableHead>Destination</TableHead>
                   <TableHead>Courier</TableHead>
-                  <TableHead>Items</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Total Boxes</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allocationBills.slice(0, 10).map((bill) => (
-                  <TableRow key={bill.batch_id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(bill.date_released), 'MMM dd, yyyy')}
-                    </TableCell>
-                    <TableCell>{bill.destination}</TableCell>
-                    <TableCell>{bill.courier || '-'}</TableCell>
-                    <TableCell>{bill.releases.length} item(s)</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        bill.delivery_status === 'delivered' 
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : bill.delivery_status === 'out_for_delivery'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      }`}>
-                        {bill.delivery_status.replace('_', ' ')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedBill(bill)}>
-                        <FileText className="h-4 w-4 mr-1" /> View
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {allocationBills.slice(0, 10).map((bill) => {
+                  const totalQty = bill.releases.length;
+                  const totalBoxes = bill.releases.reduce((sum, r) => sum + r.boxes_released, 0);
+                  return (
+                    <TableRow key={bill.batch_id}>
+                      <TableCell className="font-medium">
+                        {format(new Date(bill.date_released), 'MMM dd, yyyy')}
+                      </TableCell>
+                      <TableCell>{bill.allocation_bill || '-'}</TableCell>
+                      <TableCell>{bill.destination}</TableCell>
+                      <TableCell>{bill.courier || '-'}</TableCell>
+                      <TableCell>{totalQty}</TableCell>
+                      <TableCell>{totalBoxes}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                          bill.delivery_status === 'delivered' 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : bill.delivery_status === 'out_for_delivery'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}>
+                          {bill.delivery_status.replace('_', ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedBill(bill)}>
+                          <FileText className="h-4 w-4 mr-1" /> View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

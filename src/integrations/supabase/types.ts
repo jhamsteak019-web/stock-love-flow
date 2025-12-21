@@ -111,6 +111,7 @@ export type Database = {
       }
       stock_releases: {
         Row: {
+          allocation_bill: string | null
           batch_id: string | null
           boxes_released: number
           courier: string | null
@@ -126,6 +127,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allocation_bill?: string | null
           batch_id?: string | null
           boxes_released: number
           courier?: string | null
@@ -141,6 +143,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allocation_bill?: string | null
           batch_id?: string | null
           boxes_released?: number
           courier?: string | null
