@@ -32,6 +32,7 @@ const ManageUsers = () => {
   const saveEdit = async (userId: string) => {
     const success = await updateProfile(userId, {
       full_name: editForm.full_name,
+      email: editForm.email,
     });
     if (success) {
       setEditingUser(null);
@@ -98,8 +99,17 @@ const ManageUsers = () => {
                       <span className="font-medium">{user.full_name || 'No name'}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {user.email}
+                  <TableCell>
+                    {editingUser === user.id ? (
+                      <Input
+                        value={editForm.email}
+                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        placeholder="Email"
+                        className="w-full"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">{user.email}</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {currentUser?.id === user.id ? (

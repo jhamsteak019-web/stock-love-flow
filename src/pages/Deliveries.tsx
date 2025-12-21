@@ -84,6 +84,7 @@ const Deliveries = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Items</TableHead>
+              <TableHead>Allocation</TableHead>
               <TableHead>Total Boxes</TableHead>
               <TableHead>Destination</TableHead>
               <TableHead>Released</TableHead>
@@ -95,7 +96,7 @@ const Deliveries = () => {
           <TableBody>
             {pendingGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={8} className="text-center py-12">
                   <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No pending deliveries</p>
                 </TableCell>
@@ -106,9 +107,20 @@ const Deliveries = () => {
                   <TableCell className="font-medium">
                     {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
                   </TableCell>
+                  <TableCell>
+                    <div className="text-sm space-y-0.5">
+                      {group.items.slice(0, 2).map((item) => (
+                        <div key={item.id} className="text-muted-foreground">
+                          {item.inventory_item?.item_name || 'Unknown'}: <span className="font-medium text-foreground">{item.boxes_released}</span>
+                        </div>
+                      ))}
+                      {group.items.length > 2 && (
+                        <div className="text-muted-foreground text-xs">+{group.items.length - 2} more</div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{group.totalBoxes}</TableCell>
                   <TableCell>{group.destination}</TableCell>
-                  <TableCell className="text-muted-foreground">{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
                   <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select value={group.delivery_status} onValueChange={(val) => handleStatusChange(group, val as DeliveryStatus)}>
