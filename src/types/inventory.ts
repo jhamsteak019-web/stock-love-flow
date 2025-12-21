@@ -44,6 +44,7 @@ export interface StockRelease {
   item_id: string;
   boxes_released: number;
   destination: string;
+  courier: string | null;
   released_by: string;
   delivery_status: DeliveryStatus;
   date_released: string;
@@ -59,6 +60,7 @@ export interface StockRelease {
 export interface AllocationBill {
   batch_id: string;
   destination: string;
+  courier: string | null;
   date_released: string;
   delivery_status: DeliveryStatus;
   items: StockRelease[];

@@ -13,6 +13,7 @@ import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 interface GroupedRelease {
   batch_id: string;
   destination: string;
+  courier: string | null;
   date_released: string;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
@@ -37,6 +38,7 @@ const Deliveries = () => {
         groups[batchKey] = {
           batch_id: batchKey,
           destination: release.destination,
+          courier: release.courier,
           date_released: release.date_released,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
@@ -136,6 +138,7 @@ const Deliveries = () => {
           onOpenChange={(open) => !open && setSelectedBatch(null)}
           releases={selectedBatch.items}
           destination={selectedBatch.destination}
+          courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
         />
       )}
