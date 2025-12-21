@@ -11,6 +11,10 @@ const statusConfig: Record<DeliveryStatus, { label: string; className: string }>
     label: 'Pending',
     className: 'status-pending',
   },
+  in_transit: {
+    label: 'In Transit',
+    className: 'status-transit',
+  },
   out_for_delivery: {
     label: 'Out for Delivery',
     className: 'status-transit',

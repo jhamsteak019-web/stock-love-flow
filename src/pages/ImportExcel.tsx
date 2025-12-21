@@ -35,6 +35,26 @@ const ImportExcel = () => {
   const [results, setResults] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   const [savedItems, setSavedItems] = useState<ParsedItem[]>([]);
 
+  // Helper to find column value with multiple possible names
+  const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
+    for (const name of possibleNames) {
+      // Check exact match
+      if (row[name] !== undefined && row[name] !== null) return String(row[name]);
+      // Check case-insensitive match
+      const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && row[key] !== undefined && row[key] !== null) return String(row[key]);
+      // Check partial match
+      const partialKey = Object.keys(row).find(k => k.toLowerCase().includes(name.toLowerCase()));
+      if (partialKey && row[partialKey] !== undefined && row[partialKey] !== null) return String(row[partialKey]);
+    }
+    return '';
+  };
+
+  const findNumericValue = (row: Record<string, unknown>, ...possibleNames: string[]): number => {
+    const val = findColumnValue(row, ...possibleNames);
+    return Number(val) || 0;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -49,26 +69,31 @@ const ImportExcel = () => {
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
 
       const items: ParsedItem[] = rows.map((row, index) => {
-        const qty = Number(row['Qty'] || row['Total Stock'] || row['total_stock'] || 0);
-        const price = Number(row['Price'] || row['price'] || 0);
+        const qty = findNumericValue(row, 'Qty', 'Quantity', 'Total Stock', 'total_stock', 'Stock', 'Boxes', 'Units');
+        const price = findNumericValue(row, 'Price', 'Unit Price', 'Cost', 'price');
+        const amount = findNumericValue(row, 'Amount', 'Total', 'Total Amount', 'amount');
+        
         return {
           id: `item-${index}-${Date.now()}`,
-          sheetNo: String(row['Sheet No.'] || row['Sheet No'] || row['sheet_no'] || ''),
-          itemCode: String(row['Item Code'] || row['SKU'] || row['item_code'] || row['Product Code'] || ''),
-          itemName: String(row['Item Name'] || row['item_name'] || row['Product Description'] || ''),
-          deliverTo: String(row['Deliver To'] || row['deliver_to'] || row['Destination'] || ''),
-          supplier: String(row['Supplier'] || row['supplier'] || ''),
+          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'sheet_no', 'Sheet', 'No.', 'No'),
+          itemCode: findColumnValue(row, 'Item Code', 'SKU', 'item_code', 'Product Code', 'Code', 'Barcode', 'ID'),
+          itemName: findColumnValue(row, 'Item Name', 'item_name', 'Product Description', 'Description', 'Name', 'Product', 'Item'),
+          deliverTo: findColumnValue(row, 'Deliver To', 'deliver_to', 'Destination', 'Location', 'Ship To'),
+          supplier: findColumnValue(row, 'Supplier', 'Vendor', 'supplier'),
           qty,
           price,
-          amount: qty * price,
-          remarks: String(row['Remarks'] || row['remarks'] || row['Notes'] || ''),
-          category: String(row['Category'] || row['category'] || ''),
-          dateReceived: String(row['Date Received'] || row['date_received'] || ''),
+          amount: amount > 0 ? amount : qty * price,
+          remarks: findColumnValue(row, 'Remarks', 'remarks', 'Notes', 'Note', 'Comment', 'Comments'),
+          category: findColumnValue(row, 'Category', 'category', 'Type', 'Group'),
+          dateReceived: findColumnValue(row, 'Date Received', 'date_received', 'Date', 'Received Date', 'Received'),
         };
       });
 
-      setParsedItems(items);
-      toast({ title: 'File Parsed', description: `${items.length} items found. Review and edit before saving.` });
+      // Filter out empty rows
+      const validItems = items.filter(item => item.itemName || item.itemCode);
+
+      setParsedItems(validItems);
+      toast({ title: 'File Parsed', description: `${validItems.length} items found. Review and edit before saving.` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to read file', variant: 'destructive' });
     } finally {

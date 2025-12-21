@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus, Edit2, Trash2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -181,124 +181,154 @@ const Inventory = () => {
     );
   }
 
-  const ItemForm = () => (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="item_name">Item Name *</Label>
-          <Input
-            id="item_name"
-            value={formData.item_name}
-            onChange={(e) => setFormData({ ...formData, item_name: e.target.value })}
-            placeholder="Enter item name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="item_code">Item Code / SKU *</Label>
-          <Input
-            id="item_code"
-            value={formData.item_code}
-            onChange={(e) => setFormData({ ...formData, item_code: e.target.value })}
-            placeholder="e.g., SKU-001"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Category</Label>
-          <Select
-            value={formData.category_id}
-            onValueChange={(value) => setFormData({ ...formData, category_id: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="new_category">Or Create New</Label>
-          <Input
-            id="new_category"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="New category name"
-          />
-        </div>
-      </div>
+  const ItemForm = () => {
+    const [localForm, setLocalForm] = useState(formData);
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="total_stock">Total Stock (Boxes)</Label>
-          <Input
-            id="total_stock"
-            type="number"
-            value={formData.total_stock}
-            onChange={(e) => setFormData({ ...formData, total_stock: parseInt(e.target.value) || 0 })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="price">Price</Label>
-          <Input
-            id="price"
-            type="number"
-            step="0.01"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-            placeholder="0.00"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="amount">Amount</Label>
-          <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            value={formData.amount}
-            onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-            placeholder="0.00"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
-        <Input
-          id="low_stock_threshold"
-          type="number"
-          value={formData.low_stock_threshold}
-          onChange={(e) => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 10 })}
-        />
-      </div>
+    // Sync with parent when dialog opens
+    React.useEffect(() => {
+      setLocalForm(formData);
+    }, [formData]);
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="supplier">Supplier</Label>
-          <Input
-            id="supplier"
-            value={formData.supplier}
-            onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-            placeholder="Supplier name"
-          />
+    const handleChange = (field: string, value: string | number) => {
+      setLocalForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleBlur = () => {
+      setFormData(localForm);
+    };
+
+    return (
+      <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="item_name">Item Name *</Label>
+            <Input
+              id="item_name"
+              value={localForm.item_name}
+              onChange={(e) => handleChange('item_name', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="Enter item name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="item_code">Item Code / SKU *</Label>
+            <Input
+              id="item_code"
+              value={localForm.item_code}
+              onChange={(e) => handleChange('item_code', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="e.g., SKU-001"
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={localForm.category_id}
+              onValueChange={(value) => {
+                handleChange('category_id', value);
+                setFormData(prev => ({ ...prev, category_id: value }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new_category">Or Create New</Label>
+            <Input
+              id="new_category"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="New category name"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="total_stock">Total Stock (Boxes)</Label>
+            <Input
+              id="total_stock"
+              type="number"
+              value={localForm.total_stock}
+              onChange={(e) => handleChange('total_stock', parseInt(e.target.value) || 0)}
+              onBlur={handleBlur}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="price">Price</Label>
+            <Input
+              id="price"
+              type="number"
+              step="0.01"
+              value={localForm.price}
+              onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)}
+              onBlur={handleBlur}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              value={localForm.amount}
+              onChange={(e) => handleChange('amount', parseFloat(e.target.value) || 0)}
+              onBlur={handleBlur}
+              placeholder="0.00"
+            />
+          </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="date_received">Date Received</Label>
+          <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
           <Input
-            id="date_received"
-            type="date"
-            value={formData.date_received}
-            onChange={(e) => setFormData({ ...formData, date_received: e.target.value })}
+            id="low_stock_threshold"
+            type="number"
+            value={localForm.low_stock_threshold}
+            onChange={(e) => handleChange('low_stock_threshold', parseInt(e.target.value) || 10)}
+            onBlur={handleBlur}
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="supplier">Supplier</Label>
+            <Input
+              id="supplier"
+              value={localForm.supplier}
+              onChange={(e) => handleChange('supplier', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="Supplier name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="date_received">Date Received</Label>
+            <Input
+              id="date_received"
+              type="date"
+              value={localForm.date_received}
+              onChange={(e) => {
+                handleChange('date_received', e.target.value);
+                setFormData(prev => ({ ...prev, date_received: e.target.value }));
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -379,62 +409,72 @@ const Inventory = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredItems.map((item) => (
-                <TableRow key={item.id} className="animate-fade-in">
-                  <TableCell className="font-medium">{item.item_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.item_code}</TableCell>
-                  <TableCell>
-                    {item.category?.name && (
-                      <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
-                        {item.category.name}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className={cn(
-                      "font-semibold",
-                      item.available_stock <= item.low_stock_threshold && "text-destructive"
-                    )}>
-                      {item.available_stock}
-                    </span>
-                    <span className="text-muted-foreground"> / {item.total_stock}</span>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {(item.price || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {(item.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{item.supplier || '-'}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.date_received 
-                      ? format(new Date(item.date_received), 'MMM d, yyyy')
-                      : '-'
-                    }
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(item)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+              <>
+                {filteredItems.map((item) => (
+                  <TableRow key={item.id} className="animate-fade-in">
+                    <TableCell className="font-medium">{item.item_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.item_code}</TableCell>
+                    <TableCell>
+                      {item.category?.name && (
+                        <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
+                          {item.category.name}
+                        </span>
+                      )}
                     </TableCell>
-                  )}
+                    <TableCell className="text-right">
+                      <span className={cn(
+                        "font-semibold",
+                        item.available_stock <= item.low_stock_threshold && "text-destructive"
+                      )}>
+                        {item.available_stock}
+                      </span>
+                      <span className="text-muted-foreground"> / {item.total_stock}</span>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {(item.price || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {(item.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{item.supplier || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.date_received 
+                        ? format(new Date(item.date_received), 'MMM d, yyyy')
+                        : '-'
+                      }
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(item)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+                {/* Summary Row */}
+                <TableRow className="bg-muted/50 font-bold border-t-2">
+                  <TableCell colSpan={5} className="text-right">Total Inventory Value:</TableCell>
+                  <TableCell className="text-right text-lg text-primary">
+                    ₱{filteredItems.reduce((sum, item) => sum + (item.amount || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell colSpan={isAdmin ? 3 : 2}></TableCell>
                 </TableRow>
-              ))
+              </>
             )}
           </TableBody>
         </Table>

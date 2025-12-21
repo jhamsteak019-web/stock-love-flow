@@ -119,11 +119,47 @@ export const useUsers = () => {
     }
   };
 
+  const deleteUser = async (userId: string) => {
+    try {
+      // Delete user role first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // Delete profile
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.filter(user => user.id !== userId));
+
+      toast({
+        title: 'Success',
+        description: 'User deleted successfully',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete user',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     users,
     loading,
     fetchUsers,
     updateProfile,
     updateUserRole,
+    deleteUser,
   };
 };
