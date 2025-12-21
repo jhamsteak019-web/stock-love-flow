@@ -179,13 +179,15 @@ const Inventory = () => {
     );
   }
 
-  const ItemForm = () => {
+  const ItemForm = ({ onCategoryChange }: { onCategoryChange: (val: string) => void }) => {
     const [localForm, setLocalForm] = useState(formData);
+    const [localCategory, setLocalCategory] = useState(newCategory);
 
     // Sync with parent when dialog opens
     React.useEffect(() => {
       setLocalForm(formData);
-    }, [formData]);
+      setLocalCategory(newCategory);
+    }, [formData, newCategory]);
 
     const handleChange = (field: string, value: string | number) => {
       setLocalForm(prev => ({ ...prev, [field]: value }));
@@ -193,6 +195,10 @@ const Inventory = () => {
 
     const handleBlur = () => {
       setFormData(localForm);
+    };
+
+    const handleCategoryBlur = () => {
+      onCategoryChange(localCategory);
     };
 
     return (
@@ -224,8 +230,9 @@ const Inventory = () => {
           <Label htmlFor="category">Category</Label>
           <Input
             id="category"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
+            value={localCategory}
+            onChange={(e) => setLocalCategory(e.target.value)}
+            onBlur={handleCategoryBlur}
             placeholder="Enter category name"
           />
         </div>
@@ -331,7 +338,7 @@ const Inventory = () => {
               <DialogHeader>
                 <DialogTitle>Add New Item</DialogTitle>
               </DialogHeader>
-              <ItemForm />
+              <ItemForm onCategoryChange={setNewCategory} />
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                   Cancel
@@ -349,7 +356,7 @@ const Inventory = () => {
           <DialogHeader>
             <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
-          <ItemForm />
+          <ItemForm onCategoryChange={setNewCategory} />
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setEditItem(null)}>
               Cancel
