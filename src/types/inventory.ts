@@ -30,6 +30,8 @@ export interface InventoryItem {
   category_id: string | null;
   total_stock: number;
   available_stock: number;
+  price: number;
+  amount: number;
   supplier: string | null;
   date_received: string | null;
   low_stock_threshold: number;

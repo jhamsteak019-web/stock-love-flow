@@ -34,6 +34,7 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          amount: number | null
           available_stock: number
           category_id: string | null
           created_at: string
@@ -43,11 +44,13 @@ export type Database = {
           item_code: string
           item_name: string
           low_stock_threshold: number | null
+          price: number | null
           supplier: string | null
           total_stock: number
           updated_at: string
         }
         Insert: {
+          amount?: number | null
           available_stock?: number
           category_id?: string | null
           created_at?: string
@@ -57,11 +60,13 @@ export type Database = {
           item_code: string
           item_name: string
           low_stock_threshold?: number | null
+          price?: number | null
           supplier?: string | null
           total_stock?: number
           updated_at?: string
         }
         Update: {
+          amount?: number | null
           available_stock?: number
           category_id?: string | null
           created_at?: string
@@ -71,6 +76,7 @@ export type Database = {
           item_code?: string
           item_name?: string
           low_stock_threshold?: number | null
+          price?: number | null
           supplier?: string | null
           total_stock?: number
           updated_at?: string
