@@ -127,6 +127,7 @@ const Deliveries = () => {
                       <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in_transit">In Transit</SelectItem>
                         <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
                         <SelectItem value="delivered">Delivered</SelectItem>
                       </SelectContent>

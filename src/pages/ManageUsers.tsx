@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, X, Check } from 'lucide-react';
+import { Users, Edit2, Shield, ShieldCheck, X, Check, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,12 @@ import { useUsers, UserWithRole } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/inventory';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const ManageUsers = () => {
-  const { users, loading, updateProfile, updateUserRole } = useUsers();
+  const { users, loading, updateProfile, updateUserRole, deleteUser } = useUsers();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ full_name: '', email: '' });
 
@@ -41,6 +43,11 @@ const ManageUsers = () => {
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     await updateUserRole(userId, newRole);
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    await deleteUser(userId);
   };
 
   if (loading) {
@@ -156,9 +163,21 @@ const ManageUsers = () => {
                         </Button>
                       </div>
                     ) : (
-                      <Button variant="ghost" size="icon" onClick={() => startEditing(user)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => startEditing(user)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        {currentUser?.id !== user.id && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>

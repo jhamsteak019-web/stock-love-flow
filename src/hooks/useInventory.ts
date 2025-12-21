@@ -235,6 +235,28 @@ export const useInventory = () => {
     };
   };
 
+  const deleteRelease = async (releaseId: string) => {
+    const { error } = await supabase
+      .from('stock_releases')
+      .delete()
+      .eq('id', releaseId);
+
+    if (error) throw error;
+    setReleases(releases.filter(r => r.id !== releaseId));
+    await fetchItems(); // Refresh to update stock counts
+  };
+
+  const deleteReleaseBatch = async (batchId: string) => {
+    const { error } = await supabase
+      .from('stock_releases')
+      .delete()
+      .eq('batch_id', batchId);
+
+    if (error) throw error;
+    setReleases(releases.filter(r => r.batch_id !== batchId));
+    await fetchItems();
+  };
+
   return {
     items,
     categories,
@@ -250,6 +272,8 @@ export const useInventory = () => {
     releaseStock,
     releaseStockBatch,
     updateDeliveryStatus,
+    deleteRelease,
+    deleteReleaseBatch,
     getStats,
   };
 };

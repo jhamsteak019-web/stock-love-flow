@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'staff';
 
-export type DeliveryStatus = 'pending' | 'out_for_delivery' | 'delivered';
+export type DeliveryStatus = 'pending' | 'in_transit' | 'out_for_delivery' | 'delivered';
 
 export interface Profile {
   id: string;

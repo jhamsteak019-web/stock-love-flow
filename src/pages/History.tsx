@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
-import { ClipboardList, Eye } from 'lucide-react';
+import { ClipboardList, Eye, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
+import { useAuth } from '@/contexts/AuthContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
+import { useToast } from '@/hooks/use-toast';
 
 interface GroupedRelease {
   batch_id: string;
@@ -21,8 +23,11 @@ interface GroupedRelease {
 }
 
 const History = () => {
-  const { releases, loading } = useInventory();
+  const { releases, loading, deleteReleaseBatch } = useInventory();
+  const { userRole } = useAuth();
+  const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
+  const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
   const groupedReleases = useMemo(() => {
@@ -55,6 +60,18 @@ const History = () => {
     );
   }, [releases]);
 
+  const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this release? This action cannot be undone.')) return;
+    
+    try {
+      await deleteReleaseBatch(group.batch_id);
+      toast({ title: 'Success', description: 'Release deleted successfully' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete release', variant: 'destructive' });
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
@@ -70,7 +87,7 @@ const History = () => {
             <TableHead>Released</TableHead>
             <TableHead>Delivered</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-[80px]">View</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -93,9 +110,21 @@ const History = () => {
                 <TableCell className="text-muted-foreground">{group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                 <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => handleDelete(group, e)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))
