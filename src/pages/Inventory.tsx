@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Filter, Plus, Edit2, Trash2, Package } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,7 +39,6 @@ const Inventory = () => {
   const isAdmin = userRole === 'admin';
 
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   
@@ -56,15 +55,11 @@ const Inventory = () => {
   const [newCategory, setNewCategory] = useState('');
 
   const filteredItems = items.filter(item => {
-    const matchesSearch = 
+    return (
       item.item_name.toLowerCase().includes(search.toLowerCase()) ||
       item.item_code.toLowerCase().includes(search.toLowerCase()) ||
-      (item.supplier?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    
-    const matchesCategory = 
-      categoryFilter === 'all' || item.category_id === categoryFilter;
-    
-    return matchesSearch && matchesCategory;
+      (item.supplier?.toLowerCase().includes(search.toLowerCase()) ?? false)
+    );
   });
 
   const resetForm = () => {
@@ -281,30 +276,14 @@ const Inventory = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex flex-1 gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search items..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search items..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
         
         {isAdmin && (
