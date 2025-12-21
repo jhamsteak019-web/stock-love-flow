@@ -164,7 +164,8 @@ export const useInventory = () => {
     destination: string,
     releasedBy: string,
     notes?: string,
-    courier?: string
+    courier?: string,
+    allocationBill?: string
   ) => {
     const batchId = crypto.randomUUID();
     
@@ -175,6 +176,7 @@ export const useInventory = () => {
       released_by: releasedBy,
       notes,
       courier,
+      allocation_bill: allocationBill,
       batch_id: batchId,
     }));
 
