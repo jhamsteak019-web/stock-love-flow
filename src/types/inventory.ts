@@ -49,10 +49,19 @@ export interface StockRelease {
   date_released: string;
   date_delivered: string | null;
   notes: string | null;
+  batch_id: string | null;
   created_at: string;
   updated_at: string;
   inventory_item?: InventoryItem;
   profile?: Profile;
+}
+
+export interface AllocationBill {
+  batch_id: string;
+  destination: string;
+  date_released: string;
+  delivery_status: DeliveryStatus;
+  items: StockRelease[];
 }
 
 export interface ExcelImportRow {

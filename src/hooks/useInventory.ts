@@ -159,6 +159,36 @@ export const useInventory = () => {
     return data;
   };
 
+  const releaseStockBatch = async (
+    items: { itemId: string; boxes: number }[],
+    destination: string,
+    releasedBy: string,
+    notes?: string
+  ) => {
+    const batchId = crypto.randomUUID();
+    
+    const insertData = items.map(item => ({
+      item_id: item.itemId,
+      boxes_released: item.boxes,
+      destination,
+      released_by: releasedBy,
+      notes,
+      batch_id: batchId,
+    }));
+
+    const { data, error } = await supabase
+      .from('stock_releases')
+      .insert(insertData)
+      .select(`*, inventory_item:inventory_items(*)`);
+
+    if (error) throw error;
+    
+    // Refresh items to get updated stock
+    await fetchItems();
+    setReleases([...(data || []), ...releases]);
+    return data;
+  };
+
   const updateDeliveryStatus = async (releaseId: string, status: DeliveryStatus) => {
     const updates: Record<string, unknown> = { delivery_status: status };
     if (status === 'delivered') {
@@ -208,6 +238,7 @@ export const useInventory = () => {
     updateItem,
     deleteItem,
     releaseStock,
+    releaseStockBatch,
     updateDeliveryStatus,
     getStats,
   };
