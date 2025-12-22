@@ -248,7 +248,30 @@ const Inventory = () => {
     if (!editItem) return;
     
     try {
-      await updateItem(editItem.id, formData);
+      // Clean up form data to avoid sending invalid values
+      const cleanedData: Record<string, unknown> = {
+        item_name: formData.item_name,
+        item_code: formData.item_code,
+        total_stock: formData.total_stock,
+        available_stock: formData.total_stock,
+        price: formData.price || 0,
+        amount: formData.amount || 0,
+        low_stock_threshold: formData.low_stock_threshold || 10,
+        pieces_per_box: formData.pieces_per_box || 1,
+        year: formData.year || null,
+        upc: formData.upc || null,
+        description: formData.description || null,
+        branch: formData.branch || null,
+        supplier: formData.supplier || null,
+        date_received: formData.date_received || null,
+      };
+      
+      // Only include category_id if it's a valid UUID
+      if (formData.category_id && formData.category_id.length > 0) {
+        cleanedData.category_id = formData.category_id;
+      }
+      
+      await updateItem(editItem.id, cleanedData as Partial<InventoryItem>);
       toast({
         title: 'Success',
         description: 'Item updated successfully',
@@ -256,6 +279,7 @@ const Inventory = () => {
       setEditItem(null);
       resetForm();
     } catch (error) {
+      console.error('Update error:', error);
       toast({
         title: 'Error',
         description: 'Failed to update item',
@@ -606,9 +630,8 @@ const Inventory = () => {
             <TableRow>
               <TableHead>Sheet No.</TableHead>
               <TableHead>Deliver To</TableHead>
-              <TableHead>Supplier</TableHead>
               <TableHead className="text-center">Qty</TableHead>
-              <TableHead className="text-center">Pieces/Box</TableHead>
+              <TableHead className="text-center">Item</TableHead>
               <TableHead>Remarks</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
@@ -616,7 +639,7 @@ const Inventory = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-12">
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-12">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No items found</p>
                 </TableCell>
@@ -627,7 +650,6 @@ const Inventory = () => {
                   <TableRow key={item.id} className="animate-fade-in">
                     <TableCell className="font-mono font-medium">{item.item_code || '-'}</TableCell>
                     <TableCell>{item.branch || '-'}</TableCell>
-                    <TableCell>{item.supplier || '-'}</TableCell>
                     <TableCell className="text-center">
                       <span className={cn(
                         "font-semibold",
@@ -664,7 +686,7 @@ const Inventory = () => {
                 ))}
                 {/* Summary Row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
-                  <TableCell colSpan={3} className="text-right">Total:</TableCell>
+                  <TableCell colSpan={2} className="text-right">Total:</TableCell>
                   <TableCell className="text-center text-lg text-primary">
                     {filteredItems.reduce((sum, item) => sum + (item.total_stock || 0), 0).toLocaleString()}
                   </TableCell>
