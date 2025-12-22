@@ -511,15 +511,28 @@ const ReleaseStock = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {item.matchedItemId ? (
-                          <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                            Ready
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                            No Match
-                          </span>
-                        )}
+                        <Select 
+                          value={item.matchedItemId || ''} 
+                          onValueChange={(val) => {
+                            const matchedItem = items.find(i => i.id === val);
+                            setParsedItems(prev => prev.map(p => 
+                              p.id === item.id 
+                                ? { ...p, matchedItemId: val, matchedItemName: matchedItem?.item_name || null }
+                                : p
+                            ));
+                          }}
+                        >
+                          <SelectTrigger className={`h-8 text-xs w-28 ${item.matchedItemId ? 'border-green-500' : 'border-red-500'}`}>
+                            <SelectValue placeholder="Select item" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover max-h-48">
+                            {items.filter(i => i.available_stock > 0).map((inv) => (
+                              <SelectItem key={inv.id} value={inv.id} className="text-xs">
+                                {inv.item_code} ({inv.available_stock})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                     </TableRow>
                   ))}
