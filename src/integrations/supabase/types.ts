@@ -109,6 +109,7 @@ export type Database = {
           item_code: string
           item_name: string
           low_stock_threshold: number | null
+          pieces_per_box: number
           price: number | null
           restock_location: string | null
           supplier: string | null
@@ -130,6 +131,7 @@ export type Database = {
           item_code: string
           item_name: string
           low_stock_threshold?: number | null
+          pieces_per_box?: number
           price?: number | null
           restock_location?: string | null
           supplier?: string | null
@@ -151,6 +153,7 @@ export type Database = {
           item_code?: string
           item_name?: string
           low_stock_threshold?: number | null
+          pieces_per_box?: number
           price?: number | null
           restock_location?: string | null
           supplier?: string | null
