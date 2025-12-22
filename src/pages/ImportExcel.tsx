@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useInventory } from '@/hooks/useInventory';
@@ -9,18 +9,24 @@ import * as XLSX from 'xlsx';
 
 interface ParsedItem {
   id: string;
-  sheetNo: string;
-  itemCode: string;
-  itemName: string;
-  deliverTo: string;
-  supplier: string;
-  qty: number;
-  price: number;
-  amount: number;
-  remarks: string;
+  year: string;
+  name: string;
+  upc: string;
+  description: string;
   category: string;
-  dateReceived: string;
+  priceA: number;
+  branch: string;
 }
+
+interface ImportBatch {
+  id: string;
+  fileName: string;
+  importDate: string;
+  itemCount: number;
+  items: ParsedItem[];
+}
+
+const IMPORT_BUCKET_KEY = 'import_excel_bucket';
 
 const ImportExcel = () => {
   const { addItem, addCategory, categories, fetchAll } = useInventory();
@@ -30,8 +36,24 @@ const ImportExcel = () => {
   
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<{ success: number; failed: number; errors: string[]; items: ParsedItem[] } | null>(null);
+  const [importBucket, setImportBucket] = useState<ImportBatch[]>(() => {
+    const saved = localStorage.getItem(IMPORT_BUCKET_KEY);
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  // Helper to find column value with multiple possible names
+  const saveToBucket = (batch: ImportBatch) => {
+    const updated = [batch, ...importBucket];
+    setImportBucket(updated);
+    localStorage.setItem(IMPORT_BUCKET_KEY, JSON.stringify(updated));
+  };
+
+  const removeFromBucket = (batchId: string) => {
+    const updated = importBucket.filter(b => b.id !== batchId);
+    setImportBucket(updated);
+    localStorage.setItem(IMPORT_BUCKET_KEY, JSON.stringify(updated));
+    toast({ title: 'Removed', description: 'Import batch removed from bucket' });
+  };
+
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
     const keys = Object.keys(row);
     
@@ -93,31 +115,24 @@ const ImportExcel = () => {
         }
       }
 
+      // Parse items matching new format: YEAR, Name, UPC, Description, Category, Price A, Branch
       const items: ParsedItem[] = rows.map((row, index) => {
-        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'Total Stock', 'total_stock', 'Stock', 'Boxes', 'Units', 'Pcs', 'pcs');
-        const price = findNumericValue(row, 'Price', 'PRICE', 'Unit Price', 'Cost', 'Unit Cost');
-        const amount = findNumericValue(row, 'Amount', 'AMOUNT', 'Total', 'Total Amount', 'Subtotal');
-        
         return {
           id: `item-${index}-${Date.now()}`,
-          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'No.', 'No', 'NO'),
-          itemCode: findColumnValue(row, 'Item Code', 'ITEM CODE', 'SKU', 'Product Code', 'PRODUCT CODE', 'Code', 'CODE', 'Barcode', 'ID'),
-          itemName: findColumnValue(row, 'Item Name', 'ITEM NAME', 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION', 'Name', 'NAME', 'Product', 'PRODUCT', 'Item', 'ITEM'),
-          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'Destination', 'DESTINATION', 'Location', 'LOCATION', 'Ship To'),
-          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER', 'Vendor', 'VENDOR'),
-          qty,
-          price,
-          amount: amount > 0 ? amount : qty * price,
-          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Note', 'Comment', 'Comments'),
-          category: findColumnValue(row, 'Category', 'CATEGORY', 'Type', 'TYPE', 'Group', 'GROUP'),
-          dateReceived: findColumnValue(row, 'Date Received', 'DATE RECEIVED', 'Date', 'DATE', 'Received Date', 'Received'),
+          year: findColumnValue(row, 'YEAR', 'Year', 'year'),
+          name: findColumnValue(row, 'Name', 'NAME', 'Item Name', 'ITEM NAME', 'Product Name'),
+          upc: findColumnValue(row, 'UPC', 'upc', 'Barcode', 'BARCODE', 'Item Code', 'ITEM CODE', 'Code', 'SKU'),
+          description: findColumnValue(row, 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Product Description'),
+          category: findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'Type'),
+          priceA: findNumericValue(row, 'Price A', 'PRICE A', 'Price', 'PRICE', 'Unit Price', 'Cost'),
+          branch: findColumnValue(row, 'Branch', 'BRANCH', 'Location', 'Store', 'Destination'),
         };
       });
 
-      const validItems = items.filter(item => item.itemName || item.itemCode || item.qty > 0);
+      const validItems = items.filter(item => item.name || item.upc || item.description);
 
       if (validItems.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check if your Excel has correct column headers.', variant: 'destructive' });
+        toast({ title: 'No Items Found', description: 'Check if your Excel has correct column headers (YEAR, Name, UPC, Description, Category, Price A, Branch).', variant: 'destructive' });
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -131,8 +146,8 @@ const ImportExcel = () => {
 
       for (const item of validItems) {
         try {
-          if (!item.itemName && !item.itemCode) {
-            errors.push(`Row missing item name or code`);
+          if (!item.name && !item.upc && !item.description) {
+            errors.push(`Row missing required data`);
             failed++;
             continue;
           }
@@ -148,15 +163,18 @@ const ImportExcel = () => {
             }
           }
 
+          const itemName = item.name || item.description || item.upc;
+          const itemCode = item.upc || `${item.year}-${item.name}`.substring(0, 50);
+
           await addItem({
-            item_name: item.itemName || item.itemCode,
-            item_code: item.itemCode || item.itemName,
+            item_name: itemName,
+            item_code: itemCode,
             category_id: categoryId,
-            total_stock: item.qty,
-            price: item.price,
-            amount: item.amount,
-            supplier: item.supplier || undefined,
-            date_received: item.dateReceived || undefined,
+            total_stock: 1,
+            price: item.priceA,
+            amount: item.priceA,
+            supplier: item.branch || undefined,
+            date_received: undefined,
             created_by: user?.id,
           });
 
@@ -164,8 +182,19 @@ const ImportExcel = () => {
           success++;
         } catch (err) {
           failed++;
-          errors.push(`Failed: ${item.itemCode || item.itemName} - ${String(err)}`);
+          errors.push(`Failed: ${item.name || item.upc} - ${String(err)}`);
         }
+      }
+
+      // Save to bucket
+      if (savedItems.length > 0) {
+        saveToBucket({
+          id: crypto.randomUUID(),
+          fileName: file.name,
+          importDate: new Date().toISOString(),
+          itemCount: savedItems.length,
+          items: savedItems,
+        });
       }
 
       setResults({ success, failed, errors, items: savedItems });
@@ -180,12 +209,10 @@ const ImportExcel = () => {
     }
   };
 
-  const handlePrint = () => {
-    if (!results || results.items.length === 0) return;
+  const handlePrint = (items: ParsedItem[]) => {
+    if (items.length === 0) return;
     
-    const items = results.items;
-    const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
-    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+    const totalPrice = items.reduce((sum, item) => sum + item.priceA, 0);
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -225,32 +252,30 @@ const ImportExcel = () => {
           <table>
             <thead>
               <tr>
-                <th>Sheet No.</th>
-                <th>Product Code</th>
-                <th>Product Description</th>
-                <th class="text-center">Qty</th>
-                <th class="text-right">Price</th>
-                <th class="text-right">Amount</th>
-                <th>Remarks</th>
+                <th>Year</th>
+                <th>Name</th>
+                <th>UPC</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th class="text-right">Price A</th>
+                <th>Branch</th>
               </tr>
             </thead>
             <tbody>
               ${items.map((item) => `
                 <tr>
-                  <td>${item.sheetNo || '-'}</td>
-                  <td>${item.itemCode}</td>
-                  <td>${item.itemName}</td>
-                  <td class="text-center">${item.qty}</td>
-                  <td class="text-right">${item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                  <td class="text-right">${item.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                  <td>${item.remarks || '-'}</td>
+                  <td>${item.year || '-'}</td>
+                  <td>${item.name}</td>
+                  <td>${item.upc || '-'}</td>
+                  <td>${item.description || '-'}</td>
+                  <td>${item.category || '-'}</td>
+                  <td class="text-right">${item.priceA.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                  <td>${item.branch || '-'}</td>
                 </tr>
               `).join('')}
               <tr class="total-row">
-                <td colspan="3" class="text-right">Total:</td>
-                <td class="text-center">${totalQty}</td>
-                <td></td>
-                <td class="text-right">${totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                <td colspan="5" class="text-right">Total:</td>
+                <td class="text-right">${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td></td>
               </tr>
             </tbody>
@@ -282,8 +307,11 @@ const ImportExcel = () => {
       <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
         <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
         <h2 className="text-xl font-semibold mb-2">Import Inventory from Excel</h2>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground mb-2">
           Upload .xlsx or .csv file - items will be imported automatically
+        </p>
+        <p className="text-sm text-muted-foreground mb-6">
+          Expected columns: <span className="font-medium">YEAR, Name, UPC, Description, Category, Price A, Branch</span>
         </p>
         
         <input 
@@ -324,7 +352,7 @@ const ImportExcel = () => {
               </div>
             </div>
             {results.items.length > 0 && (
-              <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Button variant="outline" size="sm" onClick={() => handlePrint(results.items)}>
                 <Printer className="h-4 w-4 mr-1" />
                 Print
               </Button>
@@ -350,30 +378,31 @@ const ImportExcel = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted">
-                    <TableHead className="font-bold">Sheet No.</TableHead>
-                    <TableHead className="font-bold">Product Code</TableHead>
-                    <TableHead className="font-bold">Product Description</TableHead>
-                    <TableHead className="font-bold text-center">Qty</TableHead>
-                    <TableHead className="font-bold text-right">Price</TableHead>
-                    <TableHead className="font-bold text-right">Amount</TableHead>
+                    <TableHead className="font-bold">Year</TableHead>
+                    <TableHead className="font-bold">Name</TableHead>
+                    <TableHead className="font-bold">UPC</TableHead>
+                    <TableHead className="font-bold">Description</TableHead>
+                    <TableHead className="font-bold">Category</TableHead>
+                    <TableHead className="font-bold text-right">Price A</TableHead>
+                    <TableHead className="font-bold">Branch</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {results.items.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{item.sheetNo || '-'}</TableCell>
-                      <TableCell className="font-mono">{item.itemCode}</TableCell>
-                      <TableCell>{item.itemName}</TableCell>
-                      <TableCell className="text-center">{item.qty}</TableCell>
-                      <TableCell className="text-right">{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right font-semibold">{item.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>{item.year || '-'}</TableCell>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell className="font-mono">{item.upc || '-'}</TableCell>
+                      <TableCell>{item.description || '-'}</TableCell>
+                      <TableCell>{item.category || '-'}</TableCell>
+                      <TableCell className="text-right">{item.priceA.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>{item.branch || '-'}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/50 font-bold">
-                    <TableCell colSpan={3} className="text-right">Total:</TableCell>
-                    <TableCell className="text-center">{results.items.reduce((sum, item) => sum + item.qty, 0)}</TableCell>
+                    <TableCell colSpan={5} className="text-right">Total:</TableCell>
+                    <TableCell className="text-right">{results.items.reduce((sum, item) => sum + item.priceA, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell></TableCell>
-                    <TableCell className="text-right">{results.items.reduce((sum, item) => sum + item.amount, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -381,6 +410,55 @@ const ImportExcel = () => {
           )}
         </div>
       )}
+
+      {/* Import Bucket Section */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <FolderOpen className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Import Bucket</h2>
+            <p className="text-sm text-muted-foreground">Previously imported Excel files</p>
+          </div>
+        </div>
+
+        {importBucket.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">No imports yet</p>
+        ) : (
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>File Name</TableHead>
+                  <TableHead>Import Date</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importBucket.map((batch) => (
+                  <TableRow key={batch.id}>
+                    <TableCell className="font-medium">{batch.fileName}</TableCell>
+                    <TableCell>{new Date(batch.importDate).toLocaleString()}</TableCell>
+                    <TableCell>{batch.itemCount}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="ghost" size="sm" onClick={() => handlePrint(batch.items)}>
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => removeFromBucket(batch.id)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
