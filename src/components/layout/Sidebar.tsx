@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { 
   LayoutDashboard, 
   Package, 
@@ -7,10 +8,13 @@ import {
   Users, 
   LogOut,
   PackagePlus,
-  ClipboardList
+  ClipboardList,
+  Menu,
+  ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,6 +25,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { userRole, signOut, user } = useAuth();
   const location = useLocation();
   const isAdmin = userRole === 'admin';
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
     { 
@@ -82,63 +87,107 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       )}
       
       {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed top-0 left-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out lg:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Package className="h-5 w-5 text-sidebar-primary-foreground" />
+      <TooltipProvider delayDuration={0}>
+        <aside
+          className={cn(
+            "fixed top-0 left-0 z-50 h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out lg:translate-x-0",
+            isCollapsed ? "w-16" : "w-64",
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex h-full flex-col">
+            {/* Logo */}
+            <div className={cn(
+              "flex h-16 items-center border-b border-sidebar-border",
+              isCollapsed ? "justify-center px-2" : "justify-between px-4"
+            )}>
+              <div className={cn("flex items-center gap-3", isCollapsed && "hidden")}>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
+                  <Package className="h-5 w-5 text-sidebar-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-semibold">StockFlow</h1>
+                  <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole} Panel</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+              >
+                {isCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              </button>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold">StockFlow</h1>
-              <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole} Panel</p>
+
+            {/* Navigation */}
+            <nav className={cn("flex-1 space-y-1", isCollapsed ? "p-2" : "p-4")}>
+              {filteredNavItems.map((item) => {
+                const isActive = location.pathname === item.to;
+                const navLink = (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={onClose}
+                    className={cn(
+                      "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
+                      isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                    {!isCollapsed && item.label}
+                  </NavLink>
+                );
+
+                if (isCollapsed) {
+                  return (
+                    <Tooltip key={item.to}>
+                      <TooltipTrigger asChild>
+                        {navLink}
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                        {item.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return navLink;
+              })}
+            </nav>
+
+            {/* User info & Logout */}
+            <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
+              {!isCollapsed && (
+                <div className="mb-3 rounded-lg bg-sidebar-accent/50 p-3">
+                  <p className="text-sm font-medium truncate">{user?.email}</p>
+                  <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</p>
+                </div>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={signOut}
+                    className={cn(
+                      "flex w-full items-center rounded-lg text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive",
+                      isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
+                    )}
+                  >
+                    <LogOut className="h-5 w-5 flex-shrink-0" />
+                    {!isCollapsed && "Sign Out"}
+                  </button>
+                </TooltipTrigger>
+                {isCollapsed && (
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                    Sign Out
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 p-4">
-            {filteredNavItems.map((item) => {
-              const isActive = location.pathname === item.to;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                  )}
-                >
-                  <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </nav>
-
-          {/* User info & Logout */}
-          <div className="border-t border-sidebar-border p-4">
-            <div className="mb-3 rounded-lg bg-sidebar-accent/50 p-3">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
-              <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</p>
-            </div>
-            <button
-              onClick={signOut}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
-            >
-              <LogOut className="h-5 w-5" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </aside>
+        </aside>
+      </TooltipProvider>
     </>
   );
 };
