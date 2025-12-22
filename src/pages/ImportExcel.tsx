@@ -198,6 +198,12 @@ const ImportExcel = () => {
         }
       }
 
+      // Limit to 50,000 rows maximum
+      if (rows.length > 50000) {
+        rows = rows.slice(0, 50000);
+        toast({ title: 'Row Limit', description: 'Only first 50,000 rows imported.', variant: 'default' });
+      }
+
       const formatType = detectFormat(rows);
       let items: ParsedItem[] = [];
       let insertData: Record<string, unknown>[] = [];
@@ -417,7 +423,7 @@ const ImportExcel = () => {
       <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
         <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
         <h2 className="text-xl font-semibold mb-2">Import Excel</h2>
-        <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file (auto-detects format)</p>
+        <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file (auto-detects format) - Max 50,000 rows</p>
         <div className="text-sm text-muted-foreground mb-6 space-y-1">
           <p><Badge variant="outline" className="mr-2">Format 1</Badge>YEAR, Name, UPC, Description, Category, Price A, Branch</p>
           <p><Badge variant="outline" className="mr-2">Format 2</Badge>Sheet No., Deliver To, Supplier, Qty, Remarks</p>
