@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, Package } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Search, Plus, Edit2, Trash2, Package, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { InventoryItem } from '@/types/inventory';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
+import * as XLSX from 'xlsx';
 const Inventory = () => {
   const { items, categories, loading, addItem, updateItem, deleteItem, deleteAllItems, addCategory } = useInventory();
   const { userRole, user } = useAuth();
@@ -34,6 +34,8 @@ const Inventory = () => {
   const [search, setSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -52,6 +54,134 @@ const Inventory = () => {
     branch: '',
   });
   const [newCategory, setNewCategory] = useState('');
+
+  // Excel import helpers
+  const findColumnValue = useCallback((row: Record<string, unknown>, ...possibleNames: string[]): string => {
+    const keys = Object.keys(row);
+    for (const name of possibleNames) {
+      if (row[name] !== undefined && row[name] !== null && String(row[name]).trim() !== '') {
+        return String(row[name]).trim();
+      }
+      const exactKey = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
+      if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && String(row[exactKey]).trim() !== '') {
+        return String(row[exactKey]).trim();
+      }
+    }
+    for (const name of possibleNames) {
+      const partialKey = keys.find(k => 
+        k.toLowerCase().includes(name.toLowerCase()) || 
+        name.toLowerCase().includes(k.toLowerCase())
+      );
+      if (partialKey && row[partialKey] !== undefined && row[partialKey] !== null && String(row[partialKey]).trim() !== '') {
+        return String(row[partialKey]).trim();
+      }
+    }
+    return '';
+  }, []);
+
+  const findNumericValue = useCallback((row: Record<string, unknown>, ...possibleNames: string[]): number => {
+    const val = findColumnValue(row, ...possibleNames);
+    const cleanVal = val.replace(/[₱$,]/g, '').trim();
+    return Number(cleanVal) || 0;
+  }, [findColumnValue]);
+
+  const handleImportExcel = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setImporting(true);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      
+      let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+      
+      if (rows.length === 0) {
+        rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown as Record<string, unknown>[];
+        if (Array.isArray(rows) && rows.length > 1) {
+          const headers = rows[0] as unknown as string[];
+          rows = (rows.slice(1) as unknown as unknown[][]).map(row => {
+            const obj: Record<string, unknown> = {};
+            headers.forEach((header, i) => {
+              if (header) obj[String(header)] = row[i];
+            });
+            return obj;
+          });
+        }
+      }
+
+      if (rows.length > 10000) {
+        rows = rows.slice(0, 10000);
+        toast({ title: 'Row Limit', description: 'Only first 10,000 rows imported.', variant: 'default' });
+      }
+
+      const parsedItems = rows.map((row) => ({
+        year: findColumnValue(row, 'YEAR', 'Year', 'year'),
+        name: findColumnValue(row, 'Name', 'NAME', 'Item Name', 'ITEM NAME', 'Product Name'),
+        upc: findColumnValue(row, 'UPC', 'upc', 'Barcode', 'BARCODE', 'Item Code', 'ITEM CODE', 'Code', 'SKU'),
+        description: findColumnValue(row, 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Product Description'),
+        category: findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'Type'),
+        priceA: findNumericValue(row, 'Price A', 'PRICE A', 'Price', 'PRICE', 'Unit Price', 'Cost'),
+        branch: findColumnValue(row, 'Branch', 'BRANCH', 'Location', 'Store', 'Destination'),
+      }));
+
+      const validItems = parsedItems.filter(item => item.name || item.upc || item.description);
+
+      if (validItems.length === 0) {
+        toast({ title: 'No Items Found', description: 'Check column headers (YEAR, Name, UPC, Description, Category, Price A, Branch).', variant: 'destructive' });
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      let successCount = 0;
+      for (const item of validItems) {
+        try {
+          let categoryId: string | undefined;
+          if (item.category) {
+            const existing = categories.find(c => c.name.toLowerCase() === item.category.toLowerCase());
+            if (existing) {
+              categoryId = existing.id;
+            } else {
+              const cat = await addCategory(item.category);
+              categoryId = cat.id;
+            }
+          }
+
+          await addItem({
+            item_name: item.name || item.description || item.upc || 'Unknown',
+            item_code: item.upc || `IMP-${Date.now()}-${successCount}`,
+            category_id: categoryId || null,
+            total_stock: 0,
+            available_stock: 0,
+            price: item.priceA || 0,
+            amount: 0,
+            supplier: null,
+            date_received: null,
+            low_stock_threshold: 10,
+            created_by: user?.id,
+            year: item.year || null,
+            upc: item.upc || null,
+            description: item.description || null,
+            branch: item.branch || null,
+          });
+          successCount++;
+        } catch (err) {
+          console.error('Failed to import item:', item, err);
+        }
+      }
+
+      toast({ title: 'Import Complete', description: `${successCount} items imported to inventory.` });
+    } catch (error) {
+      console.error('Excel parse error:', error);
+      toast({ title: 'Error', description: 'Failed to import file.', variant: 'destructive' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [user, categories, addCategory, addItem, toast, findColumnValue, findNumericValue]);
 
   const filteredItems = items.filter(item => {
     return (
@@ -381,6 +511,29 @@ const Inventory = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            
+            {/* Import Excel Button */}
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              accept=".xlsx,.xls,.csv" 
+              onChange={handleImportExcel} 
+              className="hidden" 
+              id="inventory-import" 
+              disabled={importing}
+            />
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              disabled={importing}
+              asChild
+            >
+              <label htmlFor="inventory-import" className="cursor-pointer">
+                <Upload className="h-4 w-4" />
+                {importing ? 'Importing...' : 'Import'}
+              </label>
+            </Button>
+            
             <Button 
               variant="outline" 
               size="sm"
