@@ -17,9 +17,9 @@ import * as XLSX from 'xlsx';
 interface ParsedReleaseItem {
   id: string;
   sheetNo: string;
-  boxes: number;
-  destination: string;
-  courier: string;
+  deliverTo: string;
+  qtyBoxes: number;
+  qtyItem: number;
   remarks: string;
   matchedItemId: string | null;
   matchedItemName: string | null;
@@ -62,6 +62,7 @@ const ReleaseStock = () => {
   const [importing, setImporting] = useState(false);
   const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importCourier, setImportCourier] = useState('');
 
   const addReleaseItem = () => {
     setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
@@ -197,12 +198,12 @@ const ReleaseStock = () => {
         }
       }
 
-      // Parse rows into release items
+      // Parse rows into release items - Format: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code');
-        const boxes = findNumericValue(row, 'Boxes', 'Box', 'BOX', 'BOXES', 'Qty', 'Quantity');
-        const dest = findColumnValue(row, 'Destination', 'DESTINATION', 'Deliver To', 'DeliverTo', 'Branch');
-        const cour = findColumnValue(row, 'Courier', 'COURIER');
+        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Destination', 'DESTINATION', 'Branch');
+        const qtyBoxes = findNumericValue(row, 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOX', 'BOXES');
+        const qtyItem = findNumericValue(row, 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'Qty');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
 
         // Try to match with inventory item by item_code or item_name
@@ -216,17 +217,17 @@ const ReleaseStock = () => {
         return {
           id: `parsed-${index}-${Date.now()}`,
           sheetNo,
-          boxes,
-          destination: dest,
-          courier: cour,
+          deliverTo,
+          qtyBoxes,
+          qtyItem,
           remarks: rem,
           matchedItemId: matchedItem?.id || null,
           matchedItemName: matchedItem?.item_name || null,
         };
-      }).filter(item => item.sheetNo || item.boxes > 0);
+      }).filter(item => item.sheetNo || item.qtyBoxes > 0);
 
       if (parsed.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Boxes, Destination, Courier, Remarks).', variant: 'destructive' });
+        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks).', variant: 'destructive' });
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -245,17 +246,22 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    const validItems = parsedItems.filter(p => p.matchedItemId && p.boxes > 0);
+    const validItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
     
     if (validItems.length === 0) {
       toast({ title: 'Error', description: 'No valid items with matched inventory to release', variant: 'destructive' });
       return;
     }
 
+    if (!importCourier) {
+      toast({ title: 'Error', description: 'Please select a courier', variant: 'destructive' });
+      return;
+    }
+
     // Check stock availability
     for (const item of validItems) {
       const inventoryItem = items.find(i => i.id === item.matchedItemId);
-      if (inventoryItem && item.boxes > inventoryItem.available_stock) {
+      if (inventoryItem && item.qtyBoxes > inventoryItem.available_stock) {
         toast({ title: 'Error', description: `Not enough stock for ${item.sheetNo}`, variant: 'destructive' });
         return;
       }
@@ -263,22 +269,21 @@ const ReleaseStock = () => {
 
     setSubmitting(true);
     try {
-      // Group by destination and courier
+      // Group by deliverTo (destination)
       const groups = validItems.reduce((acc, item) => {
-        const key = `${item.destination || 'Unknown'}__${item.courier || ''}`;
+        const key = item.deliverTo || 'Unknown';
         if (!acc[key]) acc[key] = [];
         acc[key].push(item);
         return acc;
       }, {} as Record<string, ParsedReleaseItem[]>);
 
-      for (const [key, groupItems] of Object.entries(groups)) {
-        const [dest, cour] = key.split('__');
+      for (const [dest, groupItems] of Object.entries(groups)) {
         await releaseStockBatch(
-          groupItems.map(r => ({ itemId: r.matchedItemId!, boxes: r.boxes })),
+          groupItems.map(r => ({ itemId: r.matchedItemId!, boxes: r.qtyBoxes })),
           dest,
           user!.id,
           groupItems[0]?.remarks || undefined,
-          cour || undefined,
+          importCourier,
           undefined
         );
       }
@@ -286,6 +291,7 @@ const ReleaseStock = () => {
       toast({ title: 'Success', description: `${validItems.length} item(s) released from import` });
       setParsedItems([]);
       setShowImportPreview(false);
+      setImportCourier('');
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
@@ -296,6 +302,7 @@ const ReleaseStock = () => {
   const cancelImport = () => {
     setParsedItems([]);
     setShowImportPreview(false);
+    setImportCourier('');
   };
 
   // Group releases by batch_id for allocation bills
@@ -333,7 +340,7 @@ const ReleaseStock = () => {
             </div>
             <div>
               <h2 className="text-lg font-semibold">Import from Excel</h2>
-              <p className="text-sm text-muted-foreground">Upload Excel with: Sheet No., Boxes, Destination, Courier, Remarks</p>
+              <p className="text-sm text-muted-foreground">Upload Excel with: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks</p>
             </div>
           </div>
           <div>
@@ -362,28 +369,19 @@ const ReleaseStock = () => {
               <p className="text-sm font-medium">
                 Preview: {parsedItems.length} items found, {parsedItems.filter(p => p.matchedItemId).length} matched
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={cancelImport}>
-                  Cancel
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={handleConfirmImport}
-                  disabled={submitting || parsedItems.filter(p => p.matchedItemId).length === 0}
-                >
-                  {submitting ? 'Releasing...' : `Release ${parsedItems.filter(p => p.matchedItemId).length} Items`}
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={cancelImport}>
+                Cancel
+              </Button>
             </div>
             <div className="rounded-lg border overflow-hidden max-h-64 overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Sheet No.</TableHead>
-                    <TableHead>Matched Item</TableHead>
-                    <TableHead>Boxes</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Courier</TableHead>
+                    <TableHead>Deliver To</TableHead>
+                    <TableHead>Qty/Boxes</TableHead>
+                    <TableHead>Qty/Item</TableHead>
+                    <TableHead>Remarks</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -391,10 +389,10 @@ const ReleaseStock = () => {
                   {parsedItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                      <TableCell>{item.matchedItemName || <span className="text-destructive">Not found</span>}</TableCell>
-                      <TableCell>{item.boxes}</TableCell>
-                      <TableCell>{item.destination || '-'}</TableCell>
-                      <TableCell>{item.courier || '-'}</TableCell>
+                      <TableCell>{item.deliverTo || '-'}</TableCell>
+                      <TableCell>{item.qtyBoxes}</TableCell>
+                      <TableCell>{item.qtyItem}</TableCell>
+                      <TableCell>{item.remarks || '-'}</TableCell>
                       <TableCell>
                         {item.matchedItemId ? (
                           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
@@ -410,6 +408,35 @@ const ReleaseStock = () => {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            
+            {/* Courier Selection and Release Button */}
+            <div className="flex items-end gap-4 pt-2 border-t">
+              <div className="flex-1 space-y-2">
+                <Label>Courier *</Label>
+                <Select value={importCourier} onValueChange={setImportCourier}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select courier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="JRS">JRS</SelectItem>
+                    <SelectItem value="LBC">LBC</SelectItem>
+                    <SelectItem value="J&T">J&T</SelectItem>
+                    <SelectItem value="Grab">Grab</SelectItem>
+                    <SelectItem value="Lalamove">Lalamove</SelectItem>
+                    <SelectItem value="Own Delivery">Own Delivery</SelectItem>
+                    <SelectItem value="Pick-up">Pick-up</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                onClick={handleConfirmImport}
+                disabled={submitting || parsedItems.filter(p => p.matchedItemId).length === 0 || !importCourier}
+                className="min-w-[140px]"
+              >
+                {submitting ? 'Releasing...' : `Release ${parsedItems.filter(p => p.matchedItemId).length} Items`}
+              </Button>
             </div>
           </div>
         )}
