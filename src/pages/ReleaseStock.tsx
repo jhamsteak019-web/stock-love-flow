@@ -39,9 +39,8 @@ const ReleaseStock = () => {
   ]);
   const [destination, setDestination] = useState('');
   const [courier, setCourier] = useState('');
-  const [remarks, setRemarks] = useState('');
-  const [notes, setNotes] = useState('');
   const [allocationBill, setAllocationBill] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedBill, setSelectedBill] = useState<AllocationBillGroup | null>(null);
 
@@ -60,11 +59,11 @@ const ReleaseStock = () => {
       item.id === id ? { ...item, [field]: value } : item
     ));
     
-    // Auto-fill remarks and destination when selecting an item
+    // Auto-fill allocation bill and destination when selecting an item
     if (field === 'itemId' && typeof value === 'string') {
       const selectedItem = items.find(i => i.id === value);
       if (selectedItem?.description) {
-        setRemarks(selectedItem.description);
+        setAllocationBill(selectedItem.description);
       }
       if (selectedItem?.branch) {
         setDestination(selectedItem.branch);
@@ -111,9 +110,8 @@ const ReleaseStock = () => {
       setReleaseItems([{ id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
       setDestination('');
       setCourier('');
-      setRemarks('');
-      setNotes('');
       setAllocationBill('');
+      setNotes('');
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
     } finally {
@@ -236,18 +234,13 @@ const ReleaseStock = () => {
           </div>
 
           <div className="space-y-2">
-            <Label>Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks / reference" />
+            <Label>Allocation Bill (Optional)</Label>
+            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Allocation bill number / reference" />
           </div>
 
           <div className="space-y-2">
             <Label>Notes (Optional)</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes..." />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Allocation Bill</Label>
-            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Allocation bill number" />
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>

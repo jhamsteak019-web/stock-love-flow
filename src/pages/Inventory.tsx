@@ -398,22 +398,7 @@ const Inventory = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="price">Price</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={localForm.price}
-              onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)}
-              onBlur={handleBlur}
-              placeholder="e.g., 24.00"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="total_stock">Box</Label>
+            <Label htmlFor="total_stock">Qty (Boxes)</Label>
             <Input
               id="total_stock"
               type="number"
@@ -422,6 +407,9 @@ const Inventory = () => {
               onBlur={handleBlur}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="pieces_per_box">Pieces per Box</Label>
             <Input
@@ -434,17 +422,16 @@ const Inventory = () => {
             />
             <p className="text-xs text-muted-foreground">1 box = {localForm.pieces_per_box || 1} pieces</p>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Remarks</Label>
-          <Input
-            id="description"
-            value={localForm.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-            onBlur={handleBlur}
-            placeholder="Additional remarks"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="description">Remarks</Label>
+            <Input
+              id="description"
+              value={localForm.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="Additional remarks"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -607,8 +594,7 @@ const Inventory = () => {
               <TableHead>Sheet No.</TableHead>
               <TableHead>Deliver To</TableHead>
               <TableHead>Supplier</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Box</TableHead>
+              <TableHead className="text-right">Qty (Boxes)</TableHead>
               <TableHead className="text-right">Pieces/Box</TableHead>
               <TableHead>Remarks</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
@@ -617,7 +603,7 @@ const Inventory = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-12">
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-12">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No items found</p>
                 </TableCell>
@@ -629,9 +615,6 @@ const Inventory = () => {
                     <TableCell className="font-mono font-medium">{item.item_code || '-'}</TableCell>
                     <TableCell>{item.branch || '-'}</TableCell>
                     <TableCell>{item.supplier || '-'}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {(item.price || 0).toFixed(2)}
-                    </TableCell>
                     <TableCell className="text-right">
                       <span className={cn(
                         "font-semibold",
@@ -639,6 +622,7 @@ const Inventory = () => {
                       )}>
                         {item.available_stock}
                       </span>
+                      <span className="text-muted-foreground"> / {item.total_stock}</span>
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">{item.pieces_per_box || 1}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
@@ -667,10 +651,7 @@ const Inventory = () => {
                 ))}
                 {/* Summary Row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
-                  <TableCell colSpan={3} className="text-right">Total:</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    ₱{filteredItems.reduce((sum, item) => sum + (item.price || 0), 0).toFixed(2)}
-                  </TableCell>
+                  <TableCell colSpan={3} className="text-right">Total Qty:</TableCell>
                   <TableCell className="text-right text-lg text-primary">
                     {filteredItems.reduce((sum, item) => sum + (item.total_stock || 0), 0).toLocaleString()}
                   </TableCell>
