@@ -447,7 +447,7 @@ const Inventory = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="pieces_per_box">Pieces per Box</Label>
+            <Label htmlFor="pieces_per_box">Qty/Item (Pieces per Box)</Label>
             <Input
               id="pieces_per_box"
               type="number"
@@ -457,6 +457,16 @@ const Inventory = () => {
               placeholder="e.g., 20"
             />
             <p className="text-xs text-muted-foreground">1 box = {localForm.pieces_per_box || 1} pieces</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              value={localCategory}
+              onChange={(e) => setLocalCategory(e.target.value)}
+              onBlur={handleCategoryBlur}
+              placeholder="e.g., Electronics, Food, etc."
+            />
           </div>
         </div>
 
