@@ -312,16 +312,17 @@ const ReleaseStock = () => {
     setSelectedItems(new Set());
   };
 
-  // Checkbox handlers
+  // Checkbox handlers - enable checkboxes when courier is selected
+  const selectableItems = parsedItems.filter(p => p.qtyBoxes > 0 && (importCourier || p.matchedItemId));
   const matchedItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
-  const allMatchedSelected = matchedItems.length > 0 && matchedItems.every(p => selectedItems.has(p.id));
-  const someMatchedSelected = matchedItems.some(p => selectedItems.has(p.id));
+  const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(p => selectedItems.has(p.id));
+  const someMatchedSelected = selectableItems.some(p => selectedItems.has(p.id));
 
   const toggleSelectAll = () => {
-    if (allMatchedSelected) {
+    if (allSelectableSelected) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(matchedItems.map(p => p.id)));
+      setSelectedItems(new Set(selectableItems.map(p => p.id)));
     }
   };
 
@@ -433,8 +434,9 @@ const ReleaseStock = () => {
                   <TableRow>
                     <TableHead className="w-10">
                       <Checkbox 
-                        checked={allMatchedSelected}
+                        checked={allSelectableSelected}
                         onCheckedChange={toggleSelectAll}
+                        disabled={!importCourier}
                         aria-label="Select all"
                       />
                     </TableHead>
@@ -454,7 +456,7 @@ const ReleaseStock = () => {
                         <Checkbox 
                           checked={selectedItems.has(item.id)}
                           onCheckedChange={() => toggleSelectItem(item.id)}
-                          disabled={!item.matchedItemId}
+                          disabled={!importCourier || item.qtyBoxes <= 0}
                           aria-label={`Select ${item.sheetNo}`}
                         />
                       </TableCell>
@@ -533,15 +535,15 @@ const ReleaseStock = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select courier" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="JRS">JRS</SelectItem>
-                    <SelectItem value="LBC">LBC</SelectItem>
-                    <SelectItem value="J&T">J&T</SelectItem>
-                    <SelectItem value="Grab">Grab</SelectItem>
-                    <SelectItem value="Lalamove">Lalamove</SelectItem>
-                    <SelectItem value="Own Delivery">Own Delivery</SelectItem>
-                    <SelectItem value="Pick-up">Pick-up</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="AP CARGO">AP CARGO</SelectItem>
+                    <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
+                    <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
+                    <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
+                    <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
+                    <SelectItem value="RDS DC">RDS DC</SelectItem>
+                    <SelectItem value="SM DEC">SM DEC</SelectItem>
+                    <SelectItem value="PRIETO">PRIETO</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
