@@ -8,21 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 
-// Format 1: Sheet No., Deliver To, Supplier, Qty, Remarks
+// Format 1: YEAR, Name, UPC, Description, Category, Price A, Branch
 interface Format1Item {
   id: string;
   formatType: 'format1';
-  sheetNo: string;
-  deliverTo: string;
-  supplier: string;
-  qty: number;
-  remarks: string;
-}
-
-// Format 2: YEAR, Name, UPC, Description, Category, Price A, Branch
-interface Format2Item {
-  id: string;
-  formatType: 'format2';
   year: string;
   name: string;
   upc: string;
@@ -30,6 +19,17 @@ interface Format2Item {
   category: string;
   priceA: number;
   branch: string;
+}
+
+// Format 2: Sheet No., Deliver To, Supplier, Qty, Remarks
+interface Format2Item {
+  id: string;
+  formatType: 'format2';
+  sheetNo: string;
+  deliverTo: string;
+  supplier: string;
+  qty: number;
+  remarks: string;
 }
 
 type ParsedItem = Format1Item | Format2Item;
@@ -157,17 +157,18 @@ const ImportExcel = () => {
     const firstRow = rows[0];
     const keys = Object.keys(firstRow).map(k => k.toLowerCase());
     
-    // Check for Format 2 columns: YEAR, Name, UPC, Description, Category, Price A, Branch
+    // Check for Format 1 columns: YEAR, Name, UPC, Description, Category, Price A, Branch
     const hasYear = keys.some(k => k.includes('year'));
     const hasUpc = keys.some(k => k.includes('upc') || k.includes('barcode'));
     const hasPriceA = keys.some(k => k.includes('price'));
     const hasCategory = keys.some(k => k.includes('category'));
     
     if ((hasYear || hasUpc) && (hasPriceA || hasCategory)) {
-      return 'format2';
+      return 'format1';
     }
     
-    return 'format1';
+    // Otherwise it's Format 2: Sheet No., Deliver To, Supplier, Qty, Remarks
+    return 'format2';
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,19 +211,21 @@ const ImportExcel = () => {
       const batchId = crypto.randomUUID();
 
       if (formatType === 'format1') {
-        // Parse Format 1: Sheet No., Deliver To, Supplier, Qty, Remarks
+        // Parse Format 1: YEAR, Name, UPC, Description, Category, Price A, Branch
         items = rows.map((row, index) => ({
           id: `item-${index}-${Date.now()}`,
           formatType: 'format1' as const,
-          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo'),
-          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination'),
-          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER'),
-          qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY'),
-          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES'),
+          year: findColumnValue(row, 'YEAR', 'Year', 'year'),
+          name: findColumnValue(row, 'Name', 'NAME', 'Item Name', 'ITEM NAME', 'Product Name'),
+          upc: findColumnValue(row, 'UPC', 'upc', 'Barcode', 'BARCODE', 'Item Code', 'ITEM CODE', 'Code', 'SKU'),
+          description: findColumnValue(row, 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Product Description'),
+          category: findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'Type'),
+          priceA: findNumericValue(row, 'Price A', 'PRICE A', 'Price', 'PRICE', 'Unit Price', 'Cost'),
+          branch: findColumnValue(row, 'Branch', 'BRANCH', 'Location', 'Store', 'Destination'),
         }));
 
         const validItems = items.filter(item => 
-          item.formatType === 'format1' && (item.sheetNo || item.deliverTo || item.qty > 0)
+          item.formatType === 'format1' && (item.name || item.upc || item.description)
         ) as Format1Item[];
 
         if (validItems.length === 0) {
@@ -236,32 +239,31 @@ const ImportExcel = () => {
           batch_id: batchId,
           file_name: file.name,
           format_type: 'format1',
-          name: item.sheetNo || item.deliverTo || 'Unknown',
-          sheet_no: item.sheetNo || null,
-          deliver_to: item.deliverTo || null,
-          supplier: item.supplier || null,
-          qty: item.qty || 0,
-          remarks: item.remarks || null,
+          year: item.year || null,
+          name: item.name || item.description || item.upc,
+          upc: item.upc || null,
+          description: item.description || null,
+          category: item.category || null,
+          price_a: item.priceA || 0,
+          branch: item.branch || null,
           imported_by: user.id,
         }));
 
         items = validItems;
       } else {
-        // Parse Format 2: YEAR, Name, UPC, Description, Category, Price A, Branch
+        // Parse Format 2: Sheet No., Deliver To, Supplier, Qty, Remarks
         items = rows.map((row, index) => ({
           id: `item-${index}-${Date.now()}`,
           formatType: 'format2' as const,
-          year: findColumnValue(row, 'YEAR', 'Year', 'year'),
-          name: findColumnValue(row, 'Name', 'NAME', 'Item Name', 'ITEM NAME', 'Product Name'),
-          upc: findColumnValue(row, 'UPC', 'upc', 'Barcode', 'BARCODE', 'Item Code', 'ITEM CODE', 'Code', 'SKU'),
-          description: findColumnValue(row, 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Product Description'),
-          category: findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'Type'),
-          priceA: findNumericValue(row, 'Price A', 'PRICE A', 'Price', 'PRICE', 'Unit Price', 'Cost'),
-          branch: findColumnValue(row, 'Branch', 'BRANCH', 'Location', 'Store', 'Destination'),
+          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo'),
+          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination'),
+          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER'),
+          qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY'),
+          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES'),
         }));
 
         const validItems = items.filter(item => 
-          item.formatType === 'format2' && (item.name || item.upc || item.description)
+          item.formatType === 'format2' && (item.sheetNo || item.deliverTo || item.qty > 0)
         ) as Format2Item[];
 
         if (validItems.length === 0) {
@@ -275,13 +277,12 @@ const ImportExcel = () => {
           batch_id: batchId,
           file_name: file.name,
           format_type: 'format2',
-          year: item.year || null,
-          name: item.name || item.description || item.upc,
-          upc: item.upc || null,
-          description: item.description || null,
-          category: item.category || null,
-          price_a: item.priceA || 0,
-          branch: item.branch || null,
+          name: item.sheetNo || item.deliverTo || 'Unknown',
+          sheet_no: item.sheetNo || null,
+          deliver_to: item.deliverTo || null,
+          supplier: item.supplier || null,
+          qty: item.qty || 0,
+          remarks: item.remarks || null,
           imported_by: user.id,
         }));
 
@@ -311,7 +312,7 @@ const ImportExcel = () => {
 
       setResults({ success: items.length, failed: 0, formatType, items });
       await fetchImportBucket();
-      toast({ title: 'Import Complete', description: `${items.length} items imported (${formatType === 'format1' ? 'Delivery Format' : 'Inventory Format'})` });
+      toast({ title: 'Import Complete', description: `${items.length} items imported (${formatType === 'format1' ? 'Inventory Format' : 'Delivery Format'})` });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to import file.', variant: 'destructive' });
@@ -424,8 +425,8 @@ const ImportExcel = () => {
         <h2 className="text-xl font-semibold mb-2">Import Excel</h2>
         <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file (auto-detects format) - Max 50,000 rows</p>
         <div className="text-sm text-muted-foreground mb-6 space-y-1">
-          <p><Badge variant="outline" className="mr-2">Format 1</Badge>Sheet No., Deliver To, Supplier, Qty, Remarks</p>
-          <p><Badge variant="outline" className="mr-2">Format 2</Badge>YEAR, Name, UPC, Description, Category, Price A, Branch</p>
+          <p><Badge variant="outline" className="mr-2">Format 1</Badge>YEAR, Name, UPC, Description, Category, Price A, Branch</p>
+          <p><Badge variant="outline" className="mr-2">Format 2</Badge>Sheet No., Deliver To, Supplier, Qty, Remarks</p>
         </div>
         
         <input 
@@ -470,14 +471,6 @@ const ImportExcel = () => {
                   <TableRow className="bg-muted">
                     {results.formatType === 'format1' ? (
                       <>
-                        <TableHead>Sheet No.</TableHead>
-                        <TableHead>Deliver To</TableHead>
-                        <TableHead>Supplier</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead>Remarks</TableHead>
-                      </>
-                    ) : (
-                      <>
                         <TableHead>Year</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>UPC</TableHead>
@@ -485,6 +478,14 @@ const ImportExcel = () => {
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Price A</TableHead>
                         <TableHead>Branch</TableHead>
+                      </>
+                    ) : (
+                      <>
+                        <TableHead>Sheet No.</TableHead>
+                        <TableHead>Deliver To</TableHead>
+                        <TableHead>Supplier</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead>Remarks</TableHead>
                       </>
                     )}
                   </TableRow>
@@ -494,14 +495,6 @@ const ImportExcel = () => {
                     <TableRow key={item.id}>
                       {item.formatType === 'format1' ? (
                         <>
-                          <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                          <TableCell>{item.deliverTo || '-'}</TableCell>
-                          <TableCell>{item.supplier || '-'}</TableCell>
-                          <TableCell className="text-right">{item.qty.toLocaleString()}</TableCell>
-                          <TableCell>{item.remarks || '-'}</TableCell>
-                        </>
-                      ) : (
-                        <>
                           <TableCell>{item.year || '-'}</TableCell>
                           <TableCell className="font-medium">{item.name}</TableCell>
                           <TableCell className="font-mono">{item.upc || '-'}</TableCell>
@@ -509,6 +502,14 @@ const ImportExcel = () => {
                           <TableCell>{item.category || '-'}</TableCell>
                           <TableCell className="text-right">{item.priceA.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>{item.branch || '-'}</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
+                          <TableCell>{item.deliverTo || '-'}</TableCell>
+                          <TableCell>{item.supplier || '-'}</TableCell>
+                          <TableCell className="text-right">{item.qty.toLocaleString()}</TableCell>
+                          <TableCell>{item.remarks || '-'}</TableCell>
                         </>
                       )}
                     </TableRow>
