@@ -102,6 +102,10 @@ export const useInventory = () => {
       date_received: item.date_received,
       low_stock_threshold: item.low_stock_threshold || 10,
       created_by: item.created_by,
+      year: item.year || null,
+      upc: item.upc || null,
+      description: item.description || null,
+      branch: item.branch || null,
     };
     
     const { data, error } = await supabase
@@ -113,6 +117,16 @@ export const useInventory = () => {
     if (error) throw error;
     setItems([data, ...items]);
     return data;
+  };
+
+  const deleteAllItems = async () => {
+    const { error } = await supabase
+      .from('inventory_items')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+    if (error) throw error;
+    setItems([]);
   };
 
   const updateItem = async (id: string, updates: Partial<InventoryItem>) => {
@@ -269,6 +283,7 @@ export const useInventory = () => {
     addItem,
     updateItem,
     deleteItem,
+    deleteAllItems,
     releaseStock,
     releaseStockBatch,
     updateDeliveryStatus,

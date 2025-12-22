@@ -26,7 +26,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const Inventory = () => {
-  const { items, categories, loading, addItem, updateItem, deleteItem, addCategory } = useInventory();
+  const { items, categories, loading, addItem, updateItem, deleteItem, deleteAllItems, addCategory } = useInventory();
   const { userRole, user } = useAuth();
   const { toast } = useToast();
   const isAdmin = userRole === 'admin';
@@ -360,26 +360,45 @@ const Inventory = () => {
         </div>
         
         {isAdmin && (
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2" onClick={resetForm}>
-                <Plus className="h-4 w-4" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add New Item</DialogTitle>
-              </DialogHeader>
-              <ItemForm onCategoryChange={setNewCategory} />
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setIsAddOpen(false)}>
-                  Cancel
+          <div className="flex gap-2">
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2" onClick={resetForm}>
+                  <Plus className="h-4 w-4" />
+                  Add Item
                 </Button>
-                <Button onClick={handleAddItem}>Add Item</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Add New Item</DialogTitle>
+                </DialogHeader>
+                <ItemForm onCategoryChange={setNewCategory} />
+                <div className="flex justify-end gap-3">
+                  <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddItem}>Add Item</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={async () => {
+                if (!confirm('Are you sure you want to delete ALL items? This cannot be undone.')) return;
+                try {
+                  await deleteAllItems();
+                  toast({ title: 'Success', description: 'All items deleted' });
+                } catch (error) {
+                  toast({ title: 'Error', description: 'Failed to delete items', variant: 'destructive' });
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Clear All
+            </Button>
+          </div>
         )}
       </div>
 
