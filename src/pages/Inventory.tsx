@@ -50,7 +50,6 @@ const Inventory = () => {
     upc: '',
     description: '',
     branch: '',
-    restock_location: '',
   });
   const [newCategory, setNewCategory] = useState('');
 
@@ -77,7 +76,6 @@ const Inventory = () => {
       upc: '',
       description: '',
       branch: '',
-      restock_location: '',
     });
     setNewCategory('');
   };
@@ -181,7 +179,6 @@ const Inventory = () => {
       upc: item.upc || '',
       description: item.description || '',
       branch: item.branch || '',
-      restock_location: item.restock_location || '',
     });
     setEditItem(item);
   };
@@ -313,16 +310,6 @@ const Inventory = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="restock_location">Restock Location</Label>
-            <Input
-              id="restock_location"
-              value={localForm.restock_location}
-              onChange={(e) => handleChange('restock_location', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="Where to restock"
-            />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="total_stock">Total Stock (Boxes)</Label>
             <Input
               id="total_stock"
@@ -332,9 +319,6 @@ const Inventory = () => {
               onBlur={handleBlur}
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="supplier">Supplier</Label>
             <Input
@@ -345,16 +329,17 @@ const Inventory = () => {
               placeholder="Supplier name"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
-            <Input
-              id="low_stock_threshold"
-              type="number"
-              value={localForm.low_stock_threshold}
-              onChange={(e) => handleChange('low_stock_threshold', parseInt(e.target.value) || 10)}
-              onBlur={handleBlur}
-            />
-          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
+          <Input
+            id="low_stock_threshold"
+            type="number"
+            value={localForm.low_stock_threshold}
+            onChange={(e) => handleChange('low_stock_threshold', parseInt(e.target.value) || 10)}
+            onBlur={handleBlur}
+          />
         </div>
       </div>
     );
@@ -426,7 +411,6 @@ const Inventory = () => {
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Price A</TableHead>
               <TableHead>Branch</TableHead>
-              <TableHead>Restock Location</TableHead>
               <TableHead className="text-right">Stock</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
@@ -434,7 +418,7 @@ const Inventory = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
+                <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-12">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No items found</p>
                 </TableCell>
@@ -458,7 +442,6 @@ const Inventory = () => {
                       {(item.price || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{item.branch || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.restock_location || '-'}</TableCell>
                     <TableCell className="text-right">
                       <span className={cn(
                         "font-semibold",
@@ -497,7 +480,7 @@ const Inventory = () => {
                   <TableCell className="text-right text-lg text-primary">
                     ₱{filteredItems.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell colSpan={isAdmin ? 5 : 4}></TableCell>
+                  <TableCell colSpan={isAdmin ? 4 : 3}></TableCell>
                 </TableRow>
               </>
             )}

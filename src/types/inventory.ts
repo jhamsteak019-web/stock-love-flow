@@ -42,7 +42,6 @@ export interface InventoryItem {
   upc: string | null;
   description: string | null;
   branch: string | null;
-  restock_location: string | null;
   category?: Category;
 }
 

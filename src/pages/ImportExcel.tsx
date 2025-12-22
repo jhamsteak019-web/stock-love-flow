@@ -360,8 +360,7 @@ const ImportExcel = () => {
               <tr>
                 ${isFormat2 ? `
                   <th>Sheet No.</th>
-                  <th>Deliver To</th>
-                  <th>Supplier</th>
+                  <th>Deliver To / Supplier</th>
                   <th class="text-right">Qty</th>
                   <th>Remarks</th>
                 ` : `
@@ -379,8 +378,7 @@ const ImportExcel = () => {
               ${items.map((item) => isFormat2 ? `
                 <tr>
                   <td>${item.sheet_no || '-'}</td>
-                  <td>${item.deliver_to || '-'}</td>
-                  <td>${item.supplier || '-'}</td>
+                  <td>${[item.deliver_to, item.supplier].filter(Boolean).join(' / ') || '-'}</td>
                   <td class="text-right">${(item.qty ?? 0).toLocaleString()}</td>
                   <td>${item.remarks || '-'}</td>
                 </tr>
@@ -397,7 +395,7 @@ const ImportExcel = () => {
               `).join('')}
               <tr class="total-row">
                 ${isFormat2 ? `
-                  <td colspan="3" class="text-right">Total Qty:</td>
+                  <td colspan="2" class="text-right">Total Qty:</td>
                   <td class="text-right">${totalQty.toLocaleString()}</td>
                   <td></td>
                 ` : `
