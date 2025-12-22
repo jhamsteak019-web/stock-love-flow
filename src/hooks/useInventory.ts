@@ -276,6 +276,17 @@ export const useInventory = () => {
     await fetchItems();
   };
 
+  const deleteAllReleases = async () => {
+    const { error } = await supabase
+      .from('stock_releases')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+    if (error) throw error;
+    setReleases([]);
+    await fetchItems();
+  };
+
   const bulkUpdateStock = async (stockValue: number) => {
     // Update all items to have the specified stock value
     const { error } = await supabase
@@ -310,6 +321,7 @@ export const useInventory = () => {
     updateDeliveryStatus,
     deleteRelease,
     deleteReleaseBatch,
+    deleteAllReleases,
     getStats,
     bulkUpdateStock,
   };

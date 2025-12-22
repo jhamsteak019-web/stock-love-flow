@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ClipboardList, Eye, Trash2 } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -9,6 +9,17 @@ import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface GroupedRelease {
   batch_id: string;
@@ -23,10 +34,11 @@ interface GroupedRelease {
 }
 
 const History = () => {
-  const { releases, loading, deleteReleaseBatch } = useInventory();
+  const { releases, loading, deleteReleaseBatch, deleteAllReleases } = useInventory();
   const { userRole } = useAuth();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
+  const [clearing, setClearing] = useState(false);
   const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
@@ -72,13 +84,57 @@ const History = () => {
     }
   };
 
+  const handleClearAll = async () => {
+    setClearing(true);
+    try {
+      await deleteAllReleases();
+      toast({ title: 'Success', description: 'All transaction history cleared' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to clear history', variant: 'destructive' });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-      <Table>
+    <div className="space-y-4">
+      {/* Clear All Button */}
+      {isAdmin && groupedReleases.length > 0 && (
+        <div className="flex justify-end">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={clearing}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                {clearing ? 'Clearing...' : 'Clear All'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Clear All Transaction History
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all {groupedReleases.length} transaction records. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Yes, Clear All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Items</TableHead>
@@ -132,6 +188,8 @@ const History = () => {
         </TableBody>
       </Table>
 
+      </div>
+
       {selectedBatch && (
         <AllocationBillModal
           open={!!selectedBatch}
@@ -140,6 +198,7 @@ const History = () => {
           destination={selectedBatch.destination}
           courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
+          dateDelivered={selectedBatch.date_delivered}
         />
       )}
     </div>

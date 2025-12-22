@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet } from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +66,7 @@ const ReleaseStock = () => {
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importCourier, setImportCourier] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [sheetNoSearch, setSheetNoSearch] = useState('');
 
   const addReleaseItem = () => {
     setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
@@ -310,11 +311,20 @@ const ReleaseStock = () => {
     setShowImportPreview(false);
     setImportCourier('');
     setSelectedItems(new Set());
+    setSheetNoSearch('');
   };
 
+  // Filter parsed items by sheet no search
+  const filteredParsedItems = useMemo(() => {
+    if (!sheetNoSearch.trim()) return parsedItems;
+    return parsedItems.filter(item => 
+      item.sheetNo.toLowerCase().includes(sheetNoSearch.toLowerCase())
+    );
+  }, [parsedItems, sheetNoSearch]);
+
   // Checkbox handlers - enable checkboxes when courier is selected
-  const selectableItems = parsedItems.filter(p => p.qtyBoxes > 0 && (importCourier || p.matchedItemId));
-  const matchedItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
+  const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && (importCourier || p.matchedItemId));
+  const matchedItems = filteredParsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
   const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(p => selectedItems.has(p.id));
   const someMatchedSelected = selectableItems.some(p => selectedItems.has(p.id));
 
@@ -420,13 +430,25 @@ const ReleaseStock = () => {
         {/* Import Preview */}
         {showImportPreview && parsedItems.length > 0 && (
           <div className="space-y-4 mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <p className="text-sm font-medium">
                 Preview: {parsedItems.length} items found, {parsedItems.filter(p => p.matchedItemId).length} matched
+                {sheetNoSearch && ` (showing ${filteredParsedItems.length})`}
               </p>
-              <Button variant="outline" size="sm" onClick={cancelImport}>
-                Cancel
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search Sheet No..."
+                    value={sheetNoSearch}
+                    onChange={(e) => setSheetNoSearch(e.target.value)}
+                    className="h-8 w-[180px] pl-8 text-sm"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={cancelImport}>
+                  Cancel
+                </Button>
+              </div>
             </div>
             <div className="rounded-lg border overflow-hidden max-h-80 overflow-y-auto">
               <Table>
@@ -449,7 +471,7 @@ const ReleaseStock = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {parsedItems.map((item) => (
+                  {filteredParsedItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         <Checkbox 
