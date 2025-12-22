@@ -121,20 +121,20 @@ const Inventory = () => {
         toast({ title: 'Row Limit', description: 'Only first 10,000 rows imported.', variant: 'default' });
       }
 
+      // Parse using the new format: Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks
       const parsedItems = rows.map((row) => ({
-        year: findColumnValue(row, 'YEAR', 'Year', 'year'),
-        name: findColumnValue(row, 'Name', 'NAME', 'Item Name', 'ITEM NAME', 'Product Name'),
-        upc: findColumnValue(row, 'UPC', 'upc', 'Barcode', 'BARCODE', 'Item Code', 'ITEM CODE', 'Code', 'SKU'),
-        description: findColumnValue(row, 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Product Description'),
-        category: findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'Type'),
-        priceA: findNumericValue(row, 'Price A', 'PRICE A', 'Price', 'PRICE', 'Unit Price', 'Cost'),
-        branch: findColumnValue(row, 'Branch', 'BRANCH', 'Location', 'Store', 'Destination'),
+        sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Bill No', 'Bill'),
+        deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination', 'Branch'),
+        supplier: findColumnValue(row, 'Supplier', 'SUPPLIER'),
+        qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY', 'Qty (Boxes)', 'Boxes'),
+        piecesPerBox: findNumericValue(row, 'Pieces/Box', 'Pieces Per Box', 'PIECES/BOX', 'Pieces', 'Pcs/Box') || 1,
+        remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Description'),
       }));
 
-      const validItems = parsedItems.filter(item => item.name || item.upc || item.description);
+      const validItems = parsedItems.filter(item => item.sheetNo || item.deliverTo || item.qty > 0);
 
       if (validItems.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check column headers (YEAR, Name, UPC, Description, Category, Price A, Branch).', variant: 'destructive' });
+        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, Supplier, Qty, Pieces/Box, Remarks).', variant: 'destructive' });
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -143,33 +143,16 @@ const Inventory = () => {
       let successCount = 0;
       for (const item of validItems) {
         try {
-          let categoryId: string | undefined;
-          if (item.category) {
-            const existing = categories.find(c => c.name.toLowerCase() === item.category.toLowerCase());
-            if (existing) {
-              categoryId = existing.id;
-            } else {
-              const cat = await addCategory(item.category);
-              categoryId = cat.id;
-            }
-          }
-
           await addItem({
-            item_name: item.name || item.description || item.upc || 'Unknown',
-            item_code: item.upc || `IMP-${Date.now()}-${successCount}`,
-            category_id: categoryId || null,
-            total_stock: 0,
-            available_stock: 0,
-            price: item.priceA || 0,
-            amount: 0,
-            supplier: null,
-            date_received: null,
-            low_stock_threshold: 10,
+            item_name: item.sheetNo || item.deliverTo || 'Unknown',
+            item_code: item.sheetNo || `IMP-${Date.now()}-${successCount}`,
+            total_stock: item.qty || 0,
+            available_stock: item.qty || 0,
+            pieces_per_box: item.piecesPerBox || 1,
+            supplier: item.supplier || null,
+            description: item.remarks || null,
+            branch: item.deliverTo || null,
             created_by: user?.id,
-            year: item.year || null,
-            upc: item.upc || null,
-            description: item.description || null,
-            branch: item.branch || null,
           });
           successCount++;
         } catch (err) {
@@ -185,7 +168,7 @@ const Inventory = () => {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [user, categories, addCategory, addItem, toast, findColumnValue, findNumericValue]);
+  }, [user, addItem, toast, findColumnValue, findNumericValue]);
 
   const filteredItems = items.filter(item => {
     return (
