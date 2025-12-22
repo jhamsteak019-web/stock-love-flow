@@ -42,6 +42,8 @@ const SummaryReport = () => {
       totalPieces: number; 
       deliveryCount: number;
       deliveredCount: number;
+      receivedBoxes: number;
+      receivedPieces: number;
     }> = {};
 
     filteredReleases.forEach(release => {
@@ -53,6 +55,8 @@ const SummaryReport = () => {
           totalPieces: 0,
           deliveryCount: 0,
           deliveredCount: 0,
+          receivedBoxes: 0,
+          receivedPieces: 0,
         };
       }
       summary[dest].totalBoxes += release.boxes_released;
@@ -64,6 +68,8 @@ const SummaryReport = () => {
       summary[dest].deliveryCount += 1;
       if (release.delivery_status === 'delivered') {
         summary[dest].deliveredCount += 1;
+        summary[dest].receivedBoxes += release.boxes_released;
+        summary[dest].receivedPieces += release.boxes_released * piecesPerBox;
       }
     });
 
@@ -306,11 +312,11 @@ const SummaryReport = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead className="text-right">Total Boxes</TableHead>
-                    <TableHead className="text-right">Total Pieces</TableHead>
-                    <TableHead className="text-right">Deliveries</TableHead>
-                    <TableHead className="text-right">Delivered</TableHead>
+                    <TableHead>Store/Destination</TableHead>
+                    <TableHead className="text-right">Sent Boxes</TableHead>
+                    <TableHead className="text-right">Sent Pieces</TableHead>
+                    <TableHead className="text-right">Received Boxes</TableHead>
+                    <TableHead className="text-right">Received Pieces</TableHead>
                     <TableHead className="text-right">Rate</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -321,8 +327,8 @@ const SummaryReport = () => {
                       <TableCell className="font-medium">{item.destination}</TableCell>
                       <TableCell className="text-right">{item.totalBoxes.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{item.totalPieces.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{item.deliveryCount}</TableCell>
-                      <TableCell className="text-right">{item.deliveredCount}</TableCell>
+                      <TableCell className="text-right text-green-600 dark:text-green-400 font-medium">{item.receivedBoxes.toLocaleString()}</TableCell>
+                      <TableCell className="text-right text-green-600 dark:text-green-400 font-medium">{item.receivedPieces.toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                           item.deliveryCount > 0 && (item.deliveredCount / item.deliveryCount) >= 0.8
