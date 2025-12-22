@@ -38,12 +38,18 @@ export type Database = {
           branch: string | null
           category: string | null
           created_at: string
+          deliver_to: string | null
           description: string | null
           file_name: string
+          format_type: string | null
           id: string
           imported_by: string
           name: string
           price_a: number | null
+          qty: number | null
+          remarks: string | null
+          sheet_no: string | null
+          supplier: string | null
           upc: string | null
           year: string | null
         }
@@ -52,12 +58,18 @@ export type Database = {
           branch?: string | null
           category?: string | null
           created_at?: string
+          deliver_to?: string | null
           description?: string | null
           file_name: string
+          format_type?: string | null
           id?: string
           imported_by: string
           name: string
           price_a?: number | null
+          qty?: number | null
+          remarks?: string | null
+          sheet_no?: string | null
+          supplier?: string | null
           upc?: string | null
           year?: string | null
         }
@@ -66,12 +78,18 @@ export type Database = {
           branch?: string | null
           category?: string | null
           created_at?: string
+          deliver_to?: string | null
           description?: string | null
           file_name?: string
+          format_type?: string | null
           id?: string
           imported_by?: string
           name?: string
           price_a?: number | null
+          qty?: number | null
+          remarks?: string | null
+          sheet_no?: string | null
+          supplier?: string | null
           upc?: string | null
           year?: string | null
         }
