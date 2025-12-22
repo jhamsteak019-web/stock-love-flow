@@ -7,6 +7,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Format 1: Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks
 interface Format1Item {
@@ -66,6 +76,7 @@ const ImportExcel = () => {
   const [results, setResults] = useState<{ success: number; failed: number; formatType: string; items: ParsedItem[] } | null>(null);
   const [importBucket, setImportBucket] = useState<ImportBatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; batch: ImportBatch | null }>({ open: false, batch: null });
 
   const fetchImportBucket = async () => {
     try {
@@ -116,6 +127,16 @@ const ImportExcel = () => {
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to remove batch', variant: 'destructive' });
     }
+  };
+
+  const handleAddToInventoryClick = (batch: ImportBatch) => {
+    setConfirmDialog({ open: true, batch });
+  };
+
+  const confirmAddToInventory = async () => {
+    if (!confirmDialog.batch) return;
+    await addToInventory(confirmDialog.batch);
+    setConfirmDialog({ open: false, batch: null });
   };
 
   const addToInventory = async (batch: ImportBatch) => {
@@ -246,7 +267,7 @@ const ImportExcel = () => {
         ) as Format1Item[];
 
         if (validItems.length === 0) {
-          toast({ title: 'No Items Found', description: 'Check column headers.', variant: 'destructive' });
+          toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, Supplier, Qty, Pieces/Box, Remarks).', variant: 'destructive' });
           setImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
@@ -532,7 +553,7 @@ const ImportExcel = () => {
                     <TableCell>{batch.items.length}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
-                        <Button variant="default" size="sm" onClick={() => addToInventory(batch)} className="gap-1">
+                        <Button variant="default" size="sm" onClick={() => handleAddToInventoryClick(batch)} className="gap-1">
                           <PackagePlus className="h-4 w-4" />
                           Add to Inventory
                         </Button>
@@ -551,6 +572,22 @@ const ImportExcel = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ open, batch: open ? confirmDialog.batch : null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add to Inventory?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will add {confirmDialog.batch?.items.length || 0} items from "{confirmDialog.batch?.file_name}" to your inventory and remove them from the import bucket.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAddToInventory}>Add to Inventory</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
