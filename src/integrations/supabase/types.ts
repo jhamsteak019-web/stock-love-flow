@@ -32,6 +32,51 @@ export type Database = {
         }
         Relationships: []
       }
+      imported_items: {
+        Row: {
+          batch_id: string
+          branch: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          file_name: string
+          id: string
+          imported_by: string
+          name: string
+          price_a: number | null
+          upc: string | null
+          year: string | null
+        }
+        Insert: {
+          batch_id?: string
+          branch?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          file_name: string
+          id?: string
+          imported_by: string
+          name: string
+          price_a?: number | null
+          upc?: string | null
+          year?: string | null
+        }
+        Update: {
+          batch_id?: string
+          branch?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          id?: string
+          imported_by?: string
+          name?: string
+          price_a?: number | null
+          upc?: string | null
+          year?: string | null
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           amount: number | null

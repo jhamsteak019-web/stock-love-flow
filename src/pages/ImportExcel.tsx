@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 
 interface ParsedItem {
@@ -19,39 +19,80 @@ interface ParsedItem {
 }
 
 interface ImportBatch {
-  id: string;
-  fileName: string;
-  importDate: string;
-  itemCount: number;
-  items: ParsedItem[];
+  batch_id: string;
+  file_name: string;
+  created_at: string;
+  items: Array<{
+    id: string;
+    year: string | null;
+    name: string;
+    upc: string | null;
+    description: string | null;
+    category: string | null;
+    price_a: number | null;
+    branch: string | null;
+  }>;
 }
 
-const IMPORT_BUCKET_KEY = 'import_excel_bucket';
-
 const ImportExcel = () => {
-  const { addItem, addCategory, categories, fetchAll } = useInventory();
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<{ success: number; failed: number; errors: string[]; items: ParsedItem[] } | null>(null);
-  const [importBucket, setImportBucket] = useState<ImportBatch[]>(() => {
-    const saved = localStorage.getItem(IMPORT_BUCKET_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [importBucket, setImportBucket] = useState<ImportBatch[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const saveToBucket = (batch: ImportBatch) => {
-    const updated = [batch, ...importBucket];
-    setImportBucket(updated);
-    localStorage.setItem(IMPORT_BUCKET_KEY, JSON.stringify(updated));
+  const fetchImportBucket = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('imported_items')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Group by batch_id
+      const grouped = (data || []).reduce((acc, item) => {
+        if (!acc[item.batch_id]) {
+          acc[item.batch_id] = {
+            batch_id: item.batch_id,
+            file_name: item.file_name,
+            created_at: item.created_at,
+            items: []
+          };
+        }
+        acc[item.batch_id].items.push(item);
+        return acc;
+      }, {} as Record<string, ImportBatch>);
+
+      setImportBucket(Object.values(grouped));
+    } catch (error) {
+      console.error('Error fetching import bucket:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeFromBucket = (batchId: string) => {
-    const updated = importBucket.filter(b => b.id !== batchId);
-    setImportBucket(updated);
-    localStorage.setItem(IMPORT_BUCKET_KEY, JSON.stringify(updated));
-    toast({ title: 'Removed', description: 'Import batch removed from bucket' });
+  useEffect(() => {
+    fetchImportBucket();
+  }, []);
+
+  const removeFromBucket = async (batchId: string) => {
+    try {
+      const { error } = await supabase
+        .from('imported_items')
+        .delete()
+        .eq('batch_id', batchId);
+
+      if (error) throw error;
+
+      setImportBucket(prev => prev.filter(b => b.batch_id !== batchId));
+      toast({ title: 'Removed', description: 'Import batch removed' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to remove batch', variant: 'destructive' });
+    }
   };
 
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
@@ -89,7 +130,7 @@ const ImportExcel = () => {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
     setResults(null);
     setImporting(true);
@@ -115,7 +156,6 @@ const ImportExcel = () => {
         }
       }
 
-      // Parse items matching new format: YEAR, Name, UPC, Description, Category, Price A, Branch
       const items: ParsedItem[] = rows.map((row, index) => {
         return {
           id: `item-${index}-${Date.now()}`,
@@ -132,87 +172,46 @@ const ImportExcel = () => {
       const validItems = items.filter(item => item.name || item.upc || item.description);
 
       if (validItems.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check if your Excel has correct column headers (YEAR, Name, UPC, Description, Category, Price A, Branch).', variant: 'destructive' });
+        toast({ title: 'No Items Found', description: 'Check if your Excel has correct column headers.', variant: 'destructive' });
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
 
-      // Auto-save all items directly
-      let success = 0;
-      let failed = 0;
-      const errors: string[] = [];
-      const savedItems: ParsedItem[] = [];
+      const batchId = crypto.randomUUID();
+      const insertData = validItems.map(item => ({
+        batch_id: batchId,
+        file_name: file.name,
+        year: item.year || null,
+        name: item.name || item.description || item.upc,
+        upc: item.upc || null,
+        description: item.description || null,
+        category: item.category || null,
+        price_a: item.priceA || 0,
+        branch: item.branch || null,
+        imported_by: user.id,
+      }));
 
-      for (const item of validItems) {
-        try {
-          if (!item.name && !item.upc && !item.description) {
-            errors.push(`Row missing required data`);
-            failed++;
-            continue;
-          }
+      const { error } = await supabase.from('imported_items').insert(insertData);
 
-          let categoryId: string | undefined;
-          if (item.category) {
-            const existing = categories.find(c => c.name.toLowerCase() === item.category.toLowerCase());
-            if (existing) {
-              categoryId = existing.id;
-            } else {
-              const newCat = await addCategory(item.category);
-              categoryId = newCat.id;
-            }
-          }
+      if (error) throw error;
 
-          const itemName = item.name || item.description || item.upc;
-          const itemCode = item.upc || `${item.year}-${item.name}`.substring(0, 50);
-
-          await addItem({
-            item_name: itemName,
-            item_code: itemCode,
-            category_id: categoryId,
-            total_stock: 1,
-            price: item.priceA,
-            amount: item.priceA,
-            supplier: item.branch || undefined,
-            date_received: undefined,
-            created_by: user?.id,
-          });
-
-          savedItems.push(item);
-          success++;
-        } catch (err) {
-          failed++;
-          errors.push(`Failed: ${item.name || item.upc} - ${String(err)}`);
-        }
-      }
-
-      // Save to bucket
-      if (savedItems.length > 0) {
-        saveToBucket({
-          id: crypto.randomUUID(),
-          fileName: file.name,
-          importDate: new Date().toISOString(),
-          itemCount: savedItems.length,
-          items: savedItems,
-        });
-      }
-
-      setResults({ success, failed, errors, items: savedItems });
-      await fetchAll();
-      toast({ title: 'Import Complete', description: `${success} items imported successfully` });
+      setResults({ success: validItems.length, failed: 0, errors: [], items: validItems });
+      await fetchImportBucket();
+      toast({ title: 'Import Complete', description: `${validItems.length} items imported successfully` });
     } catch (error) {
       console.error('Excel parse error:', error);
-      toast({ title: 'Error', description: 'Failed to read file. Make sure it is a valid Excel file.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to import file.', variant: 'destructive' });
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handlePrint = (items: ParsedItem[]) => {
+  const handlePrint = (items: Array<{ year?: string | null; name: string; upc?: string | null; description?: string | null; category?: string | null; price_a?: number | null; priceA?: number; branch?: string | null }>) => {
     if (items.length === 0) return;
     
-    const totalPrice = items.reduce((sum, item) => sum + item.priceA, 0);
+    const totalPrice = items.reduce((sum, item) => sum + (item.price_a ?? item.priceA ?? 0), 0);
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -220,35 +219,25 @@ const ImportExcel = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Imported Inventory Items</title>
+          <title>Imported Items</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; }
             .header { text-align: center; margin-bottom: 20px; }
-            .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-decoration: underline; }
-            .header-info { text-align: left; margin-bottom: 10px; }
-            .header-row { margin-bottom: 4px; }
+            .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
             th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; font-size: 11px; }
             th { background: #f0f0f0; font-weight: bold; }
             .text-right { text-align: right; }
-            .text-center { text-align: center; }
             .total-row { font-weight: bold; }
-            .footer { margin-top: 40px; display: flex; justify-content: space-between; padding: 0 20px; }
-            .signature-block { text-align: center; width: 150px; }
-            .signature-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 10px; }
             @media print { body { padding: 10px; } }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>IMPORTED INVENTORY ITEMS</h1>
-            <div class="header-info">
-              <div class="header-row"><strong>Date:</strong> ${new Date().toLocaleDateString()}</div>
-              <div class="header-row"><strong>Total Items:</strong> ${items.length}</div>
-            </div>
+            <h1>IMPORTED ITEMS</h1>
+            <p>Date: ${new Date().toLocaleDateString()} | Total Items: ${items.length}</p>
           </div>
-
           <table>
             <thead>
               <tr>
@@ -269,7 +258,7 @@ const ImportExcel = () => {
                   <td>${item.upc || '-'}</td>
                   <td>${item.description || '-'}</td>
                   <td>${item.category || '-'}</td>
-                  <td class="text-right">${item.priceA.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                  <td class="text-right">${(item.price_a ?? item.priceA ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                   <td>${item.branch || '-'}</td>
                 </tr>
               `).join('')}
@@ -280,18 +269,6 @@ const ImportExcel = () => {
               </tr>
             </tbody>
           </table>
-
-          <div class="footer">
-            <div class="signature-block">
-              <div class="signature-line">Checked By</div>
-            </div>
-            <div class="signature-block">
-              <div class="signature-line">Approved By</div>
-            </div>
-            <div class="signature-block">
-              <div class="signature-line">Received By</div>
-            </div>
-          </div>
         </body>
       </html>
     `);
@@ -306,12 +283,10 @@ const ImportExcel = () => {
       {/* Upload Section */}
       <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
         <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Import Inventory from Excel</h2>
-        <p className="text-muted-foreground mb-2">
-          Upload .xlsx or .csv file - items will be imported automatically
-        </p>
+        <h2 className="text-xl font-semibold mb-2">Import Excel</h2>
+        <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file</p>
         <p className="text-sm text-muted-foreground mb-6">
-          Expected columns: <span className="font-medium">YEAR, Name, UPC, Description, Category, Price A, Branch</span>
+          Columns: <span className="font-medium">YEAR, Name, UPC, Description, Category, Price A, Branch</span>
         </p>
         
         <input 
@@ -337,54 +312,32 @@ const ImportExcel = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`flex h-10 w-10 items-center justify-center rounded-full ${results.failed === 0 ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                {results.failed === 0 ? (
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-yellow-600" />
-                )}
+                {results.failed === 0 ? <CheckCircle className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-yellow-600" />}
               </div>
               <div>
                 <h3 className="font-semibold">Import Complete</h3>
-                <p className="text-sm text-muted-foreground">
-                  {results.success} imported successfully
-                  {results.failed > 0 && `, ${results.failed} failed`}
-                </p>
+                <p className="text-sm text-muted-foreground">{results.success} items imported</p>
               </div>
             </div>
             {results.items.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => handlePrint(results.items)}>
-                <Printer className="h-4 w-4 mr-1" />
-                Print
+                <Printer className="h-4 w-4 mr-1" /> Print
               </Button>
             )}
           </div>
-
-          {results.errors.length > 0 && (
-            <div className="mt-4 p-4 bg-destructive/10 rounded-lg">
-              <p className="text-sm font-medium text-destructive mb-2">Errors:</p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                {results.errors.slice(0, 5).map((error, i) => (
-                  <li key={i}>• {error}</li>
-                ))}
-                {results.errors.length > 5 && (
-                  <li>... and {results.errors.length - 5} more</li>
-                )}
-              </ul>
-            </div>
-          )}
 
           {results.items.length > 0 && (
             <div className="mt-4 rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted">
-                    <TableHead className="font-bold">Year</TableHead>
-                    <TableHead className="font-bold">Name</TableHead>
-                    <TableHead className="font-bold">UPC</TableHead>
-                    <TableHead className="font-bold">Description</TableHead>
-                    <TableHead className="font-bold">Category</TableHead>
-                    <TableHead className="font-bold text-right">Price A</TableHead>
-                    <TableHead className="font-bold">Branch</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>UPC</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Price A</TableHead>
+                    <TableHead>Branch</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -399,11 +352,6 @@ const ImportExcel = () => {
                       <TableCell>{item.branch || '-'}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-muted/50 font-bold">
-                    <TableCell colSpan={5} className="text-right">Total:</TableCell>
-                    <TableCell className="text-right">{results.items.reduce((sum, item) => sum + item.priceA, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
                 </TableBody>
               </Table>
             </div>
@@ -423,7 +371,9 @@ const ImportExcel = () => {
           </div>
         </div>
 
-        {importBucket.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-8"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+        ) : importBucket.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">No imports yet</p>
         ) : (
           <div className="rounded-lg border overflow-hidden">
@@ -438,16 +388,16 @@ const ImportExcel = () => {
               </TableHeader>
               <TableBody>
                 {importBucket.map((batch) => (
-                  <TableRow key={batch.id}>
-                    <TableCell className="font-medium">{batch.fileName}</TableCell>
-                    <TableCell>{new Date(batch.importDate).toLocaleString()}</TableCell>
-                    <TableCell>{batch.itemCount}</TableCell>
+                  <TableRow key={batch.batch_id}>
+                    <TableCell className="font-medium">{batch.file_name}</TableCell>
+                    <TableCell>{new Date(batch.created_at).toLocaleString()}</TableCell>
+                    <TableCell>{batch.items.length}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
                         <Button variant="ghost" size="sm" onClick={() => handlePrint(batch.items)}>
                           <Printer className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => removeFromBucket(batch.id)} className="text-destructive hover:text-destructive">
+                        <Button variant="ghost" size="sm" onClick={() => removeFromBucket(batch.batch_id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
