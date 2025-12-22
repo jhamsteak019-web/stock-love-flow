@@ -8,20 +8,19 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 
-// Format 1: YEAR, Name, UPC, Description, Category, Price A, Branch
+// Format 1: Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks
 interface Format1Item {
   id: string;
   formatType: 'format1';
-  year: string;
-  name: string;
-  upc: string;
-  description: string;
-  category: string;
-  priceA: number;
-  branch: string;
+  sheetNo: string;
+  deliverTo: string;
+  supplier: string;
+  qty: number;
+  piecesPerBox: number;
+  remarks: string;
 }
 
-// Format 2: Sheet No., Deliver To, Supplier, Qty, Remarks
+// Format 2: Legacy format (kept for backward compatibility)
 interface Format2Item {
   id: string;
   formatType: 'format2';
@@ -53,6 +52,7 @@ interface ImportBatch {
     deliver_to: string | null;
     supplier: string | null;
     qty: number | null;
+    pieces_per_box: number | null;
     remarks: string | null;
   }>;
 }
@@ -152,23 +152,8 @@ const ImportExcel = () => {
   };
 
   const detectFormat = (rows: Record<string, unknown>[]): 'format1' | 'format2' => {
-    if (rows.length === 0) return 'format1';
-    
-    const firstRow = rows[0];
-    const keys = Object.keys(firstRow).map(k => k.toLowerCase());
-    
-    // Check for Format 1 columns: YEAR, Name, UPC, Description, Category, Price A, Branch
-    const hasYear = keys.some(k => k.includes('year'));
-    const hasUpc = keys.some(k => k.includes('upc') || k.includes('barcode'));
-    const hasPriceA = keys.some(k => k.includes('price'));
-    const hasCategory = keys.some(k => k.includes('category'));
-    
-    if ((hasYear || hasUpc) && (hasPriceA || hasCategory)) {
-      return 'format1';
-    }
-    
-    // Otherwise it's Format 2: Sheet No., Deliver To, Supplier, Qty, Remarks
-    return 'format2';
+    // Always use format1 for the new inventory format
+    return 'format1';
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,21 +196,20 @@ const ImportExcel = () => {
       const batchId = crypto.randomUUID();
 
       if (formatType === 'format1') {
-        // Parse Format 1: YEAR, Name, UPC, Description, Category, Price A, Branch
+        // Parse Format 1: Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks
         items = rows.map((row, index) => ({
           id: `item-${index}-${Date.now()}`,
           formatType: 'format1' as const,
-          year: findColumnValue(row, 'YEAR', 'Year', 'year'),
-          name: findColumnValue(row, 'Name', 'NAME', 'Item Name', 'ITEM NAME', 'Product Name'),
-          upc: findColumnValue(row, 'UPC', 'upc', 'Barcode', 'BARCODE', 'Item Code', 'ITEM CODE', 'Code', 'SKU'),
-          description: findColumnValue(row, 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Product Description'),
-          category: findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'Type'),
-          priceA: findNumericValue(row, 'Price A', 'PRICE A', 'Price', 'PRICE', 'Unit Price', 'Cost'),
-          branch: findColumnValue(row, 'Branch', 'BRANCH', 'Location', 'Store', 'Destination'),
+          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Bill No', 'Bill'),
+          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination', 'Branch'),
+          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER'),
+          qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY', 'Qty (Boxes)', 'Boxes'),
+          piecesPerBox: findNumericValue(row, 'Pieces/Box', 'Pieces Per Box', 'PIECES/BOX', 'Pieces', 'Pcs/Box') || 1,
+          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Description'),
         }));
 
         const validItems = items.filter(item => 
-          item.formatType === 'format1' && (item.name || item.upc || item.description)
+          item.formatType === 'format1' && (item.sheetNo || item.deliverTo || item.qty > 0)
         ) as Format1Item[];
 
         if (validItems.length === 0) {
@@ -239,19 +223,19 @@ const ImportExcel = () => {
           batch_id: batchId,
           file_name: file.name,
           format_type: 'format1',
-          year: item.year || null,
-          name: item.name || item.description || item.upc,
-          upc: item.upc || null,
-          description: item.description || null,
-          category: item.category || null,
-          price_a: item.priceA || 0,
-          branch: item.branch || null,
+          name: item.sheetNo || item.deliverTo || 'Unknown',
+          sheet_no: item.sheetNo || null,
+          deliver_to: item.deliverTo || null,
+          supplier: item.supplier || null,
+          qty: item.qty || 0,
+          pieces_per_box: item.piecesPerBox || 1,
+          remarks: item.remarks || null,
           imported_by: user.id,
         }));
 
         items = validItems;
       } else {
-        // Parse Format 2: Sheet No., Deliver To, Supplier, Qty, Remarks
+        // Parse Format 2 (legacy): Sheet No., Deliver To, Supplier, Qty, Remarks
         items = rows.map((row, index) => ({
           id: `item-${index}-${Date.now()}`,
           formatType: 'format2' as const,
@@ -312,7 +296,7 @@ const ImportExcel = () => {
 
       setResults({ success: items.length, failed: 0, formatType, items });
       await fetchImportBucket();
-      toast({ title: 'Import Complete', description: `${items.length} items imported (${formatType === 'format1' ? 'Inventory Format' : 'Delivery Format'})` });
+      toast({ title: 'Import Complete', description: `${items.length} items imported` });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to import file.', variant: 'destructive' });
@@ -326,12 +310,11 @@ const ImportExcel = () => {
     const items = batch.items;
     if (items.length === 0) return;
     
-    const isFormat1 = batch.format_type === 'format1';
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
     const totalQty = items.reduce((sum, item) => sum + (item.qty ?? 0), 0);
-    const totalPrice = items.reduce((sum, item) => sum + (item.price_a ?? 0), 0);
+    const totalPieces = items.reduce((sum, item) => sum + ((item.qty ?? 0) * (item.pieces_per_box ?? 1)), 0);
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -340,7 +323,7 @@ const ImportExcel = () => {
           <title>Imported Items</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            @page { size: ${isFormat1 ? 'landscape' : 'portrait'}; margin: 10mm; }
+            @page { size: landscape; margin: 10mm; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; }
             .header { text-align: center; margin-bottom: 20px; }
             .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
@@ -354,57 +337,39 @@ const ImportExcel = () => {
         </head>
         <body>
           <div class="header">
-            <h1>IMPORTED ITEMS - ${isFormat1 ? 'DELIVERY FORMAT' : 'INVENTORY FORMAT'}</h1>
+            <h1>IMPORTED ITEMS - INVENTORY</h1>
             <p>Date: ${new Date().toLocaleDateString()} | File: ${batch.file_name} | Total Items: ${items.length}</p>
           </div>
           <table>
             <thead>
               <tr>
-                ${isFormat1 ? `
-                  <th>Sheet No.</th>
-                  <th>Deliver To / Supplier</th>
-                  <th class="text-right">Qty</th>
-                  <th>Remarks</th>
-                ` : `
-                  <th>Year</th>
-                  <th>Name</th>
-                  <th>UPC</th>
-                  <th>Description</th>
-                  <th>Category</th>
-                  <th class="text-right">Price A</th>
-                  <th>Branch</th>
-                `}
+                <th>Sheet No.</th>
+                <th>Deliver To</th>
+                <th>Supplier</th>
+                <th class="text-right">Qty (Boxes)</th>
+                <th class="text-right">Pieces/Box</th>
+                <th class="text-right">Total Pieces</th>
+                <th>Remarks</th>
               </tr>
             </thead>
             <tbody>
-              ${items.map((item) => isFormat1 ? `
+              ${items.map((item) => `
                 <tr>
                   <td>${item.sheet_no || '-'}</td>
-                  <td>${[item.deliver_to, item.supplier].filter(Boolean).join(' / ') || '-'}</td>
+                  <td>${item.deliver_to || '-'}</td>
+                  <td>${item.supplier || '-'}</td>
                   <td class="text-right">${(item.qty ?? 0).toLocaleString()}</td>
+                  <td class="text-right">${item.pieces_per_box ?? 1}</td>
+                  <td class="text-right">${((item.qty ?? 0) * (item.pieces_per_box ?? 1)).toLocaleString()}</td>
                   <td>${item.remarks || '-'}</td>
-                </tr>
-              ` : `
-                <tr>
-                  <td>${item.year || '-'}</td>
-                  <td>${item.name}</td>
-                  <td>${item.upc || '-'}</td>
-                  <td>${item.description || '-'}</td>
-                  <td>${item.category || '-'}</td>
-                  <td class="text-right">${(item.price_a ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                  <td>${item.branch || '-'}</td>
                 </tr>
               `).join('')}
               <tr class="total-row">
-                ${isFormat1 ? `
-                  <td colspan="2" class="text-right">Total Qty:</td>
-                  <td class="text-right">${totalQty.toLocaleString()}</td>
-                  <td></td>
-                ` : `
-                  <td colspan="5" class="text-right">Total:</td>
-                  <td class="text-right">${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                  <td></td>
-                `}
+                <td colspan="3" class="text-right">Total:</td>
+                <td class="text-right">${totalQty.toLocaleString()}</td>
+                <td></td>
+                <td class="text-right">${totalPieces.toLocaleString()}</td>
+                <td></td>
               </tr>
             </tbody>
           </table>
@@ -423,10 +388,9 @@ const ImportExcel = () => {
       <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
         <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
         <h2 className="text-xl font-semibold mb-2">Import Excel</h2>
-        <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file (auto-detects format) - Max 50,000 rows</p>
-        <div className="text-sm text-muted-foreground mb-6 space-y-1">
-          <p><Badge variant="outline" className="mr-2">Format 1</Badge>YEAR, Name, UPC, Description, Category, Price A, Branch</p>
-          <p><Badge variant="outline" className="mr-2">Format 2</Badge>Sheet No., Deliver To, Supplier, Qty, Remarks</p>
+        <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file - Max 50,000 rows</p>
+        <div className="text-sm text-muted-foreground mb-6">
+          <p><Badge variant="outline" className="mr-2">Format</Badge>Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks</p>
         </div>
         
         <input 
@@ -458,7 +422,6 @@ const ImportExcel = () => {
                 <h3 className="font-semibold">Import Complete</h3>
                 <p className="text-sm text-muted-foreground">
                   {results.success} items imported
-                  <Badge variant="secondary" className="ml-2">{results.formatType === 'format1' ? 'Delivery' : 'Inventory'}</Badge>
                 </p>
               </div>
             </div>
@@ -469,49 +432,23 @@ const ImportExcel = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted">
-                    {results.formatType === 'format1' ? (
-                      <>
-                        <TableHead>Year</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>UPC</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Price A</TableHead>
-                        <TableHead>Branch</TableHead>
-                      </>
-                    ) : (
-                      <>
-                        <TableHead>Sheet No.</TableHead>
-                        <TableHead>Deliver To</TableHead>
-                        <TableHead>Supplier</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead>Remarks</TableHead>
-                      </>
-                    )}
+                    <TableHead>Sheet No.</TableHead>
+                    <TableHead>Deliver To</TableHead>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead className="text-right">Qty (Boxes)</TableHead>
+                    <TableHead className="text-right">Pieces/Box</TableHead>
+                    <TableHead>Remarks</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {results.items.map((item) => (
                     <TableRow key={item.id}>
-                      {item.formatType === 'format1' ? (
-                        <>
-                          <TableCell>{item.year || '-'}</TableCell>
-                          <TableCell className="font-medium">{item.name}</TableCell>
-                          <TableCell className="font-mono">{item.upc || '-'}</TableCell>
-                          <TableCell>{item.description || '-'}</TableCell>
-                          <TableCell>{item.category || '-'}</TableCell>
-                          <TableCell className="text-right">{item.priceA.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
-                          <TableCell>{item.branch || '-'}</TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                          <TableCell>{item.deliverTo || '-'}</TableCell>
-                          <TableCell>{item.supplier || '-'}</TableCell>
-                          <TableCell className="text-right">{item.qty.toLocaleString()}</TableCell>
-                          <TableCell>{item.remarks || '-'}</TableCell>
-                        </>
-                      )}
+                      <TableCell className="font-mono">{item.formatType === 'format1' ? item.sheetNo : item.sheetNo || '-'}</TableCell>
+                      <TableCell>{item.formatType === 'format1' ? item.deliverTo : item.deliverTo || '-'}</TableCell>
+                      <TableCell>{item.formatType === 'format1' ? item.supplier : item.supplier || '-'}</TableCell>
+                      <TableCell className="text-right">{item.qty.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
+                      <TableCell>{item.formatType === 'format1' ? item.remarks : item.remarks || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
