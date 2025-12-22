@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2, PackagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -115,6 +115,39 @@ const ImportExcel = () => {
       toast({ title: 'Removed', description: 'Import batch removed' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to remove batch', variant: 'destructive' });
+    }
+  };
+
+  const addToInventory = async (batch: ImportBatch) => {
+    try {
+      const inventoryItems = batch.items.map((item, index) => ({
+        item_name: item.sheet_no || item.deliver_to || `Item ${index + 1}`,
+        item_code: `${batch.batch_id.slice(0, 8)}-${index + 1}`,
+        total_stock: item.qty || 0,
+        available_stock: item.qty || 0,
+        pieces_per_box: item.pieces_per_box || 1,
+        supplier: item.supplier || null,
+        description: item.remarks || null,
+        branch: item.deliver_to || null,
+        created_by: user?.id,
+      }));
+
+      const { error } = await supabase
+        .from('inventory_items')
+        .insert(inventoryItems);
+
+      if (error) throw error;
+
+      // Remove from import bucket after successful transfer
+      await removeFromBucket(batch.batch_id);
+      
+      toast({ 
+        title: 'Added to Inventory', 
+        description: `${inventoryItems.length} items added to inventory` 
+      });
+    } catch (error) {
+      console.error('Error adding to inventory:', error);
+      toast({ title: 'Error', description: 'Failed to add items to inventory', variant: 'destructive' });
     }
   };
 
@@ -499,6 +532,10 @@ const ImportExcel = () => {
                     <TableCell>{batch.items.length}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
+                        <Button variant="default" size="sm" onClick={() => addToInventory(batch)} className="gap-1">
+                          <PackagePlus className="h-4 w-4" />
+                          Add to Inventory
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => handlePrint(batch)}>
                           <Printer className="h-4 w-4" />
                         </Button>
