@@ -33,7 +33,7 @@ const Dashboard = () => {
         <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
           <StatCard
             title="Total Stock"
-            value={stats.totalStock > 50000 ? '50,000+' : stats.totalStock.toLocaleString()}
+            value={stats.totalStock > 1000000 ? '1,000,000+' : stats.totalStock.toLocaleString()}
             icon={BoxesIcon}
           />
         </div>
