@@ -271,6 +271,22 @@ export const useInventory = () => {
     await fetchItems();
   };
 
+  const bulkUpdateStock = async (stockValue: number) => {
+    // Update all items to have the specified stock value
+    const { error } = await supabase
+      .from('inventory_items')
+      .update({ 
+        total_stock: stockValue, 
+        available_stock: stockValue 
+      })
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all
+
+    if (error) throw error;
+    
+    // Refresh items to get updated values
+    await fetchItems();
+  };
+
   return {
     items,
     categories,
@@ -290,5 +306,6 @@ export const useInventory = () => {
     deleteRelease,
     deleteReleaseBatch,
     getStats,
+    bulkUpdateStock,
   };
 };

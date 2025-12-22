@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Search, Plus, Edit2, Trash2, Package, Upload } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, Upload, Boxes } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,13 +26,16 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 const Inventory = () => {
-  const { items, categories, loading, addItem, updateItem, deleteItem, deleteAllItems, addCategory } = useInventory();
+  const { items, categories, loading, addItem, updateItem, deleteItem, deleteAllItems, addCategory, bulkUpdateStock } = useInventory();
   const { userRole, user } = useAuth();
   const { toast } = useToast();
   const isAdmin = userRole === 'admin';
 
   const [search, setSearch] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isBulkStockOpen, setIsBulkStockOpen] = useState(false);
+  const [bulkStockValue, setBulkStockValue] = useState(100);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -294,6 +297,35 @@ const Inventory = () => {
     }
   };
 
+  const handleBulkStockUpdate = async () => {
+    if (bulkStockValue < 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Stock value must be 0 or greater',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      await bulkUpdateStock(bulkStockValue);
+      toast({
+        title: 'Success',
+        description: `All items updated to ${bulkStockValue}/${bulkStockValue} stock`,
+      });
+      setIsBulkStockOpen(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update stocks',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   const openEditDialog = (item: InventoryItem) => {
     setFormData({
       item_name: item.item_name,
@@ -533,6 +565,48 @@ const Inventory = () => {
                 {importing ? 'Importing...' : 'Import'}
               </label>
             </Button>
+            
+            {/* Bulk Stock Button */}
+            <Dialog open={isBulkStockOpen} onOpenChange={setIsBulkStockOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Boxes className="h-4 w-4" />
+                  Bulk Stock
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Set Stock for All Items</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    This will set the total stock and available stock for ALL {items.length} items in inventory.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-stock">Stock Value</Label>
+                    <Input
+                      id="bulk-stock"
+                      type="number"
+                      min={0}
+                      value={bulkStockValue}
+                      onChange={(e) => setBulkStockValue(parseInt(e.target.value) || 0)}
+                      placeholder="e.g., 100"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      All items will be set to {bulkStockValue}/{bulkStockValue} stock
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <Button variant="outline" onClick={() => setIsBulkStockOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleBulkStockUpdate} disabled={bulkUpdating}>
+                    {bulkUpdating ? 'Updating...' : 'Update All Stocks'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             
             <Button 
               variant="outline" 
