@@ -10,7 +10,8 @@ import {
   PackagePlus,
   ClipboardList,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const location = useLocation();
   const isAdmin = userRole === 'admin';
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleToggleCollapse = () => {
+    setIsAnimating(true);
+    setIsCollapsed(!isCollapsed);
+    setTimeout(() => setIsAnimating(false), 300);
+  };
 
   const navItems = [
     { 
@@ -56,6 +64,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
+      roles: ['admin', 'staff']
+    },
+    { 
+      to: '/summary', 
+      icon: BarChart3, 
+      label: 'Summary Report',
       roles: ['admin', 'staff']
     },
     { 
@@ -111,10 +125,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 </div>
               </div>
               <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                onClick={handleToggleCollapse}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-300"
               >
-                {isCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                <ChevronLeft className={cn(
+                  "h-5 w-5 transition-transform duration-300",
+                  isCollapsed && "rotate-180"
+                )} />
               </button>
             </div>
 

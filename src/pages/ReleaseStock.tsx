@@ -22,6 +22,7 @@ interface ParsedReleaseItem {
   qtyBoxes: number;
   qtyItem: number;
   remarks: string;
+  category: string;
   matchedItemId: string | null;
   matchedItemName: string | null;
 }
@@ -200,12 +201,13 @@ const ReleaseStock = () => {
         }
       }
 
-      // Parse rows into release items - Format: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks
+      // Parse rows into release items - Format: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Category, Remarks
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code');
         const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Destination', 'DESTINATION', 'Branch');
         const qtyBoxes = findNumericValue(row, 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOX', 'BOXES');
         const qtyItem = findNumericValue(row, 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'Qty');
+        const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
 
         // Try to match with inventory item by item_code or item_name
@@ -222,6 +224,7 @@ const ReleaseStock = () => {
           deliverTo,
           qtyBoxes,
           qtyItem,
+          category,
           remarks: rem,
           matchedItemId: matchedItem?.id || null,
           matchedItemName: matchedItem?.item_name || null,
@@ -332,6 +335,30 @@ const ReleaseStock = () => {
     setSelectedItems(newSet);
   };
 
+  // Edit parsed item function
+  const updateParsedItem = (id: string, field: keyof ParsedReleaseItem, value: string | number) => {
+    setParsedItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      
+      const updated = { ...item, [field]: value };
+      
+      // If sheetNo changed, try to re-match with inventory
+      if (field === 'sheetNo') {
+        const sheetNo = String(value);
+        const matchedItem = items.find(i => 
+          i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
+          i.item_name?.toLowerCase() === sheetNo.toLowerCase() ||
+          i.item_code?.toLowerCase().includes(sheetNo.toLowerCase()) ||
+          i.item_name?.toLowerCase().includes(sheetNo.toLowerCase())
+        );
+        updated.matchedItemId = matchedItem?.id || null;
+        updated.matchedItemName = matchedItem?.item_name || null;
+      }
+      
+      return updated;
+    }));
+  };
+
   // Group releases by batch_id for allocation bills
   const allocationBills: AllocationBillGroup[] = Object.values(
     releases.reduce((acc, release) => {
@@ -400,7 +427,7 @@ const ReleaseStock = () => {
                 Cancel
               </Button>
             </div>
-            <div className="rounded-lg border overflow-hidden max-h-64 overflow-y-auto">
+            <div className="rounded-lg border overflow-hidden max-h-80 overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -411,12 +438,13 @@ const ReleaseStock = () => {
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead>Sheet No.</TableHead>
-                    <TableHead>Deliver To</TableHead>
-                    <TableHead>Qty/Boxes</TableHead>
-                    <TableHead>Qty/Item</TableHead>
-                    <TableHead>Remarks</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="min-w-[140px]">Sheet No.</TableHead>
+                    <TableHead className="min-w-[120px]">Deliver To</TableHead>
+                    <TableHead className="w-20">Boxes</TableHead>
+                    <TableHead className="w-20">Qty/Item</TableHead>
+                    <TableHead className="min-w-[100px]">Category</TableHead>
+                    <TableHead className="min-w-[120px]">Remarks</TableHead>
+                    <TableHead className="w-24">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -430,11 +458,56 @@ const ReleaseStock = () => {
                           aria-label={`Select ${item.sheetNo}`}
                         />
                       </TableCell>
-                      <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                      <TableCell>{item.deliverTo || '-'}</TableCell>
-                      <TableCell>{item.qtyBoxes}</TableCell>
-                      <TableCell>{item.qtyItem}</TableCell>
-                      <TableCell>{item.remarks || '-'}</TableCell>
+                      <TableCell>
+                        <Input 
+                          value={item.sheetNo}
+                          onChange={(e) => updateParsedItem(item.id, 'sheetNo', e.target.value)}
+                          className="h-8 text-xs font-mono"
+                          placeholder="Sheet No."
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={item.deliverTo}
+                          onChange={(e) => updateParsedItem(item.id, 'deliverTo', e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Destination"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number"
+                          value={item.qtyBoxes}
+                          onChange={(e) => updateParsedItem(item.id, 'qtyBoxes', parseInt(e.target.value) || 0)}
+                          className="h-8 text-xs w-16"
+                          min={0}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number"
+                          value={item.qtyItem}
+                          onChange={(e) => updateParsedItem(item.id, 'qtyItem', parseInt(e.target.value) || 0)}
+                          className="h-8 text-xs w-16"
+                          min={0}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={item.category}
+                          onChange={(e) => updateParsedItem(item.id, 'category', e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Category"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={item.remarks}
+                          onChange={(e) => updateParsedItem(item.id, 'remarks', e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Remarks"
+                        />
+                      </TableCell>
                       <TableCell>
                         {item.matchedItemId ? (
                           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">

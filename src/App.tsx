@@ -13,6 +13,7 @@ import Deliveries from "./pages/Deliveries";
 import History from "./pages/History";
 import ImportExcel from "./pages/ImportExcel";
 import ManageUsers from "./pages/ManageUsers";
+import SummaryReport from "./pages/SummaryReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/release" element={<ReleaseStock />} />
               <Route path="/deliveries" element={<Deliveries />} />
               <Route path="/history" element={<History />} />
+              <Route path="/summary" element={<SummaryReport />} />
               <Route path="/import" element={<ImportExcel />} />
               <Route path="/users" element={<ManageUsers />} />
             </Route>

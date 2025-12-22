@@ -101,12 +101,32 @@ export default {
           from: { opacity: "0", transform: "translateX(20px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
+        "sidebar-expand": {
+          from: { width: "4rem" },
+          to: { width: "16rem" },
+        },
+        "sidebar-collapse": {
+          from: { width: "16rem" },
+          to: { width: "4rem" },
+        },
+        "icon-rotate-in": {
+          from: { transform: "rotate(-180deg)", opacity: "0" },
+          to: { transform: "rotate(0deg)", opacity: "1" },
+        },
+        "text-fade-in": {
+          from: { opacity: "0", transform: "translateX(-10px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out forwards",
         "slide-in-right": "slide-in-right 0.3s ease-out forwards",
+        "sidebar-expand": "sidebar-expand 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "sidebar-collapse": "sidebar-collapse 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "icon-rotate": "icon-rotate-in 0.3s ease-out",
+        "text-fade": "text-fade-in 0.2s ease-out forwards",
       },
       boxShadow: {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
