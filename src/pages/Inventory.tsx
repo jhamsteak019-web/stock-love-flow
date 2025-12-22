@@ -630,8 +630,8 @@ const Inventory = () => {
             <TableRow>
               <TableHead>Sheet No.</TableHead>
               <TableHead>Deliver To</TableHead>
-              <TableHead className="text-center">Qty</TableHead>
-              <TableHead className="text-center">Item</TableHead>
+              <TableHead className="text-center">Qty/Boxes</TableHead>
+              <TableHead className="text-center">Qty/Item</TableHead>
               <TableHead>Remarks</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
