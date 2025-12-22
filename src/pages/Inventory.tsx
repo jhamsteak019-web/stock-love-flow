@@ -654,6 +654,7 @@ const Inventory = () => {
               <TableHead>Name</TableHead>
               <TableHead>UPC</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead>Allocation Bill</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Price A</TableHead>
               <TableHead>Branch</TableHead>
@@ -677,6 +678,7 @@ const Inventory = () => {
                     <TableCell className="font-medium">{item.item_name}</TableCell>
                     <TableCell className="text-muted-foreground">{item.upc || item.item_code || '-'}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
+                    <TableCell className="max-w-[150px] truncate text-muted-foreground">{item.description || '-'}</TableCell>
                     <TableCell>
                       {item.category?.name && (
                         <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
@@ -722,7 +724,7 @@ const Inventory = () => {
                 ))}
                 {/* Summary Row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
-                  <TableCell colSpan={5} className="text-right">Total Inventory Value:</TableCell>
+                  <TableCell colSpan={6} className="text-right">Total Inventory Value:</TableCell>
                   <TableCell className="text-right text-lg text-primary">
                     ₱{filteredItems.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </TableCell>

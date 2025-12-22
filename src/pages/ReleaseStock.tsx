@@ -59,11 +59,14 @@ const ReleaseStock = () => {
       item.id === id ? { ...item, [field]: value } : item
     ));
     
-    // Auto-fill allocation bill when selecting an item
+    // Auto-fill allocation bill and destination when selecting an item
     if (field === 'itemId' && typeof value === 'string') {
       const selectedItem = items.find(i => i.id === value);
       if (selectedItem?.description) {
         setAllocationBill(selectedItem.description);
+      }
+      if (selectedItem?.branch) {
+        setDestination(selectedItem.branch);
       }
     }
   };
