@@ -213,11 +213,16 @@ export const useInventory = () => {
     return data;
   };
 
-  const updateDeliveryStatus = async (releaseId: string, status: DeliveryStatus, dateDelivered?: string) => {
-    const updates: Record<string, unknown> = { delivery_status: status };
-    if (status === 'delivered') {
-      updates.date_delivered = dateDelivered || new Date().toISOString();
+  const updateDeliveryStatus = async (releaseId: string, status?: DeliveryStatus, dateDelivered?: string) => {
+    const updates: Record<string, unknown> = {};
+    if (status) {
+      updates.delivery_status = status;
     }
+    if (dateDelivered) {
+      updates.date_delivered = dateDelivered;
+    }
+
+    if (Object.keys(updates).length === 0) return null;
 
     const { data, error } = await supabase
       .from('stock_releases')
