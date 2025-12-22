@@ -607,9 +607,8 @@ const Inventory = () => {
               <TableHead>Sheet No.</TableHead>
               <TableHead>Deliver To</TableHead>
               <TableHead>Supplier</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Box</TableHead>
-              <TableHead className="text-right">Pieces/Box</TableHead>
+              <TableHead className="text-center">Qty</TableHead>
+              <TableHead className="text-center">Pieces/Box</TableHead>
               <TableHead>Remarks</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
@@ -617,7 +616,7 @@ const Inventory = () => {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-12">
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-12">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No items found</p>
                 </TableCell>
@@ -629,18 +628,16 @@ const Inventory = () => {
                     <TableCell className="font-mono font-medium">{item.item_code || '-'}</TableCell>
                     <TableCell>{item.branch || '-'}</TableCell>
                     <TableCell>{item.supplier || '-'}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {(item.price || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-center">
                       <span className={cn(
                         "font-semibold",
                         item.available_stock <= item.low_stock_threshold && "text-destructive"
                       )}>
                         {item.available_stock}
                       </span>
+                      <span className="text-muted-foreground"> / {item.total_stock}</span>
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">{item.pieces_per_box || 1}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{item.pieces_per_box || 1}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">
@@ -668,13 +665,10 @@ const Inventory = () => {
                 {/* Summary Row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
                   <TableCell colSpan={3} className="text-right">Total:</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    ₱{filteredItems.reduce((sum, item) => sum + (item.price || 0), 0).toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right text-lg text-primary">
+                  <TableCell className="text-center text-lg text-primary">
                     {filteredItems.reduce((sum, item) => sum + (item.total_stock || 0), 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="text-center text-muted-foreground">
                     {filteredItems.reduce((sum, item) => sum + ((item.total_stock || 0) * (item.pieces_per_box || 1)), 0).toLocaleString()} pcs
                   </TableCell>
                   <TableCell colSpan={isAdmin ? 2 : 1}></TableCell>
