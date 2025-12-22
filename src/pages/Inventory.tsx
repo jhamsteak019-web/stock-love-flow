@@ -321,7 +321,7 @@ const Inventory = () => {
     );
   }
 
-  const ItemForm = ({ onCategoryChange }: { onCategoryChange: (val: string) => void }) => {
+  const ItemForm = ({ onCategoryChange, onFormChange }: { onCategoryChange: (val: string) => void; onFormChange: (form: typeof formData) => void }) => {
     const [localForm, setLocalForm] = useState(formData);
     const [localCategory, setLocalCategory] = useState(newCategory);
 
@@ -329,14 +329,14 @@ const Inventory = () => {
     React.useEffect(() => {
       setLocalForm(formData);
       setLocalCategory(newCategory);
-    }, [formData, newCategory]);
+    }, []);
 
     const handleChange = (field: string, value: string | number) => {
       setLocalForm(prev => ({ ...prev, [field]: value }));
     };
 
     const handleBlur = () => {
-      setFormData(localForm);
+      onFormChange(localForm);
     };
 
     const handleCategoryBlur = () => {
@@ -502,7 +502,7 @@ const Inventory = () => {
                 <DialogHeader>
                   <DialogTitle>Add New Item</DialogTitle>
                 </DialogHeader>
-                <ItemForm onCategoryChange={setNewCategory} />
+                <ItemForm onCategoryChange={setNewCategory} onFormChange={setFormData} />
                 <div className="flex justify-end gap-3">
                   <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                     Cancel
@@ -561,7 +561,7 @@ const Inventory = () => {
           <DialogHeader>
             <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
-          <ItemForm onCategoryChange={setNewCategory} />
+          <ItemForm onCategoryChange={setNewCategory} onFormChange={setFormData} />
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setEditItem(null)}>
               Cancel

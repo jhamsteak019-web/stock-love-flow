@@ -339,6 +339,7 @@ const ImportExcel = () => {
           <title>Imported Items</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
+            @page { size: ${isFormat2 ? 'landscape' : 'portrait'}; margin: 10mm; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; }
             .header { text-align: center; margin-bottom: 20px; }
             .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
