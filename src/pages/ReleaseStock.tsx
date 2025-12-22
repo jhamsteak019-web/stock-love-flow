@@ -205,7 +205,21 @@ const ReleaseStock = () => {
 
           <div className="space-y-2">
             <Label>Courier (Optional)</Label>
-            <Input value={courier} onChange={(e) => setCourier(e.target.value)} placeholder="Courier name / company" />
+            <Select value={courier} onValueChange={setCourier}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select courier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AP CARGO">AP CARGO</SelectItem>
+                <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
+                <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
+                <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
+                <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
+                <SelectItem value="RDS DC">RDS DC</SelectItem>
+                <SelectItem value="SM DEC">SM DEC</SelectItem>
+                <SelectItem value="PRIETO">PRIETO</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
