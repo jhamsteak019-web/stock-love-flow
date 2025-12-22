@@ -99,50 +99,65 @@ export type Database = {
         Row: {
           amount: number | null
           available_stock: number
+          branch: string | null
           category_id: string | null
           created_at: string
           created_by: string | null
           date_received: string | null
+          description: string | null
           id: string
           item_code: string
           item_name: string
           low_stock_threshold: number | null
           price: number | null
+          restock_location: string | null
           supplier: string | null
           total_stock: number
+          upc: string | null
           updated_at: string
+          year: string | null
         }
         Insert: {
           amount?: number | null
           available_stock?: number
+          branch?: string | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           date_received?: string | null
+          description?: string | null
           id?: string
           item_code: string
           item_name: string
           low_stock_threshold?: number | null
           price?: number | null
+          restock_location?: string | null
           supplier?: string | null
           total_stock?: number
+          upc?: string | null
           updated_at?: string
+          year?: string | null
         }
         Update: {
           amount?: number | null
           available_stock?: number
+          branch?: string | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           date_received?: string | null
+          description?: string | null
           id?: string
           item_code?: string
           item_name?: string
           low_stock_threshold?: number | null
           price?: number | null
+          restock_location?: string | null
           supplier?: string | null
           total_stock?: number
+          upc?: string | null
           updated_at?: string
+          year?: string | null
         }
         Relationships: [
           {

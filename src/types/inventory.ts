@@ -38,6 +38,11 @@ export interface InventoryItem {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  year: string | null;
+  upc: string | null;
+  description: string | null;
+  branch: string | null;
+  restock_location: string | null;
   category?: Category;
 }
 
