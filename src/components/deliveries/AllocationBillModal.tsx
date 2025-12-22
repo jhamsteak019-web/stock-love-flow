@@ -13,10 +13,11 @@ interface AllocationBillModalProps {
   destination: string;
   courier: string | null;
   dateReleased: string;
+  dateDelivered?: string | null;
   allocationBill?: string | null;
 }
 
-const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, allocationBill }: AllocationBillModalProps) => {
+const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const totalQty = releases.reduce((sum, r) => sum + r.boxes_released, 0);
   const totalAmount = releases.reduce((sum, r) => {
@@ -67,8 +68,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
               </div>
               <div class="header-right">
                 <div class="bill-box"><strong>${billNumber}</strong></div>
-                <div class="header-row">${format(new Date(dateReleased), 'yyyy-MM-dd')}</div>
-                <div class="header-row">${courier || '-'}</div>
+                <div class="header-row"><strong>Released:</strong> ${format(new Date(dateReleased), 'yyyy-MM-dd')}</div>
+                ${dateDelivered ? `<div class="header-row"><strong>Delivered:</strong> ${format(new Date(dateDelivered), 'yyyy-MM-dd')}</div>` : ''}
+                <div class="header-row"><strong>Courier:</strong> ${courier || '-'}</div>
               </div>
             </div>
           </div>
@@ -159,8 +161,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
             </div>
             <div className="text-right space-y-1">
               <p className="border border-foreground px-3 py-1 inline-block font-bold">{billNumber}</p>
-              <p>{format(new Date(dateReleased), 'yyyy-MM-dd')}</p>
-              <p>{courier || '-'}</p>
+              <p><span className="font-semibold">Released:</span> {format(new Date(dateReleased), 'yyyy-MM-dd')}</p>
+              {dateDelivered && <p><span className="font-semibold">Delivered:</span> {format(new Date(dateDelivered), 'yyyy-MM-dd')}</p>}
+              <p><span className="font-semibold">Courier:</span> {courier || '-'}</p>
             </div>
           </div>
 
