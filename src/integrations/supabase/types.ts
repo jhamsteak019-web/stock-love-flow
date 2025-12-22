@@ -45,6 +45,7 @@ export type Database = {
           id: string
           imported_by: string
           name: string
+          pieces_per_box: number
           price_a: number | null
           qty: number | null
           remarks: string | null
@@ -65,6 +66,7 @@ export type Database = {
           id?: string
           imported_by: string
           name: string
+          pieces_per_box?: number
           price_a?: number | null
           qty?: number | null
           remarks?: string | null
@@ -85,6 +87,7 @@ export type Database = {
           id?: string
           imported_by?: string
           name?: string
+          pieces_per_box?: number
           price_a?: number | null
           qty?: number | null
           remarks?: string | null
