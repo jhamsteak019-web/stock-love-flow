@@ -3,7 +3,7 @@ import { Truck, Eye, CalendarIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/status-badge';
+
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useInventory } from '@/hooks/useInventory';
@@ -80,11 +80,11 @@ const Deliveries = () => {
 
   const handleDeliveryDateChange = async (group: GroupedRelease, date: Date) => {
     try {
-      // Update status to delivered and set date
+      // Only set the date, don't change status
       for (const releaseId of group.releaseIds) {
-        await updateDeliveryStatus(releaseId, 'delivered', date.toISOString());
+        await updateDeliveryStatus(releaseId, undefined, date.toISOString());
       }
-      toast({ title: 'Success', description: `Marked as delivered on ${format(date, 'MMM d, yyyy')}` });
+      toast({ title: 'Success', description: `Delivery date set to ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update delivery date', variant: 'destructive' });
     }
@@ -143,7 +143,22 @@ const Deliveries = () => {
                   <TableCell>{group.totalBoxes}</TableCell>
                   <TableCell>{group.destination}</TableCell>
                   <TableCell>{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
-                  <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Select 
+                      value={group.delivery_status} 
+                      onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in_transit">In Transit</SelectItem>
+                        <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
                       <Eye className="h-4 w-4" />
