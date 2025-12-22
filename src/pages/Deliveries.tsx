@@ -18,6 +18,7 @@ interface GroupedRelease {
   destination: string;
   courier: string | null;
   date_released: string;
+  date_delivered: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
   itemCount: number;
@@ -43,6 +44,7 @@ const Deliveries = () => {
           destination: release.destination,
           courier: release.courier,
           date_released: release.date_released,
+          date_delivered: release.date_delivered || null,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
           itemCount: 0,
@@ -181,6 +183,7 @@ const Deliveries = () => {
           destination={selectedBatch.destination}
           courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
+          dateDelivered={selectedBatch.date_delivered}
         />
       )}
     </div>
