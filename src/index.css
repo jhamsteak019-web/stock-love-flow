@@ -216,6 +216,28 @@
   }
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.4s ease-out forwards;
 }
@@ -228,6 +250,19 @@
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
+.animate-slide-up {
+  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Smooth transitions */
+* {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Stagger animation for lists */
 .stagger-item:nth-child(1) { animation-delay: 0ms; }
 .stagger-item:nth-child(2) { animation-delay: 50ms; }
@@ -235,3 +270,9 @@
 .stagger-item:nth-child(4) { animation-delay: 150ms; }
 .stagger-item:nth-child(5) { animation-delay: 200ms; }
 .stagger-item:nth-child(6) { animation-delay: 250ms; }
+
+/* Table row animations */
+.table-row-animate {
+  animation: fade-in 0.4s ease-out forwards;
+  opacity: 0;
+}

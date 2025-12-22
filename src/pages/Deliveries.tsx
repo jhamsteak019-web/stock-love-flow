@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react';
-import { Truck, Eye } from 'lucide-react';
+import { Truck, Eye, CalendarIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 
 interface GroupedRelease {
@@ -73,6 +76,18 @@ const Deliveries = () => {
     }
   };
 
+  const handleDeliveryDateChange = async (group: GroupedRelease, date: Date) => {
+    try {
+      // Update status to delivered and set date
+      for (const releaseId of group.releaseIds) {
+        await updateDeliveryStatus(releaseId, 'delivered', date.toISOString());
+      }
+      toast({ title: 'Success', description: `Marked as delivered on ${format(date, 'MMM d, yyyy')}` });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update delivery date', variant: 'destructive' });
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
@@ -89,8 +104,8 @@ const Deliveries = () => {
               <TableHead>Destination</TableHead>
               <TableHead>Released</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Update</TableHead>
               <TableHead className="w-[80px]">View</TableHead>
+              <TableHead>Delivered On</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -102,8 +117,12 @@ const Deliveries = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              pendingGroups.map((group) => (
-                <TableRow key={group.batch_id} className="animate-fade-in cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
+              pendingGroups.map((group, index) => (
+                <TableRow 
+                  key={group.batch_id} 
+                  className="transition-all duration-300 ease-out hover:bg-muted/50"
+                  style={{ animation: `fade-in 0.4s ease-out ${index * 50}ms forwards`, opacity: 0 }}
+                >
                   <TableCell className="font-medium">
                     {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
                   </TableCell>
@@ -121,22 +140,31 @@ const Deliveries = () => {
                   </TableCell>
                   <TableCell>{group.totalBoxes}</TableCell>
                   <TableCell>{group.destination}</TableCell>
+                  <TableCell>{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
                   <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Select value={group.delivery_status} onValueChange={(val) => handleStatusChange(group, val as DeliveryStatus)}>
-                      <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in_transit">In Transit</SelectItem>
-                        <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
                       <Eye className="h-4 w-4" />
                     </Button>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal transition-all hover:border-primary">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          Set Date
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={undefined}
+                          onSelect={(date) => date && handleDeliveryDateChange(group, date)}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
                 </TableRow>
               ))

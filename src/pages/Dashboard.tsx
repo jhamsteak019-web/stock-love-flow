@@ -23,40 +23,52 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard
-          title="Total Items"
-          value={stats.totalItems}
-          icon={Package}
-        />
-        <StatCard
-          title="Total Stock"
-          value={stats.totalStock.toLocaleString()}
-          icon={BoxesIcon}
-        />
-        <StatCard
-          title="Low Stock"
-          value={stats.lowStockItems}
-          icon={AlertTriangle}
-          variant="warning"
-        />
-        <StatCard
-          title="Pending"
-          value={stats.pendingDeliveries}
-          icon={Clock}
-          variant="warning"
-        />
-        <StatCard
-          title="In Transit"
-          value={stats.inTransitDeliveries}
-          icon={Truck}
-          variant="info"
-        />
-        <StatCard
-          title="Delivered"
-          value={stats.deliveredCount}
-          icon={CheckCircle}
-          variant="success"
-        />
+        <div className="animate-slide-up" style={{ animationDelay: '0ms' }}>
+          <StatCard
+            title="Total Items"
+            value={stats.totalItems > 50000 ? '50,000+' : stats.totalItems.toLocaleString()}
+            icon={Package}
+          />
+        </div>
+        <div className="animate-slide-up" style={{ animationDelay: '50ms' }}>
+          <StatCard
+            title="Total Stock"
+            value={stats.totalStock > 50000 ? '50,000+' : stats.totalStock.toLocaleString()}
+            icon={BoxesIcon}
+          />
+        </div>
+        <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <StatCard
+            title="Low Stock"
+            value={stats.lowStockItems}
+            icon={AlertTriangle}
+            variant="warning"
+          />
+        </div>
+        <div className="animate-slide-up" style={{ animationDelay: '150ms' }}>
+          <StatCard
+            title="Pending"
+            value={stats.pendingDeliveries}
+            icon={Clock}
+            variant="warning"
+          />
+        </div>
+        <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <StatCard
+            title="In Transit"
+            value={stats.inTransitDeliveries}
+            icon={Truck}
+            variant="info"
+          />
+        </div>
+        <div className="animate-slide-up" style={{ animationDelay: '250ms' }}>
+          <StatCard
+            title="Delivered"
+            value={stats.deliveredCount}
+            icon={CheckCircle}
+            variant="success"
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
