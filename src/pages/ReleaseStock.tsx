@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,6 +64,7 @@ const ReleaseStock = () => {
   const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importCourier, setImportCourier] = useState('');
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   const addReleaseItem = () => {
     setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
@@ -246,10 +248,10 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    const validItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
+    const validItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0 && selectedItems.has(p.id));
     
     if (validItems.length === 0) {
-      toast({ title: 'Error', description: 'No valid items with matched inventory to release', variant: 'destructive' });
+      toast({ title: 'Error', description: 'No selected items to release', variant: 'destructive' });
       return;
     }
 
@@ -292,6 +294,7 @@ const ReleaseStock = () => {
       setParsedItems([]);
       setShowImportPreview(false);
       setImportCourier('');
+      setSelectedItems(new Set());
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
@@ -303,6 +306,30 @@ const ReleaseStock = () => {
     setParsedItems([]);
     setShowImportPreview(false);
     setImportCourier('');
+    setSelectedItems(new Set());
+  };
+
+  // Checkbox handlers
+  const matchedItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
+  const allMatchedSelected = matchedItems.length > 0 && matchedItems.every(p => selectedItems.has(p.id));
+  const someMatchedSelected = matchedItems.some(p => selectedItems.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allMatchedSelected) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(matchedItems.map(p => p.id)));
+    }
+  };
+
+  const toggleSelectItem = (id: string) => {
+    const newSet = new Set(selectedItems);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedItems(newSet);
   };
 
   // Group releases by batch_id for allocation bills
@@ -377,6 +404,13 @@ const ReleaseStock = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox 
+                        checked={allMatchedSelected}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead>Sheet No.</TableHead>
                     <TableHead>Deliver To</TableHead>
                     <TableHead>Qty/Boxes</TableHead>
@@ -388,6 +422,14 @@ const ReleaseStock = () => {
                 <TableBody>
                   {parsedItems.map((item) => (
                     <TableRow key={item.id}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedItems.has(item.id)}
+                          onCheckedChange={() => toggleSelectItem(item.id)}
+                          disabled={!item.matchedItemId}
+                          aria-label={`Select ${item.sheetNo}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
                       <TableCell>{item.deliverTo || '-'}</TableCell>
                       <TableCell>{item.qtyBoxes}</TableCell>
@@ -432,10 +474,10 @@ const ReleaseStock = () => {
               </div>
               <Button 
                 onClick={handleConfirmImport}
-                disabled={submitting || parsedItems.filter(p => p.matchedItemId).length === 0 || !importCourier}
+                disabled={submitting || selectedItems.size === 0 || !importCourier}
                 className="min-w-[140px]"
               >
-                {submitting ? 'Releasing...' : `Release ${parsedItems.filter(p => p.matchedItemId).length} Items`}
+                {submitting ? 'Releasing...' : `Release ${selectedItems.size} Items`}
               </Button>
             </div>
           </div>
