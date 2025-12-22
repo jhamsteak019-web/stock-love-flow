@@ -18,14 +18,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// Format 1: Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks
+// Format 1: Sheet No., Deliver To, Supplier, Price, Box, Pieces/Box, Remarks (auto-generated)
 interface Format1Item {
   id: string;
   formatType: 'format1';
   sheetNo: string;
   deliverTo: string;
   supplier: string;
-  qty: number;
+  price: number;
+  box: number;
   piecesPerBox: number;
   remarks: string;
 }
@@ -37,7 +38,8 @@ interface Format2Item {
   sheetNo: string;
   deliverTo: string;
   supplier: string;
-  qty: number;
+  price: number;
+  box: number;
   remarks: string;
 }
 
@@ -144,11 +146,12 @@ const ImportExcel = () => {
       const inventoryItems = batch.items.map((item, index) => ({
         item_name: item.sheet_no || item.deliver_to || `Item ${index + 1}`,
         item_code: `${batch.batch_id.slice(0, 8)}-${index + 1}`,
-        total_stock: item.qty || 0,
-        available_stock: item.qty || 0,
+        total_stock: item.qty || 0,  // Box quantity
+        available_stock: item.qty || 0,  // Box quantity
         pieces_per_box: item.pieces_per_box || 1,
+        price: item.price_a || 0,  // Price from Qty column
         supplier: item.supplier || null,
-        description: item.remarks || null,
+        description: item.remarks || null,  // Auto-generated remarks
         branch: item.deliver_to || null,
         created_by: user?.id,
       }));
@@ -250,24 +253,39 @@ const ImportExcel = () => {
       const batchId = crypto.randomUUID();
 
       if (formatType === 'format1') {
-        // Parse Format 1: Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks
-        items = rows.map((row, index) => ({
-          id: `item-${index}-${Date.now()}`,
-          formatType: 'format1' as const,
-          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Bill No', 'Bill'),
-          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination', 'Branch'),
-          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER'),
-          qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY', 'Qty (Boxes)', 'Boxes'),
-          piecesPerBox: findNumericValue(row, 'Pieces/Box', 'Pieces Per Box', 'PIECES/BOX', 'Pieces', 'Pcs/Box') || 1,
-          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Description'),
-        }));
+        // Parse Format 1: Sheet No., Deliver To, Supplier, Price, Box, Pieces/Box
+        // Remarks is auto-generated
+        items = rows.map((row, index) => {
+          const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Bill No', 'Bill');
+          const deliverTo = findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination', 'Branch');
+          const supplier = findColumnValue(row, 'Supplier', 'SUPPLIER');
+          const price = findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY', 'Price', 'PRICE', 'Amount');
+          const box = findNumericValue(row, 'Box', 'BOX', 'Boxes', 'BOXES', 'Box Qty');
+          const piecesPerBox = findNumericValue(row, 'Pieces/Box', 'Pieces Per Box', 'PIECES/BOX', 'Pieces', 'Pcs/Box') || 1;
+          
+          // Auto-generate remarks like: "SHEET-001-2024-12-22"
+          const dateStr = new Date().toISOString().split('T')[0];
+          const autoRemarks = sheetNo ? `${sheetNo}-${dateStr}` : `IMP-${index + 1}-${dateStr}`;
+          
+          return {
+            id: `item-${index}-${Date.now()}`,
+            formatType: 'format1' as const,
+            sheetNo,
+            deliverTo,
+            supplier,
+            price,
+            box,
+            piecesPerBox,
+            remarks: autoRemarks,
+          };
+        });
 
         const validItems = items.filter(item => 
-          item.formatType === 'format1' && (item.sheetNo || item.deliverTo || item.qty > 0)
+          item.formatType === 'format1' && (item.sheetNo || item.deliverTo || item.price > 0 || item.box > 0)
         ) as Format1Item[];
 
         if (validItems.length === 0) {
-          toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, Supplier, Qty, Pieces/Box, Remarks).', variant: 'destructive' });
+          toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, Supplier, Qty/Price, Box, Pieces/Box).', variant: 'destructive' });
           setImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
@@ -281,7 +299,8 @@ const ImportExcel = () => {
           sheet_no: item.sheetNo || null,
           deliver_to: item.deliverTo || null,
           supplier: item.supplier || null,
-          qty: item.qty || 0,
+          price_a: item.price || 0,
+          qty: item.box || 0,
           pieces_per_box: item.piecesPerBox || 1,
           remarks: item.remarks || null,
           imported_by: user.id,
@@ -289,19 +308,32 @@ const ImportExcel = () => {
 
         items = validItems;
       } else {
-        // Parse Format 2 (legacy): Sheet No., Deliver To, Supplier, Qty, Remarks
-        items = rows.map((row, index) => ({
-          id: `item-${index}-${Date.now()}`,
-          formatType: 'format2' as const,
-          sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo'),
-          deliverTo: findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination'),
-          supplier: findColumnValue(row, 'Supplier', 'SUPPLIER'),
-          qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY'),
-          remarks: findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES'),
-        }));
+        // Parse Format 2 (legacy): Sheet No., Deliver To, Supplier, Price, Box, Remarks
+        items = rows.map((row, index) => {
+          const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo');
+          const deliverTo = findColumnValue(row, 'Deliver To', 'DELIVER TO', 'DeliverTo', 'Destination');
+          const supplier = findColumnValue(row, 'Supplier', 'SUPPLIER');
+          const price = findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY', 'Price', 'PRICE');
+          const box = findNumericValue(row, 'Box', 'BOX', 'Boxes', 'BOXES');
+          
+          // Auto-generate remarks
+          const dateStr = new Date().toISOString().split('T')[0];
+          const autoRemarks = sheetNo ? `${sheetNo}-${dateStr}` : `IMP-${index + 1}-${dateStr}`;
+          
+          return {
+            id: `item-${index}-${Date.now()}`,
+            formatType: 'format2' as const,
+            sheetNo,
+            deliverTo,
+            supplier,
+            price,
+            box,
+            remarks: autoRemarks,
+          };
+        });
 
         const validItems = items.filter(item => 
-          item.formatType === 'format2' && (item.sheetNo || item.deliverTo || item.qty > 0)
+          item.formatType === 'format2' && (item.sheetNo || item.deliverTo || item.price > 0 || item.box > 0)
         ) as Format2Item[];
 
         if (validItems.length === 0) {
@@ -319,7 +351,8 @@ const ImportExcel = () => {
           sheet_no: item.sheetNo || null,
           deliver_to: item.deliverTo || null,
           supplier: item.supplier || null,
-          qty: item.qty || 0,
+          price_a: item.price || 0,
+          qty: item.box || 0,
           remarks: item.remarks || null,
           imported_by: user.id,
         }));
@@ -367,7 +400,8 @@ const ImportExcel = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const totalQty = items.reduce((sum, item) => sum + (item.qty ?? 0), 0);
+    const totalBox = items.reduce((sum, item) => sum + (item.qty ?? 0), 0);
+    const totalPrice = items.reduce((sum, item) => sum + (item.price_a ?? 0), 0);
     const totalPieces = items.reduce((sum, item) => sum + ((item.qty ?? 0) * (item.pieces_per_box ?? 1)), 0);
 
     printWindow.document.write(`
@@ -400,10 +434,11 @@ const ImportExcel = () => {
                 <th>Sheet No.</th>
                 <th>Deliver To</th>
                 <th>Supplier</th>
-                <th class="text-right">Qty (Boxes)</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Box</th>
                 <th class="text-right">Pieces/Box</th>
                 <th class="text-right">Total Pieces</th>
-                <th>Remarks</th>
+                <th>Remarks (Auto)</th>
               </tr>
             </thead>
             <tbody>
@@ -412,6 +447,7 @@ const ImportExcel = () => {
                   <td>${item.sheet_no || '-'}</td>
                   <td>${item.deliver_to || '-'}</td>
                   <td>${item.supplier || '-'}</td>
+                  <td class="text-right">${(item.price_a ?? 0).toLocaleString()}</td>
                   <td class="text-right">${(item.qty ?? 0).toLocaleString()}</td>
                   <td class="text-right">${item.pieces_per_box ?? 1}</td>
                   <td class="text-right">${((item.qty ?? 0) * (item.pieces_per_box ?? 1)).toLocaleString()}</td>
@@ -420,7 +456,8 @@ const ImportExcel = () => {
               `).join('')}
               <tr class="total-row">
                 <td colspan="3" class="text-right">Total:</td>
-                <td class="text-right">${totalQty.toLocaleString()}</td>
+                <td class="text-right">${totalPrice.toLocaleString()}</td>
+                <td class="text-right">${totalBox.toLocaleString()}</td>
                 <td></td>
                 <td class="text-right">${totalPieces.toLocaleString()}</td>
                 <td></td>
@@ -444,7 +481,8 @@ const ImportExcel = () => {
         <h2 className="text-xl font-semibold mb-2">Import Excel</h2>
         <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file - Max 50,000 rows</p>
         <div className="text-sm text-muted-foreground mb-6">
-          <p><Badge variant="outline" className="mr-2">Format</Badge>Sheet No., Deliver To, Supplier, Qty (Boxes), Pieces/Box, Remarks</p>
+          <p><Badge variant="outline" className="mr-2">Format</Badge>Sheet No., Deliver To, Supplier, Qty (Price), Box, Pieces/Box</p>
+          <p className="text-xs mt-1 text-muted-foreground">Remarks will be auto-generated. Allocation Bill is set manually when releasing stock.</p>
         </div>
         
         <input 
@@ -489,20 +527,22 @@ const ImportExcel = () => {
                     <TableHead>Sheet No.</TableHead>
                     <TableHead>Deliver To</TableHead>
                     <TableHead>Supplier</TableHead>
-                    <TableHead className="text-right">Qty (Boxes)</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Box</TableHead>
                     <TableHead className="text-right">Pieces/Box</TableHead>
-                    <TableHead>Remarks</TableHead>
+                    <TableHead>Remarks (Auto)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {results.items.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-mono">{item.formatType === 'format1' ? item.sheetNo : item.sheetNo || '-'}</TableCell>
-                      <TableCell>{item.formatType === 'format1' ? item.deliverTo : item.deliverTo || '-'}</TableCell>
-                      <TableCell>{item.formatType === 'format1' ? item.supplier : item.supplier || '-'}</TableCell>
-                      <TableCell className="text-right">{item.qty.toLocaleString()}</TableCell>
+                      <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
+                      <TableCell>{item.deliverTo || '-'}</TableCell>
+                      <TableCell>{item.supplier || '-'}</TableCell>
+                      <TableCell className="text-right">{item.price.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{item.box.toLocaleString()}</TableCell>
                       <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
-                      <TableCell>{item.formatType === 'format1' ? item.remarks : item.remarks || '-'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{item.remarks || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
