@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet } from 'lucide-react';
+import { useState } from 'react';
+import { PackagePlus, Plus, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,18 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { format } from 'date-fns';
 import type { StockRelease } from '@/types/inventory';
-import * as XLSX from 'xlsx';
-
-interface ParsedReleaseItem {
-  id: string;
-  sheetNo: string;
-  boxes: number;
-  destination: string;
-  courier: string;
-  remarks: string;
-  matchedItemId: string | null;
-  matchedItemName: string | null;
-}
 
 interface ReleaseItem {
   id: string;
@@ -45,7 +33,6 @@ const ReleaseStock = () => {
   const { items, releases, releaseStockBatch, loading } = useInventory();
   const { user } = useAuth();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [releaseItems, setReleaseItems] = useState<ReleaseItem[]>([
     { id: crypto.randomUUID(), itemId: '', boxes: 1 }
@@ -57,11 +44,6 @@ const ReleaseStock = () => {
   const [allocationBill, setAllocationBill] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedBill, setSelectedBill] = useState<AllocationBillGroup | null>(null);
-  
-  // Import Excel state
-  const [importing, setImporting] = useState(false);
-  const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>([]);
-  const [showImportPreview, setShowImportPreview] = useState(false);
 
   const addReleaseItem = () => {
     setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
@@ -139,165 +121,6 @@ const ReleaseStock = () => {
     }
   };
 
-  // Excel Import Functions
-  const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
-    const keys = Object.keys(row);
-    for (const name of possibleNames) {
-      if (row[name] !== undefined && row[name] !== null && String(row[name]).trim() !== '') {
-        return String(row[name]).trim();
-      }
-      const exactKey = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
-      if (exactKey && row[exactKey] !== undefined && row[exactKey] !== null && String(row[exactKey]).trim() !== '') {
-        return String(row[exactKey]).trim();
-      }
-    }
-    for (const name of possibleNames) {
-      const partialKey = keys.find(k => 
-        k.toLowerCase().includes(name.toLowerCase()) || 
-        name.toLowerCase().includes(k.toLowerCase())
-      );
-      if (partialKey && row[partialKey] !== undefined && row[partialKey] !== null && String(row[partialKey]).trim() !== '') {
-        return String(row[partialKey]).trim();
-      }
-    }
-    return '';
-  };
-
-  const findNumericValue = (row: Record<string, unknown>, ...possibleNames: string[]): number => {
-    const val = findColumnValue(row, ...possibleNames);
-    const cleanVal = val.replace(/[₱$,]/g, '').trim();
-    return Number(cleanVal) || 0;
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    setImporting(true);
-    setParsedItems([]);
-
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      
-      let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
-      
-      if (rows.length === 0) {
-        rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown as Record<string, unknown>[];
-        if (Array.isArray(rows) && rows.length > 1) {
-          const headers = rows[0] as unknown as string[];
-          rows = (rows.slice(1) as unknown as unknown[][]).map(row => {
-            const obj: Record<string, unknown> = {};
-            headers.forEach((header, i) => {
-              if (header) obj[String(header)] = row[i];
-            });
-            return obj;
-          });
-        }
-      }
-
-      // Parse rows into release items
-      const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code');
-        const boxes = findNumericValue(row, 'Boxes', 'Box', 'BOX', 'BOXES', 'Qty', 'Quantity');
-        const dest = findColumnValue(row, 'Destination', 'DESTINATION', 'Deliver To', 'DeliverTo', 'Branch');
-        const cour = findColumnValue(row, 'Courier', 'COURIER');
-        const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
-
-        // Try to match with inventory item by item_code or item_name
-        const matchedItem = items.find(i => 
-          i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
-          i.item_name?.toLowerCase() === sheetNo.toLowerCase() ||
-          i.item_code?.toLowerCase().includes(sheetNo.toLowerCase()) ||
-          i.item_name?.toLowerCase().includes(sheetNo.toLowerCase())
-        );
-
-        return {
-          id: `parsed-${index}-${Date.now()}`,
-          sheetNo,
-          boxes,
-          destination: dest,
-          courier: cour,
-          remarks: rem,
-          matchedItemId: matchedItem?.id || null,
-          matchedItemName: matchedItem?.item_name || null,
-        };
-      }).filter(item => item.sheetNo || item.boxes > 0);
-
-      if (parsed.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Boxes, Destination, Courier, Remarks).', variant: 'destructive' });
-        setImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
-
-      setParsedItems(parsed);
-      setShowImportPreview(true);
-      toast({ title: 'File Parsed', description: `${parsed.length} items found. Review and confirm.` });
-    } catch (error) {
-      console.error('Excel parse error:', error);
-      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleConfirmImport = async () => {
-    const validItems = parsedItems.filter(p => p.matchedItemId && p.boxes > 0);
-    
-    if (validItems.length === 0) {
-      toast({ title: 'Error', description: 'No valid items with matched inventory to release', variant: 'destructive' });
-      return;
-    }
-
-    // Check stock availability
-    for (const item of validItems) {
-      const inventoryItem = items.find(i => i.id === item.matchedItemId);
-      if (inventoryItem && item.boxes > inventoryItem.available_stock) {
-        toast({ title: 'Error', description: `Not enough stock for ${item.sheetNo}`, variant: 'destructive' });
-        return;
-      }
-    }
-
-    setSubmitting(true);
-    try {
-      // Group by destination and courier
-      const groups = validItems.reduce((acc, item) => {
-        const key = `${item.destination || 'Unknown'}__${item.courier || ''}`;
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(item);
-        return acc;
-      }, {} as Record<string, ParsedReleaseItem[]>);
-
-      for (const [key, groupItems] of Object.entries(groups)) {
-        const [dest, cour] = key.split('__');
-        await releaseStockBatch(
-          groupItems.map(r => ({ itemId: r.matchedItemId!, boxes: r.boxes })),
-          dest,
-          user!.id,
-          groupItems[0]?.remarks || undefined,
-          cour || undefined,
-          undefined
-        );
-      }
-
-      toast({ title: 'Success', description: `${validItems.length} item(s) released from import` });
-      setParsedItems([]);
-      setShowImportPreview(false);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const cancelImport = () => {
-    setParsedItems([]);
-    setShowImportPreview(false);
-  };
-
   // Group releases by batch_id for allocation bills
   const allocationBills: AllocationBillGroup[] = Object.values(
     releases.reduce((acc, release) => {
@@ -324,98 +147,6 @@ const ReleaseStock = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Import Excel Section */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Import from Excel</h2>
-              <p className="text-sm text-muted-foreground">Upload Excel with: Sheet No., Boxes, Destination, Courier, Remarks</p>
-            </div>
-          </div>
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button 
-              variant="outline" 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {importing ? 'Importing...' : 'Upload File'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Import Preview */}
-        {showImportPreview && parsedItems.length > 0 && (
-          <div className="space-y-4 mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">
-                Preview: {parsedItems.length} items found, {parsedItems.filter(p => p.matchedItemId).length} matched
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={cancelImport}>
-                  Cancel
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={handleConfirmImport}
-                  disabled={submitting || parsedItems.filter(p => p.matchedItemId).length === 0}
-                >
-                  {submitting ? 'Releasing...' : `Release ${parsedItems.filter(p => p.matchedItemId).length} Items`}
-                </Button>
-              </div>
-            </div>
-            <div className="rounded-lg border overflow-hidden max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sheet No.</TableHead>
-                    <TableHead>Matched Item</TableHead>
-                    <TableHead>Boxes</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Courier</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {parsedItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                      <TableCell>{item.matchedItemName || <span className="text-destructive">Not found</span>}</TableCell>
-                      <TableCell>{item.boxes}</TableCell>
-                      <TableCell>{item.destination || '-'}</TableCell>
-                      <TableCell>{item.courier || '-'}</TableCell>
-                      <TableCell>
-                        {item.matchedItemId ? (
-                          <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                            Ready
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                            No Match
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Manual Release Form */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center gap-3 mb-6">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
