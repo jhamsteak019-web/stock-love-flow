@@ -55,6 +55,7 @@ const Inventory = () => {
     upc: '',
     description: '',
     branch: '',
+    pieces_per_box: 1,
   });
   const [newCategory, setNewCategory] = useState('');
 
@@ -209,6 +210,7 @@ const Inventory = () => {
       upc: '',
       description: '',
       branch: '',
+      pieces_per_box: 1,
     });
     setNewCategory('');
   };
@@ -341,6 +343,7 @@ const Inventory = () => {
       upc: item.upc || '',
       description: item.description || '',
       branch: item.branch || '',
+      pieces_per_box: item.pieces_per_box || 1,
     });
     setEditItem(item);
   };
@@ -379,108 +382,28 @@ const Inventory = () => {
       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="year">Year</Label>
-            <Input
-              id="year"
-              value={localForm.year}
-              onChange={(e) => handleChange('year', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="e.g., 2024"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="item_name">Name *</Label>
-            <Input
-              id="item_name"
-              value={localForm.item_name}
-              onChange={(e) => handleChange('item_name', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="Enter item name"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="upc">UPC</Label>
-            <Input
-              id="upc"
-              value={localForm.upc}
-              onChange={(e) => handleChange('upc', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="Barcode / UPC"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="item_code">Item Code / SKU *</Label>
+            <Label htmlFor="item_code">Sheet No. *</Label>
             <Input
               id="item_code"
               value={localForm.item_code}
               onChange={(e) => handleChange('item_code', e.target.value)}
               onBlur={handleBlur}
-              placeholder="e.g., SKU-001"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Input
-            id="description"
-            value={localForm.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-            onBlur={handleBlur}
-            placeholder="Item description"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="category">Category</Label>
-          <Input
-            id="category"
-            value={localCategory}
-            onChange={(e) => setLocalCategory(e.target.value)}
-            onBlur={handleCategoryBlur}
-            placeholder="Enter category name"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="price">Price A</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={localForm.price}
-              onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)}
-              onBlur={handleBlur}
-              placeholder="0.00"
+              placeholder="e.g., BILL11430003622"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="branch">Branch</Label>
+            <Label htmlFor="branch">Deliver To</Label>
             <Input
               id="branch"
               value={localForm.branch}
               onChange={(e) => handleChange('branch', e.target.value)}
               onBlur={handleBlur}
-              placeholder="Branch location"
+              placeholder="e.g., Metro Market-Market"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="total_stock">Total Stock (Boxes)</Label>
-            <Input
-              id="total_stock"
-              type="number"
-              value={localForm.total_stock}
-              onChange={(e) => handleChange('total_stock', parseInt(e.target.value) || 0)}
-              onBlur={handleBlur}
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="supplier">Supplier</Label>
             <Input
@@ -489,6 +412,41 @@ const Inventory = () => {
               onChange={(e) => handleChange('supplier', e.target.value)}
               onBlur={handleBlur}
               placeholder="Supplier name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="total_stock">Qty (Boxes)</Label>
+            <Input
+              id="total_stock"
+              type="number"
+              value={localForm.total_stock}
+              onChange={(e) => handleChange('total_stock', parseInt(e.target.value) || 0)}
+              onBlur={handleBlur}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="pieces_per_box">Pieces per Box</Label>
+            <Input
+              id="pieces_per_box"
+              type="number"
+              value={localForm.pieces_per_box}
+              onChange={(e) => handleChange('pieces_per_box', parseInt(e.target.value) || 1)}
+              onBlur={handleBlur}
+              placeholder="e.g., 20"
+            />
+            <p className="text-xs text-muted-foreground">1 box = {localForm.pieces_per_box || 1} pieces</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Remarks</Label>
+            <Input
+              id="description"
+              value={localForm.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="Additional remarks"
             />
           </div>
         </div>
@@ -650,22 +608,19 @@ const Inventory = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Year</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>UPC</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Allocation Bill</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Price A</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
+              <TableHead>Sheet No.</TableHead>
+              <TableHead>Deliver To</TableHead>
+              <TableHead>Supplier</TableHead>
+              <TableHead className="text-right">Qty (Boxes)</TableHead>
+              <TableHead className="text-right">Pieces/Box</TableHead>
+              <TableHead>Remarks</TableHead>
               {isAdmin && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-12">
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-12">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No items found</p>
                 </TableCell>
@@ -674,22 +629,9 @@ const Inventory = () => {
               <>
                 {filteredItems.map((item) => (
                   <TableRow key={item.id} className="animate-fade-in">
-                    <TableCell className="text-muted-foreground">{item.year || '-'}</TableCell>
-                    <TableCell className="font-medium">{item.item_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.upc || item.item_code || '-'}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
-                    <TableCell className="max-w-[150px] truncate text-muted-foreground">{item.description || '-'}</TableCell>
-                    <TableCell>
-                      {item.category?.name && (
-                        <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
-                          {item.category.name}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {(item.price || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{item.branch || '-'}</TableCell>
+                    <TableCell className="font-mono font-medium">{item.item_code || '-'}</TableCell>
+                    <TableCell>{item.branch || '-'}</TableCell>
+                    <TableCell>{item.supplier || '-'}</TableCell>
                     <TableCell className="text-right">
                       <span className={cn(
                         "font-semibold",
@@ -699,6 +641,8 @@ const Inventory = () => {
                       </span>
                       <span className="text-muted-foreground"> / {item.total_stock}</span>
                     </TableCell>
+                    <TableCell className="text-right text-muted-foreground">{item.pieces_per_box || 1}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -724,11 +668,14 @@ const Inventory = () => {
                 ))}
                 {/* Summary Row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
-                  <TableCell colSpan={6} className="text-right">Total Inventory Value:</TableCell>
+                  <TableCell colSpan={3} className="text-right">Total Qty:</TableCell>
                   <TableCell className="text-right text-lg text-primary">
-                    ₱{filteredItems.reduce((sum, item) => sum + (item.price || 0), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                    {filteredItems.reduce((sum, item) => sum + (item.total_stock || 0), 0).toLocaleString()}
                   </TableCell>
-                  <TableCell colSpan={isAdmin ? 4 : 3}></TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {filteredItems.reduce((sum, item) => sum + ((item.total_stock || 0) * (item.pieces_per_box || 1)), 0).toLocaleString()} pcs
+                  </TableCell>
+                  <TableCell colSpan={isAdmin ? 2 : 1}></TableCell>
                 </TableRow>
               </>
             )}
