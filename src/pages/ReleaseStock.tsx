@@ -251,7 +251,7 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    const validItems = parsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0 && selectedItems.has(p.id));
+    const validItems = parsedItems.filter(p => p.qtyBoxes > 0 && selectedItems.has(p.id));
     
     if (validItems.length === 0) {
       toast({ title: 'Error', description: 'No selected items to release', variant: 'destructive' });
@@ -261,15 +261,6 @@ const ReleaseStock = () => {
     if (!importCourier) {
       toast({ title: 'Error', description: 'Please select a courier', variant: 'destructive' });
       return;
-    }
-
-    // Check stock availability
-    for (const item of validItems) {
-      const inventoryItem = items.find(i => i.id === item.matchedItemId);
-      if (inventoryItem && item.qtyBoxes > inventoryItem.available_stock) {
-        toast({ title: 'Error', description: `Not enough stock for ${item.sheetNo}`, variant: 'destructive' });
-        return;
-      }
     }
 
     setSubmitting(true);
@@ -284,7 +275,7 @@ const ReleaseStock = () => {
 
       for (const [dest, groupItems] of Object.entries(groups)) {
         await releaseStockBatch(
-          groupItems.map(r => ({ itemId: r.matchedItemId!, boxes: r.qtyBoxes })),
+          groupItems.map(r => ({ itemId: r.matchedItemId || r.id, boxes: r.qtyBoxes })),
           dest,
           user!.id,
           groupItems[0]?.remarks || undefined,
@@ -293,11 +284,20 @@ const ReleaseStock = () => {
         );
       }
 
-      toast({ title: 'Success', description: `${validItems.length} item(s) released from import` });
-      setParsedItems([]);
-      setShowImportPreview(false);
-      setImportCourier('');
+      // Remove released items from preview
+      const releasedIds = new Set(validItems.map(v => v.id));
+      const remainingItems = parsedItems.filter(p => !releasedIds.has(p.id));
+      
+      if (remainingItems.length === 0) {
+        setParsedItems([]);
+        setShowImportPreview(false);
+        setImportCourier('');
+      } else {
+        setParsedItems(remainingItems);
+      }
       setSelectedItems(new Set());
+
+      toast({ title: 'Success', description: `${validItems.length} item(s) released and sent to Deliveries as pending` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
@@ -446,7 +446,6 @@ const ReleaseStock = () => {
                     <TableHead className="w-20">Qty/Item</TableHead>
                     <TableHead className="min-w-[100px]">Category</TableHead>
                     <TableHead className="min-w-[120px]">Remarks</TableHead>
-                    <TableHead className="w-24">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -509,30 +508,6 @@ const ReleaseStock = () => {
                           className="h-8 text-xs"
                           placeholder="Remarks"
                         />
-                      </TableCell>
-                      <TableCell>
-                        <Select 
-                          value={item.matchedItemId || ''} 
-                          onValueChange={(val) => {
-                            const matchedItem = items.find(i => i.id === val);
-                            setParsedItems(prev => prev.map(p => 
-                              p.id === item.id 
-                                ? { ...p, matchedItemId: val, matchedItemName: matchedItem?.item_name || null }
-                                : p
-                            ));
-                          }}
-                        >
-                          <SelectTrigger className={`h-8 text-xs w-28 ${item.matchedItemId ? 'border-green-500' : 'border-red-500'}`}>
-                            <SelectValue placeholder="Select item" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover max-h-48">
-                            {items.filter(i => i.available_stock > 0).map((inv) => (
-                              <SelectItem key={inv.id} value={inv.id} className="text-xs">
-                                {inv.item_code} ({inv.available_stock})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </TableCell>
                     </TableRow>
                   ))}
