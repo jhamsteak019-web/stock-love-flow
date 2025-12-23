@@ -109,23 +109,27 @@ export const useInventory = () => {
     const price = item.price || 0;
     const totalStock = item.total_stock || 0;
     const amount = item.amount || 0;
+    
+    // Generate a unique item_code with timestamp and random suffix to avoid duplicates
+    const uniqueCode = item.item_code || `ITEM-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     const insertData = {
-      item_name: item.item_name!,
-      item_code: item.item_code!,
-      category_id: item.category_id,
+      item_name: item.item_name || uniqueCode,
+      item_code: uniqueCode,
+      category_id: item.category_id || null,
       total_stock: totalStock,
       available_stock: totalStock,
       price: price,
       amount: amount,
-      supplier: item.supplier,
-      date_received: item.date_received,
+      supplier: item.supplier || null,
       low_stock_threshold: item.low_stock_threshold || 10,
       created_by: item.created_by,
       year: item.year || null,
       upc: item.upc || null,
       description: item.description || null,
       branch: item.branch || null,
+      pieces_per_box: item.pieces_per_box || 1,
+      date_received: (item.date_received && item.date_received.trim() !== '') ? item.date_received : null,
     };
     
     const { data, error } = await supabase
@@ -234,15 +238,15 @@ export const useInventory = () => {
   };
 
   const updateDeliveryStatus = async (releaseId: string, status?: DeliveryStatus, dateDelivered?: string) => {
-    const updates: Record<string, unknown> = {};
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
     if (status) {
       updates.delivery_status = status;
     }
-    if (dateDelivered) {
+    if (dateDelivered && dateDelivered.trim() !== '') {
       updates.date_delivered = dateDelivered;
     }
-
-    if (Object.keys(updates).length === 0) return null;
 
     const { data, error } = await supabase
       .from('stock_releases')
@@ -251,7 +255,10 @@ export const useInventory = () => {
       .select(`*, inventory_item:inventory_items(*)`)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Update delivery status error:', error);
+      throw error;
+    }
     setReleases(releases.map(r => r.id === releaseId ? data : r));
     return data;
   };
