@@ -204,6 +204,7 @@ export type Database = {
           allocation_bill: string | null
           batch_id: string | null
           boxes_released: number
+          category: string | null
           courier: string | null
           created_at: string
           date_delivered: string | null
@@ -215,12 +216,16 @@ export type Database = {
           item_id: string | null
           notes: string | null
           released_by: string
+          set_date: string | null
+          total_qty: number | null
           updated_at: string
+          waybill_no: string | null
         }
         Insert: {
           allocation_bill?: string | null
           batch_id?: string | null
           boxes_released: number
+          category?: string | null
           courier?: string | null
           created_at?: string
           date_delivered?: string | null
@@ -232,12 +237,16 @@ export type Database = {
           item_id?: string | null
           notes?: string | null
           released_by: string
+          set_date?: string | null
+          total_qty?: number | null
           updated_at?: string
+          waybill_no?: string | null
         }
         Update: {
           allocation_bill?: string | null
           batch_id?: string | null
           boxes_released?: number
+          category?: string | null
           courier?: string | null
           created_at?: string
           date_delivered?: string | null
@@ -249,7 +258,10 @@ export type Database = {
           item_id?: string | null
           notes?: string | null
           released_by?: string
+          set_date?: string | null
+          total_qty?: number | null
           updated_at?: string
+          waybill_no?: string | null
         }
         Relationships: [
           {

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search } from 'lucide-react';
+import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +60,9 @@ const ReleaseStock = () => {
   const [remarks, setRemarks] = useState('');
   const [notes, setNotes] = useState('');
   const [allocationBill, setAllocationBill] = useState('');
+  const [category, setCategory] = useState('');
+  const [waybillNo, setWaybillNo] = useState('');
+  const [setDate, setSetDate] = useState<Date | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [selectedBill, setSelectedBill] = useState<AllocationBillGroup | null>(null);
   
@@ -65,6 +71,9 @@ const ReleaseStock = () => {
   const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importCourier, setImportCourier] = useState('');
+  const [importCategory, setImportCategory] = useState('');
+  const [importWaybillNo, setImportWaybillNo] = useState('');
+  const [importSetDate, setImportSetDate] = useState<Date | undefined>(undefined);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [sheetNoSearch, setSheetNoSearch] = useState('');
 
@@ -122,13 +131,22 @@ const ReleaseStock = () => {
 
     setSubmitting(true);
     try {
+      const totalQty = validItems.reduce((sum, r) => {
+        const itemData = getItemData(r.itemId);
+        return sum + (r.boxes * (itemData?.pieces_per_box || 1));
+      }, 0);
+      
       await releaseStockBatch(
         validItems.map(r => ({ itemId: r.itemId, boxes: r.boxes })),
         destination,
         user!.id,
         notes || undefined,
         courier || undefined,
-        allocationBill || undefined
+        allocationBill || undefined,
+        category || undefined,
+        waybillNo || undefined,
+        setDate?.toISOString() || undefined,
+        totalQty
       );
       toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
       setReleaseItems([{ id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
@@ -137,6 +155,9 @@ const ReleaseStock = () => {
       setRemarks('');
       setNotes('');
       setAllocationBill('');
+      setCategory('');
+      setWaybillNo('');
+      setSetDate(undefined);
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
     } finally {
@@ -277,13 +298,19 @@ const ReleaseStock = () => {
       }, {} as Record<string, ParsedReleaseItem[]>);
 
       for (const [dest, groupItems] of Object.entries(groups)) {
+        const totalQty = groupItems.reduce((sum, item) => sum + item.qtyItem, 0);
+        
         await releaseStockBatch(
           groupItems.map(r => ({ itemId: r.matchedItemId || r.id, boxes: r.qtyBoxes })),
           dest,
           user!.id,
           groupItems[0]?.remarks || undefined,
           importCourier,
-          undefined
+          undefined,
+          importCategory || undefined,
+          importWaybillNo || undefined,
+          importSetDate?.toISOString() || undefined,
+          totalQty
         );
       }
 
@@ -295,6 +322,9 @@ const ReleaseStock = () => {
         setParsedItems([]);
         setShowImportPreview(false);
         setImportCourier('');
+        setImportCategory('');
+        setImportWaybillNo('');
+        setImportSetDate(undefined);
       } else {
         setParsedItems(remainingItems);
       }
@@ -312,6 +342,9 @@ const ReleaseStock = () => {
     setParsedItems([]);
     setShowImportPreview(false);
     setImportCourier('');
+    setImportCategory('');
+    setImportWaybillNo('');
+    setImportSetDate(undefined);
     setSelectedItems(new Set());
     setSheetNoSearch('');
   };
@@ -539,9 +572,9 @@ const ReleaseStock = () => {
               </Table>
             </div>
             
-            {/* Courier Selection and Release Button */}
-            <div className="flex items-end gap-4 pt-2 border-t">
-              <div className="flex-1 space-y-2">
+            {/* Courier, Category, Waybill, Set Date and Release Button */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t">
+              <div className="space-y-2">
                 <Label>Courier *</Label>
                 <Select value={importCourier} onValueChange={setImportCourier}>
                   <SelectTrigger>
@@ -556,9 +589,55 @@ const ReleaseStock = () => {
                     <SelectItem value="RDS DC">RDS DC</SelectItem>
                     <SelectItem value="SM DEC">SM DEC</SelectItem>
                     <SelectItem value="PRIETO">PRIETO</SelectItem>
+                    <SelectItem value="DIRECT">DIRECT</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select value={importCategory} onValueChange={setImportCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="BAGS">BAGS</SelectItem>
+                    <SelectItem value="WALLET">WALLET</SelectItem>
+                    <SelectItem value="SHOES">SHOES</SelectItem>
+                    <SelectItem value="UMBRELLA">UMBRELLA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Waybill No.</Label>
+                <Input 
+                  value={importWaybillNo} 
+                  onChange={(e) => setImportWaybillNo(e.target.value)} 
+                  placeholder="Enter waybill"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Set Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal h-10">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {importSetDate ? format(importSetDate, 'MMM d') : 'Set Date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={importSetDate}
+                      onSelect={setImportSetDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
               <Button 
                 onClick={handleConfirmImport}
                 disabled={submitting || selectedItems.size === 0 || !importCourier}
@@ -656,8 +735,50 @@ const ReleaseStock = () => {
                 <SelectItem value="RDS DC">RDS DC</SelectItem>
                 <SelectItem value="SM DEC">SM DEC</SelectItem>
                 <SelectItem value="PRIETO">PRIETO</SelectItem>
+                <SelectItem value="DIRECT">DIRECT</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BAGS">BAGS</SelectItem>
+                <SelectItem value="WALLET">WALLET</SelectItem>
+                <SelectItem value="SHOES">SHOES</SelectItem>
+                <SelectItem value="UMBRELLA">UMBRELLA</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Waybill No. (Optional)</Label>
+            <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Enter waybill number" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Set Date (Optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Select delivery date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={setDate}
+                  onSelect={setSetDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
@@ -671,8 +792,8 @@ const ReleaseStock = () => {
           </div>
 
           <div className="space-y-2">
-            <Label>Category</Label>
-            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Category (manual typing)" />
+            <Label>Allocation Bill</Label>
+            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Allocation bill reference" />
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>
