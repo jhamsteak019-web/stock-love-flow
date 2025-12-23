@@ -368,6 +368,7 @@ const History = () => {
                   <TableHead>Total Boxes</TableHead>
                   <TableHead>Total Qty/Items</TableHead>
                   <TableHead>Date Out</TableHead>
+                  <TableHead>Date Received</TableHead>
                   <TableHead>Warehouse</TableHead>
                   <TableHead>Waybill No.</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
@@ -376,7 +377,7 @@ const History = () => {
               <TableBody>
                 {filteredReleases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
+                    <TableCell colSpan={10} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
                         {searchQuery || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
@@ -392,6 +393,9 @@ const History = () => {
                       <TableCell>{group.totalBoxes}</TableCell>
                       <TableCell>{group.totalQty || group.itemCount}</TableCell>
                       <TableCell className="text-muted-foreground">{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
+                      </TableCell>
                       <TableCell>{group.courier || '-'}</TableCell>
                       <TableCell>{group.waybill_no || '-'}</TableCell>
                       <TableCell>
