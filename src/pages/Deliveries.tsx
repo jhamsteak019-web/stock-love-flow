@@ -3,7 +3,7 @@ import { Truck, Eye, CalendarIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-
+import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useInventory } from '@/hooks/useInventory';
@@ -12,6 +12,7 @@ import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GroupedRelease {
   batch_id: string;
@@ -21,13 +22,18 @@ interface GroupedRelease {
   date_delivered: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
+  totalQty: number;
   itemCount: number;
   items: StockRelease[];
   releaseIds: string[];
+  allocation_bill: string | null;
+  category: string | null;
+  waybill_no: string | null;
+  set_date: string | null;
 }
 
 const Deliveries = () => {
-  const { releases, loading, updateDeliveryStatus } = useInventory();
+  const { releases, loading, updateDeliveryStatus, fetchReleases } = useInventory();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
 
@@ -36,7 +42,7 @@ const Deliveries = () => {
     const groups: Record<string, GroupedRelease> = {};
     
     releases.forEach(release => {
-      const batchKey = release.batch_id || release.id; // Use release id as fallback for old releases
+      const batchKey = release.batch_id || release.id;
       
       if (!groups[batchKey]) {
         groups[batchKey] = {
@@ -47,14 +53,20 @@ const Deliveries = () => {
           date_delivered: release.date_delivered || null,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
+          totalQty: 0,
           itemCount: 0,
           items: [],
           releaseIds: [],
+          allocation_bill: release.allocation_bill,
+          category: release.category,
+          waybill_no: release.waybill_no,
+          set_date: release.set_date,
         };
       }
       
       groups[batchKey].items.push(release);
       groups[batchKey].totalBoxes += release.boxes_released;
+      groups[batchKey].totalQty += release.total_qty || (release.boxes_released * (release.inventory_item?.pieces_per_box || 1));
       groups[batchKey].itemCount += 1;
       groups[batchKey].releaseIds.push(release.id);
     });
@@ -68,7 +80,6 @@ const Deliveries = () => {
 
   const handleStatusChange = async (group: GroupedRelease, status: DeliveryStatus) => {
     try {
-      // Update all releases in the batch
       for (const releaseId of group.releaseIds) {
         await updateDeliveryStatus(releaseId, status);
       }
@@ -78,12 +89,30 @@ const Deliveries = () => {
     }
   };
 
-  const handleDeliveryDateChange = async (group: GroupedRelease, date: Date) => {
+  const handleWaybillChange = async (group: GroupedRelease, waybillNo: string) => {
     try {
-      // Only set the date, don't change status
       for (const releaseId of group.releaseIds) {
-        await updateDeliveryStatus(releaseId, undefined, date.toISOString());
+        await supabase
+          .from('stock_releases')
+          .update({ waybill_no: waybillNo })
+          .eq('id', releaseId);
       }
+      await fetchReleases();
+      toast({ title: 'Success', description: 'Waybill updated' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update waybill', variant: 'destructive' });
+    }
+  };
+
+  const handleSetDateChange = async (group: GroupedRelease, date: Date) => {
+    try {
+      for (const releaseId of group.releaseIds) {
+        await supabase
+          .from('stock_releases')
+          .update({ set_date: date.toISOString() })
+          .eq('id', releaseId);
+      }
+      await fetchReleases();
       toast({ title: 'Success', description: `Delivery date set to ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update delivery date', variant: 'destructive' });
@@ -100,20 +129,22 @@ const Deliveries = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Items</TableHead>
               <TableHead>Allocation</TableHead>
-              <TableHead>Total Boxes</TableHead>
               <TableHead>Destination</TableHead>
-              <TableHead>Released</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">Total Boxes</TableHead>
+              <TableHead className="text-right">Total Qty/Items</TableHead>
+              <TableHead>Date Out Warehouse</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Waybill No.</TableHead>
               <TableHead className="w-[80px]">View</TableHead>
-              <TableHead>Delivered On</TableHead>
+              <TableHead>Deliver on Set Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pendingGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={10} className="text-center py-12">
                   <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No pending deliveries</p>
                 </TableCell>
@@ -126,22 +157,12 @@ const Deliveries = () => {
                   style={{ animation: `fade-in 0.4s ease-out ${index * 50}ms forwards`, opacity: 0 }}
                 >
                   <TableCell className="font-medium">
-                    {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
+                    {group.allocation_bill || group.batch_id.slice(0, 8)}
                   </TableCell>
-                  <TableCell>
-                    <div className="text-sm space-y-0.5">
-                      {group.items.slice(0, 2).map((item) => (
-                        <div key={item.id} className="text-muted-foreground">
-                          {item.inventory_item?.item_name || 'Unknown'}: <span className="font-medium text-foreground">{item.boxes_released}</span>
-                        </div>
-                      ))}
-                      {group.items.length > 2 && (
-                        <div className="text-muted-foreground text-xs">+{group.items.length - 2} more</div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{group.totalBoxes}</TableCell>
                   <TableCell>{group.destination}</TableCell>
+                  <TableCell>{group.category || '-'}</TableCell>
+                  <TableCell className="text-right">{group.totalBoxes}</TableCell>
+                  <TableCell className="text-right">{group.totalQty}</TableCell>
                   <TableCell>{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select 
@@ -159,6 +180,18 @@ const Deliveries = () => {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      placeholder="Enter waybill"
+                      defaultValue={group.waybill_no || ''}
+                      className="h-8 w-[120px] text-sm"
+                      onBlur={(e) => {
+                        if (e.target.value !== (group.waybill_no || '')) {
+                          handleWaybillChange(group, e.target.value);
+                        }
+                      }}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
                       <Eye className="h-4 w-4" />
@@ -169,14 +202,14 @@ const Deliveries = () => {
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal transition-all hover:border-primary">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          Set Date
+                          {group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : 'Set Date'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={undefined}
-                          onSelect={(date) => date && handleDeliveryDateChange(group, date)}
+                          selected={group.set_date ? new Date(group.set_date) : undefined}
+                          onSelect={(date) => date && handleSetDateChange(group, date)}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                         />

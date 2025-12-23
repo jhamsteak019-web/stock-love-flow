@@ -60,6 +60,10 @@ export interface StockRelease {
   deleted_at: string | null;
   notes: string | null;
   batch_id: string | null;
+  category: string | null;
+  waybill_no: string | null;
+  set_date: string | null;
+  total_qty: number | null;
   created_at: string;
   updated_at: string;
   inventory_item?: InventoryItem;
