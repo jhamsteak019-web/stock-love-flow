@@ -406,8 +406,8 @@ const ReleaseStock = () => {
               <FileSpreadsheet className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Import from Excel</h2>
-              <p className="text-sm text-muted-foreground">Upload Excel with: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks</p>
+              <h2 className="text-lg font-semibold select-none">Import from Excel</h2>
+              <p className="text-sm text-muted-foreground select-none">Upload Excel with: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks</p>
             </div>
           </div>
           <div>
@@ -578,8 +578,8 @@ const ReleaseStock = () => {
             <PackagePlus className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">OUT WAREHOUSE DELIVERY</h2>
-            <p className="text-sm text-muted-foreground">Allocate multiple items for delivery</p>
+            <h2 className="text-lg font-semibold select-none">OUT WAREHOUSE DELIVERY</h2>
+            <p className="text-sm text-muted-foreground select-none">Allocate multiple items for delivery</p>
           </div>
         </div>
 
