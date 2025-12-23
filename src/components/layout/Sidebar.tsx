@@ -68,12 +68,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       roles: ['admin', 'staff']
     },
     { 
-      to: '/summary-delivery', 
-      icon: FileSpreadsheet, 
-      label: 'Summary Delivery',
-      roles: ['admin', 'staff']
-    },
-    { 
       to: '/import', 
       icon: Archive, 
       label: 'Bucket',
