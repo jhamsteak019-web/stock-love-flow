@@ -185,8 +185,8 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                   const amount = release.boxes_released * price;
                   return (
                     <TableRow key={release.id}>
-                      <TableCell className="border-r font-mono text-sm">{release.inventory_item?.item_code}</TableCell>
-                      <TableCell className="border-r">{release.inventory_item?.item_name}</TableCell>
+                      <TableCell className="border-r font-mono text-sm">{release.inventory_item?.item_code || 'Deleted Item'}</TableCell>
+                      <TableCell className="border-r">{release.inventory_item?.item_name || 'Item no longer exists'}</TableCell>
                       <TableCell className="text-center border-r">{release.boxes_released}</TableCell>
                       <TableCell className="text-right border-r">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-right font-semibold">{amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
