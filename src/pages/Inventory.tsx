@@ -199,14 +199,17 @@ const Inventory = () => {
   };
 
   const handleAddItem = async () => {
-    if (!formData.item_name || !formData.item_code) {
+    if (!formData.item_name) {
       toast({
         title: 'Validation Error',
-        description: 'Item name and code are required',
+        description: 'Item name is required',
         variant: 'destructive',
       });
       return;
     }
+
+    // Auto-generate item_code if not provided
+    const itemCode = formData.item_code || `ITEM-${Date.now()}`;
 
     try {
       let categoryId: string | undefined;
@@ -224,6 +227,7 @@ const Inventory = () => {
 
       await addItem({
         ...formData,
+        item_code: itemCode,
         category_id: categoryId || null,
         created_by: user?.id,
       });
@@ -389,15 +393,28 @@ const Inventory = () => {
       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="item_code">Sheet No. *</Label>
+            <Label htmlFor="item_name">Item Name *</Label>
+            <Input
+              id="item_name"
+              value={localForm.item_name}
+              onChange={(e) => handleChange('item_name', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="e.g., Product name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="item_code">Sheet No. (Optional)</Label>
             <Input
               id="item_code"
               value={localForm.item_code}
               onChange={(e) => handleChange('item_code', e.target.value)}
               onBlur={handleBlur}
-              placeholder="e.g., BILL11430003622"
+              placeholder="Auto-generated if empty"
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="branch">Deliver To</Label>
             <Input
@@ -408,10 +425,8 @@ const Inventory = () => {
               placeholder="e.g., Metro Market-Market"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
+
             <Label htmlFor="supplier">Supplier</Label>
             <Input
               id="supplier"
