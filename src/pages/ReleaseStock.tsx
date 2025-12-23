@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -60,16 +60,31 @@ const ReleaseStock = () => {
   const [submitting, setSubmitting] = useState(false);
   
   
-  // Import Excel state
+  // Import Excel state - initialize from localStorage
   const [importing, setImporting] = useState(false);
-  const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>([]);
-  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>(() => {
+    const saved = localStorage.getItem('releaseStock_parsedItems');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showImportPreview, setShowImportPreview] = useState(() => {
+    const saved = localStorage.getItem('releaseStock_parsedItems');
+    return saved ? JSON.parse(saved).length > 0 : false;
+  });
   const [importCourier, setImportCourier] = useState('');
   const [importCategory, setImportCategory] = useState('');
   const [importWaybillNo, setImportWaybillNo] = useState('');
   const [importSetDate, setImportSetDate] = useState<Date | undefined>(undefined);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [sheetNoSearch, setSheetNoSearch] = useState('');
+
+  // Persist parsedItems to localStorage
+  useEffect(() => {
+    if (parsedItems.length > 0) {
+      localStorage.setItem('releaseStock_parsedItems', JSON.stringify(parsedItems));
+    } else {
+      localStorage.removeItem('releaseStock_parsedItems');
+    }
+  }, [parsedItems]);
 
   const addReleaseItem = () => {
     setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
@@ -295,8 +310,15 @@ const ReleaseStock = () => {
         );
       }
 
-      // Keep items in preview - just clear selection
+      // Remove released items from preview
+      const releasedIds = new Set(validItems.map(i => i.id));
+      setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
       setSelectedItems(new Set());
+      
+      // Hide preview if no items left
+      if (parsedItems.length - validItems.length === 0) {
+        setShowImportPreview(false);
+      }
 
       toast({ title: 'Success', description: `${validItems.length} item(s) released and sent to Deliveries as pending` });
     } catch (error) {
@@ -439,28 +461,28 @@ const ReleaseStock = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
+                    <TableHead className="w-12 px-2">
                       <Checkbox 
                         checked={allSelectableSelected}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead className="min-w-[120px]">Allocation Bill</TableHead>
-                    <TableHead className="min-w-[120px]">Destination</TableHead>
-                    <TableHead className="min-w-[100px]">Category</TableHead>
-                    <TableHead className="w-20">Boxes</TableHead>
-                    <TableHead className="w-20">Qty/Item</TableHead>
-                    <TableHead className="min-w-[120px]">Remarks</TableHead>
-                    <TableHead className="min-w-[120px]">Waybill No.</TableHead>
-                    <TableHead className="min-w-[120px]">Set Date</TableHead>
-                    <TableHead className="min-w-[120px]">Courier</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Allocation Bill</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Destination</TableHead>
+                    <TableHead className="min-w-[110px] px-2">Category</TableHead>
+                    <TableHead className="w-24 px-2">Boxes</TableHead>
+                    <TableHead className="w-24 px-2">Qty/Item</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Remarks</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Set Date</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Courier</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredParsedItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Checkbox 
                           checked={selectedItems.has(item.id)}
                           onCheckedChange={() => toggleSelectItem(item.id)}
@@ -468,68 +490,68 @@ const ReleaseStock = () => {
                           aria-label={`Select ${item.sheetNo}`}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           value={item.sheetNo}
                           onChange={(e) => updateParsedItem(item.id, 'sheetNo', e.target.value)}
-                          className="h-8 text-xs font-mono"
+                          className="h-8 text-xs font-mono min-w-[110px]"
                           placeholder="Allocation Bill"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           value={item.deliverTo}
                           onChange={(e) => updateParsedItem(item.id, 'deliverTo', e.target.value)}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs min-w-[110px]"
                           placeholder="Destination"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           value={item.category}
                           onChange={(e) => updateParsedItem(item.id, 'category', e.target.value)}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs min-w-[90px]"
                           placeholder="Category"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           type="number"
                           value={item.qtyBoxes}
                           onChange={(e) => updateParsedItem(item.id, 'qtyBoxes', parseInt(e.target.value) || 0)}
-                          className="h-8 text-xs w-16"
+                          className="h-8 text-xs w-20"
                           min={0}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           type="number"
                           value={item.qtyItem}
                           onChange={(e) => updateParsedItem(item.id, 'qtyItem', parseInt(e.target.value) || 0)}
-                          className="h-8 text-xs w-16"
+                          className="h-8 text-xs w-20"
                           min={0}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           value={item.remarks}
                           onChange={(e) => updateParsedItem(item.id, 'remarks', e.target.value)}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs min-w-[110px]"
                           placeholder="Remarks"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Input 
                           value={item.waybillNo || ''}
                           onChange={(e) => updateParsedItem(item.id, 'waybillNo', e.target.value)}
-                          className="h-8 text-xs"
+                          className="h-8 text-xs min-w-[110px]"
                           placeholder="Waybill No."
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" className="h-8 text-xs w-full justify-start">
+                            <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
                               <CalendarIcon className="mr-1 h-3 w-3" />
                               {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
                             </Button>
@@ -545,9 +567,9 @@ const ReleaseStock = () => {
                           </PopoverContent>
                         </Popover>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Select value={item.courier} onValueChange={(val) => updateParsedItem(item.id, 'courier', val)}>
-                          <SelectTrigger className="h-8 text-xs">
+                          <SelectTrigger className="h-8 text-xs min-w-[110px]">
                             <SelectValue placeholder="Courier" />
                           </SelectTrigger>
                           <SelectContent className="bg-popover">
