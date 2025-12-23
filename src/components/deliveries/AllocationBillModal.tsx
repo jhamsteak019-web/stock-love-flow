@@ -53,6 +53,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
         <body>
           <div class="header">
             <h1>SUMMARY DELIVERY OUT WAREHOUSE</h1>
+            <div style="text-align: left; margin-top: 15px; margin-bottom: 15px;">
+              <strong>To Branch:</strong> ${destination}
+            </div>
           </div>
 
           <table>
@@ -124,6 +127,11 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
           {/* Header */}
           <div className="text-center pb-4 border-b-2 border-foreground">
             <h2 className="text-lg font-bold underline">SUMMARY DELIVERY OUT WAREHOUSE</h2>
+          </div>
+
+          {/* To Branch */}
+          <div className="text-sm">
+            <span className="font-semibold">To Branch:</span> {destination}
           </div>
 
           {/* Table */}
