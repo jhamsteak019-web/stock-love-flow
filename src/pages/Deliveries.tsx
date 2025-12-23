@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Truck, Eye, CalendarIcon } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
+import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import { supabase } from '@/integrations/supabase/client';
 
 interface GroupedRelease {
@@ -35,7 +37,10 @@ interface GroupedRelease {
 const Deliveries = () => {
   const { releases, loading, updateDeliveryStatus, fetchReleases } = useInventory();
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
+  const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
+  const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
   const groupedReleases = useMemo(() => {
@@ -138,14 +143,15 @@ const Deliveries = () => {
               <TableHead>Status</TableHead>
               <TableHead>Waybill No.</TableHead>
               <TableHead className="w-[80px]">View</TableHead>
+              {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
               <TableHead>Deliver on Set Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pendingGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-12">
-                  <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+              <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
+                <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No pending deliveries</p>
                 </TableCell>
               </TableRow>
@@ -197,6 +203,13 @@ const Deliveries = () => {
                       <Eye className="h-4 w-4" />
                     </Button>
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingBatch(group); }} className="transition-transform hover:scale-110">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -232,6 +245,15 @@ const Deliveries = () => {
           courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
           dateDelivered={selectedBatch.date_delivered}
+        />
+      )}
+
+      {editingBatch && (
+        <EditDeliveryModal
+          open={!!editingBatch}
+          onOpenChange={(open) => !open && setEditingBatch(null)}
+          group={editingBatch}
+          onSuccess={() => fetchReleases()}
         />
       )}
     </div>
