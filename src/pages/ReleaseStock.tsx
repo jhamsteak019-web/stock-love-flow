@@ -278,8 +278,11 @@ const ReleaseStock = () => {
     try {
       // Release each item individually since they can have different couriers
       for (const item of validItems) {
+        // Only use matchedItemId if it's a valid UUID, otherwise pass null
+        const itemId = item.matchedItemId || null;
+        
         await releaseStockBatch(
-          [{ itemId: item.matchedItemId || item.id, boxes: item.qtyBoxes }],
+          [{ itemId: itemId || '', boxes: item.qtyBoxes }],
           item.deliverTo || 'Unknown',
           user!.id,
           item.remarks || undefined,
@@ -292,24 +295,12 @@ const ReleaseStock = () => {
         );
       }
 
-      // Remove released items from preview
-      const releasedIds = new Set(validItems.map(v => v.id));
-      const remainingItems = parsedItems.filter(p => !releasedIds.has(p.id));
-      
-      if (remainingItems.length === 0) {
-        setParsedItems([]);
-        setShowImportPreview(false);
-        setImportCourier('');
-        setImportCategory('');
-        setImportWaybillNo('');
-        setImportSetDate(undefined);
-      } else {
-        setParsedItems(remainingItems);
-      }
+      // Keep items in preview - just clear selection
       setSelectedItems(new Set());
 
       toast({ title: 'Success', description: `${validItems.length} item(s) released and sent to Deliveries as pending` });
     } catch (error) {
+      console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
       setSubmitting(false);
