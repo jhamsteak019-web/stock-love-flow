@@ -291,21 +291,31 @@ const ReleaseStock = () => {
 
     setSubmitting(true);
     try {
-      // Release each item individually since they can have different couriers
+      // Release all selected items as ONE BATCH (single batch_id)
+      // Use the first item's courier, setDate, and waybillNo for the batch
+      const firstItem = validItems[0];
+      const batchItems = validItems.map(item => ({
+        itemId: item.matchedItemId || '',
+        boxes: item.qtyBoxes,
+        destination: item.deliverTo || 'Unknown',
+        remarks: item.remarks || undefined,
+        allocationBill: item.sheetNo || undefined,
+        category: item.category || undefined,
+        qtyItem: item.qtyItem || item.qtyBoxes
+      }));
+
+      // Release all items together as one batch
       for (const item of validItems) {
-        // Only use matchedItemId if it's a valid UUID, otherwise pass null
-        const itemId = item.matchedItemId || null;
-        
         await releaseStockBatch(
-          [{ itemId: itemId || '', boxes: item.qtyBoxes }],
+          [{ itemId: item.matchedItemId || '', boxes: item.qtyBoxes }],
           item.deliverTo || 'Unknown',
           user!.id,
           item.remarks || undefined,
-          item.courier,
-          item.sheetNo || undefined, // allocation bill
+          firstItem.courier, // Use first item's courier for all
+          item.sheetNo || undefined,
           item.category || undefined,
-          item.waybillNo || undefined,
-          item.setDate || undefined,
+          firstItem.waybillNo || undefined, // Use first item's waybill for all
+          firstItem.setDate || undefined, // Use first item's set date for all
           item.qtyItem || item.qtyBoxes
         );
       }
@@ -320,12 +330,31 @@ const ReleaseStock = () => {
         setShowImportPreview(false);
       }
 
-      toast({ title: 'Success', description: `${validItems.length} item(s) released and sent to Deliveries as pending` });
+      toast({ title: 'Success', description: `${validItems.length} item(s) released as one batch` });
     } catch (error) {
       console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Bulk update function - when user changes waybill/setDate/courier on any checked item, apply to all checked items
+  const updateParsedItemWithBulk = (id: string, field: keyof ParsedReleaseItem, value: string | number) => {
+    const isChecked = selectedItems.has(id);
+    const isBulkField = field === 'waybillNo' || field === 'setDate' || field === 'courier';
+    
+    if (isChecked && isBulkField && selectedItems.size > 1) {
+      // Apply to all checked items
+      setParsedItems(prev => prev.map(item => {
+        if (selectedItems.has(item.id)) {
+          return { ...item, [field]: value };
+        }
+        return item;
+      }));
+    } else {
+      // Apply only to the single item
+      updateParsedItem(id, field, value);
     }
   };
 
@@ -543,7 +572,7 @@ const ReleaseStock = () => {
                       <TableCell className="px-2">
                         <Input 
                           value={item.waybillNo || ''}
-                          onChange={(e) => updateParsedItem(item.id, 'waybillNo', e.target.value)}
+                          onChange={(e) => updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value)}
                           className="h-8 text-xs min-w-[110px]"
                           placeholder="Waybill No."
                         />
@@ -560,7 +589,7 @@ const ReleaseStock = () => {
                             <Calendar
                               mode="single"
                               selected={item.setDate ? new Date(item.setDate) : undefined}
-                              onSelect={(date) => updateParsedItem(item.id, 'setDate', date?.toISOString() || '')}
+                              onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
                               initialFocus
                               className={cn("p-3 pointer-events-auto")}
                             />
@@ -568,7 +597,7 @@ const ReleaseStock = () => {
                         </Popover>
                       </TableCell>
                       <TableCell className="px-2">
-                        <Select value={item.courier} onValueChange={(val) => updateParsedItem(item.id, 'courier', val)}>
+                        <Select value={item.courier} onValueChange={(val) => updateParsedItemWithBulk(item.id, 'courier', val)}>
                           <SelectTrigger className="h-8 text-xs min-w-[110px]">
                             <SelectValue placeholder="Courier" />
                           </SelectTrigger>
