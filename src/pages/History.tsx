@@ -29,13 +29,17 @@ import {
 
 interface GroupedRelease {
   batch_id: string;
+  allocation_bill: string | null;
   destination: string;
+  category: string | null;
   courier: string | null;
+  waybill_no: string | null;
   date_released: string;
   date_delivered: string | null;
   deleted_at?: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
+  totalQty: number;
   itemCount: number;
   items: StockRelease[];
 }
@@ -78,13 +82,17 @@ const History = () => {
       if (!groups[batchKey]) {
         groups[batchKey] = {
           batch_id: batchKey,
+          allocation_bill: release.allocation_bill,
           destination: release.destination,
+          category: release.category,
           courier: release.courier,
+          waybill_no: release.waybill_no,
           date_released: release.date_released,
           date_delivered: release.date_delivered,
           deleted_at: release.deleted_at,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
+          totalQty: 0,
           itemCount: 0,
           items: [],
         };
@@ -92,6 +100,7 @@ const History = () => {
       
       groups[batchKey].items.push(release);
       groups[batchKey].totalBoxes += release.boxes_released;
+      groups[batchKey].totalQty += release.total_qty || 0;
       groups[batchKey].itemCount += 1;
     });
     
@@ -353,19 +362,21 @@ const History = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Total Boxes</TableHead>
+                  <TableHead>Allocation</TableHead>
                   <TableHead>Destination</TableHead>
-                  <TableHead>Released</TableHead>
-                  <TableHead>Delivered</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Total Boxes</TableHead>
+                  <TableHead>Total Qty/Items</TableHead>
+                  <TableHead>Date Out</TableHead>
+                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Waybill No.</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredReleases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={9} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
                         {searchQuery || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
@@ -375,14 +386,14 @@ const History = () => {
                 ) : (
                   filteredReleases.map((group) => (
                     <TableRow key={group.batch_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
-                      <TableCell className="font-medium">
-                        {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
-                      </TableCell>
-                      <TableCell>{group.totalBoxes}</TableCell>
+                      <TableCell className="font-medium">{group.allocation_bill || '-'}</TableCell>
                       <TableCell>{group.destination}</TableCell>
+                      <TableCell>{group.category || '-'}</TableCell>
+                      <TableCell>{group.totalBoxes}</TableCell>
+                      <TableCell>{group.totalQty || group.itemCount}</TableCell>
                       <TableCell className="text-muted-foreground">{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
-                      <TableCell className="text-muted-foreground">{group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
-                      <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
+                      <TableCell>{group.courier || '-'}</TableCell>
+                      <TableCell>{group.waybill_no || '-'}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
@@ -428,18 +439,20 @@ const History = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total Boxes</TableHead>
+                    <TableHead>Allocation</TableHead>
                     <TableHead>Destination</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Total Boxes</TableHead>
+                    <TableHead>Total Qty/Items</TableHead>
                     <TableHead>Deleted At</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Waybill No.</TableHead>
                     <TableHead className="w-[140px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {groupedDeletedReleases.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12">
+                      <TableCell colSpan={8} className="text-center py-12">
                         <Archive className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                         <p className="text-muted-foreground">No recently deleted transactions</p>
                       </TableCell>
@@ -447,15 +460,15 @@ const History = () => {
                   ) : (
                     groupedDeletedReleases.map((group) => (
                       <TableRow key={group.batch_id}>
-                        <TableCell className="font-medium">
-                          {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
-                        </TableCell>
-                        <TableCell>{group.totalBoxes}</TableCell>
+                        <TableCell className="font-medium">{group.allocation_bill || '-'}</TableCell>
                         <TableCell>{group.destination}</TableCell>
+                        <TableCell>{group.category || '-'}</TableCell>
+                        <TableCell>{group.totalBoxes}</TableCell>
+                        <TableCell>{group.totalQty || group.itemCount}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {group.deleted_at ? format(new Date(group.deleted_at), 'MMM d, yyyy HH:mm') : '-'}
                         </TableCell>
-                        <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
+                        <TableCell>{group.waybill_no || '-'}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button 
