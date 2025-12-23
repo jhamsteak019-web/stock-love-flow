@@ -199,10 +199,10 @@ const Inventory = () => {
   };
 
   const handleAddItem = async () => {
-    if (!formData.item_name) {
+    if (!formData.item_code && !formData.branch) {
       toast({
         title: 'Validation Error',
-        description: 'Item name is required',
+        description: 'Sheet No. or Deliver To is required',
         variant: 'destructive',
       });
       return;
@@ -210,6 +210,8 @@ const Inventory = () => {
 
     // Auto-generate item_code if not provided
     const itemCode = formData.item_code || `ITEM-${Date.now()}`;
+    // Use item_code (Sheet No.) or branch (Deliver To) as item_name
+    const itemName = formData.item_code || formData.branch || 'Unknown';
 
     try {
       let categoryId: string | undefined;
@@ -227,6 +229,7 @@ const Inventory = () => {
 
       await addItem({
         ...formData,
+        item_name: itemName,
         item_code: itemCode,
         category_id: categoryId || null,
         created_by: user?.id,
@@ -459,42 +462,6 @@ const Inventory = () => {
               onChange={(e) => handleChange('description', e.target.value)}
               onBlur={handleBlur}
               placeholder="Additional remarks"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="item_name">Item Name *</Label>
-          <Input
-            id="item_name"
-            value={localForm.item_name}
-            onChange={(e) => handleChange('item_name', e.target.value)}
-            onBlur={handleBlur}
-            placeholder="e.g., Product name"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier</Label>
-            <Input
-              id="supplier"
-              value={localForm.supplier}
-              onChange={(e) => handleChange('supplier', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="Supplier name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="price">Price</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={localForm.price}
-              onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)}
-              onBlur={handleBlur}
-              placeholder="e.g., 24.00"
             />
           </div>
         </div>
