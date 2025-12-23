@@ -1,18 +1,25 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Badge } from '@/components/ui/badge';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const SummaryReport = () => {
   const { releases, items, loading } = useInventory();
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
+  const [activeTab, setActiveTab] = useState('branch-report');
 
   // Get available years from releases
   const availableYears = useMemo(() => {
@@ -21,121 +28,167 @@ const SummaryReport = () => {
       const year = new Date(release.date_released).getFullYear().toString();
       years.add(year);
     });
-    // Add current year if not present
     years.add(currentYear.toString());
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [releases, currentYear]);
 
-  // Filter releases by selected year
+  // Filter releases by selected year and month
   const filteredReleases = useMemo(() => {
+    return releases.filter(release => {
+      const releaseDate = new Date(release.date_released);
+      const releaseYear = releaseDate.getFullYear().toString();
+      const releaseMonth = releaseDate.getMonth().toString();
+      return releaseYear === selectedYear && releaseMonth === selectedMonth;
+    });
+  }, [releases, selectedYear, selectedMonth]);
+
+  // Filter releases by year only (for yearly stats)
+  const yearlyReleases = useMemo(() => {
     return releases.filter(release => {
       const releaseYear = new Date(release.date_released).getFullYear().toString();
       return releaseYear === selectedYear;
     });
   }, [releases, selectedYear]);
 
-  // Calculate summary by destination
-  const destinationSummary = useMemo(() => {
-    const summary: Record<string, { 
-      destination: string; 
-      totalBoxes: number; 
-      totalPieces: number; 
-      deliveryCount: number;
+  // Branch/Store Report - Pending vs Delivered per branch
+  const branchReport = useMemo(() => {
+    const branches: Record<string, {
+      branch: string;
+      totalDeliveries: number;
+      pendingCount: number;
+      inTransitCount: number;
+      outForDeliveryCount: number;
       deliveredCount: number;
-      receivedBoxes: number;
-      receivedPieces: number;
+      totalBoxes: number;
+      totalQty: number;
+      deliveredBoxes: number;
+      deliveredQty: number;
     }> = {};
 
     filteredReleases.forEach(release => {
-      const dest = release.destination || 'Unknown';
-      if (!summary[dest]) {
-        summary[dest] = {
-          destination: dest,
-          totalBoxes: 0,
-          totalPieces: 0,
-          deliveryCount: 0,
+      const branch = release.destination || 'Unknown';
+      
+      if (!branches[branch]) {
+        branches[branch] = {
+          branch,
+          totalDeliveries: 0,
+          pendingCount: 0,
+          inTransitCount: 0,
+          outForDeliveryCount: 0,
           deliveredCount: 0,
-          receivedBoxes: 0,
-          receivedPieces: 0,
+          totalBoxes: 0,
+          totalQty: 0,
+          deliveredBoxes: 0,
+          deliveredQty: 0,
         };
       }
-      summary[dest].totalBoxes += release.boxes_released;
       
-      // Get pieces per box from the item
-      const item = items.find(i => i.id === release.item_id);
-      const piecesPerBox = item?.pieces_per_box || 1;
-      summary[dest].totalPieces += release.boxes_released * piecesPerBox;
-      summary[dest].deliveryCount += 1;
-      if (release.delivery_status === 'delivered') {
-        summary[dest].deliveredCount += 1;
-        summary[dest].receivedBoxes += release.boxes_released;
-        summary[dest].receivedPieces += release.boxes_released * piecesPerBox;
+      branches[branch].totalDeliveries += 1;
+      branches[branch].totalBoxes += release.boxes_released;
+      branches[branch].totalQty += release.total_qty || 0;
+      
+      switch (release.delivery_status) {
+        case 'pending':
+          branches[branch].pendingCount += 1;
+          break;
+        case 'in_transit':
+          branches[branch].inTransitCount += 1;
+          break;
+        case 'out_for_delivery':
+          branches[branch].outForDeliveryCount += 1;
+          break;
+        case 'delivered':
+          branches[branch].deliveredCount += 1;
+          branches[branch].deliveredBoxes += release.boxes_released;
+          branches[branch].deliveredQty += release.total_qty || 0;
+          break;
       }
     });
 
-    return Object.values(summary).sort((a, b) => b.totalBoxes - a.totalBoxes);
-  }, [filteredReleases, items]);
+    return Object.values(branches).sort((a, b) => b.totalDeliveries - a.totalDeliveries);
+  }, [filteredReleases]);
 
-  // Monthly summary for chart
-  const monthlySummary = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthlyData = months.map((month, index) => ({
-      month,
-      boxes: 0,
-      pieces: 0,
-    }));
+  // Category breakdown per store
+  const categoryByStore = useMemo(() => {
+    const stores: Record<string, {
+      store: string;
+      categories: Record<string, { boxes: number; qty: number }>;
+      totalBoxes: number;
+      totalQty: number;
+    }> = {};
 
     filteredReleases.forEach(release => {
-      const monthIndex = new Date(release.date_released).getMonth();
-      monthlyData[monthIndex].boxes += release.boxes_released;
+      const store = release.destination || 'Unknown';
+      const category = release.category || 'Uncategorized';
       
-      const item = items.find(i => i.id === release.item_id);
-      const piecesPerBox = item?.pieces_per_box || 1;
-      monthlyData[monthIndex].pieces += release.boxes_released * piecesPerBox;
+      if (!stores[store]) {
+        stores[store] = {
+          store,
+          categories: {},
+          totalBoxes: 0,
+          totalQty: 0,
+        };
+      }
+      
+      if (!stores[store].categories[category]) {
+        stores[store].categories[category] = { boxes: 0, qty: 0 };
+      }
+      
+      stores[store].categories[category].boxes += release.boxes_released;
+      stores[store].categories[category].qty += release.total_qty || 0;
+      stores[store].totalBoxes += release.boxes_released;
+      stores[store].totalQty += release.total_qty || 0;
     });
 
-    return monthlyData;
-  }, [filteredReleases, items]);
+    return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);
+  }, [filteredReleases]);
+
+  // Get all unique categories
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    filteredReleases.forEach(release => {
+      if (release.category) cats.add(release.category);
+    });
+    return Array.from(cats).sort();
+  }, [filteredReleases]);
 
   // Total statistics
   const totalStats = useMemo(() => {
     const totalBoxes = filteredReleases.reduce((sum, r) => sum + r.boxes_released, 0);
-    let totalPieces = 0;
-    
-    filteredReleases.forEach(release => {
-      const item = items.find(i => i.id === release.item_id);
-      const piecesPerBox = item?.pieces_per_box || 1;
-      totalPieces += release.boxes_released * piecesPerBox;
-    });
-
+    const totalQty = filteredReleases.reduce((sum, r) => sum + (r.total_qty || 0), 0);
     const deliveredCount = filteredReleases.filter(r => r.delivery_status === 'delivered').length;
+    const pendingCount = filteredReleases.filter(r => r.delivery_status !== 'delivered').length;
     const uniqueDestinations = new Set(filteredReleases.map(r => r.destination)).size;
 
     return {
       totalBoxes,
-      totalPieces,
+      totalQty,
       totalDeliveries: filteredReleases.length,
       deliveredCount,
+      pendingCount,
       uniqueDestinations,
     };
-  }, [filteredReleases, items]);
+  }, [filteredReleases]);
 
-  // Pie chart data for top destinations
-  const pieChartData = useMemo(() => {
-    const topDestinations = destinationSummary.slice(0, 5);
-    const otherBoxes = destinationSummary.slice(5).reduce((sum, d) => sum + d.totalBoxes, 0);
-    
-    const data = topDestinations.map(d => ({
-      name: d.destination.length > 15 ? d.destination.substring(0, 15) + '...' : d.destination,
-      value: d.totalBoxes,
+  // Monthly summary for chart
+  const monthlySummary = useMemo(() => {
+    const monthlyData = MONTHS.map((month, index) => ({
+      month: month.substring(0, 3),
+      delivered: 0,
+      pending: 0,
     }));
 
-    if (otherBoxes > 0) {
-      data.push({ name: 'Others', value: otherBoxes });
-    }
+    yearlyReleases.forEach(release => {
+      const monthIndex = new Date(release.date_released).getMonth();
+      if (release.delivery_status === 'delivered') {
+        monthlyData[monthIndex].delivered += release.boxes_released;
+      } else {
+        monthlyData[monthIndex].pending += release.boxes_released;
+      }
+    });
 
-    return data;
-  }, [destinationSummary]);
+    return monthlyData;
+  }, [yearlyReleases]);
 
   if (loading) {
     return (
@@ -155,13 +208,23 @@ const SummaryReport = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Summary Report</h1>
-            <p className="text-muted-foreground">Delivery statistics by destination per year</p>
+            <p className="text-muted-foreground">Delivery statistics by branch and category</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Select Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((month, index) => (
+                <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-28">
               <SelectValue placeholder="Select Year" />
             </SelectTrigger>
             <SelectContent>
@@ -177,185 +240,283 @@ const SummaryReport = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Boxes Released</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Boxes</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStats.totalBoxes.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {totalStats.totalPieces.toLocaleString()} total pieces
+              {totalStats.totalQty.toLocaleString()} total qty/items
             </p>
           </CardContent>
         </Card>
 
         <Card className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deliveries</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
+            <Truck className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.totalDeliveries.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">{totalStats.deliveredCount}</div>
             <p className="text-xs text-muted-foreground">
-              {totalStats.deliveredCount} delivered
+              completed deliveries
             </p>
           </CardContent>
         </Card>
 
         <Card className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Destinations Served</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <TrendingUp className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{totalStats.pendingCount}</div>
+            <p className="text-xs text-muted-foreground">
+              awaiting delivery
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Branches Served</CardTitle>
+            <Store className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStats.uniqueDestinations}</div>
             <p className="text-xs text-muted-foreground">unique locations</p>
           </CardContent>
         </Card>
-
-        <Card className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Delivery Rate</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totalStats.totalDeliveries > 0 
-                ? Math.round((totalStats.deliveredCount / totalStats.totalDeliveries) * 100) 
-                : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">completion rate</p>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Monthly Bar Chart */}
-        <Card className="lg:col-span-2 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          <CardHeader>
-            <CardTitle>Monthly Releases ({selectedYear})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlySummary}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  />
-                  <Bar dataKey="boxes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Boxes" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Tabs for different reports */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="branch-report" className="flex items-center gap-2">
+            <Store className="h-4 w-4" />
+            Branch Report
+          </TabsTrigger>
+          <TabsTrigger value="category-report" className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4" />
+            Category per Store
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Pie Chart for Destinations */}
-        <Card className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
-          <CardHeader>
-            <CardTitle>Top Destinations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              {pieChartData.length > 0 ? (
+        {/* Branch Report Tab */}
+        <TabsContent value="branch-report" className="space-y-6">
+          {/* Monthly Chart */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Monthly Delivery Status ({selectedYear})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
+                  <BarChart data={monthlySummary}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" />
+                    <YAxis className="text-xs" />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))', 
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
                     />
                     <Legend />
-                  </PieChart>
+                    <Bar dataKey="delivered" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} name="Delivered" />
+                    <Bar dataKey="pending" fill="hsl(45, 93%, 47%)" radius={[4, 4, 0, 0]} name="Pending" />
+                  </BarChart>
                 </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Branch Report Table */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Branch Delivery Status - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {branchReport.length > 0 ? (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Branch/Store</TableHead>
+                        <TableHead className="text-center">Pending</TableHead>
+                        <TableHead className="text-center">In Transit</TableHead>
+                        <TableHead className="text-center">Out for Delivery</TableHead>
+                        <TableHead className="text-center">Delivered</TableHead>
+                        <TableHead className="text-right">Total Boxes</TableHead>
+                        <TableHead className="text-right">Total Qty</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {branchReport.map((item) => {
+                        const allDelivered = item.pendingCount === 0 && item.inTransitCount === 0 && item.outForDeliveryCount === 0;
+                        return (
+                          <TableRow key={item.branch}>
+                            <TableCell className="font-medium">{item.branch}</TableCell>
+                            <TableCell className="text-center">
+                              {item.pendingCount > 0 ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                  {item.pendingCount}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {item.inTransitCount > 0 ? (
+                                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                  {item.inTransitCount}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {item.outForDeliveryCount > 0 ? (
+                                <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                  {item.outForDeliveryCount}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {item.deliveredCount > 0 ? (
+                                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                  {item.deliveredCount}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{item.totalBoxes.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{item.totalQty.toLocaleString()}</TableCell>
+                            <TableCell className="text-center">
+                              {allDelivered ? (
+                                <Badge className="bg-green-600 hover:bg-green-700">All Delivered</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                  Has Pending
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No data available
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Store className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No deliveries found</h3>
+                  <p className="text-muted-foreground">No releases recorded for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Destination Summary Table */}
-      <Card className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-        <CardHeader>
-          <CardTitle>Deliveries by Destination ({selectedYear})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {destinationSummary.length > 0 ? (
-            <div className="rounded-lg border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>#</TableHead>
-                    <TableHead>Store/Destination</TableHead>
-                    <TableHead className="text-right">Sent Boxes</TableHead>
-                    <TableHead className="text-right">Sent Pieces</TableHead>
-                    <TableHead className="text-right">Received Boxes</TableHead>
-                    <TableHead className="text-right">Received Pieces</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {destinationSummary.map((item, index) => (
-                    <TableRow key={item.destination}>
-                      <TableCell className="font-medium">{index + 1}</TableCell>
-                      <TableCell className="font-medium">{item.destination}</TableCell>
-                      <TableCell className="text-right">{item.totalBoxes.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{item.totalPieces.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-green-600 dark:text-green-400 font-medium">{item.receivedBoxes.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-green-600 dark:text-green-400 font-medium">{item.receivedPieces.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                          item.deliveryCount > 0 && (item.deliveredCount / item.deliveryCount) >= 0.8
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : item.deliveryCount > 0 && (item.deliveredCount / item.deliveryCount) >= 0.5
-                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        }`}>
-                          {item.deliveryCount > 0 
-                            ? Math.round((item.deliveredCount / item.deliveryCount) * 100) 
-                            : 0}%
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Package className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium">No deliveries found</h3>
-              <p className="text-muted-foreground">No releases recorded for {selectedYear}</p>
+        {/* Category per Store Tab */}
+        <TabsContent value="category-report" className="space-y-6">
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Items Received per Store - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {categoryByStore.length > 0 ? (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Store</TableHead>
+                        {allCategories.map(cat => (
+                          <TableHead key={cat} className="text-center min-w-[120px]">
+                            {cat}
+                            <div className="text-xs text-muted-foreground font-normal">(Boxes / Qty)</div>
+                          </TableHead>
+                        ))}
+                        <TableHead className="text-right">Total Boxes</TableHead>
+                        <TableHead className="text-right">Total Qty</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categoryByStore.map((store) => (
+                        <TableRow key={store.store}>
+                          <TableCell className="font-medium">{store.store}</TableCell>
+                          {allCategories.map(cat => {
+                            const catData = store.categories[cat];
+                            return (
+                              <TableCell key={cat} className="text-center">
+                                {catData ? (
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{catData.boxes}</span>
+                                    <span className="text-xs text-muted-foreground">/ {catData.qty}</span>
+                                  </div>
+                                ) : '-'}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="text-right font-bold">{store.totalBoxes.toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-bold">{store.totalQty.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Totals Row */}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell>TOTAL</TableCell>
+                        {allCategories.map(cat => {
+                          const totalBoxes = categoryByStore.reduce((sum, store) => sum + (store.categories[cat]?.boxes || 0), 0);
+                          const totalQty = categoryByStore.reduce((sum, store) => sum + (store.categories[cat]?.qty || 0), 0);
+                          return (
+                            <TableCell key={cat} className="text-center">
+                              <div className="flex flex-col">
+                                <span>{totalBoxes}</span>
+                                <span className="text-xs text-muted-foreground">/ {totalQty}</span>
+                              </div>
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-right">
+                          {categoryByStore.reduce((sum, s) => sum + s.totalBoxes, 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {categoryByStore.reduce((sum, s) => sum + s.totalQty, 0).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No category data found</h3>
+                  <p className="text-muted-foreground">No releases with categories recorded for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Category Summary Cards */}
+          {allCategories.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {allCategories.map((cat, index) => {
+                const totalBoxes = categoryByStore.reduce((sum, store) => sum + (store.categories[cat]?.boxes || 0), 0);
+                const totalQty = categoryByStore.reduce((sum, store) => sum + (store.categories[cat]?.qty || 0), 0);
+                return (
+                  <Card key={cat} className="animate-fade-in" style={{ animationDelay: `${0.1 * index}s` }}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium truncate">{cat}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalBoxes}</div>
+                      <p className="text-xs text-muted-foreground">{totalQty} qty/items</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
