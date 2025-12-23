@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
-import { format, isSameDay } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,7 +47,8 @@ const History = () => {
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('active');
   const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
@@ -100,14 +101,19 @@ const History = () => {
   const groupedReleases = useMemo(() => groupReleases(releases), [releases]);
   const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases), [deletedReleases]);
 
-  // Filter grouped releases based on search query, date (delivery date), and status
+  // Filter grouped releases based on search query, date range, and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
-      // Date filter - exact date match on delivery date
-      if (selectedDate) {
-        if (!group.date_delivered) return false;
-        const deliveryDate = new Date(group.date_delivered);
-        if (!isSameDay(deliveryDate, selectedDate)) {
+      // Date range filter
+      if (startDate || endDate) {
+        const releaseDate = new Date(group.date_released);
+        if (startDate && endDate) {
+          if (!isWithinInterval(releaseDate, { start: startOfDay(startDate), end: endOfDay(endDate) })) {
+            return false;
+          }
+        } else if (startDate && releaseDate < startOfDay(startDate)) {
+          return false;
+        } else if (endDate && releaseDate > endOfDay(endDate)) {
           return false;
         }
       }
@@ -135,10 +141,11 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, searchQuery, selectedDate, statusFilter]);
+  }, [groupedReleases, searchQuery, startDate, endDate, statusFilter]);
 
   const clearFilters = () => {
-    setSelectedDate(undefined);
+    setStartDate(undefined);
+    setEndDate(undefined);
     setStatusFilter('all');
   };
 
@@ -269,25 +276,50 @@ const History = () => {
                     size="sm"
                     className={cn(
                       "justify-start text-left font-normal",
-                      !selectedDate && "text-muted-foreground"
+                      !startDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Filter by delivered date"}
+                    {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
+                    selected={startDate}
+                    onSelect={setStartDate}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
 
-              {(selectedDate || statusFilter !== 'all') && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {(startDate || endDate || statusFilter !== 'all') && (
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
                   <X className="h-4 w-4 mr-1" />
                   Clear filters
@@ -315,7 +347,7 @@ const History = () => {
                     <TableCell colSpan={7} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
-                        {searchQuery || selectedDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
+                        {searchQuery || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
                       </p>
                     </TableCell>
                   </TableRow>
