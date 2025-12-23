@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { ClipboardList, Eye, Trash2, AlertTriangle } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -39,6 +40,7 @@ const History = () => {
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
@@ -72,6 +74,28 @@ const History = () => {
     );
   }, [releases]);
 
+  // Filter grouped releases based on search query
+  const filteredReleases = useMemo(() => {
+    if (!searchQuery.trim()) return groupedReleases;
+    
+    const query = searchQuery.toLowerCase();
+    return groupedReleases.filter(group => {
+      // Search in destination, courier, status
+      if (group.destination.toLowerCase().includes(query)) return true;
+      if (group.courier?.toLowerCase().includes(query)) return true;
+      if (group.delivery_status.toLowerCase().includes(query)) return true;
+      
+      // Search in item names within the batch
+      const itemMatch = group.items.some(item => 
+        item.inventory_item?.item_name?.toLowerCase().includes(query) ||
+        item.inventory_item?.item_code?.toLowerCase().includes(query)
+      );
+      if (itemMatch) return true;
+      
+      return false;
+    });
+  }, [groupedReleases, searchQuery]);
+
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Are you sure you want to delete this release? This action cannot be undone.')) return;
@@ -102,9 +126,18 @@ const History = () => {
 
   return (
     <div className="space-y-4">
-      {/* Clear All Button */}
-      {isAdmin && groupedReleases.length > 0 && (
-        <div className="flex justify-end">
+      {/* Search and Clear All */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by destination, courier, item name, or status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {isAdmin && groupedReleases.length > 0 && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" disabled={clearing}>
@@ -130,8 +163,8 @@ const History = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
@@ -147,15 +180,17 @@ const History = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {groupedReleases.length === 0 ? (
+          {filteredReleases.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="text-center py-12">
                 <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                <p className="text-muted-foreground">No transaction history</p>
+                <p className="text-muted-foreground">
+                  {searchQuery ? 'No results found' : 'No transaction history'}
+                </p>
               </TableCell>
             </TableRow>
           ) : (
-            groupedReleases.map((group) => (
+            filteredReleases.map((group) => (
               <TableRow key={group.batch_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
                 <TableCell className="font-medium">
                   {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
