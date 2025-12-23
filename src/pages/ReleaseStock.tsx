@@ -515,7 +515,7 @@ const ReleaseStock = () => {
                         <Checkbox 
                           checked={selectedItems.has(item.id)}
                           onCheckedChange={() => toggleSelectItem(item.id)}
-                          disabled={!item.courier || item.qtyBoxes <= 0}
+                          disabled={item.qtyBoxes <= 0}
                           aria-label={`Select ${item.sheetNo}`}
                         />
                       </TableCell>
