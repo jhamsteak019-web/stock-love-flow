@@ -54,12 +54,32 @@ export const useInventory = () => {
           *,
           inventory_item:inventory_items(*)
         `)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setReleases(data || []);
     } catch (error) {
       console.error('Error fetching releases:', error);
+    }
+  };
+
+  const fetchDeletedReleases = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stock_releases')
+        .select(`
+          *,
+          inventory_item:inventory_items(*)
+        `)
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching deleted releases:', error);
+      return [];
     }
   };
 
@@ -255,20 +275,22 @@ export const useInventory = () => {
   };
 
   const deleteRelease = async (releaseId: string) => {
+    // Soft delete - set deleted_at timestamp
     const { error } = await supabase
       .from('stock_releases')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', releaseId);
 
     if (error) throw error;
     setReleases(releases.filter(r => r.id !== releaseId));
-    await fetchItems(); // Refresh to update stock counts
+    await fetchItems();
   };
 
   const deleteReleaseBatch = async (batchId: string) => {
+    // Soft delete - set deleted_at timestamp
     const { error } = await supabase
       .from('stock_releases')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('batch_id', batchId);
 
     if (error) throw error;
@@ -277,14 +299,35 @@ export const useInventory = () => {
   };
 
   const deleteAllReleases = async () => {
+    // Soft delete - set deleted_at timestamp
     const { error } = await supabase
       .from('stock_releases')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+      .update({ deleted_at: new Date().toISOString() })
+      .is('deleted_at', null);
 
     if (error) throw error;
     setReleases([]);
     await fetchItems();
+  };
+
+  const restoreReleaseBatch = async (batchId: string) => {
+    const { error } = await supabase
+      .from('stock_releases')
+      .update({ deleted_at: null })
+      .eq('batch_id', batchId);
+
+    if (error) throw error;
+    await fetchReleases();
+    await fetchItems();
+  };
+
+  const permanentlyDeleteBatch = async (batchId: string) => {
+    const { error } = await supabase
+      .from('stock_releases')
+      .delete()
+      .eq('batch_id', batchId);
+
+    if (error) throw error;
   };
 
   const bulkUpdateStock = async (stockValue: number) => {
@@ -311,6 +354,7 @@ export const useInventory = () => {
     fetchAll,
     fetchItems,
     fetchReleases,
+    fetchDeletedReleases,
     addCategory,
     addItem,
     updateItem,
@@ -322,6 +366,8 @@ export const useInventory = () => {
     deleteRelease,
     deleteReleaseBatch,
     deleteAllReleases,
+    restoreReleaseBatch,
+    permanentlyDeleteBatch,
     getStats,
     bulkUpdateStock,
   };
