@@ -43,15 +43,9 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       roles: ['admin', 'staff']
     },
     { 
-      to: '/inventory', 
-      icon: Package, 
-      label: 'Inventory',
-      roles: ['admin', 'staff']
-    },
-    { 
       to: '/release', 
       icon: PackagePlus, 
-      label: 'Release Stock',
+      label: 'OUT WAREHOUSE DELIVERY',
       roles: ['admin', 'staff']
     },
     { 
@@ -74,7 +68,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     },
     { 
       to: '/import', 
-      icon: FileSpreadsheet, 
+      icon: null, 
       label: 'Import Excel',
       roles: ['admin']
     },
@@ -152,7 +146,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     )}
                   >
-                    <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                    {item.icon && <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />}
                     {!isCollapsed && item.label}
                   </NavLink>
                 );
