@@ -578,7 +578,7 @@ const ReleaseStock = () => {
             <PackagePlus className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Release Stock</h2>
+            <h2 className="text-lg font-semibold">OUT WAREHOUSE DELIVERY</h2>
             <p className="text-sm text-muted-foreground">Allocate multiple items for delivery</p>
           </div>
         </div>
