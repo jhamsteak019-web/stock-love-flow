@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ const Deliveries = () => {
   const { userRole } = useAuth();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
@@ -81,7 +82,17 @@ const Deliveries = () => {
     );
   }, [releases]);
 
-  const pendingGroups = groupedReleases.filter(g => g.delivery_status !== 'delivered');
+  const pendingGroups = useMemo(() => {
+    return groupedReleases
+      .filter(g => g.delivery_status !== 'delivered')
+      .filter(g => {
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase();
+        const allocation = (g.allocation_bill || '').toLowerCase();
+        const waybill = (g.waybill_no || '').toLowerCase();
+        return allocation.includes(query) || waybill.includes(query);
+      });
+  }, [groupedReleases, searchQuery]);
 
   const handleStatusChange = async (group: GroupedRelease, status: DeliveryStatus) => {
     try {
@@ -130,6 +141,15 @@ const Deliveries = () => {
 
   return (
     <div className="space-y-6">
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by Allocation or Waybill No..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
