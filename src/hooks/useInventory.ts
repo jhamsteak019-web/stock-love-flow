@@ -218,7 +218,7 @@ export const useInventory = () => {
     const batchId = crypto.randomUUID();
     
     const insertData = items.map(item => ({
-      item_id: item.itemId,
+      item_id: item.itemId && item.itemId.trim() !== '' ? item.itemId : null,
       boxes_released: item.boxes,
       destination,
       released_by: releasedBy,

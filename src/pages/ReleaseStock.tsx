@@ -55,14 +55,16 @@ const ReleaseStock = () => {
   const [releaseItems, setReleaseItems] = useState<ReleaseItem[]>([
     { id: crypto.randomUUID(), itemId: '', boxes: 1 }
   ]);
-  const [destination, setDestination] = useState('');
-  const [courier, setCourier] = useState('');
-  const [remarks, setRemarks] = useState('');
-  const [notes, setNotes] = useState('');
   const [allocationBill, setAllocationBill] = useState('');
+  const [destination, setDestination] = useState('');
   const [category, setCategory] = useState('');
+  const [boxes, setBoxes] = useState<number>(0);
+  const [qtyItems, setQtyItems] = useState<number>(0);
+  const [remarks, setRemarks] = useState('');
   const [waybillNo, setWaybillNo] = useState('');
   const [setDate, setSetDate] = useState<Date | undefined>(undefined);
+  const [courier, setCourier] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedBill, setSelectedBill] = useState<AllocationBillGroup | null>(null);
   
@@ -114,50 +116,44 @@ const ReleaseStock = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validItems = releaseItems.filter(r => r.itemId && r.boxes > 0);
-    
-    if (validItems.length === 0 || !destination) {
-      toast({ title: 'Error', description: 'Please add at least one item and destination', variant: 'destructive' });
+    // Validate required fields
+    if (!allocationBill.trim() || !destination.trim()) {
+      toast({ title: 'Error', description: 'Please enter allocation bill and destination', variant: 'destructive' });
       return;
     }
 
-    for (const releaseItem of validItems) {
-      const itemData = getItemData(releaseItem.itemId);
-      if (itemData && releaseItem.boxes > itemData.available_stock) {
-        toast({ title: 'Error', description: `Not enough stock for ${itemData.item_name}`, variant: 'destructive' });
-        return;
-      }
+    if (boxes <= 0) {
+      toast({ title: 'Error', description: 'Please enter number of boxes', variant: 'destructive' });
+      return;
     }
 
     setSubmitting(true);
     try {
-      const totalQty = validItems.reduce((sum, r) => {
-        const itemData = getItemData(r.itemId);
-        return sum + (r.boxes * (itemData?.pieces_per_box || 1));
-      }, 0);
-      
+      // Create a manual release entry (no inventory item linked)
       await releaseStockBatch(
-        validItems.map(r => ({ itemId: r.itemId, boxes: r.boxes })),
+        [{ itemId: '', boxes: boxes }],
         destination,
         user!.id,
-        notes || undefined,
+        remarks || undefined,
         courier || undefined,
         allocationBill || undefined,
         category || undefined,
         waybillNo || undefined,
         setDate?.toISOString() || undefined,
-        totalQty
+        qtyItems || boxes
       );
-      toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
-      setReleaseItems([{ id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
-      setDestination('');
-      setCourier('');
-      setRemarks('');
-      setNotes('');
+      toast({ title: 'Success', description: 'Stock released successfully' });
+      
+      // Reset form
       setAllocationBill('');
+      setDestination('');
       setCategory('');
+      setBoxes(0);
+      setQtyItems(0);
+      setRemarks('');
       setWaybillNo('');
       setSetDate(undefined);
+      setCourier('');
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
     } finally {
@@ -658,68 +654,88 @@ const ReleaseStock = () => {
           </div>
           <div>
             <h2 className="text-lg font-semibold select-none">OUT WAREHOUSE DELIVERY</h2>
-            <p className="text-sm text-muted-foreground select-none">Allocate multiple items for delivery</p>
+            <p className="text-sm text-muted-foreground select-none">Manual stock release entry</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Items to Release *</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addReleaseItem}>
-                <Plus className="h-4 w-4 mr-1" /> Add Item
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {releaseItems.map((releaseItem, index) => {
-                const itemData = getItemData(releaseItem.itemId);
-                return (
-                  <div key={releaseItem.id} className="flex gap-3 items-start p-3 rounded-lg bg-muted/30 border">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary mt-1">
-                      {index + 1}
-                    </span>
-                    <div className="flex-1 grid grid-cols-[1fr,120px] gap-3">
-                      <Select value={releaseItem.itemId} onValueChange={(val) => updateReleaseItem(releaseItem.id, 'itemId', val)}>
-                        <SelectTrigger><SelectValue placeholder="Choose an item" /></SelectTrigger>
-                        <SelectContent>
-                          {getAvailableItems(releaseItem.itemId).map((item) => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.item_name} ({item.available_stock} available)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input 
-                        type="number" 
-                        min={1} 
-                        max={itemData?.available_stock || 999} 
-                        value={releaseItem.boxes} 
-                        onChange={(e) => updateReleaseItem(releaseItem.id, 'boxes', parseInt(e.target.value) || 0)}
-                        placeholder="Boxes"
-                      />
-                    </div>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => removeReleaseItem(releaseItem.id)}
-                      disabled={releaseItems.length === 1}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
+          {/* 1. Allocation Bill */}
+          <div className="space-y-2">
+            <Label>Allocation Bill *</Label>
+            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Enter allocation bill number" />
           </div>
 
+          {/* 2. Destination */}
           <div className="space-y-2">
             <Label>Destination *</Label>
             <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Store / Branch / Customer" />
           </div>
 
+          {/* 3. Category (Manual Input) */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Enter category (e.g. BAGS, WALLET, SHOES)" />
+          </div>
+
+          {/* 4. Boxes */}
+          <div className="space-y-2">
+            <Label>Boxes</Label>
+            <Input 
+              type="number" 
+              min={0}
+              value={boxes || ''} 
+              onChange={(e) => setBoxes(parseInt(e.target.value) || 0)} 
+              placeholder="Enter number of boxes" 
+            />
+          </div>
+
+          {/* 5. Qty/Items */}
+          <div className="space-y-2">
+            <Label>Qty/Items</Label>
+            <Input 
+              type="number" 
+              min={0}
+              value={qtyItems || ''} 
+              onChange={(e) => setQtyItems(parseInt(e.target.value) || 0)} 
+              placeholder="Enter total quantity of items" 
+            />
+          </div>
+
+          {/* 6. Remarks */}
+          <div className="space-y-2">
+            <Label>Remarks</Label>
+            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks / reference" />
+          </div>
+
+          {/* 7. Waybill No */}
+          <div className="space-y-2">
+            <Label>Waybill No.</Label>
+            <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Enter waybill number" />
+          </div>
+
+          {/* 8. Set Date */}
+          <div className="space-y-2">
+            <Label>Set Date (Date Out Warehouse)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Select date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={setDate}
+                  onSelect={setSetDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Courier (Optional) */}
           <div className="space-y-2">
             <Label>Courier (Optional)</Label>
             <Select value={courier} onValueChange={setCourier}>
@@ -740,64 +756,8 @@ const ReleaseStock = () => {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BAGS">BAGS</SelectItem>
-                <SelectItem value="WALLET">WALLET</SelectItem>
-                <SelectItem value="SHOES">SHOES</SelectItem>
-                <SelectItem value="UMBRELLA">UMBRELLA</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Waybill No. (Optional)</Label>
-            <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Enter waybill number" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Set Date (Optional)</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Select delivery date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={setDate}
-                  onSelect={setSetDate}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks / reference" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Notes (Optional)</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes..." />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Allocation Bill</Label>
-            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Allocation bill reference" />
-          </div>
-
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? 'Processing...' : `Release ${releaseItems.filter(r => r.itemId).length} Item(s)`}
+            {submitting ? 'Processing...' : 'Release Stock'}
           </Button>
         </form>
       </div>
