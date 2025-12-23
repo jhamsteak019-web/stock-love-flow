@@ -1,0 +1,202 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { DeliveryStatus } from '@/types/inventory';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface GroupedRelease {
+  batch_id: string;
+  destination: string;
+  courier: string | null;
+  date_released: string;
+  date_delivered: string | null;
+  delivery_status: DeliveryStatus;
+  totalBoxes: number;
+  totalQty: number;
+  itemCount: number;
+  releaseIds: string[];
+  allocation_bill: string | null;
+  category: string | null;
+  waybill_no: string | null;
+  set_date: string | null;
+}
+
+interface EditDeliveryModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  group: GroupedRelease;
+  onSuccess: () => void;
+}
+
+const COURIER_OPTIONS = ['JT', 'JRS', 'J&T', 'LBC', 'SM DC', 'PICK UP', 'LALAMOVE'];
+
+const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliveryModalProps) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  
+  const [destination, setDestination] = useState(group.destination);
+  const [courier, setCourier] = useState(group.courier || '');
+  const [category, setCategory] = useState(group.category || '');
+  const [allocationBill, setAllocationBill] = useState(group.allocation_bill || '');
+  const [waybillNo, setWaybillNo] = useState(group.waybill_no || '');
+  const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus>(group.delivery_status);
+  const [setDate, setSetDate] = useState<Date | undefined>(group.set_date ? new Date(group.set_date) : undefined);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      for (const releaseId of group.releaseIds) {
+        const { error } = await supabase
+          .from('stock_releases')
+          .update({
+            destination,
+            courier: courier || null,
+            category: category || null,
+            allocation_bill: allocationBill || null,
+            waybill_no: waybillNo || null,
+            delivery_status: deliveryStatus,
+            set_date: setDate ? setDate.toISOString() : null,
+          })
+          .eq('id', releaseId);
+
+        if (error) throw error;
+      }
+
+      toast({ title: 'Success', description: 'Delivery updated successfully' });
+      onSuccess();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error updating delivery:', error);
+      toast({ title: 'Error', description: 'Failed to update delivery', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit Delivery</DialogTitle>
+        </DialogHeader>
+        
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="allocation">Allocation Bill</Label>
+            <Input
+              id="allocation"
+              value={allocationBill}
+              onChange={(e) => setAllocationBill(e.target.value)}
+              placeholder="Enter allocation bill"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="destination">Destination</Label>
+            <Input
+              id="destination"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="Enter destination"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="Enter category"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="courier">Courier</Label>
+            <Select value={courier} onValueChange={setCourier}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select courier" />
+              </SelectTrigger>
+              <SelectContent>
+                {COURIER_OPTIONS.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="waybill">Waybill No.</Label>
+            <Input
+              id="waybill"
+              value={waybillNo}
+              onChange={(e) => setWaybillNo(e.target.value)}
+              placeholder="Enter waybill number"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="status">Delivery Status</Label>
+            <Select value={deliveryStatus} onValueChange={(v) => setDeliveryStatus(v as DeliveryStatus)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_transit">In Transit</SelectItem>
+                <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Set Delivery Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !setDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Pick a date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={setDate}
+                  onSelect={setSetDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default EditDeliveryModal;
