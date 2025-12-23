@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,7 @@ interface GroupedRelease {
   courier: string | null;
   date_released: string;
   date_delivered: string | null;
+  deleted_at?: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
   itemCount: number;
@@ -39,7 +41,7 @@ interface GroupedRelease {
 }
 
 const History = () => {
-  const { releases, loading, deleteReleaseBatch, deleteAllReleases } = useInventory();
+  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch } = useInventory();
   const { userRole } = useAuth();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
@@ -47,13 +49,27 @@ const History = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState('active');
+  const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
+  const [loadingDeleted, setLoadingDeleted] = useState(false);
   const isAdmin = userRole === 'admin';
 
+  // Fetch deleted releases when switching to deleted tab
+  useEffect(() => {
+    if (activeTab === 'deleted') {
+      setLoadingDeleted(true);
+      fetchDeletedReleases().then((data) => {
+        setDeletedReleases(data);
+        setLoadingDeleted(false);
+      });
+    }
+  }, [activeTab]);
+
   // Group releases by batch_id
-  const groupedReleases = useMemo(() => {
+  const groupReleases = (releasesList: StockRelease[]) => {
     const groups: Record<string, GroupedRelease> = {};
     
-    releases.forEach(release => {
+    releasesList.forEach(release => {
       const batchKey = release.batch_id || release.id;
       
       if (!groups[batchKey]) {
@@ -63,6 +79,7 @@ const History = () => {
           courier: release.courier,
           date_released: release.date_released,
           date_delivered: release.date_delivered,
+          deleted_at: release.deleted_at,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
           itemCount: 0,
@@ -78,15 +95,19 @@ const History = () => {
     return Object.values(groups).sort(
       (a, b) => new Date(b.date_released).getTime() - new Date(a.date_released).getTime()
     );
-  }, [releases]);
+  };
 
-  // Filter grouped releases based on search query, date, and status
+  const groupedReleases = useMemo(() => groupReleases(releases), [releases]);
+  const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases), [deletedReleases]);
+
+  // Filter grouped releases based on search query, date (delivery date), and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
-      // Date filter - exact date match
+      // Date filter - exact date match on delivery date
       if (selectedDate) {
-        const releaseDate = new Date(group.date_released);
-        if (!isSameDay(releaseDate, selectedDate)) {
+        if (!group.date_delivered) return false;
+        const deliveryDate = new Date(group.date_delivered);
+        if (!isSameDay(deliveryDate, selectedDate)) {
           return false;
         }
       }
@@ -99,12 +120,10 @@ const History = () => {
       // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        // Search in destination, courier, status
         if (group.destination.toLowerCase().includes(query)) return true;
         if (group.courier?.toLowerCase().includes(query)) return true;
         if (group.delivery_status.toLowerCase().includes(query)) return true;
         
-        // Search in item names within the batch
         const itemMatch = group.items.some(item => 
           item.inventory_item?.item_name?.toLowerCase().includes(query) ||
           item.inventory_item?.item_code?.toLowerCase().includes(query)
@@ -125,11 +144,35 @@ const History = () => {
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this release? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to delete this release? It will be moved to Recently Deleted.')) return;
     
     try {
       await deleteReleaseBatch(group.batch_id);
-      toast({ title: 'Success', description: 'Release deleted successfully' });
+      toast({ title: 'Success', description: 'Release moved to Recently Deleted' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete release', variant: 'destructive' });
+    }
+  };
+
+  const handleRestore = async (group: GroupedRelease, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await restoreReleaseBatch(group.batch_id);
+      setDeletedReleases(deletedReleases.filter(r => r.batch_id !== group.batch_id));
+      toast({ title: 'Success', description: 'Release restored successfully' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to restore release', variant: 'destructive' });
+    }
+  };
+
+  const handlePermanentDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to permanently delete this release? This cannot be undone.')) return;
+    
+    try {
+      await permanentlyDeleteBatch(group.batch_id);
+      setDeletedReleases(deletedReleases.filter(r => r.batch_id !== group.batch_id));
+      toast({ title: 'Success', description: 'Release permanently deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete release', variant: 'destructive' });
     }
@@ -139,7 +182,7 @@ const History = () => {
     setClearing(true);
     try {
       await deleteAllReleases();
-      toast({ title: 'Success', description: 'All transaction history cleared' });
+      toast({ title: 'Success', description: 'All transaction history moved to Recently Deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to clear history', variant: 'destructive' });
     } finally {
@@ -153,154 +196,236 @@ const History = () => {
 
   return (
     <div className="space-y-4">
-      {/* Search, Date Filter and Clear All */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row gap-3 justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by destination, courier, item name, or status..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          {isAdmin && groupedReleases.length > 0 && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={clearing}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                {clearing ? 'Clearing...' : 'Clear All'}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Clear All Transaction History
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all {groupedReleases.length} transaction records. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Yes, Clear All
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+          <TabsList>
+            <TabsTrigger value="active">Transaction History</TabsTrigger>
+            <TabsTrigger value="deleted" className="flex items-center gap-1">
+              <Archive className="h-4 w-4" />
+              Recently Deleted
+            </TabsTrigger>
+          </TabsList>
+          
+          {activeTab === 'active' && isAdmin && groupedReleases.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={clearing}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {clearing ? 'Clearing...' : 'Clear All'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    Clear All Transaction History
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will move all {groupedReleases.length} transaction records to Recently Deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Yes, Clear All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
 
-        {/* Status and Date Filter */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in_transit">In Transit</SelectItem>
-              <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "justify-start text-left font-normal",
-                  !selectedDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Filter by date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                initialFocus
-                className="p-3 pointer-events-auto"
+        <TabsContent value="active" className="space-y-4">
+          {/* Search and Filters */}
+          <div className="flex flex-col gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by destination, courier, item name, or status..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
               />
-            </PopoverContent>
-          </Popover>
+            </div>
 
-          {(selectedDate || statusFilter !== 'all') && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-4 w-4 mr-1" />
-              Clear filters
-            </Button>
-          )}
-        </div>
-      </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_transit">In Transit</SelectItem>
+                  <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                </SelectContent>
+              </Select>
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Items</TableHead>
-            <TableHead>Total Boxes</TableHead>
-            <TableHead>Destination</TableHead>
-            <TableHead>Released</TableHead>
-            <TableHead>Delivered</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredReleases.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-12">
-                <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                <p className="text-muted-foreground">
-                  {searchQuery ? 'No results found' : 'No transaction history'}
-                </p>
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredReleases.map((group) => (
-              <TableRow key={group.batch_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
-                <TableCell className="font-medium">
-                  {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
-                </TableCell>
-                <TableCell>{group.totalBoxes}</TableCell>
-                <TableCell>{group.destination}</TableCell>
-                <TableCell className="text-muted-foreground">{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
-                <TableCell className="text-muted-foreground">{group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
-                <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => handleDelete(group, e)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
                     )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Filter by delivered date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
 
-      </div>
+              {(selectedDate || statusFilter !== 'all') && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" />
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Total Boxes</TableHead>
+                  <TableHead>Destination</TableHead>
+                  <TableHead>Released</TableHead>
+                  <TableHead>Delivered</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredReleases.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                      <p className="text-muted-foreground">
+                        {searchQuery || selectedDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredReleases.map((group) => (
+                    <TableRow key={group.batch_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
+                      <TableCell className="font-medium">
+                        {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
+                      </TableCell>
+                      <TableCell>{group.totalBoxes}</TableCell>
+                      <TableCell>{group.destination}</TableCell>
+                      <TableCell className="text-muted-foreground">{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
+                      <TableCell className="text-muted-foreground">{group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
+                      <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {isAdmin && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={(e) => handleDelete(group, e)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="deleted" className="space-y-4">
+          {loadingDeleted ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Total Boxes</TableHead>
+                    <TableHead>Destination</TableHead>
+                    <TableHead>Deleted At</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[140px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groupedDeletedReleases.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12">
+                        <Archive className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                        <p className="text-muted-foreground">No recently deleted transactions</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    groupedDeletedReleases.map((group) => (
+                      <TableRow key={group.batch_id}>
+                        <TableCell className="font-medium">
+                          {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
+                        </TableCell>
+                        <TableCell>{group.totalBoxes}</TableCell>
+                        <TableCell>{group.destination}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {group.deleted_at ? format(new Date(group.deleted_at), 'MMM d, yyyy HH:mm') : '-'}
+                        </TableCell>
+                        <TableCell><StatusBadge status={group.delivery_status} /></TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={(e) => handleRestore(group, e)}
+                              className="text-green-600 hover:text-green-600"
+                              title="Restore"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                            {isAdmin && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => handlePermanentDelete(group, e)}
+                                className="text-destructive hover:text-destructive"
+                                title="Delete permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {selectedBatch && (
         <AllocationBillModal

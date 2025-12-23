@@ -57,6 +57,7 @@ export interface StockRelease {
   delivery_status: DeliveryStatus;
   date_released: string;
   date_delivered: string | null;
+  deleted_at: string | null;
   notes: string | null;
   batch_id: string | null;
   created_at: string;
