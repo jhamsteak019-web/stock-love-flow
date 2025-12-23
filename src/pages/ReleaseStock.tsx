@@ -267,10 +267,10 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    const validItems = parsedItems.filter(p => p.qtyBoxes > 0 && selectedItems.has(p.id) && p.courier);
+    const validItems = parsedItems.filter(p => p.qtyBoxes > 0 && selectedItems.has(p.id) && p.courier && p.setDate);
     
     if (validItems.length === 0) {
-      toast({ title: 'Error', description: 'No selected items to release', variant: 'destructive' });
+      toast({ title: 'Error', description: 'No selected items to release. Ensure items have Courier and Set Date.', variant: 'destructive' });
       return;
     }
 
@@ -326,8 +326,8 @@ const ReleaseStock = () => {
     );
   }, [parsedItems, sheetNoSearch]);
 
-  // Checkbox handlers - enable checkboxes when courier is selected for item
-  const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && p.courier);
+  // Checkbox handlers - enable checkboxes when courier AND set date are set for item
+  const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && p.courier && p.setDate);
   const matchedItems = filteredParsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
   const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(p => selectedItems.has(p.id));
   const someMatchedSelected = selectableItems.some(p => selectedItems.has(p.id));
