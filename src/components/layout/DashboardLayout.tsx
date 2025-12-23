@@ -10,7 +10,7 @@ const pageTitles: Record<string, string> = {
   '/release': 'OUT WAREHOUSE DELIVERY',
   '/deliveries': 'Deliveries',
   '/history': 'Transaction History',
-  '/import': 'Import Excel',
+  '/import': 'Bucket',
   '/users': 'Manage Users',
 };
 

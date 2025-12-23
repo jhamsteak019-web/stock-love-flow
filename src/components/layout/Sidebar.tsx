@@ -11,7 +11,8 @@ import {
   ClipboardList,
   Menu,
   ChevronLeft,
-  BarChart3
+  BarChart3,
+  Archive
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -68,8 +69,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     },
     { 
       to: '/import', 
-      icon: null, 
-      label: 'Import Excel',
+      icon: Archive, 
+      label: 'Bucket',
       roles: ['admin']
     },
     { 

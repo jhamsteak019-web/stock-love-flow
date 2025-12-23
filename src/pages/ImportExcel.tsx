@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2, PackagePlus } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2, PackagePlus, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -477,8 +477,8 @@ const ImportExcel = () => {
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Upload Section */}
       <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
-        <FileSpreadsheet className="h-16 w-16 mx-auto text-primary mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Import Excel</h2>
+        <Archive className="h-16 w-16 mx-auto text-primary mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Bucket</h2>
         <p className="text-muted-foreground mb-2">Upload .xlsx or .csv file - Max 50,000 rows</p>
         <div className="text-sm text-muted-foreground mb-6">
           <p><Badge variant="outline" className="mr-2">Format</Badge>Sheet No., Deliver To, Supplier, Qty (Price), Box, Pieces/Box</p>
