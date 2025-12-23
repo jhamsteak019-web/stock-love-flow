@@ -106,7 +106,7 @@ const AuthPage = () => {
         } else {
           toast({
             title: 'Account Created!',
-            description: 'Welcome to StockFlow. The first user becomes admin.',
+            description: 'Welcome to Stock. The first user becomes admin.',
           });
           navigate('/dashboard');
         }
@@ -122,10 +122,10 @@ const AuthPage = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-sidebar text-sidebar-foreground flex-col justify-between p-12">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
-              <Package className="h-6 w-6 text-sidebar-primary-foreground" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 shadow-lg">
+              <Package className="h-7 w-7 text-sidebar-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold">StockFlow</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Stock</h1>
           </div>
         </div>
         
@@ -155,7 +155,7 @@ const AuthPage = () => {
         </div>
         
         <p className="text-sm text-sidebar-foreground/50">
-          © 2024 StockFlow. All rights reserved.
+          © 2024 Stock. All rights reserved.
         </p>
       </div>
 
@@ -164,10 +164,10 @@ const AuthPage = () => {
         <div className="w-full max-w-md space-y-8 animate-fade-in">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Package className="h-6 w-6 text-primary-foreground" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg">
+              <Package className="h-7 w-7 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold">StockFlow</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Stock</h1>
           </div>
 
           <div className="text-center lg:text-left">
