@@ -24,6 +24,8 @@ interface ParsedReleaseItem {
   qtyItem: number;
   remarks: string;
   category: string;
+  waybillNo: string;
+  setDate: string;
   matchedItemId: string | null;
   matchedItemName: string | null;
 }
@@ -211,13 +213,14 @@ const ReleaseStock = () => {
       // Parse rows into release items - Format: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Category, Remarks
       // Note: BILL column is intentionally excluded from parsing
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code');
+        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
         const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Destination', 'DESTINATION', 'Branch');
         const qtyBoxes = findNumericValue(row, 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOX', 'BOXES');
         const qtyItem = findNumericValue(row, 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'Qty');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
-        // BILL column is excluded - not parsed
+        const waybillNo = findColumnValue(row, 'Waybill No.', 'Waybill No', 'Waybill', 'WAYBILL', 'WAYBILL NO');
+        const setDateStr = findColumnValue(row, 'Set Date', 'SET DATE', 'Date', 'DATE');
 
         // Try to match with inventory item by item_code or item_name
         const matchedItem = items.find(i => 
@@ -235,6 +238,8 @@ const ReleaseStock = () => {
           qtyItem,
           category,
           remarks: rem,
+          waybillNo,
+          setDate: setDateStr,
           matchedItemId: matchedItem?.id || null,
           matchedItemName: matchedItem?.item_name || null,
         };
@@ -463,12 +468,14 @@ const ReleaseStock = () => {
                         aria-label="Select all"
                       />
                     </TableHead>
-                    <TableHead className="min-w-[140px]">Sheet No.</TableHead>
-                    <TableHead className="min-w-[120px]">Deliver To</TableHead>
+                    <TableHead className="min-w-[120px]">Allocation Bill</TableHead>
+                    <TableHead className="min-w-[120px]">Destination</TableHead>
+                    <TableHead className="min-w-[100px]">Category</TableHead>
                     <TableHead className="w-20">Boxes</TableHead>
                     <TableHead className="w-20">Qty/Item</TableHead>
-                    <TableHead className="min-w-[100px]">Category</TableHead>
                     <TableHead className="min-w-[120px]">Remarks</TableHead>
+                    <TableHead className="min-w-[120px]">Waybill No.</TableHead>
+                    <TableHead className="min-w-[120px]">Set Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -487,7 +494,7 @@ const ReleaseStock = () => {
                           value={item.sheetNo}
                           onChange={(e) => updateParsedItem(item.id, 'sheetNo', e.target.value)}
                           className="h-8 text-xs font-mono"
-                          placeholder="Sheet No."
+                          placeholder="Allocation Bill"
                         />
                       </TableCell>
                       <TableCell>
@@ -496,6 +503,14 @@ const ReleaseStock = () => {
                           onChange={(e) => updateParsedItem(item.id, 'deliverTo', e.target.value)}
                           className="h-8 text-xs"
                           placeholder="Destination"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={item.category}
+                          onChange={(e) => updateParsedItem(item.id, 'category', e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Category"
                         />
                       </TableCell>
                       <TableCell>
@@ -518,19 +533,38 @@ const ReleaseStock = () => {
                       </TableCell>
                       <TableCell>
                         <Input 
-                          value={item.category}
-                          onChange={(e) => updateParsedItem(item.id, 'category', e.target.value)}
-                          className="h-8 text-xs"
-                          placeholder="Category"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input 
                           value={item.remarks}
                           onChange={(e) => updateParsedItem(item.id, 'remarks', e.target.value)}
                           className="h-8 text-xs"
                           placeholder="Remarks"
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          value={item.waybillNo || ''}
+                          onChange={(e) => updateParsedItem(item.id, 'waybillNo', e.target.value)}
+                          className="h-8 text-xs"
+                          placeholder="Waybill No."
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-8 text-xs w-full justify-start">
+                              <CalendarIcon className="mr-1 h-3 w-3" />
+                              {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={item.setDate ? new Date(item.setDate) : undefined}
+                              onSelect={(date) => updateParsedItem(item.id, 'setDate', date?.toISOString() || '')}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -538,8 +572,8 @@ const ReleaseStock = () => {
               </Table>
             </div>
             
-            {/* Courier, Category, Waybill, Set Date and Release Button */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t">
+            {/* Courier (single dropdown at end) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
               <div className="space-y-2">
                 <Label>Courier *</Label>
                 <Select value={importCourier} onValueChange={setImportCourier}>
@@ -558,49 +592,6 @@ const ReleaseStock = () => {
                     <SelectItem value="DIRECT">DIRECT</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select value={importCategory} onValueChange={setImportCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="BAGS">BAGS</SelectItem>
-                    <SelectItem value="WALLET">WALLET</SelectItem>
-                    <SelectItem value="SHOES">SHOES</SelectItem>
-                    <SelectItem value="UMBRELLA">UMBRELLA</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Waybill No.</Label>
-                <Input 
-                  value={importWaybillNo} 
-                  onChange={(e) => setImportWaybillNo(e.target.value)} 
-                  placeholder="Enter waybill"
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Set Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal h-10">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {importSetDate ? format(importSetDate, 'MMM d') : 'Set Date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={importSetDate}
-                      onSelect={setImportSetDate}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
               </div>
             </div>
             <div className="flex justify-end pt-2">
