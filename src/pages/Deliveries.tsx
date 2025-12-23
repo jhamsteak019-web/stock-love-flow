@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil, Search, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -147,8 +147,18 @@ const Deliveries = () => {
           placeholder="Search by Allocation or Waybill No..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-10 pr-10"
         />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+            onClick={() => setSearchQuery('')}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
