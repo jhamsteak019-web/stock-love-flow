@@ -199,15 +199,6 @@ const Inventory = () => {
   };
 
   const handleAddItem = async () => {
-    if (!formData.item_code && !formData.branch) {
-      toast({
-        title: 'Validation Error',
-        description: 'Sheet No. or Deliver To is required',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     // Auto-generate item_code if not provided
     const itemCode = formData.item_code || `ITEM-${Date.now()}`;
     // Use item_code (Sheet No.) or branch (Deliver To) as item_name
@@ -443,27 +434,15 @@ const Inventory = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Input
-              id="category"
-              value={localCategory}
-              onChange={(e) => setLocalCategory(e.target.value)}
-              onBlur={handleCategoryBlur}
-              placeholder="e.g., Electronics, Food"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">Remarks</Label>
-            <Input
-              id="description"
-              value={localForm.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="Additional remarks"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="description">Remarks</Label>
+          <Input
+            id="description"
+            value={localForm.description}
+            onChange={(e) => handleChange('description', e.target.value)}
+            onBlur={handleBlur}
+            placeholder="Additional remarks"
+          />
         </div>
 
         <div className="space-y-2">
