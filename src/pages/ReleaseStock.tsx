@@ -26,6 +26,7 @@ interface ParsedReleaseItem {
   category: string;
   waybillNo: string;
   setDate: string;
+  courier: string;
   matchedItemId: string | null;
   matchedItemName: string | null;
 }
@@ -240,6 +241,7 @@ const ReleaseStock = () => {
           remarks: rem,
           waybillNo,
           setDate: setDateStr,
+          courier: '',
           matchedItemId: matchedItem?.id || null,
           matchedItemName: matchedItem?.item_name || null,
         };
@@ -265,42 +267,28 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    const validItems = parsedItems.filter(p => p.qtyBoxes > 0 && selectedItems.has(p.id));
+    const validItems = parsedItems.filter(p => p.qtyBoxes > 0 && selectedItems.has(p.id) && p.courier);
     
     if (validItems.length === 0) {
       toast({ title: 'Error', description: 'No selected items to release', variant: 'destructive' });
       return;
     }
 
-    if (!importCourier) {
-      toast({ title: 'Error', description: 'Please select a courier', variant: 'destructive' });
-      return;
-    }
-
     setSubmitting(true);
     try {
-      // Group by deliverTo (destination)
-      const groups = validItems.reduce((acc, item) => {
-        const key = item.deliverTo || 'Unknown';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(item);
-        return acc;
-      }, {} as Record<string, ParsedReleaseItem[]>);
-
-      for (const [dest, groupItems] of Object.entries(groups)) {
-        const totalQty = groupItems.reduce((sum, item) => sum + item.qtyItem, 0);
-        
+      // Release each item individually since they can have different couriers
+      for (const item of validItems) {
         await releaseStockBatch(
-          groupItems.map(r => ({ itemId: r.matchedItemId || r.id, boxes: r.qtyBoxes })),
-          dest,
+          [{ itemId: item.matchedItemId || item.id, boxes: item.qtyBoxes }],
+          item.deliverTo || 'Unknown',
           user!.id,
-          groupItems[0]?.remarks || undefined,
-          importCourier,
-          undefined,
-          importCategory || undefined,
-          importWaybillNo || undefined,
-          importSetDate?.toISOString() || undefined,
-          totalQty
+          item.remarks || undefined,
+          item.courier,
+          item.sheetNo || undefined, // allocation bill
+          item.category || undefined,
+          item.waybillNo || undefined,
+          item.setDate || undefined,
+          item.qtyItem || item.qtyBoxes
         );
       }
 
@@ -347,8 +335,8 @@ const ReleaseStock = () => {
     );
   }, [parsedItems, sheetNoSearch]);
 
-  // Checkbox handlers - enable checkboxes when courier is selected
-  const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && (importCourier || p.matchedItemId));
+  // Checkbox handlers - enable checkboxes when courier is selected for item
+  const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && p.courier);
   const matchedItems = filteredParsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
   const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(p => selectedItems.has(p.id));
   const someMatchedSelected = selectableItems.some(p => selectedItems.has(p.id));
@@ -464,7 +452,6 @@ const ReleaseStock = () => {
                       <Checkbox 
                         checked={allSelectableSelected}
                         onCheckedChange={toggleSelectAll}
-                        disabled={!importCourier}
                         aria-label="Select all"
                       />
                     </TableHead>
@@ -476,6 +463,7 @@ const ReleaseStock = () => {
                     <TableHead className="min-w-[120px]">Remarks</TableHead>
                     <TableHead className="min-w-[120px]">Waybill No.</TableHead>
                     <TableHead className="min-w-[120px]">Set Date</TableHead>
+                    <TableHead className="min-w-[120px]">Courier</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -485,7 +473,7 @@ const ReleaseStock = () => {
                         <Checkbox 
                           checked={selectedItems.has(item.id)}
                           onCheckedChange={() => toggleSelectItem(item.id)}
-                          disabled={!importCourier || item.qtyBoxes <= 0}
+                          disabled={!item.courier || item.qtyBoxes <= 0}
                           aria-label={`Select ${item.sheetNo}`}
                         />
                       </TableCell>
@@ -566,38 +554,34 @@ const ReleaseStock = () => {
                           </PopoverContent>
                         </Popover>
                       </TableCell>
+                      <TableCell>
+                        <Select value={item.courier} onValueChange={(val) => updateParsedItem(item.id, 'courier', val)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Courier" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="AP CARGO">AP CARGO</SelectItem>
+                            <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
+                            <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
+                            <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
+                            <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
+                            <SelectItem value="RDS DC">RDS DC</SelectItem>
+                            <SelectItem value="SM DEC">SM DEC</SelectItem>
+                            <SelectItem value="PRIETO">PRIETO</SelectItem>
+                            <SelectItem value="DIRECT">DIRECT</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
             
-            {/* Courier (single dropdown at end) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
-              <div className="space-y-2">
-                <Label>Courier *</Label>
-                <Select value={importCourier} onValueChange={setImportCourier}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select courier" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="AP CARGO">AP CARGO</SelectItem>
-                    <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
-                    <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
-                    <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
-                    <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
-                    <SelectItem value="RDS DC">RDS DC</SelectItem>
-                    <SelectItem value="SM DEC">SM DEC</SelectItem>
-                    <SelectItem value="PRIETO">PRIETO</SelectItem>
-                    <SelectItem value="DIRECT">DIRECT</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-2 border-t">
               <Button 
                 onClick={handleConfirmImport}
-                disabled={submitting || selectedItems.size === 0 || !importCourier}
+                disabled={submitting || selectedItems.size === 0}
                 className="min-w-[140px]"
               >
                 {submitting ? 'Releasing...' : `Release ${selectedItems.size} Items`}
