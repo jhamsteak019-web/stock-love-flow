@@ -7,9 +7,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { useToast } from '@/hooks/use-toast';
@@ -44,8 +45,8 @@ const History = () => {
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
@@ -79,21 +80,20 @@ const History = () => {
     );
   }, [releases]);
 
-  // Filter grouped releases based on search query and date range
+  // Filter grouped releases based on search query, date, and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
-      // Date filter
-      if (dateFrom || dateTo) {
+      // Date filter - exact date match
+      if (selectedDate) {
         const releaseDate = new Date(group.date_released);
-        if (dateFrom && dateTo) {
-          if (!isWithinInterval(releaseDate, { start: startOfDay(dateFrom), end: endOfDay(dateTo) })) {
-            return false;
-          }
-        } else if (dateFrom) {
-          if (releaseDate < startOfDay(dateFrom)) return false;
-        } else if (dateTo) {
-          if (releaseDate > endOfDay(dateTo)) return false;
+        if (!isSameDay(releaseDate, selectedDate)) {
+          return false;
         }
+      }
+      
+      // Status filter
+      if (statusFilter !== 'all' && group.delivery_status !== statusFilter) {
+        return false;
       }
       
       // Search filter
@@ -116,11 +116,11 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, searchQuery, dateFrom, dateTo]);
+  }, [groupedReleases, searchQuery, selectedDate, statusFilter]);
 
-  const clearDateFilters = () => {
-    setDateFrom(undefined);
-    setDateTo(undefined);
+  const clearFilters = () => {
+    setSelectedDate(undefined);
+    setStatusFilter('all');
   };
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
@@ -194,34 +194,20 @@ const History = () => {
         )}
         </div>
 
-        {/* Date Range Filter */}
+        {/* Status and Date Filter */}
         <div className="flex flex-wrap items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "justify-start text-left font-normal",
-                  !dateFrom && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateFrom}
-                onSelect={setDateFrom}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-
-          <span className="text-muted-foreground">to</span>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in_transit">In Transit</SelectItem>
+              <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -230,28 +216,28 @@ const History = () => {
                 size="sm"
                 className={cn(
                   "justify-start text-left font-normal",
-                  !dateTo && "text-muted-foreground"
+                  !selectedDate && "text-muted-foreground"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateTo ? format(dateTo, "MMM d, yyyy") : "To date"}
+                {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Filter by date"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={dateTo}
-                onSelect={setDateTo}
+                selected={selectedDate}
+                onSelect={setSelectedDate}
                 initialFocus
                 className="p-3 pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
 
-          {(dateFrom || dateTo) && (
-            <Button variant="ghost" size="sm" onClick={clearDateFilters}>
+          {(selectedDate || statusFilter !== 'all') && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="h-4 w-4 mr-1" />
-              Clear dates
+              Clear filters
             </Button>
           )}
         </div>
