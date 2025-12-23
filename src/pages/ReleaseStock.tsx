@@ -671,8 +671,8 @@ const ReleaseStock = () => {
           </div>
 
           <div className="space-y-2">
-            <Label>Allocation Bill</Label>
-            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Allocation bill number" />
+            <Label>Category</Label>
+            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Category (manual typing)" />
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>
