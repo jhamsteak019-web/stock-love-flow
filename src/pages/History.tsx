@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -41,6 +44,8 @@ const History = () => {
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
@@ -74,27 +79,49 @@ const History = () => {
     );
   }, [releases]);
 
-  // Filter grouped releases based on search query
+  // Filter grouped releases based on search query and date range
   const filteredReleases = useMemo(() => {
-    if (!searchQuery.trim()) return groupedReleases;
-    
-    const query = searchQuery.toLowerCase();
     return groupedReleases.filter(group => {
-      // Search in destination, courier, status
-      if (group.destination.toLowerCase().includes(query)) return true;
-      if (group.courier?.toLowerCase().includes(query)) return true;
-      if (group.delivery_status.toLowerCase().includes(query)) return true;
+      // Date filter
+      if (dateFrom || dateTo) {
+        const releaseDate = new Date(group.date_released);
+        if (dateFrom && dateTo) {
+          if (!isWithinInterval(releaseDate, { start: startOfDay(dateFrom), end: endOfDay(dateTo) })) {
+            return false;
+          }
+        } else if (dateFrom) {
+          if (releaseDate < startOfDay(dateFrom)) return false;
+        } else if (dateTo) {
+          if (releaseDate > endOfDay(dateTo)) return false;
+        }
+      }
       
-      // Search in item names within the batch
-      const itemMatch = group.items.some(item => 
-        item.inventory_item?.item_name?.toLowerCase().includes(query) ||
-        item.inventory_item?.item_code?.toLowerCase().includes(query)
-      );
-      if (itemMatch) return true;
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        // Search in destination, courier, status
+        if (group.destination.toLowerCase().includes(query)) return true;
+        if (group.courier?.toLowerCase().includes(query)) return true;
+        if (group.delivery_status.toLowerCase().includes(query)) return true;
+        
+        // Search in item names within the batch
+        const itemMatch = group.items.some(item => 
+          item.inventory_item?.item_name?.toLowerCase().includes(query) ||
+          item.inventory_item?.item_code?.toLowerCase().includes(query)
+        );
+        if (itemMatch) return true;
+        
+        return false;
+      }
       
-      return false;
+      return true;
     });
-  }, [groupedReleases, searchQuery]);
+  }, [groupedReleases, searchQuery, dateFrom, dateTo]);
+
+  const clearDateFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -126,18 +153,19 @@ const History = () => {
 
   return (
     <div className="space-y-4">
-      {/* Search and Clear All */}
-      <div className="flex flex-col sm:flex-row gap-3 justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by destination, courier, item name, or status..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        {isAdmin && groupedReleases.length > 0 && (
+      {/* Search, Date Filter and Clear All */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by destination, courier, item name, or status..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {isAdmin && groupedReleases.length > 0 && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" disabled={clearing}>
@@ -164,6 +192,69 @@ const History = () => {
             </AlertDialogContent>
           </AlertDialog>
         )}
+        </div>
+
+        {/* Date Range Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "justify-start text-left font-normal",
+                  !dateFrom && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={setDateFrom}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          <span className="text-muted-foreground">to</span>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "justify-start text-left font-normal",
+                  !dateTo && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "MMM d, yyyy") : "To date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={setDateTo}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={clearDateFilters}>
+              <X className="h-4 w-4 mr-1" />
+              Clear dates
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
