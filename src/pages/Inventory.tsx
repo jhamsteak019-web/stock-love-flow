@@ -393,28 +393,15 @@ const Inventory = () => {
       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="item_name">Item Name *</Label>
-            <Input
-              id="item_name"
-              value={localForm.item_name}
-              onChange={(e) => handleChange('item_name', e.target.value)}
-              onBlur={handleBlur}
-              placeholder="e.g., Product name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="item_code">Sheet No. (Optional)</Label>
+            <Label htmlFor="item_code">Sheet No.</Label>
             <Input
               id="item_code"
               value={localForm.item_code}
               onChange={(e) => handleChange('item_code', e.target.value)}
               onBlur={handleBlur}
-              placeholder="Auto-generated if empty"
+              placeholder="e.g., 1430003625"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="branch">Deliver To</Label>
             <Input
@@ -425,8 +412,70 @@ const Inventory = () => {
               placeholder="e.g., Metro Market-Market"
             />
           </div>
-          <div className="space-y-2">
+        </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="total_stock">Boxes</Label>
+            <Input
+              id="total_stock"
+              type="number"
+              value={localForm.total_stock}
+              onChange={(e) => handleChange('total_stock', parseInt(e.target.value) || 0)}
+              onBlur={handleBlur}
+              placeholder="e.g., 14"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pieces_per_box">Qty/Item</Label>
+            <Input
+              id="pieces_per_box"
+              type="number"
+              value={localForm.pieces_per_box}
+              onChange={(e) => handleChange('pieces_per_box', parseInt(e.target.value) || 1)}
+              onBlur={handleBlur}
+              placeholder="e.g., 20"
+            />
+            <p className="text-xs text-muted-foreground">Pieces per box</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              value={localCategory}
+              onChange={(e) => setLocalCategory(e.target.value)}
+              onBlur={handleCategoryBlur}
+              placeholder="e.g., Electronics, Food"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Remarks</Label>
+            <Input
+              id="description"
+              value={localForm.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              onBlur={handleBlur}
+              placeholder="Additional remarks"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="item_name">Item Name *</Label>
+          <Input
+            id="item_name"
+            value={localForm.item_name}
+            onChange={(e) => handleChange('item_name', e.target.value)}
+            onBlur={handleBlur}
+            placeholder="e.g., Product name"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
             <Label htmlFor="supplier">Supplier</Label>
             <Input
               id="supplier"
@@ -448,52 +497,6 @@ const Inventory = () => {
               placeholder="e.g., 24.00"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="total_stock">Box</Label>
-            <Input
-              id="total_stock"
-              type="number"
-              value={localForm.total_stock}
-              onChange={(e) => handleChange('total_stock', parseInt(e.target.value) || 0)}
-              onBlur={handleBlur}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="pieces_per_box">Qty/Item (Pieces per Box)</Label>
-            <Input
-              id="pieces_per_box"
-              type="number"
-              value={localForm.pieces_per_box}
-              onChange={(e) => handleChange('pieces_per_box', parseInt(e.target.value) || 1)}
-              onBlur={handleBlur}
-              placeholder="e.g., 20"
-            />
-            <p className="text-xs text-muted-foreground">1 box = {localForm.pieces_per_box || 1} pieces</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Input
-              id="category"
-              value={localCategory}
-              onChange={(e) => setLocalCategory(e.target.value)}
-              onBlur={handleCategoryBlur}
-              placeholder="e.g., Electronics, Food, etc."
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Remarks</Label>
-          <Input
-            id="description"
-            value={localForm.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-            onBlur={handleBlur}
-            placeholder="Additional remarks"
-          />
         </div>
 
         <div className="space-y-2">
