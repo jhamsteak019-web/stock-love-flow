@@ -203,6 +203,7 @@ const ReleaseStock = () => {
       }
 
       // Parse rows into release items - Format: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Category, Remarks
+      // Note: BILL column is intentionally excluded from parsing
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code');
         const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Destination', 'DESTINATION', 'Branch');
@@ -210,6 +211,7 @@ const ReleaseStock = () => {
         const qtyItem = findNumericValue(row, 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'Qty');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
+        // BILL column is excluded - not parsed
 
         // Try to match with inventory item by item_code or item_name
         const matchedItem = items.find(i => 
