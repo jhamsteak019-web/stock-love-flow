@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Truck, Eye, CalendarIcon } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, ChevronDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
@@ -36,6 +37,19 @@ const Deliveries = () => {
   const { releases, loading, updateDeliveryStatus, fetchReleases } = useInventory();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleRowExpand = (batchId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(batchId)) {
+        newSet.delete(batchId);
+      } else {
+        newSet.add(batchId);
+      }
+      return newSet;
+    });
+  };
 
   // Group releases by batch_id
   const groupedReleases = useMemo(() => {
@@ -129,6 +143,7 @@ const Deliveries = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]"></TableHead>
               <TableHead>Allocation</TableHead>
               <TableHead>Destination</TableHead>
               <TableHead>Category</TableHead>
@@ -144,80 +159,129 @@ const Deliveries = () => {
           <TableBody>
             {pendingGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-12">
+                <TableCell colSpan={11} className="text-center py-12">
                   <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No pending deliveries</p>
                 </TableCell>
               </TableRow>
             ) : (
-              pendingGroups.map((group, index) => (
-                <TableRow 
-                  key={group.batch_id} 
-                  className="transition-all duration-300 ease-out hover:bg-muted/50"
-                  style={{ animation: `fade-in 0.4s ease-out ${index * 50}ms forwards`, opacity: 0 }}
-                >
-                  <TableCell className="font-medium">
-                    {group.allocation_bill || group.batch_id.slice(0, 8)}
-                  </TableCell>
-                  <TableCell>{group.destination}</TableCell>
-                  <TableCell>{group.category || '-'}</TableCell>
-                  <TableCell className="text-right">{group.totalBoxes}</TableCell>
-                  <TableCell className="text-right">{group.totalQty}</TableCell>
-                  <TableCell>{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Select 
-                      value={group.delivery_status} 
-                      onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
+              pendingGroups.map((group, index) => {
+                const isExpanded = expandedRows.has(group.batch_id);
+                return (
+                  <>
+                    <TableRow 
+                      key={group.batch_id} 
+                      className="transition-all duration-300 ease-out hover:bg-muted/50 cursor-pointer"
+                      style={{ animation: `fade-in 0.4s ease-out ${index * 50}ms forwards`, opacity: 0 }}
+                      onClick={() => toggleRowExpand(group.batch_id)}
                     >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in_transit">In Transit</SelectItem>
-                        <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Input
-                      placeholder="Enter waybill"
-                      defaultValue={group.waybill_no || ''}
-                      className="h-8 w-[120px] text-sm"
-                      onBlur={(e) => {
-                        if (e.target.value !== (group.waybill_no || '')) {
-                          handleWaybillChange(group, e.target.value);
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal transition-all hover:border-primary">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : 'Set Date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={group.set_date ? new Date(group.set_date) : undefined}
-                          onSelect={(date) => date && handleSetDateChange(group, date)}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
+                      <TableCell className="w-[40px]">
+                        <ChevronDown 
+                          className={cn(
+                            "h-4 w-4 transition-transform duration-200",
+                            isExpanded && "rotate-180"
+                          )} 
                         />
-                      </PopoverContent>
-                    </Popover>
-                  </TableCell>
-                </TableRow>
-              ))
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {group.allocation_bill || group.batch_id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell>{group.destination}</TableCell>
+                      <TableCell>{group.category || '-'}</TableCell>
+                      <TableCell className="text-right">{group.totalBoxes}</TableCell>
+                      <TableCell className="text-right">{group.totalQty}</TableCell>
+                      <TableCell>{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Select 
+                          value={group.delivery_status} 
+                          onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in_transit">In Transit</SelectItem>
+                            <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          placeholder="Enter waybill"
+                          defaultValue={group.waybill_no || ''}
+                          className="h-8 w-[120px] text-sm"
+                          onBlur={(e) => {
+                            if (e.target.value !== (group.waybill_no || '')) {
+                              handleWaybillChange(group, e.target.value);
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal transition-all hover:border-primary">
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : 'Set Date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={group.set_date ? new Date(group.set_date) : undefined}
+                              onSelect={(date) => date && handleSetDateChange(group, date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow key={`${group.batch_id}-expanded`} className="bg-muted/30">
+                        <TableCell colSpan={11} className="p-0">
+                          <div className="p-4 animate-fade-in">
+                            <h4 className="font-medium mb-3 text-sm text-muted-foreground">Items in this delivery ({group.items.length})</h4>
+                            <div className="rounded-lg border bg-card overflow-hidden">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="bg-muted/50">
+                                    <TableHead>Item Name</TableHead>
+                                    <TableHead>Item Code</TableHead>
+                                    <TableHead className="text-right">Boxes</TableHead>
+                                    <TableHead className="text-right">Qty</TableHead>
+                                    <TableHead>Notes</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {group.items.map((item) => (
+                                    <TableRow key={item.id} className="hover:bg-muted/30">
+                                      <TableCell className="font-medium">{item.inventory_item?.item_name || '-'}</TableCell>
+                                      <TableCell>{item.inventory_item?.item_code || '-'}</TableCell>
+                                      <TableCell className="text-right">{item.boxes_released}</TableCell>
+                                      <TableCell className="text-right">
+                                        {item.total_qty || (item.boxes_released * (item.inventory_item?.pieces_per_box || 1))}
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground">{item.notes || '-'}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })
             )}
           </TableBody>
         </Table>
