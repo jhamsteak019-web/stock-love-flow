@@ -608,6 +608,7 @@ const ReleaseStock = () => {
                             <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
                             <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
                             <SelectItem value="RDS DC">RDS DC</SelectItem>
+                            <SelectItem value="SC DEC TO SM DC">SC DEC TO SM DC</SelectItem>
                             <SelectItem value="SM DC">SM DC</SelectItem>
                             <SelectItem value="PRIETO">PRIETO</SelectItem>
                             <SelectItem value="DIRECT">DIRECT</SelectItem>
@@ -736,7 +737,8 @@ const ReleaseStock = () => {
                 <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
                 <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
                 <SelectItem value="RDS DC">RDS DC</SelectItem>
-                <SelectItem value="SM DEC">SM DEC</SelectItem>
+                <SelectItem value="SC DEC TO SM DC">SC DEC TO SM DC</SelectItem>
+                <SelectItem value="SM DC">SM DC</SelectItem>
                 <SelectItem value="PRIETO">PRIETO</SelectItem>
                 <SelectItem value="DIRECT">DIRECT</SelectItem>
               </SelectContent>
