@@ -46,7 +46,7 @@ interface GroupedRelease {
 }
 
 const History = () => {
-  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, updateDeliveryDateBatch } = useInventory();
+  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, updateBatchDates } = useInventory();
   const { userRole } = useAuth();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
@@ -60,7 +60,8 @@ const History = () => {
   const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
   const [loadingDeleted, setLoadingDeleted] = useState(false);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
-  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [editDateOut, setEditDateOut] = useState<Date | undefined>(undefined);
+  const [editDateReceived, setEditDateReceived] = useState<Date | undefined>(undefined);
   const isAdmin = userRole === 'admin';
 
   // Fetch deleted releases when switching to deleted tab
@@ -199,22 +200,28 @@ const History = () => {
     }
   };
 
-  const handleEditDeliveryDate = (group: GroupedRelease, e: React.MouseEvent) => {
+  const handleEditDates = (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingBatch(group);
-    setEditDate(group.date_delivered ? new Date(group.date_delivered) : new Date());
+    setEditDateOut(group.set_date ? new Date(group.set_date) : undefined);
+    setEditDateReceived(group.date_delivered ? new Date(group.date_delivered) : undefined);
   };
 
-  const handleSaveDeliveryDate = async () => {
-    if (!editingBatch || !editDate) return;
+  const handleSaveDates = async () => {
+    if (!editingBatch) return;
     
     try {
-      await updateDeliveryDateBatch(editingBatch.batch_id, editDate.toISOString());
-      toast({ title: 'Success', description: 'Delivery date updated successfully' });
+      await updateBatchDates(
+        editingBatch.batch_id, 
+        editDateOut ? editDateOut.toISOString() : null,
+        editDateReceived ? editDateReceived.toISOString() : null
+      );
+      toast({ title: 'Success', description: 'Dates updated successfully' });
       setEditingBatch(null);
-      setEditDate(undefined);
+      setEditDateOut(undefined);
+      setEditDateReceived(undefined);
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update delivery date', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to update dates', variant: 'destructive' });
     }
   };
 
@@ -447,12 +454,12 @@ const History = () => {
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {isAdmin && group.delivery_status === 'delivered' && (
+                          {isAdmin && (
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={(e) => handleEditDeliveryDate(group, e)}
-                              title="Edit delivery date"
+                              onClick={(e) => handleEditDates(group, e)}
+                              title="Edit dates"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -560,46 +567,76 @@ const History = () => {
           courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
           dateDelivered={selectedBatch.date_delivered}
+          setDate={selectedBatch.set_date}
         />
       )}
 
-      {/* Edit Delivery Date Dialog */}
+      {/* Edit Dates Dialog */}
       <AlertDialog open={!!editingBatch} onOpenChange={(open) => !open && setEditingBatch(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Edit Delivery Date</AlertDialogTitle>
+            <AlertDialogTitle>Edit Dates</AlertDialogTitle>
             <AlertDialogDescription>
-              Update the delivery date for this transaction to {editingBatch?.destination}.
+              Update the Date Out and Date Received for transaction to {editingBatch?.destination}.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !editDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {editDate ? format(editDate, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={editDate}
-                  onSelect={setEditDate}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date Out Warehouse</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editDateOut && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editDateOut ? format(editDateOut, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editDateOut}
+                    onSelect={setEditDateOut}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date Received</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editDateReceived && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editDateReceived ? format(editDateReceived, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editDateReceived}
+                    onSelect={setEditDateReceived}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveDeliveryDate}>
+            <AlertDialogAction onClick={handleSaveDates}>
               Save
             </AlertDialogAction>
           </AlertDialogFooter>

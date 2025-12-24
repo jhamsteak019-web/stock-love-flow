@@ -15,15 +15,17 @@ interface AllocationBillModalProps {
   dateReleased: string;
   dateDelivered?: string | null;
   allocationBill?: string | null;
+  setDate?: string | null;
 }
 
-const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill }: AllocationBillModalProps) => {
+const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const totalBoxes = releases.reduce((sum, r) => sum + r.boxes_released, 0);
   const totalQty = releases.reduce((sum, r) => sum + (r.total_qty || 0), 0);
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';
   const waybillNo = releases[0]?.waybill_no || '-';
   const category = releases[0]?.category || '-';
+  const dateOutWarehouse = setDate || releases[0]?.set_date;
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -73,7 +75,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
             </thead>
             <tbody>
               <tr>
-                <td>${format(new Date(dateReleased), 'yyyy-MM-dd')}</td>
+                <td>${dateOutWarehouse ? format(new Date(dateOutWarehouse), 'yyyy-MM-dd') : '-'}</td>
                 <td>${dateDelivered ? format(new Date(dateDelivered), 'yyyy-MM-dd') : '-'}</td>
                 <td>${billNumber}</td>
                 <td>${courier || '-'}</td>
@@ -153,7 +155,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell className="border-r">{format(new Date(dateReleased), 'yyyy-MM-dd')}</TableCell>
+                  <TableCell className="border-r">{dateOutWarehouse ? format(new Date(dateOutWarehouse), 'yyyy-MM-dd') : '-'}</TableCell>
                   <TableCell className="border-r">{dateDelivered ? format(new Date(dateDelivered), 'yyyy-MM-dd') : '-'}</TableCell>
                   <TableCell className="border-r font-mono font-semibold">{billNumber}</TableCell>
                   <TableCell className="border-r">{courier || '-'}</TableCell>
