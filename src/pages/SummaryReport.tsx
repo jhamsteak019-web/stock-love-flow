@@ -158,7 +158,7 @@ const SummaryReport = () => {
     return Object.values(branches).sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
 
-  // Category breakdown per store
+  // Category breakdown per store (only delivered items = items received)
   const categoryByStore = useMemo(() => {
     const stores: Record<string, {
       store: string;
@@ -167,38 +167,43 @@ const SummaryReport = () => {
       totalQty: number;
     }> = {};
 
-    filteredReleases.forEach(release => {
-      const store = release.destination || 'Unknown';
-      const category = release.category || 'Uncategorized';
-      
-      if (!stores[store]) {
-        stores[store] = {
-          store,
-          categories: {},
-          totalBoxes: 0,
-          totalQty: 0,
-        };
-      }
-      
-      if (!stores[store].categories[category]) {
-        stores[store].categories[category] = { boxes: 0, qty: 0 };
-      }
-      
-      stores[store].categories[category].boxes += release.boxes_released;
-      stores[store].categories[category].qty += release.total_qty || 0;
-      stores[store].totalBoxes += release.boxes_released;
-      stores[store].totalQty += release.total_qty || 0;
-    });
+    // Only include delivered releases (items that were actually received)
+    filteredReleases
+      .filter(release => release.delivery_status === 'delivered')
+      .forEach(release => {
+        const store = release.destination || 'Unknown';
+        const category = release.category || 'Uncategorized';
+        
+        if (!stores[store]) {
+          stores[store] = {
+            store,
+            categories: {},
+            totalBoxes: 0,
+            totalQty: 0,
+          };
+        }
+        
+        if (!stores[store].categories[category]) {
+          stores[store].categories[category] = { boxes: 0, qty: 0 };
+        }
+        
+        stores[store].categories[category].boxes += release.boxes_released;
+        stores[store].categories[category].qty += release.total_qty || 0;
+        stores[store].totalBoxes += release.boxes_released;
+        stores[store].totalQty += release.total_qty || 0;
+      });
 
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);
   }, [filteredReleases]);
 
-  // Get all unique categories
+  // Get all unique categories (only from delivered releases)
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
-    filteredReleases.forEach(release => {
-      if (release.category) cats.add(release.category);
-    });
+    filteredReleases
+      .filter(release => release.delivery_status === 'delivered')
+      .forEach(release => {
+        if (release.category) cats.add(release.category);
+      });
     return Array.from(cats).sort();
   }, [filteredReleases]);
 
