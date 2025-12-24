@@ -1,4 +1,4 @@
-import { Menu, Bell } from 'lucide-react';
+import { Menu, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
@@ -7,6 +7,10 @@ interface HeaderProps {
 }
 
 export const Header = ({ onMenuClick, title }: HeaderProps) => {
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
       <div className="flex items-center gap-4">
@@ -22,11 +26,8 @@ export const Header = ({ onMenuClick, title }: HeaderProps) => {
       </div>
       
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-            3
-          </span>
+        <Button variant="ghost" size="icon" onClick={handleRefresh} title="Refresh">
+          <RefreshCw className="h-5 w-5" />
         </Button>
       </div>
     </header>

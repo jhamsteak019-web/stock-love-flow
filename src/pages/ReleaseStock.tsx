@@ -120,12 +120,24 @@ const ReleaseStock = () => {
 
   const getItemData = (itemId: string) => items.find(i => i.id === itemId);
 
+  // Check if allocation bill already exists
+  const isDuplicateAllocationBill = (bill: string) => {
+    if (!bill.trim()) return false;
+    return releases.some(r => r.allocation_bill?.toLowerCase().trim() === bill.toLowerCase().trim());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate required fields
     if (!allocationBill.trim() || !destination.trim()) {
       toast({ title: 'Error', description: 'Please enter allocation bill and destination', variant: 'destructive' });
+      return;
+    }
+
+    // Check for duplicate allocation bill
+    if (isDuplicateAllocationBill(allocationBill)) {
+      toast({ title: 'Warning', description: `Allocation bill "${allocationBill}" already exists. Please use a different one.`, variant: 'destructive' });
       return;
     }
 
@@ -289,20 +301,19 @@ const ReleaseStock = () => {
       return;
     }
 
+    // Check for duplicate allocation bills
+    const duplicates = validItems.filter(item => isDuplicateAllocationBill(item.sheetNo));
+    if (duplicates.length > 0) {
+      const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
+      toast({ title: 'Warning', description: `Allocation bill(s) already exist: ${duplicateBills}. Please remove or change them.`, variant: 'destructive' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Release all selected items as ONE BATCH (single batch_id)
       // Use the first item's courier, setDate, and waybillNo for the batch
       const firstItem = validItems[0];
-      const batchItems = validItems.map(item => ({
-        itemId: item.matchedItemId || '',
-        boxes: item.qtyBoxes,
-        destination: item.deliverTo || 'Unknown',
-        remarks: item.remarks || undefined,
-        allocationBill: item.sheetNo || undefined,
-        category: item.category || undefined,
-        qtyItem: item.qtyItem || item.qtyBoxes
-      }));
 
       // Release all items together as one batch
       for (const item of validItems) {

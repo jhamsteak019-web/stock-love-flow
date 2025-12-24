@@ -5,7 +5,6 @@ import { Header } from './Header';
 import { useAuth } from '@/contexts/AuthContext';
 
 const pageTitles: Record<string, string> = {
-  '/dashboard': 'Dashboard',
   '/inventory': 'Inventory',
   '/release': 'OUT WAREHOUSE DELIVERY',
   '/deliveries': 'Deliveries',
