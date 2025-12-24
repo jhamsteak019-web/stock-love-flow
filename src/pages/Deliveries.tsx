@@ -179,13 +179,13 @@ const Deliveries = () => {
               <TableHead>Waybill No.</TableHead>
               <TableHead className="w-[80px]">View</TableHead>
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
-              <TableHead>Set Date</TableHead>
+              
             </TableRow>
           </TableHeader>
           <TableBody>
             {pendingGroups.length === 0 ? (
               <TableRow>
-              <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
+              <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-12">
                 <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No pending deliveries</p>
                 </TableCell>
@@ -245,25 +245,6 @@ const Deliveries = () => {
                       </Button>
                     </TableCell>
                   )}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal transition-all hover:border-primary">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : 'Date Out'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={group.set_date ? new Date(group.set_date) : undefined}
-                          onSelect={(date) => date && handleSetDateChange(group, date)}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </TableCell>
                 </TableRow>
               ))
             )}
