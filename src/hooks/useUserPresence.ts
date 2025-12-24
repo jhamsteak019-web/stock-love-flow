@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+
+// Format time in Manila timezone (UTC+8)
+const formatManilaTime = (date: Date = new Date()) => {
+  const manilaOffset = 8 * 60; // UTC+8 in minutes
+  const localOffset = date.getTimezoneOffset();
+  const manilaTime = new Date(date.getTime() + (manilaOffset + localOffset) * 60 * 1000);
+  return format(manilaTime, 'h:mm a');
+};
 
 export interface UserPresence {
   id: string;
@@ -59,9 +68,10 @@ export const useUserPresence = () => {
         const presence = joinedPresences[0];
         if (presence && key !== user.id) {
           const displayName = presence.full_name || presence.email || 'A user';
+          const manilaTime = formatManilaTime();
           toastRef.current({
             title: '🟢 User Online',
-            description: `${displayName} is now online`,
+            description: `${displayName} came online at ${manilaTime} (Manila)`,
           });
         }
         if (presence) {
@@ -83,9 +93,10 @@ export const useUserPresence = () => {
         const presence = leftPresences[0];
         if (presence && key !== user.id) {
           const displayName = presence.full_name || presence.email || 'A user';
+          const manilaTime = formatManilaTime();
           toastRef.current({
             title: '⚫ User Offline',
-            description: `${displayName} went offline`,
+            description: `${displayName} went offline at ${manilaTime} (Manila)`,
           });
         }
         setPresences(prev => {
