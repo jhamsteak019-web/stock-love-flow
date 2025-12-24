@@ -97,7 +97,12 @@ const Deliveries = () => {
   const handleStatusChange = async (group: GroupedRelease, status: DeliveryStatus) => {
     try {
       for (const releaseId of group.releaseIds) {
-        await updateDeliveryStatus(releaseId, status);
+        // When status is "delivered", use the set_date as date_delivered (Receive Date)
+        if (status === 'delivered' && group.set_date) {
+          await updateDeliveryStatus(releaseId, status, group.set_date);
+        } else {
+          await updateDeliveryStatus(releaseId, status);
+        }
       }
       toast({ title: 'Success', description: 'Delivery status updated' });
     } catch (error) {
