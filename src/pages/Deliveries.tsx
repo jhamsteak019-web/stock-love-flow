@@ -174,7 +174,7 @@ const Deliveries = () => {
               <TableHead>Waybill No.</TableHead>
               <TableHead className="w-[80px]">View</TableHead>
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
-              <TableHead>Deliver on Set Date</TableHead>
+              <TableHead>Set Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -199,7 +199,7 @@ const Deliveries = () => {
                   <TableCell>{group.category || '-'}</TableCell>
                   <TableCell className="text-right">{group.totalBoxes}</TableCell>
                   <TableCell className="text-right">{group.totalQty}</TableCell>
-                  <TableCell>{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select 
                       value={group.delivery_status} 
