@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PresenceTracker } from "@/components/PresenceTracker";
 import AuthPage from "./pages/AuthPage";
 import Inventory from "./pages/Inventory";
 import ReleaseStock from "./pages/ReleaseStock";
@@ -24,6 +25,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PresenceTracker />
           <Routes>
             <Route path="/" element={<Navigate to="/release" replace />} />
             <Route path="/auth" element={<AuthPage />} />
