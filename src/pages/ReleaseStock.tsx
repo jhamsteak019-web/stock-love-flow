@@ -504,7 +504,7 @@ const ReleaseStock = () => {
                     <TableHead className="w-24 px-2">Qty/Item</TableHead>
                     <TableHead className="min-w-[130px] px-2">Remarks</TableHead>
                     <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>
-                    <TableHead className="min-w-[130px] px-2">Set Date</TableHead>
+                    <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>
                     <TableHead className="min-w-[130px] px-2">Courier</TableHead>
                   </TableRow>
                 </TableHeader>

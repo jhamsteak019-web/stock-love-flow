@@ -245,7 +245,7 @@ const Deliveries = () => {
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal transition-all hover:border-primary">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : 'Set Date'}
+                          {group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : 'Date Out'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
