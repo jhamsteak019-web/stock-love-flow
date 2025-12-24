@@ -160,7 +160,7 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
           </div>
 
           <div className="grid gap-2">
-            <Label>Set Delivery Date</Label>
+            <Label>Date Out Warehouse</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
