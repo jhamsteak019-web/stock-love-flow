@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,6 +8,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -108,6 +109,55 @@ const SummaryReport = () => {
     return Object.values(branches).sort((a, b) => b.totalDeliveries - a.totalDeliveries);
   }, [filteredReleases]);
 
+  // Delivered items grouped by branch for printing
+  const deliveredByBranch = useMemo(() => {
+    const branches: Record<string, {
+      branch: string;
+      items: {
+        allocation_bill: string | null;
+        date_released: string;
+        date_delivered: string | null;
+        courier: string | null;
+        waybill_no: string | null;
+        category: string | null;
+        boxes: number;
+        qty: number;
+      }[];
+      totalBoxes: number;
+      totalQty: number;
+    }> = {};
+
+    filteredReleases
+      .filter(release => release.delivery_status === 'delivered')
+      .forEach(release => {
+        const branch = release.destination || 'Unknown';
+        
+        if (!branches[branch]) {
+          branches[branch] = {
+            branch,
+            items: [],
+            totalBoxes: 0,
+            totalQty: 0,
+          };
+        }
+        
+        branches[branch].items.push({
+          allocation_bill: release.allocation_bill,
+          date_released: release.date_released,
+          date_delivered: release.date_delivered,
+          courier: release.courier,
+          waybill_no: release.waybill_no,
+          category: release.category,
+          boxes: release.boxes_released,
+          qty: release.total_qty || 0,
+        });
+        branches[branch].totalBoxes += release.boxes_released;
+        branches[branch].totalQty += release.total_qty || 0;
+      });
+
+    return Object.values(branches).sort((a, b) => a.branch.localeCompare(b.branch));
+  }, [filteredReleases]);
+
   // Category breakdown per store
   const categoryByStore = useMemo(() => {
     const stores: Record<string, {
@@ -189,6 +239,103 @@ const SummaryReport = () => {
 
     return monthlyData;
   }, [yearlyReleases]);
+
+  // Print delivered summary by branch
+  const handlePrintDeliveredSummary = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const branchesHtml = deliveredByBranch.map(branch => `
+      <div class="branch-section">
+        <h2 class="branch-title">${branch.branch}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Bill No</th>
+              <th>Date Out</th>
+              <th>Date Received</th>
+              <th>Courier</th>
+              <th>Waybill No</th>
+              <th>Category</th>
+              <th class="text-center">Boxes</th>
+              <th class="text-center">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${branch.items.map(item => `
+              <tr>
+                <td>${item.allocation_bill || '-'}</td>
+                <td>${format(new Date(item.date_released), 'yyyy-MM-dd')}</td>
+                <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
+                <td>${item.courier || '-'}</td>
+                <td>${item.waybill_no || '-'}</td>
+                <td>${item.category || '-'}</td>
+                <td class="text-center">${item.boxes}</td>
+                <td class="text-center">${item.qty}</td>
+              </tr>
+            `).join('')}
+            <tr class="subtotal">
+              <td colspan="6"><strong>Subtotal</strong></td>
+              <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
+              <td class="text-center"><strong>${branch.totalQty}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `).join('');
+
+    const grandTotalBoxes = deliveredByBranch.reduce((sum, b) => sum + b.totalBoxes, 0);
+    const grandTotalQty = deliveredByBranch.reduce((sum, b) => sum + b.totalQty, 0);
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Delivered Summary - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+            .header p { font-size: 12px; color: #666; }
+            .branch-section { margin-bottom: 25px; page-break-inside: avoid; }
+            .branch-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; padding: 5px; background: #f0f0f0; border-left: 4px solid #333; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 10px; }
+            th { background: #e5e5e5; font-weight: bold; }
+            .text-center { text-align: center; }
+            .subtotal { background: #f9f9f9; }
+            .grand-total { margin-top: 20px; padding: 15px; background: #333; color: #fff; }
+            .grand-total h3 { font-size: 14px; margin-bottom: 5px; }
+            .grand-total p { font-size: 12px; }
+            @media print { 
+              body { padding: 10px; }
+              .branch-section { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>DELIVERED SUMMARY BY BRANCH</h1>
+            <p>${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</p>
+          </div>
+
+          ${branchesHtml}
+
+          <div class="grand-total">
+            <h3>GRAND TOTAL</h3>
+            <p>Total Branches: ${deliveredByBranch.length} | Total Boxes: ${grandTotalBoxes.toLocaleString()} | Total Qty: ${grandTotalQty.toLocaleString()}</p>
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
 
   if (loading) {
     return (
@@ -291,7 +438,7 @@ const SummaryReport = () => {
 
       {/* Tabs for different reports */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
           <TabsTrigger value="branch-report" className="flex items-center gap-2">
             <Store className="h-4 w-4" />
             Branch Report
@@ -299,6 +446,10 @@ const SummaryReport = () => {
           <TabsTrigger value="category-report" className="flex items-center gap-2">
             <ShoppingBag className="h-4 w-4" />
             Category per Store
+          </TabsTrigger>
+          <TabsTrigger value="delivered-summary" className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            Delivered Summary
           </TabsTrigger>
         </TabsList>
 
@@ -515,6 +666,99 @@ const SummaryReport = () => {
               })}
             </div>
           )}
+        </TabsContent>
+
+        {/* Delivered Summary Tab */}
+        <TabsContent value="delivered-summary" className="space-y-6">
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Delivered Items by Branch - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handlePrintDeliveredSummary}
+                  disabled={deliveredByBranch.length === 0}
+                >
+                  <Printer className="h-4 w-4 mr-1" />
+                  Print / Save PDF
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {deliveredByBranch.length > 0 ? (
+                <div className="space-y-6">
+                  {deliveredByBranch.map(branch => (
+                    <div key={branch.branch} className="rounded-lg border overflow-hidden">
+                      <div className="bg-muted px-4 py-2 border-b">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Store className="h-4 w-4" />
+                          {branch.branch}
+                          <Badge variant="secondary" className="ml-auto">
+                            {branch.items.length} deliveries
+                          </Badge>
+                        </h3>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Bill No</TableHead>
+                            <TableHead>Date Out</TableHead>
+                            <TableHead>Date Received</TableHead>
+                            <TableHead>Courier</TableHead>
+                            <TableHead>Waybill No</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="text-center">Boxes</TableHead>
+                            <TableHead className="text-center">Qty</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {branch.items.map((item, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono">{item.allocation_bill || '-'}</TableCell>
+                              <TableCell>{format(new Date(item.date_released), 'MMM d, yyyy')}</TableCell>
+                              <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
+                              <TableCell>{item.courier || '-'}</TableCell>
+                              <TableCell>{item.waybill_no || '-'}</TableCell>
+                              <TableCell>{item.category || '-'}</TableCell>
+                              <TableCell className="text-center">{item.boxes}</TableCell>
+                              <TableCell className="text-center">{item.qty}</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-muted/50 font-semibold">
+                            <TableCell colSpan={6}>Subtotal</TableCell>
+                            <TableCell className="text-center">{branch.totalBoxes}</TableCell>
+                            <TableCell className="text-center">{branch.totalQty}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ))}
+
+                  {/* Grand Total */}
+                  <div className="rounded-lg bg-primary/10 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-primary" />
+                        <span className="font-semibold">Grand Total</span>
+                      </div>
+                      <div className="flex gap-6 text-sm">
+                        <span><strong>{deliveredByBranch.length}</strong> Branches</span>
+                        <span><strong>{deliveredByBranch.reduce((sum, b) => sum + b.totalBoxes, 0).toLocaleString()}</strong> Boxes</span>
+                        <span><strong>{deliveredByBranch.reduce((sum, b) => sum + b.totalQty, 0).toLocaleString()}</strong> Qty</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <CheckCircle className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No delivered items found</h3>
+                  <p className="text-muted-foreground">No deliveries marked as delivered for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
