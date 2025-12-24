@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,10 +15,12 @@ export const useUserPresence = () => {
   const { user } = useAuth();
   const [presences, setPresences] = useState<Map<string, UserPresence>>(new Map());
   const [sessionStart] = useState<Date>(new Date());
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const subscribedRef = useRef(false);
 
   // Track current user's presence
   useEffect(() => {
-    if (!user) return;
+    if (!user || subscribedRef.current) return;
 
     const channel = supabase.channel('user-presence', {
       config: {
@@ -27,6 +29,8 @@ export const useUserPresence = () => {
         },
       },
     });
+
+    channelRef.current = channel;
 
     channel
       .on('presence', { event: 'sync' }, () => {
@@ -74,7 +78,8 @@ export const useUserPresence = () => {
         });
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
+        if (status === 'SUBSCRIBED' && !subscribedRef.current) {
+          subscribedRef.current = true;
           await channel.track({
             user_id: user.id,
             email: user.email,
@@ -85,9 +90,11 @@ export const useUserPresence = () => {
       });
 
     return () => {
+      subscribedRef.current = false;
       channel.unsubscribe();
+      channelRef.current = null;
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id, not the entire user object
 
   const isUserOnline = useCallback((userId: string) => {
     return presences.has(userId);
