@@ -369,7 +369,7 @@ const History = () => {
                   <TableHead>Total Qty/Items</TableHead>
                   <TableHead>Date Out</TableHead>
                   <TableHead>Date Received</TableHead>
-                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Courier</TableHead>
                   <TableHead>Waybill No.</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
