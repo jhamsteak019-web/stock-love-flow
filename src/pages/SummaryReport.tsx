@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -21,6 +22,7 @@ const SummaryReport = () => {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
   const [activeTab, setActiveTab] = useState('branch-report');
+  const [branchSearch, setBranchSearch] = useState('');
 
   // Get available years from releases
   const availableYears = useMemo(() => {
@@ -157,6 +159,14 @@ const SummaryReport = () => {
 
     return Object.values(branches).sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
+
+  // Filter delivered branches by search
+  const filteredDeliveredByBranch = useMemo(() => {
+    if (!branchSearch.trim()) return deliveredByBranch;
+    return deliveredByBranch.filter(branch => 
+      branch.branch.toLowerCase().includes(branchSearch.toLowerCase())
+    );
+  }, [deliveredByBranch, branchSearch]);
 
   // Category breakdown per store (only delivered items = items received)
   const categoryByStore = useMemo(() => {
@@ -775,23 +785,34 @@ const SummaryReport = () => {
         <TabsContent value="delivered-summary" className="space-y-6">
           <Card className="animate-fade-in">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Delivered Items by Branch - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handlePrintDeliveredSummary}
-                  disabled={deliveredByBranch.length === 0}
-                >
-                  <Printer className="h-4 w-4 mr-1" />
-                  Print / Save PDF
-                </Button>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Delivered Items by Branch - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handlePrintDeliveredSummary}
+                    disabled={deliveredByBranch.length === 0}
+                  >
+                    <Printer className="h-4 w-4 mr-1" />
+                    Print / Save PDF
+                  </Button>
+                </div>
+                <div className="relative max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search branch..."
+                    value={branchSearch}
+                    onChange={(e) => setBranchSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {deliveredByBranch.length > 0 ? (
+              {filteredDeliveredByBranch.length > 0 ? (
                 <div className="space-y-6">
-                  {deliveredByBranch.map(branch => (
+                  {filteredDeliveredByBranch.map(branch => (
                     <div key={branch.branch} className="rounded-lg border overflow-hidden">
                       <div className="bg-muted px-4 py-2 border-b flex items-center justify-between">
                         <h3 className="font-semibold flex items-center gap-2">
@@ -851,12 +872,12 @@ const SummaryReport = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-5 w-5 text-primary" />
-                        <span className="font-semibold">Grand Total</span>
+                        <span className="font-semibold">{branchSearch ? 'Filtered Total' : 'Grand Total'}</span>
                       </div>
                       <div className="flex gap-6 text-sm">
-                        <span><strong>{deliveredByBranch.length}</strong> Branches</span>
-                        <span><strong>{deliveredByBranch.reduce((sum, b) => sum + b.totalBoxes, 0).toLocaleString()}</strong> Boxes</span>
-                        <span><strong>{deliveredByBranch.reduce((sum, b) => sum + b.totalQty, 0).toLocaleString()}</strong> Qty</span>
+                        <span><strong>{filteredDeliveredByBranch.length}</strong> Branches</span>
+                        <span><strong>{filteredDeliveredByBranch.reduce((sum, b) => sum + b.totalBoxes, 0).toLocaleString()}</strong> Boxes</span>
+                        <span><strong>{filteredDeliveredByBranch.reduce((sum, b) => sum + b.totalQty, 0).toLocaleString()}</strong> Qty</span>
                       </div>
                     </div>
                   </div>
@@ -864,8 +885,12 @@ const SummaryReport = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <CheckCircle className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-medium">No delivered items found</h3>
-                  <p className="text-muted-foreground">No deliveries marked as delivered for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
+                  <h3 className="text-lg font-medium">{branchSearch ? 'No matching branches' : 'No delivered items found'}</h3>
+                  <p className="text-muted-foreground">
+                    {branchSearch 
+                      ? `No branches matching "${branchSearch}"` 
+                      : `No deliveries marked as delivered for ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`}
+                  </p>
                 </div>
               )}
             </CardContent>
