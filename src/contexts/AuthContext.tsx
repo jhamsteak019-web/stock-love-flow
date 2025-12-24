@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/inventory';
@@ -28,8 +28,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const fetchingRole = useRef(false);
+  const lastUserId = useRef<string | null>(null);
 
   const fetchUserRole = async (userId: string) => {
+    // Prevent duplicate fetches for the same user
+    if (fetchingRole.current || lastUserId.current === userId) return;
+    
+    fetchingRole.current = true;
+    lastUserId.current = userId;
+    
     try {
       const { data, error } = await supabase
         .from('user_roles')
@@ -42,27 +50,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole(null);
+    } finally {
+      fetchingRole.current = false;
     }
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setUserRole(null);
-        }
-        setLoading(false);
-      }
-    );
+    let mounted = true;
 
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -72,10 +71,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user && event !== 'TOKEN_REFRESHED') {
+          // Only fetch role on actual auth changes, not token refreshes
+          fetchUserRole(session.user.id);
+        } else if (!session) {
+          setUserRole(null);
+          lastUserId.current = null;
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    lastUserId.current = null; // Reset to allow role fetch on new login
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -98,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    lastUserId.current = null;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
