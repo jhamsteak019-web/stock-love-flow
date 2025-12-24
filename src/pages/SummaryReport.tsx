@@ -342,6 +342,104 @@ const SummaryReport = () => {
     }, 250);
   };
 
+  // Print single branch delivered summary
+  const handlePrintBranchSummary = (branch: typeof deliveredByBranch[0]) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Delivered Summary - ${branch.branch} - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+            .header p { font-size: 12px; color: #666; }
+            .branch-section { margin-bottom: 25px; }
+            .branch-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; padding: 5px; background: #f0f0f0; border-left: 4px solid #333; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 10px; }
+            th { background: #e5e5e5; font-weight: bold; }
+            .text-center { text-align: center; }
+            .subtotal { background: #f9f9f9; }
+            .total-section { margin-top: 20px; padding: 15px; background: #f0f0f0; border: 1px solid #333; }
+            .total-section h3 { font-size: 14px; margin-bottom: 5px; }
+            .total-section p { font-size: 12px; }
+            .footer { margin-top: 40px; display: flex; justify-content: space-between; padding: 0 20px; }
+            .signature-block { text-align: center; width: 150px; }
+            .signature-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 10px; }
+            @media print { 
+              body { padding: 10px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>DELIVERED SUMMARY - ${branch.branch}</h1>
+            <p>${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</p>
+          </div>
+
+          <div class="branch-section">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bill No</th>
+                  <th>Date Out</th>
+                  <th>Date Received</th>
+                  <th>Courier</th>
+                  <th>Waybill No</th>
+                  <th>Category</th>
+                  <th class="text-center">Boxes</th>
+                  <th class="text-center">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${branch.items.map(item => `
+                  <tr>
+                    <td>${item.allocation_bill || '-'}</td>
+                    <td>${format(new Date(item.date_released), 'yyyy-MM-dd')}</td>
+                    <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
+                    <td>${item.courier || '-'}</td>
+                    <td>${item.waybill_no || '-'}</td>
+                    <td>${item.category || '-'}</td>
+                    <td class="text-center">${item.boxes}</td>
+                    <td class="text-center">${item.qty}</td>
+                  </tr>
+                `).join('')}
+                <tr class="subtotal">
+                  <td colspan="6"><strong>Total</strong></td>
+                  <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
+                  <td class="text-center"><strong>${branch.totalQty}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <div class="signature-block">
+              <div class="signature-line">Checked By</div>
+            </div>
+            <div class="signature-block">
+              <div class="signature-line">Delivered By</div>
+            </div>
+            <div class="signature-block">
+              <div class="signature-line">Received By</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -695,14 +793,22 @@ const SummaryReport = () => {
                 <div className="space-y-6">
                   {deliveredByBranch.map(branch => (
                     <div key={branch.branch} className="rounded-lg border overflow-hidden">
-                      <div className="bg-muted px-4 py-2 border-b">
+                      <div className="bg-muted px-4 py-2 border-b flex items-center justify-between">
                         <h3 className="font-semibold flex items-center gap-2">
                           <Store className="h-4 w-4" />
                           {branch.branch}
-                          <Badge variant="secondary" className="ml-auto">
+                          <Badge variant="secondary">
                             {branch.items.length} deliveries
                           </Badge>
                         </h3>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handlePrintBranchSummary(branch)}
+                        >
+                          <Printer className="h-4 w-4 mr-1" />
+                          Print
+                        </Button>
                       </div>
                       <Table>
                         <TableHeader>
