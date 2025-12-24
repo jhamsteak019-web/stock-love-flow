@@ -364,6 +364,24 @@ export const useInventory = () => {
     await fetchReleases();
   };
 
+  const updateBatchDates = async (batchId: string, setDate?: string | null, dateDelivered?: string | null) => {
+    const updates: Record<string, unknown> = {};
+    if (setDate !== undefined) {
+      updates.set_date = setDate;
+    }
+    if (dateDelivered !== undefined) {
+      updates.date_delivered = dateDelivered;
+    }
+
+    const { error } = await supabase
+      .from('stock_releases')
+      .update(updates)
+      .eq('batch_id', batchId);
+
+    if (error) throw error;
+    await fetchReleases();
+  };
+
   const bulkUpdateStock = async (stockValue: number) => {
     // Update all items to have the specified stock value
     const { error } = await supabase
@@ -404,6 +422,7 @@ export const useInventory = () => {
     permanentlyDeleteBatch,
     permanentlyDeleteAllDeleted,
     updateDeliveryDateBatch,
+    updateBatchDates,
     getStats,
     bulkUpdateStock,
   };

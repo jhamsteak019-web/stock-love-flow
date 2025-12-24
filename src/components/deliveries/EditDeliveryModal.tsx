@@ -4,11 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { DeliveryStatus } from '@/types/inventory';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -49,7 +44,6 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
   const [allocationBill, setAllocationBill] = useState(group.allocation_bill || '');
   const [waybillNo, setWaybillNo] = useState(group.waybill_no || '');
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus>(group.delivery_status);
-  const [setDate, setSetDate] = useState<Date | undefined>(group.set_date ? new Date(group.set_date) : undefined);
 
   const handleSave = async () => {
     setLoading(true);
@@ -64,7 +58,6 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
             allocation_bill: allocationBill || null,
             waybill_no: waybillNo || null,
             delivery_status: deliveryStatus,
-            set_date: setDate ? setDate.toISOString() : null,
           })
           .eq('id', releaseId);
 
@@ -159,31 +152,6 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
             </Select>
           </div>
 
-          <div className="grid gap-2">
-            <Label>Date Out Warehouse</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !setDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Pick a date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={setDate}
-                  onSelect={setSetDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
         </div>
 
         <DialogFooter>
