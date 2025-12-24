@@ -345,6 +345,15 @@ export const useInventory = () => {
     if (error) throw error;
   };
 
+  const permanentlyDeleteAllDeleted = async () => {
+    const { error } = await supabase
+      .from('stock_releases')
+      .delete()
+      .not('deleted_at', 'is', null);
+
+    if (error) throw error;
+  };
+
   const updateDeliveryDateBatch = async (batchId: string, dateDelivered: string) => {
     const { error } = await supabase
       .from('stock_releases')
@@ -393,6 +402,7 @@ export const useInventory = () => {
     deleteAllReleases,
     restoreReleaseBatch,
     permanentlyDeleteBatch,
+    permanentlyDeleteAllDeleted,
     updateDeliveryDateBatch,
     getStats,
     bulkUpdateStock,
