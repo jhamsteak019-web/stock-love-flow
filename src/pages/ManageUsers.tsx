@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, X, Check, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Edit2, Shield, ShieldCheck, X, Check, Trash2, Circle, Clock } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUsers, UserWithRole } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserPresence } from '@/hooks/useUserPresence';
 import { UserRole } from '@/types/inventory';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -14,9 +15,19 @@ import { useToast } from '@/hooks/use-toast';
 const ManageUsers = () => {
   const { users, loading, updateProfile, updateUserRole, deleteUser } = useUsers();
   const { user: currentUser } = useAuth();
+  const { isUserOnline, getUserOnlineTime, getOnlineUsersCount } = useUserPresence();
   const { toast } = useToast();
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ full_name: '', email: '' });
+  const [, forceUpdate] = useState(0);
+
+  // Force re-render every minute to update online time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate(n => n + 1);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const startEditing = (user: UserWithRole) => {
     setEditingUser(user.id);
@@ -62,23 +73,31 @@ const ManageUsers = () => {
     <div className="space-y-6">
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <div className="p-4 border-b bg-muted/30">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Users className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">User Management</h2>
+                <p className="text-sm text-muted-foreground">Manage user profiles and roles</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">User Management</h2>
-              <p className="text-sm text-muted-foreground">Manage user profiles and roles</p>
-            </div>
+            <Badge variant="outline" className="gap-1.5">
+              <Circle className="h-2 w-2 fill-green-500 text-green-500" />
+              {getOnlineUsersCount()} Online
+            </Badge>
           </div>
         </div>
 
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Status</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Online Duration</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -86,102 +105,130 @@ const ManageUsers = () => {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12">
+                <TableCell colSpan={7} className="text-center py-12">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No users found</p>
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
-                <TableRow key={user.id} className="animate-fade-in">
-                  <TableCell>
-                    {editingUser === user.id ? (
-                      <Input
-                        value={editForm.full_name}
-                        onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                        placeholder="Full name"
-                        className="w-full"
-                      />
-                    ) : (
-                      <span className="font-medium">{user.full_name || 'No name'}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingUser === user.id ? (
-                      <Input
-                        value={editForm.email}
-                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                        placeholder="Email"
-                        className="w-full"
-                      />
-                    ) : (
-                      <span className="text-muted-foreground">{user.email}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {currentUser?.id === user.id ? (
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="gap-1">
-                        {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
-                        {user.role}
-                      </Badge>
-                    ) : (
-                      <Select
-                        value={user.role}
-                        onValueChange={(val) => handleRoleChange(user.id, val as UserRole)}
-                      >
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-3 w-3" />
-                              Admin
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="staff">
-                            <div className="flex items-center gap-2">
-                              <Shield className="h-3 w-3" />
-                              Staff
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(user.created_at), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell>
-                    {editingUser === user.id ? (
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => saveEdit(user.id)}>
-                          <Check className="h-4 w-4 text-green-500" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={cancelEditing}>
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
+              users.map((user) => {
+                const online = isUserOnline(user.id);
+                const onlineTime = getUserOnlineTime(user.id);
+                
+                return (
+                  <TableRow key={user.id} className="animate-fade-in">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Circle 
+                          className={`h-3 w-3 ${online 
+                            ? 'fill-green-500 text-green-500' 
+                            : 'fill-muted text-muted-foreground'
+                          }`} 
+                        />
+                        <span className={`text-xs ${online ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          {online ? 'Online' : 'Offline'}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => startEditing(user)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        {currentUser?.id !== user.id && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
+                    </TableCell>
+                    <TableCell>
+                      {editingUser === user.id ? (
+                        <Input
+                          value={editForm.full_name}
+                          onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                          placeholder="Full name"
+                          className="w-full"
+                        />
+                      ) : (
+                        <span className="font-medium">{user.full_name || 'No name'}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingUser === user.id ? (
+                        <Input
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                          placeholder="Email"
+                          className="w-full"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">{user.email}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {currentUser?.id === user.id ? (
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="gap-1">
+                          {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
+                          {user.role}
+                        </Badge>
+                      ) : (
+                        <Select
+                          value={user.role}
+                          onValueChange={(val) => handleRoleChange(user.id, val as UserRole)}
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">
+                              <div className="flex items-center gap-2">
+                                <ShieldCheck className="h-3 w-3" />
+                                Admin
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="staff">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-3 w-3" />
+                                Staff
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {online && onlineTime ? (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span className="text-sm">{onlineTime}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {format(new Date(user.created_at), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      {editingUser === user.id ? (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => saveEdit(user.id)}>
+                            <Check className="h-4 w-4 text-green-500" />
                           </Button>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+                          <Button variant="ghost" size="icon" onClick={cancelEditing}>
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => startEditing(user)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          {currentUser?.id !== user.id && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
