@@ -1,16 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-
-// Format time in Manila timezone (UTC+8)
-const formatManilaTime = (date: Date = new Date()) => {
-  const manilaOffset = 8 * 60; // UTC+8 in minutes
-  const localOffset = date.getTimezoneOffset();
-  const manilaTime = new Date(date.getTime() + (manilaOffset + localOffset) * 60 * 1000);
-  return format(manilaTime, 'h:mm a');
-};
 
 export interface UserPresence {
   id: string;
@@ -22,14 +12,9 @@ export interface UserPresence {
 }
 
 export const useUserPresence = () => {
-  const [presences, setPresences] = useState<Map<string, UserPresence>>(new Map());
-  const [sessionStart] = useState<Date>(() => new Date());
   const { user } = useAuth();
-  const { toast } = useToast();
-  
-  // Use ref for toast to avoid dependency issues
-  const toastRef = useRef(toast);
-  toastRef.current = toast;
+  const [presences, setPresences] = useState<Map<string, UserPresence>>(new Map());
+  const [sessionStart] = useState<Date>(new Date());
 
   // Track current user's presence
   useEffect(() => {
@@ -66,14 +51,6 @@ export const useUserPresence = () => {
       })
       .on('presence', { event: 'join' }, ({ key, newPresences: joinedPresences }) => {
         const presence = joinedPresences[0];
-        if (presence && key !== user.id) {
-          const displayName = presence.full_name || presence.email || 'A user';
-          const manilaTime = formatManilaTime();
-          toastRef.current({
-            title: '🟢 User Online',
-            description: `${displayName} came online at ${manilaTime} (Manila)`,
-          });
-        }
         if (presence) {
           setPresences(prev => {
             const next = new Map(prev);
@@ -89,16 +66,7 @@ export const useUserPresence = () => {
           });
         }
       })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        const presence = leftPresences[0];
-        if (presence && key !== user.id) {
-          const displayName = presence.full_name || presence.email || 'A user';
-          const manilaTime = formatManilaTime();
-          toastRef.current({
-            title: '⚫ User Offline',
-            description: `${displayName} went offline at ${manilaTime} (Manila)`,
-          });
-        }
+      .on('presence', { event: 'leave' }, ({ key }) => {
         setPresences(prev => {
           const next = new Map(prev);
           next.delete(key);
