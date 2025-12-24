@@ -36,6 +36,7 @@ interface GroupedRelease {
   waybill_no: string | null;
   date_released: string;
   date_delivered: string | null;
+  set_date: string | null;
   deleted_at?: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
@@ -90,6 +91,7 @@ const History = () => {
           waybill_no: release.waybill_no,
           date_released: release.date_released,
           date_delivered: release.date_delivered,
+          set_date: release.set_date,
           deleted_at: release.deleted_at,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
@@ -434,7 +436,7 @@ const History = () => {
                       <TableCell>{group.category || '-'}</TableCell>
                       <TableCell>{group.totalBoxes}</TableCell>
                       <TableCell>{group.totalQty || group.itemCount}</TableCell>
-                      <TableCell className="text-muted-foreground">{format(new Date(group.date_released), 'MMM d, yyyy')}</TableCell>
+                      <TableCell className="text-muted-foreground">{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
                       </TableCell>
