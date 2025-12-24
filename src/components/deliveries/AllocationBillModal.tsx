@@ -62,6 +62,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
             <thead>
               <tr>
                 <th>Date Out Warehouse</th>
+                <th>Receive Date</th>
                 <th>Bill No</th>
                 <th>Courier</th>
                 <th>Waybill No</th>
@@ -73,6 +74,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
             <tbody>
               <tr>
                 <td>${format(new Date(dateReleased), 'yyyy-MM-dd')}</td>
+                <td>${dateDelivered ? format(new Date(dateDelivered), 'yyyy-MM-dd') : '-'}</td>
                 <td>${billNumber}</td>
                 <td>${courier || '-'}</td>
                 <td>${waybillNo}</td>
@@ -140,6 +142,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
               <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead className="font-bold border-r">Date Out Warehouse</TableHead>
+                  <TableHead className="font-bold border-r">Receive Date</TableHead>
                   <TableHead className="font-bold border-r">Bill No</TableHead>
                   <TableHead className="font-bold border-r">Courier</TableHead>
                   <TableHead className="font-bold border-r">Waybill No</TableHead>
@@ -151,6 +154,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
               <TableBody>
                 <TableRow>
                   <TableCell className="border-r">{format(new Date(dateReleased), 'yyyy-MM-dd')}</TableCell>
+                  <TableCell className="border-r">{dateDelivered ? format(new Date(dateDelivered), 'yyyy-MM-dd') : '-'}</TableCell>
                   <TableCell className="border-r font-mono font-semibold">{billNumber}</TableCell>
                   <TableCell className="border-r">{courier || '-'}</TableCell>
                   <TableCell className="border-r">{waybillNo}</TableCell>
