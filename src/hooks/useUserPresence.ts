@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export interface UserPresence {
   id: string;
@@ -13,6 +14,7 @@ export interface UserPresence {
 
 export const useUserPresence = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [presences, setPresences] = useState<Map<string, UserPresence>>(new Map());
   const [sessionStart] = useState<Date>(new Date());
 
@@ -51,6 +53,13 @@ export const useUserPresence = () => {
       })
       .on('presence', { event: 'join' }, ({ key, newPresences: joinedPresences }) => {
         const presence = joinedPresences[0];
+        if (presence && key !== user.id) {
+          const displayName = presence.full_name || presence.email || 'A user';
+          toast({
+            title: '🟢 User Online',
+            description: `${displayName} is now online`,
+          });
+        }
         if (presence) {
           setPresences(prev => {
             const next = new Map(prev);
@@ -66,7 +75,15 @@ export const useUserPresence = () => {
           });
         }
       })
-      .on('presence', { event: 'leave' }, ({ key }) => {
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        const presence = leftPresences[0];
+        if (presence && key !== user.id) {
+          const displayName = presence.full_name || presence.email || 'A user';
+          toast({
+            title: '⚫ User Offline',
+            description: `${displayName} went offline`,
+          });
+        }
         setPresences(prev => {
           const next = new Map(prev);
           next.delete(key);
@@ -87,7 +104,7 @@ export const useUserPresence = () => {
     return () => {
       channel.unsubscribe();
     };
-  }, [user]);
+  }, [user, toast]);
 
   const isUserOnline = useCallback((userId: string) => {
     return presences.has(userId);
