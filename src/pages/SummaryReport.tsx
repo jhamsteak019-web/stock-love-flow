@@ -38,7 +38,9 @@ const SummaryReport = () => {
   // Filter releases by selected year and month
   const filteredReleases = useMemo(() => {
     return releases.filter(release => {
-      const releaseDate = new Date(release.date_released);
+      // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
+      const dateToUse = release.set_date || release.date_released;
+      const releaseDate = new Date(dateToUse);
       const releaseYear = releaseDate.getFullYear().toString();
       const releaseMonth = releaseDate.getMonth().toString();
       return releaseYear === selectedYear && releaseMonth === selectedMonth;
@@ -48,7 +50,9 @@ const SummaryReport = () => {
   // Filter releases by year only (for yearly stats)
   const yearlyReleases = useMemo(() => {
     return releases.filter(release => {
-      const releaseYear = new Date(release.date_released).getFullYear().toString();
+      // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
+      const dateToUse = release.set_date || release.date_released;
+      const releaseYear = new Date(dateToUse).getFullYear().toString();
       return releaseYear === selectedYear;
     });
   }, [releases, selectedYear]);
@@ -117,7 +121,7 @@ const SummaryReport = () => {
       branch: string;
       items: {
         allocation_bill: string | null;
-        date_released: string;
+        set_date: string | null;
         date_delivered: string | null;
         courier: string | null;
         waybill_no: string | null;
@@ -145,7 +149,7 @@ const SummaryReport = () => {
         
         branches[branch].items.push({
           allocation_bill: release.allocation_bill,
-          date_released: release.date_released,
+          set_date: release.set_date,
           date_delivered: release.date_delivered,
           courier: release.courier,
           waybill_no: release.waybill_no,
@@ -244,7 +248,8 @@ const SummaryReport = () => {
     }));
 
     yearlyReleases.forEach(release => {
-      const monthIndex = new Date(release.date_released).getMonth();
+      const dateToUse = release.set_date || release.date_released;
+      const monthIndex = new Date(dateToUse).getMonth();
       if (release.delivery_status === 'delivered') {
         monthlyData[monthIndex].delivered += release.boxes_released;
       } else {
@@ -280,7 +285,7 @@ const SummaryReport = () => {
             ${branch.items.map(item => `
               <tr>
                 <td>${item.allocation_bill || '-'}</td>
-                <td>${format(new Date(item.date_released), 'yyyy-MM-dd')}</td>
+                <td>${item.set_date ? format(new Date(item.set_date), 'yyyy-MM-dd') : '-'}</td>
                 <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                 <td>${item.courier || '-'}</td>
                 <td>${item.waybill_no || '-'}</td>
@@ -410,7 +415,7 @@ const SummaryReport = () => {
                 ${branch.items.map(item => `
                   <tr>
                     <td>${item.allocation_bill || '-'}</td>
-                    <td>${format(new Date(item.date_released), 'yyyy-MM-dd')}</td>
+                    <td>${item.set_date ? format(new Date(item.set_date), 'yyyy-MM-dd') : '-'}</td>
                     <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                     <td>${item.courier || '-'}</td>
                     <td>${item.waybill_no || '-'}</td>
@@ -848,7 +853,7 @@ const SummaryReport = () => {
                           {branch.items.map((item, idx) => (
                             <TableRow key={idx}>
                               <TableCell className="font-mono">{item.allocation_bill || '-'}</TableCell>
-                              <TableCell>{format(new Date(item.date_released), 'MMM d, yyyy')}</TableCell>
+                              <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell>{item.courier || '-'}</TableCell>
                               <TableCell>{item.waybill_no || '-'}</TableCell>
