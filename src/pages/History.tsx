@@ -45,11 +45,12 @@ interface GroupedRelease {
 }
 
 const History = () => {
-  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, updateDeliveryDateBatch } = useInventory();
+  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, updateDeliveryDateBatch } = useInventory();
   const { userRole } = useAuth();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [clearingDeleted, setClearingDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -227,6 +228,19 @@ const History = () => {
     }
   };
 
+  const handleClearAllDeleted = async () => {
+    setClearingDeleted(true);
+    try {
+      await permanentlyDeleteAllDeleted();
+      setDeletedReleases([]);
+      toast({ title: 'Success', description: 'All deleted items permanently removed' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to clear deleted items', variant: 'destructive' });
+    } finally {
+      setClearingDeleted(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
@@ -265,6 +279,34 @@ const History = () => {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     Yes, Clear All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
+          {activeTab === 'deleted' && isAdmin && groupedDeletedReleases.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={clearingDeleted}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {clearingDeleted ? 'Clearing...' : 'Clear All'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    Permanently Delete All
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {groupedDeletedReleases.length} records. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearAllDeleted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Yes, Delete All Permanently
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
