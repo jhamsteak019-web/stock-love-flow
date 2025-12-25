@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
@@ -29,15 +29,6 @@ interface SalesRecord {
   created_by: string | null;
   created_at: string;
 }
-
-const CATEGORIES = ['BSW', 'BSWU', 'BWU'];
-const MP_OPTIONS = ['1', '2', '3', '4', '5'];
-const BRANCHES = [
-  'Metro Alabang', 'Metro Angeles', 'Ayala Cebu', 'Ayala Feliz', 'Metro Bacolod',
-  'Metro Dais', 'Metro Baybay', 'Metro Cabuyao', 'Metro Carcar', 'Metro Caticlan',
-  'Metro Danao', 'Metro Imus', 'Metro Lapu-Lapu', 'Metro Legazpi', 'Metro Lucena',
-  'Metro Mandaue', 'Metro Market Market', 'Metro Tacloban', 'Metro Tagaytay', 'Metro Toledo'
-];
 
 const Sales = () => {
   const { user, userRole } = useAuth();
@@ -186,44 +177,29 @@ const Sales = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Category</Label>
-                      <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CATEGORIES.map((cat) => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        placeholder="Enter category"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>MP</Label>
-                      <Select value={formData.mp} onValueChange={(v) => setFormData({ ...formData, mp: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MP_OPTIONS.map((mp) => (
-                            <SelectItem key={mp} value={mp}>{mp}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        value={formData.mp}
+                        onChange={(e) => setFormData({ ...formData, mp: e.target.value })}
+                        placeholder="Enter MP"
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Branch</Label>
-                    <Select value={formData.branch_name} onValueChange={(v) => setFormData({ ...formData, branch_name: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BRANCHES.map((branch) => (
-                          <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      value={formData.branch_name}
+                      onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
+                      placeholder="Enter branch name"
+                    />
                   </div>
 
                   <div className="space-y-2">
