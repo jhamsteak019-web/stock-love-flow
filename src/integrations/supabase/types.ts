@@ -205,13 +205,16 @@ export type Database = {
           category: string
           created_at: string
           created_by: string | null
+          dec_2024: number | null
           id: string
           mhb: number | null
           mlp: number | null
           mp: string
           msh: number | null
           mum: number | null
+          running_sale: number | null
           sale_date: string
+          sales_plan: number | null
           ts: number | null
           updated_at: string
         }
@@ -220,13 +223,16 @@ export type Database = {
           category: string
           created_at?: string
           created_by?: string | null
+          dec_2024?: number | null
           id?: string
           mhb?: number | null
           mlp?: number | null
           mp: string
           msh?: number | null
           mum?: number | null
+          running_sale?: number | null
           sale_date: string
+          sales_plan?: number | null
           ts?: number | null
           updated_at?: string
         }
@@ -235,13 +241,16 @@ export type Database = {
           category?: string
           created_at?: string
           created_by?: string | null
+          dec_2024?: number | null
           id?: string
           mhb?: number | null
           mlp?: number | null
           mp?: string
           msh?: number | null
           mum?: number | null
+          running_sale?: number | null
           sale_date?: string
+          sales_plan?: number | null
           ts?: number | null
           updated_at?: string
         }
