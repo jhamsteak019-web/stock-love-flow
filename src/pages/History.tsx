@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
@@ -224,6 +225,20 @@ const History = () => {
       setEditDateReceived(undefined);
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update dates', variant: 'destructive' });
+    }
+  };
+
+  const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
+    try {
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ notes })
+        .eq('batch_id', group.batch_id);
+      
+      if (error) throw error;
+      toast({ title: 'Success', description: 'Remarks updated' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update remarks', variant: 'destructive' });
     }
   };
 
@@ -452,8 +467,17 @@ const History = () => {
                       </TableCell>
                       <TableCell>{group.courier || '-'}</TableCell>
                       <TableCell>{group.waybill_no || '-'}</TableCell>
-                      <TableCell className="text-muted-foreground max-w-[150px] truncate" title={group.notes || ''}>
-                        {group.notes || '-'}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          placeholder="Enter remarks"
+                          defaultValue={group.notes || ''}
+                          className="h-8 w-[120px] text-sm"
+                          onBlur={(e) => {
+                            if (e.target.value !== (group.notes || '')) {
+                              handleRemarksChange(group, e.target.value);
+                            }
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
