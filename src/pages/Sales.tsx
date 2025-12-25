@@ -353,10 +353,10 @@ const Sales = () => {
             <thead>
               {/* Header Row 1 - Main headers */}
               <tr className="border-b border-border">
-                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12" rowSpan={2}>No.</th>
-                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-16" rowSpan={2}>CAT</th>
-                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12" rowSpan={2}>MP</th>
-                <th className="border border-border p-2 bg-muted/50 font-bold text-left" rowSpan={2}>METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12 align-middle" rowSpan={2}>No.</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-16 align-middle" rowSpan={2}>CAT</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12 align-middle" rowSpan={2}>MP</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-left align-middle" rowSpan={2}>METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
                 
                 {/* Date columns */}
                 {datePages.map((datePage, idx) => (
@@ -390,25 +390,25 @@ const Sales = () => {
                   </th>
                 ))}
                 
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold align-middle" rowSpan={2}>
                   Running Sale<br/>{currentMonth} 1-{format(firstDate, 'd')}
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold align-middle" rowSpan={2}>
                   SALES PLAN
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold align-middle" rowSpan={2}>
                   DIFFERENCE<br/>vs Quota
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold align-middle" rowSpan={2}>
                   %<br/>ACHIEVED
                 </th>
                 <th colSpan={2} className="border border-border p-2 bg-blue-100 text-center font-bold">
                   {prevYear} VS {currentYear}
                 </th>
-                <th className="border border-border p-2 bg-blue-100 text-center font-bold" rowSpan={2}>
+                <th className="border border-border p-2 bg-blue-100 text-center font-bold align-middle" rowSpan={2}>
                   %<br/>ACHIEVED
                 </th>
-                {userRole === 'admin' && <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={2}></th>}
+                {userRole === 'admin' && <th className="border border-border p-2 bg-muted/30 w-10 align-middle" rowSpan={2}></th>}
               </tr>
               
               {/* Header Row 2 - Sub-headers */}
