@@ -1,10 +1,10 @@
 import { useInventory } from '@/hooks/useInventory';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { Package, Truck, AlertTriangle, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Truck, CheckCircle, Clock, ClipboardList } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Dashboard = () => {
-  const { items, releases, loading, getStats } = useInventory();
+  const { releases, loading, getStats } = useInventory();
   const stats = getStats();
 
   if (loading) {
@@ -18,6 +18,9 @@ const Dashboard = () => {
   // Recent releases (last 5)
   const recentReleases = releases.slice(0, 5);
 
+  // Total releases count
+  const totalReleases = releases.length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -26,24 +29,12 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Items"
-          value={stats.totalItems}
-          icon={Package}
+          title="Total Releases"
+          value={totalReleases}
+          icon={ClipboardList}
           variant="default"
-        />
-        <StatCard
-          title="Total Stock"
-          value={stats.totalStock}
-          icon={TrendingUp}
-          variant="info"
-        />
-        <StatCard
-          title="Low Stock"
-          value={stats.lowStockItems}
-          icon={AlertTriangle}
-          variant="warning"
         />
         <StatCard
           title="Pending"
