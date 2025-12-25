@@ -292,11 +292,11 @@ const Sales = () => {
                 <th className="border border-border p-2 font-bold text-center w-16">CAT</th>
                 <th className="border border-border p-2 font-bold text-center w-12">MP</th>
                 <th className="border border-border p-2 font-bold text-left">METRO GROUP {format(filterDate, 'MMM yyyy').toUpperCase()}</th>
-                <th className="border border-border p-2 font-bold text-center w-24">MHB</th>
-                <th className="border border-border p-2 font-bold text-center w-24">MLP</th>
-                <th className="border border-border p-2 font-bold text-center w-24">MSH</th>
-                <th className="border border-border p-2 font-bold text-center w-24">MUM</th>
-                <th className="border border-border p-2 font-bold text-center w-28">TS</th>
+                <th className="border border-border p-2 w-24"></th>
+                <th className="border border-border p-2 w-24"></th>
+                <th className="border border-border p-2 w-24"></th>
+                <th className="border border-border p-2 w-24"></th>
+                <th className="border border-border p-2 w-28"></th>
                 <th className="border border-border p-2 bg-yellow-50"></th>
                 <th className="border border-border p-2 bg-yellow-50"></th>
                 <th className="border border-border p-2 bg-yellow-50"></th>
