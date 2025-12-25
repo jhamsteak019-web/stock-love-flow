@@ -164,12 +164,35 @@ const SummaryReport = () => {
     return Object.values(branches).sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
 
-  // Filter delivered branches by search
+  // Filter delivered branches by search (branch name or allocation bill)
   const filteredDeliveredByBranch = useMemo(() => {
     if (!branchSearch.trim()) return deliveredByBranch;
-    return deliveredByBranch.filter(branch => 
-      branch.branch.toLowerCase().includes(branchSearch.toLowerCase())
-    );
+    const searchLower = branchSearch.toLowerCase();
+    
+    return deliveredByBranch
+      .map(branch => {
+        // Check if branch name matches
+        const branchMatches = branch.branch.toLowerCase().includes(searchLower);
+        
+        // Check if any allocation bill matches
+        const filteredItems = branch.items.filter(item => 
+          item.allocation_bill?.toLowerCase().includes(searchLower)
+        );
+        
+        // If branch name matches, return all items; if not, return only matching items
+        if (branchMatches) {
+          return branch;
+        } else if (filteredItems.length > 0) {
+          return {
+            ...branch,
+            items: filteredItems,
+            totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
+            totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
+          };
+        }
+        return null;
+      })
+      .filter((branch): branch is NonNullable<typeof branch> => branch !== null);
   }, [deliveredByBranch, branchSearch]);
 
   // Category breakdown per store (only delivered items = items received)
@@ -806,7 +829,7 @@ const SummaryReport = () => {
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search branch..."
+                    placeholder="Search branch or allocation bill..."
                     value={branchSearch}
                     onChange={(e) => setBranchSearch(e.target.value)}
                     className="pl-9"
