@@ -32,6 +32,7 @@ interface GroupedRelease {
   category: string | null;
   waybill_no: string | null;
   set_date: string | null;
+  notes: string | null;
 }
 
 const Deliveries = () => {
@@ -67,6 +68,7 @@ const Deliveries = () => {
           category: release.category,
           waybill_no: release.waybill_no,
           set_date: release.set_date,
+          notes: release.notes,
         };
       }
       
@@ -177,6 +179,7 @@ const Deliveries = () => {
               <TableHead>Date Out Warehouse</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Waybill No.</TableHead>
+              <TableHead>Remarks</TableHead>
               <TableHead className="w-[80px]">View</TableHead>
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
               
@@ -185,7 +188,7 @@ const Deliveries = () => {
           <TableBody>
             {pendingGroups.length === 0 ? (
               <TableRow>
-              <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-12">
+              <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
                 <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">No pending deliveries</p>
                 </TableCell>
@@ -232,6 +235,9 @@ const Deliveries = () => {
                         }
                       }}
                     />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-[150px] truncate" title={group.notes || ''}>
+                    {group.notes || '-'}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
