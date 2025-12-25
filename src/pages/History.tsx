@@ -34,6 +34,7 @@ interface GroupedRelease {
   category: string | null;
   courier: string | null;
   waybill_no: string | null;
+  notes: string | null;
   date_released: string;
   date_delivered: string | null;
   set_date: string | null;
@@ -90,6 +91,7 @@ const History = () => {
           category: release.category,
           courier: release.courier,
           waybill_no: release.waybill_no,
+          notes: release.notes,
           date_released: release.date_released,
           date_delivered: release.date_delivered,
           set_date: release.set_date,
@@ -422,13 +424,14 @@ const History = () => {
                   <TableHead>Date Received</TableHead>
                   <TableHead>Courier</TableHead>
                   <TableHead>Waybill No.</TableHead>
+                  <TableHead>Remarks</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredReleases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12">
+                    <TableCell colSpan={11} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
                         {searchQuery || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
@@ -449,6 +452,9 @@ const History = () => {
                       </TableCell>
                       <TableCell>{group.courier || '-'}</TableCell>
                       <TableCell>{group.waybill_no || '-'}</TableCell>
+                      <TableCell className="text-muted-foreground max-w-[150px] truncate" title={group.notes || ''}>
+                        {group.notes || '-'}
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
