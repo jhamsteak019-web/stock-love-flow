@@ -330,6 +330,10 @@ const Sales = () => {
           <Save className="h-4 w-4" />
           {saving ? 'Saving...' : 'Save All'}
         </Button>
+        <Button variant="outline" onClick={addNewDatePage} className="gap-2 border-2">
+          <Plus className="h-4 w-4" />
+          Add New Page
+        </Button>
       </div>
 
       {/* Excel-like table */}
@@ -380,17 +384,7 @@ const Sales = () => {
                   </th>
                 ))}
                 
-                {/* Add New Page button */}
-                <th className="border border-border p-2 bg-yellow-100 text-center" rowSpan={3}>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={addNewDatePage} 
-                    className="gap-1 text-xs bg-white hover:bg-yellow-50"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add New Page
-                  </Button>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
                 </th>
                 
                 <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
