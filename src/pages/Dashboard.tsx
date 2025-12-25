@@ -18,9 +18,6 @@ const Dashboard = () => {
   // Recent releases (last 5)
   const recentReleases = releases.slice(0, 5);
 
-  // Low stock items
-  const lowStockItems = items.filter(item => item.available_stock <= item.low_stock_threshold);
-
   return (
     <div className="space-y-6">
       <div>
@@ -68,89 +65,53 @@ const Dashboard = () => {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Releases */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Releases</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentReleases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent releases</p>
-            ) : (
-              <div className="space-y-3">
-                {recentReleases.map((release) => (
-                  <div
-                    key={release.id}
-                    className="flex items-center justify-between rounded-lg border border-border p-3"
-                  >
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {release.inventory_item?.item_name || 'Unknown Item'}
-                        {release.category && (
-                          <span className="ml-2 text-xs font-normal text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                            {release.category}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {release.destination} • {release.boxes_released} boxes
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${
-                        release.delivery_status === 'delivered'
-                          ? 'bg-status-delivered-bg text-status-delivered'
-                          : release.delivery_status === 'out_for_delivery'
-                          ? 'bg-status-transit-bg text-status-transit'
-                          : 'bg-status-pending-bg text-status-pending'
-                      }`}
-                    >
-                      {release.delivery_status === 'out_for_delivery'
-                        ? 'In Transit'
-                        : release.delivery_status}
-                    </span>
+      {/* Recent Releases */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Recent Releases</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentReleases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No recent releases</p>
+          ) : (
+            <div className="space-y-3">
+              {recentReleases.map((release) => (
+                <div
+                  key={release.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {release.inventory_item?.item_name || release.category || 'Unknown'}
+                      {release.category && release.inventory_item?.item_name && (
+                        <span className="ml-2 text-xs font-normal text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                          {release.category}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {release.destination} • {release.boxes_released} boxes
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Low Stock Alert */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Low Stock Alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {lowStockItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All items are well stocked</p>
-            ) : (
-              <div className="space-y-3">
-                {lowStockItems.slice(0, 5).map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between rounded-lg border border-status-pending/30 bg-status-pending-bg/20 p-3"
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-medium ${
+                      release.delivery_status === 'delivered'
+                        ? 'bg-status-delivered-bg text-status-delivered'
+                        : release.delivery_status === 'out_for_delivery'
+                        ? 'bg-status-transit-bg text-status-transit'
+                        : 'bg-status-pending-bg text-status-pending'
+                    }`}
                   >
-                    <div>
-                      <p className="font-medium text-foreground">{item.item_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.item_code}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-status-pending">{item.available_stock}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Threshold: {item.low_stock_threshold}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                    {release.delivery_status === 'out_for_delivery'
+                      ? 'In Transit'
+                      : release.delivery_status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
