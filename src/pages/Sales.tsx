@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -414,13 +414,13 @@ const Sales = () => {
               {/* Header Row 2 - Sub-headers */}
               <tr className="border-b border-border">
                 {datePages.map((datePage, idx) => (
-                  <>
-                    <th key={`${datePage.id}-mhb`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MHB</th>
-                    <th key={`${datePage.id}-mlp`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MLP</th>
-                    <th key={`${datePage.id}-msh`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MSH</th>
-                    <th key={`${datePage.id}-mum`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MUM</th>
-                    <th key={`${datePage.id}-ts`} className={`border border-border p-2 font-bold text-center w-24 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>TS</th>
-                  </>
+                  <React.Fragment key={datePage.id}>
+                    <th className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MHB</th>
+                    <th className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MLP</th>
+                    <th className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MSH</th>
+                    <th className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MUM</th>
+                    <th className={`border border-border p-2 font-bold text-center w-24 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>TS</th>
+                  </React.Fragment>
                 ))}
                 <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">{currentMonth} {prevYear}</th>
                 <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">DIFFERENCE</th>
@@ -475,8 +475,8 @@ const Sales = () => {
                         const bgClass = idx % 2 === 0 ? 'bg-red-50/30' : 'bg-green-50/30';
                         
                         return (
-                          <>
-                            <td key={`${datePage.id}-${index}-mhb`} className={`border border-border p-0 ${bgClass}`}>
+                          <React.Fragment key={datePage.id}>
+                            <td className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.mhb || ''}
@@ -485,7 +485,7 @@ const Sales = () => {
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td key={`${datePage.id}-${index}-mlp`} className={`border border-border p-0 ${bgClass}`}>
+                            <td className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.mlp || ''}
@@ -494,7 +494,7 @@ const Sales = () => {
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td key={`${datePage.id}-${index}-msh`} className={`border border-border p-0 ${bgClass}`}>
+                            <td className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.msh || ''}
@@ -503,7 +503,7 @@ const Sales = () => {
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td key={`${datePage.id}-${index}-mum`} className={`border border-border p-0 ${bgClass}`}>
+                            <td className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.mum || ''}
@@ -512,10 +512,10 @@ const Sales = () => {
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td key={`${datePage.id}-${index}-ts`} className={`border border-border p-2 text-right tabular-nums font-medium ${bgClass}`}>
+                            <td className={`border border-border p-2 text-right tabular-nums font-medium ${bgClass}`}>
                               {formatNumber(data.mhb + data.mlp + data.msh + data.mum)}
                             </td>
-                          </>
+                          </React.Fragment>
                         );
                       })}
                       
@@ -598,13 +598,13 @@ const Sales = () => {
                     const bgClass = idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100';
                     
                     return (
-                      <>
-                        <td key={`${datePage.id}-total-mhb`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mhb)}</td>
-                        <td key={`${datePage.id}-total-mlp`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mlp)}</td>
-                        <td key={`${datePage.id}-total-msh`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.msh)}</td>
-                        <td key={`${datePage.id}-total-mum`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mum)}</td>
-                        <td key={`${datePage.id}-total-ts`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.ts)}</td>
-                      </>
+                      <React.Fragment key={datePage.id}>
+                        <td className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mhb)}</td>
+                        <td className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mlp)}</td>
+                        <td className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.msh)}</td>
+                        <td className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mum)}</td>
+                        <td className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.ts)}</td>
+                      </React.Fragment>
                     );
                   })}
                   <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.running_sale)}</td>
