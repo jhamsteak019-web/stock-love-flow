@@ -25,6 +25,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';
   const waybillNo = releases[0]?.waybill_no || '-';
   const category = releases[0]?.category || '-';
+  const remarks = releases[0]?.notes || '-';
   const dateOutWarehouse = setDate || releases[0]?.set_date;
 
   const handlePrint = () => {
@@ -69,6 +70,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 <th>Courier</th>
                 <th>Waybill No</th>
                 <th>Category</th>
+                <th>Remarks</th>
                 <th class="text-center">Boxes</th>
                 <th class="text-center">Qty</th>
               </tr>
@@ -81,6 +83,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 <td>${courier || '-'}</td>
                 <td>${waybillNo}</td>
                 <td>${category}</td>
+                <td>${remarks}</td>
                 <td class="text-center">${totalBoxes}</td>
                 <td class="text-center">${totalQty}</td>
               </tr>
@@ -149,6 +152,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                   <TableHead className="font-bold border-r">Courier</TableHead>
                   <TableHead className="font-bold border-r">Waybill No</TableHead>
                   <TableHead className="font-bold border-r">Category</TableHead>
+                  <TableHead className="font-bold border-r">Remarks</TableHead>
                   <TableHead className="font-bold text-center w-[80px] border-r">Boxes</TableHead>
                   <TableHead className="font-bold text-center w-[80px]">Qty</TableHead>
                 </TableRow>
@@ -161,6 +165,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                   <TableCell className="border-r">{courier || '-'}</TableCell>
                   <TableCell className="border-r">{waybillNo}</TableCell>
                   <TableCell className="border-r">{category}</TableCell>
+                  <TableCell className="border-r">{remarks}</TableCell>
                   <TableCell className="text-center border-r">{totalBoxes}</TableCell>
                   <TableCell className="text-center">{totalQty}</TableCell>
                 </TableRow>
