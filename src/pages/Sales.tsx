@@ -347,19 +347,19 @@ const Sales = () => {
             <thead>
               {/* Header Row 1 - Date headers */}
               <tr className="border-b border-border">
-                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={2}></th>
-                <th className="border border-border p-2 bg-muted/30 w-16" rowSpan={2}></th>
-                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={2}></th>
-                <th className="border border-border p-2 bg-muted/30" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30 w-14" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30 w-40" rowSpan={2}></th>
                 
                 {/* Date columns */}
                 {datePages.map((datePage, idx) => (
-                  <th key={datePage.id} colSpan={5} className={`border border-border p-2 text-center ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                    <div className="flex items-center justify-center gap-2">
+                  <th key={datePage.id} colSpan={5} className={`border border-border p-1 text-center ${idx % 2 === 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <div className="flex items-center justify-center gap-1">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <button className="text-primary font-bold hover:underline cursor-pointer">
-                            {format(datePage.date, 'EEEE, MMMM d, yyyy')}
+                          <button className={`font-bold hover:underline cursor-pointer text-xs ${idx % 2 === 0 ? 'text-green-800' : 'text-red-800'}`}>
+                            {format(datePage.date, 'EEEE,MMMM d,yyyy')}
                           </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="center">
@@ -377,68 +377,49 @@ const Sales = () => {
                           onClick={() => removeDatePage(datePage.id)}
                           className="text-red-500 hover:text-red-700"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </button>
                       )}
                     </div>
                   </th>
                 ))}
                 
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
-                </th>
-                
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
+                <th className="border border-border p-1 bg-yellow-100 text-center font-bold text-xs w-20" rowSpan={2}>
                   Running Sale<br/>{currentMonth} 1-{format(firstDate, 'd')}
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
+                <th className="border border-border p-1 bg-yellow-100 text-center font-bold text-xs w-20" rowSpan={2}>
                   SALES PLAN
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
-                  DIFFERENCE<br/>vs Quota
+                <th className="border border-border p-1 bg-yellow-100 text-center font-bold text-xs w-20" rowSpan={2}>
+                  DIFF<br/>vs Quota
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
-                  %<br/>ACHIEVED
+                <th className="border border-border p-1 bg-yellow-100 text-center font-bold text-xs w-16" rowSpan={2}>
+                  %
                 </th>
-                <th colSpan={3} className="border border-border p-2 bg-blue-100 text-center font-bold">
+                <th colSpan={3} className="border border-border p-1 bg-blue-100 text-center font-bold text-xs">
                   {prevYear} VS {currentYear}
                 </th>
-                {userRole === 'admin' && <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={3}></th>}
+                {userRole === 'admin' && <th className="border border-border p-1 bg-muted/30 w-8" rowSpan={2}></th>}
               </tr>
               
-              {/* Header Row 2 - MHB MLP MSH MUM TS for each date */}
-              <tr className="border-b border-border">
-                {datePages.map((datePage, idx) => (
-                  <>
-                    <th key={`${datePage.id}-mhb`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MHB</th>
-                    <th key={`${datePage.id}-mlp`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MLP</th>
-                    <th key={`${datePage.id}-msh`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MSH</th>
-                    <th key={`${datePage.id}-mum`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MUM</th>
-                    <th key={`${datePage.id}-ts`} className={`border border-border p-2 font-bold text-center w-24 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>TS</th>
-                  </>
-                ))}
-                <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">{currentMonth} {prevYear}</th>
-                <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">DIFFERENCE</th>
-                <th className="border border-border p-2 bg-blue-100 font-bold text-center w-20">% ACHIEVED</th>
-              </tr>
-              
-              {/* Header Row 3 - No., CAT, MP, METRO GROUP labels */}
+              {/* Header Row 2 - No., CAT, MP, METRO GROUP + MHB MLP MSH MUM TS for each date */}
               <tr className="border-b border-border bg-muted/50">
-                <th className="border border-border p-2 font-bold text-center w-12">No.</th>
-                <th className="border border-border p-2 font-bold text-center w-16">CAT</th>
-                <th className="border border-border p-2 font-bold text-center w-12">MP</th>
-                <th className="border border-border p-2 font-bold text-left">METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
+                <th className="border border-border p-1 font-bold text-center text-xs">No.</th>
+                <th className="border border-border p-1 font-bold text-center text-xs">CAT</th>
+                <th className="border border-border p-1 font-bold text-center text-xs">MP</th>
+                <th className="border border-border p-1 font-bold text-left text-xs">METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
                 {datePages.map((datePage, idx) => (
                   <>
-                    <th key={`${datePage.id}-h-mhb`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-mlp`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-msh`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-mum`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-ts`} className={`border border-border p-2 w-24 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
+                    <th key={`${datePage.id}-mhb`} className={`border border-border p-1 font-bold text-center text-xs w-16 ${idx % 2 === 0 ? 'bg-green-50' : 'bg-red-50'}`}>MHB</th>
+                    <th key={`${datePage.id}-mlp`} className={`border border-border p-1 font-bold text-center text-xs w-16 ${idx % 2 === 0 ? 'bg-green-50' : 'bg-red-50'}`}>MLP</th>
+                    <th key={`${datePage.id}-msh`} className={`border border-border p-1 font-bold text-center text-xs w-16 ${idx % 2 === 0 ? 'bg-green-50' : 'bg-red-50'}`}>MSH</th>
+                    <th key={`${datePage.id}-mum`} className={`border border-border p-1 font-bold text-center text-xs w-16 ${idx % 2 === 0 ? 'bg-green-50' : 'bg-red-50'}`}>MUM</th>
+                    <th key={`${datePage.id}-ts`} className="border border-border p-1 font-bold text-center text-xs w-20 bg-yellow-100">TS</th>
                   </>
                 ))}
-                <th className="border border-border p-2 bg-blue-50"></th>
-                <th className="border border-border p-2 bg-blue-50"></th>
-                <th className="border border-border p-2 bg-blue-50"></th>
+                <th className="border border-border p-1 bg-blue-50 font-bold text-center text-xs w-20">{currentMonth} {prevYear}</th>
+                <th className="border border-border p-1 bg-blue-50 font-bold text-center text-xs w-20">DIFF</th>
+                <th className="border border-border p-1 bg-blue-50 font-bold text-center text-xs w-14">%</th>
               </tr>
             </thead>
             <tbody>
@@ -487,7 +468,7 @@ const Sales = () => {
                       {datePages.map((datePage, idx) => {
                         const dateStr = format(datePage.date, 'yyyy-MM-dd');
                         const data = row.dateData[dateStr] || { mhb: 0, mlp: 0, msh: 0, mum: 0, ts: 0 };
-                        const bgClass = idx % 2 === 0 ? 'bg-red-50/30' : 'bg-green-50/30';
+                        const bgClass = idx % 2 === 0 ? 'bg-green-50/50' : 'bg-red-50/50';
                         
                         return (
                           <>
@@ -496,7 +477,7 @@ const Sales = () => {
                                 type="number"
                                 value={data.mhb || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'mhb', Number(e.target.value) || 0)}
-                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-1 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
@@ -505,7 +486,7 @@ const Sales = () => {
                                 type="number"
                                 value={data.mlp || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'mlp', Number(e.target.value) || 0)}
-                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-1 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
@@ -514,7 +495,7 @@ const Sales = () => {
                                 type="number"
                                 value={data.msh || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'msh', Number(e.target.value) || 0)}
-                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-1 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
@@ -523,25 +504,22 @@ const Sales = () => {
                                 type="number"
                                 value={data.mum || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'mum', Number(e.target.value) || 0)}
-                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-1 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td key={`${datePage.id}-${index}-ts`} className={`border border-border p-0 ${bgClass}`}>
+                            <td key={`${datePage.id}-${index}-ts`} className="border border-border p-0 bg-yellow-50">
                               <Input
                                 type="number"
                                 value={data.ts || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'ts', Number(e.target.value) || 0)}
-                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-1 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
                           </>
                         );
                       })}
-                      
-                      {/* Empty cell under Add New Page button */}
-                      <td className="border border-border p-2 bg-yellow-50"></td>
                       
                       {/* Running Sale */}
                       <td className="border border-border p-0 bg-yellow-50">
@@ -609,38 +587,37 @@ const Sales = () => {
               
               {/* Totals row */}
               {rows.length > 0 && (
-                <tr className="bg-muted/50 font-bold">
-                  <td className="border border-border p-2 text-center">{rows.length}</td>
-                  <td className="border border-border p-2"></td>
-                  <td className="border border-border p-2"></td>
-                  <td className="border border-border p-2">Metro Sales Total</td>
+                <tr className="bg-muted/50 font-bold text-xs">
+                  <td className="border border-border p-1 text-center">{rows.length}</td>
+                  <td className="border border-border p-1"></td>
+                  <td className="border border-border p-1"></td>
+                  <td className="border border-border p-1">Metro Sales Total</td>
                   
                   {/* Date totals */}
                   {datePages.map((datePage, idx) => {
                     const dateStr = format(datePage.date, 'yyyy-MM-dd');
                     const dateTotals = calculateDateTotals(dateStr);
-                    const bgClass = idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100';
+                    const bgClass = idx % 2 === 0 ? 'bg-green-100' : 'bg-red-100';
                     
                     return (
                       <>
-                        <td key={`${datePage.id}-total-mhb`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mhb)}</td>
-                        <td key={`${datePage.id}-total-mlp`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mlp)}</td>
-                        <td key={`${datePage.id}-total-msh`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.msh)}</td>
-                        <td key={`${datePage.id}-total-mum`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mum)}</td>
-                        <td key={`${datePage.id}-total-ts`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.ts)}</td>
+                        <td key={`${datePage.id}-total-mhb`} className={`border border-border p-1 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mhb)}</td>
+                        <td key={`${datePage.id}-total-mlp`} className={`border border-border p-1 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mlp)}</td>
+                        <td key={`${datePage.id}-total-msh`} className={`border border-border p-1 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.msh)}</td>
+                        <td key={`${datePage.id}-total-mum`} className={`border border-border p-1 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mum)}</td>
+                        <td key={`${datePage.id}-total-ts`} className="border border-border p-1 text-right tabular-nums bg-yellow-100">{formatNumber(dateTotals.ts)}</td>
                       </>
                     );
                   })}
                   
-                  <td className="border border-border p-2 bg-yellow-100"></td>
-                  <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.running_sale)}</td>
-                  <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.sales_plan)}</td>
-                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalDiffQuota)}`}>{formatNumber(totalDiffQuota)}</td>
-                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalPercentAchieved - 100)}`}>{formatPercent(totalPercentAchieved)}</td>
-                  <td className="border border-border p-2 text-right tabular-nums bg-blue-100">{formatNumber(totals.dec_2024)}</td>
-                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalDiff2024)}`}>{formatNumber(totalDiff2024)}</td>
-                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalPercent2024)}`}>{formatPercent(totalPercent2024)}</td>
-                  {userRole === 'admin' && <td className="border border-border p-2"></td>}
+                  <td className="border border-border p-1 text-right tabular-nums bg-yellow-100">{formatNumber(totals.running_sale)}</td>
+                  <td className="border border-border p-1 text-right tabular-nums bg-yellow-100">{formatNumber(totals.sales_plan)}</td>
+                  <td className={`border border-border p-1 text-right tabular-nums ${getColorClass(totalDiffQuota)}`}>{formatNumber(totalDiffQuota)}</td>
+                  <td className={`border border-border p-1 text-right tabular-nums ${getColorClass(totalPercentAchieved - 100)}`}>{formatPercent(totalPercentAchieved)}</td>
+                  <td className="border border-border p-1 text-right tabular-nums bg-blue-100">{formatNumber(totals.dec_2024)}</td>
+                  <td className={`border border-border p-1 text-right tabular-nums ${getColorClass(totalDiff2024)}`}>{formatNumber(totalDiff2024)}</td>
+                  <td className={`border border-border p-1 text-right tabular-nums ${getColorClass(totalPercent2024)}`}>{formatPercent(totalPercent2024)}</td>
+                  {userRole === 'admin' && <td className="border border-border p-1"></td>}
                 </tr>
               )}
             </tbody>
