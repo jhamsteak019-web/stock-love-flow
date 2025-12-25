@@ -330,6 +330,9 @@ const Deliveries = () => {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Select Order Received Date</DialogTitle>
+            <DialogDescription>
+              Choose the date when the order was received at {deliveredDateGroup?.destination}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-4">
             <Calendar
