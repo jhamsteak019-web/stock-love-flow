@@ -38,6 +38,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   const navItems = [
     { 
+      to: '/dashboard', 
+      icon: LayoutDashboard, 
+      label: 'Dashboard',
+      roles: ['admin', 'staff']
+    },
+    { 
       to: '/release', 
       icon: PackagePlus, 
       label: 'OUT WAREHOUSE DELIVERY',
