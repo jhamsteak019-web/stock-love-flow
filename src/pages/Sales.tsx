@@ -4,50 +4,33 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { Plus, CalendarIcon, Trash2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Save } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 
-interface SalesRecord {
-  id: string;
+interface SalesRow {
+  id?: string;
   category: string;
   mp: string;
   branch_name: string;
-  sale_date: string;
   mhb: number;
   mlp: number;
   msh: number;
   mum: number;
   ts: number;
-  created_by: string | null;
-  created_at: string;
+  isNew?: boolean;
+  isDirty?: boolean;
 }
 
 const Sales = () => {
   const { user, userRole } = useAuth();
-  const [sales, setSales] = useState<SalesRecord[]>([]);
+  const [rows, setRows] = useState<SalesRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [saving, setSaving] = useState(false);
   const [filterDate, setFilterDate] = useState<Date>(new Date());
-  
-  const [formData, setFormData] = useState({
-    category: '',
-    mp: '',
-    branch_name: '',
-    mhb: 0,
-    mlp: 0,
-    msh: 0,
-    mum: 0,
-    ts: 0,
-  });
 
   const fetchSales = async () => {
     setLoading(true);
@@ -64,7 +47,20 @@ const Sales = () => {
       toast.error('Failed to fetch sales data');
       console.error(error);
     } else {
-      setSales(data || []);
+      const salesRows: SalesRow[] = (data || []).map(sale => ({
+        id: sale.id,
+        category: sale.category,
+        mp: sale.mp,
+        branch_name: sale.branch_name,
+        mhb: Number(sale.mhb) || 0,
+        mlp: Number(sale.mlp) || 0,
+        msh: Number(sale.msh) || 0,
+        mum: Number(sale.mum) || 0,
+        ts: Number(sale.ts) || 0,
+        isNew: false,
+        isDirty: false,
+      }));
+      setRows(salesRows);
     }
     setLoading(false);
   };
@@ -73,62 +69,101 @@ const Sales = () => {
     fetchSales();
   }, [filterDate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCellChange = (index: number, field: keyof SalesRow, value: string | number) => {
+    setRows(prev => prev.map((row, i) => {
+      if (i === index) {
+        return { ...row, [field]: value, isDirty: true };
+      }
+      return row;
+    }));
+  };
+
+  const addNewRow = () => {
+    setRows(prev => [...prev, {
+      category: '',
+      mp: '',
+      branch_name: '',
+      mhb: 0,
+      mlp: 0,
+      msh: 0,
+      mum: 0,
+      ts: 0,
+      isNew: true,
+      isDirty: true,
+    }]);
+  };
+
+  const deleteRow = async (index: number) => {
+    const row = rows[index];
     
-    if (!formData.category || !formData.mp || !formData.branch_name) {
-      toast.error('Please fill in all required fields');
-      return;
+    if (row.id) {
+      const { error } = await supabase.from('sales').delete().eq('id', row.id);
+      if (error) {
+        toast.error('Failed to delete row');
+        return;
+      }
     }
-
-    const { error } = await supabase.from('sales').insert({
-      ...formData,
-      sale_date: format(selectedDate, 'yyyy-MM-dd'),
-      created_by: user?.id,
-    });
-
-    if (error) {
-      toast.error('Failed to add sales record');
-      console.error(error);
-    } else {
-      toast.success('Sales record added successfully');
-      setIsDialogOpen(false);
-      setFormData({
-        category: '',
-        mp: '',
-        branch_name: '',
-        mhb: 0,
-        mlp: 0,
-        msh: 0,
-        mum: 0,
-        ts: 0,
-      });
-      fetchSales();
-    }
+    
+    setRows(prev => prev.filter((_, i) => i !== index));
+    toast.success('Row deleted');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this record?')) return;
+  const saveAllChanges = async () => {
+    setSaving(true);
+    const dateStr = format(filterDate, 'yyyy-MM-dd');
+    
+    try {
+      for (const row of rows) {
+        if (!row.isDirty) continue;
+        
+        if (!row.category || !row.mp || !row.branch_name) {
+          toast.error('Please fill in CAT, MP, and Branch Name for all rows');
+          setSaving(false);
+          return;
+        }
 
-    const { error } = await supabase.from('sales').delete().eq('id', id);
+        const rowData = {
+          category: row.category,
+          mp: row.mp,
+          branch_name: row.branch_name,
+          mhb: row.mhb,
+          mlp: row.mlp,
+          msh: row.msh,
+          mum: row.mum,
+          ts: row.ts,
+          sale_date: dateStr,
+          created_by: user?.id,
+        };
 
-    if (error) {
-      toast.error('Failed to delete record');
-      console.error(error);
-    } else {
-      toast.success('Record deleted');
+        if (row.isNew) {
+          const { error } = await supabase.from('sales').insert(rowData);
+          if (error) throw error;
+        } else if (row.id) {
+          const { error } = await supabase.from('sales').update(rowData).eq('id', row.id);
+          if (error) throw error;
+        }
+      }
+      
+      toast.success('All changes saved');
       fetchSales();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to save changes');
     }
+    
+    setSaving(false);
   };
+
+  const hasChanges = rows.some(row => row.isDirty);
 
   // Calculate totals
-  const totals = sales.reduce(
-    (acc, sale) => ({
-      mhb: acc.mhb + Number(sale.mhb || 0),
-      mlp: acc.mlp + Number(sale.mlp || 0),
-      msh: acc.msh + Number(sale.msh || 0),
-      mum: acc.mum + Number(sale.mum || 0),
-      ts: acc.ts + Number(sale.ts || 0),
+  const totals = rows.reduce(
+    (acc, row) => ({
+      mhb: acc.mhb + Number(row.mhb || 0),
+      mlp: acc.mlp + Number(row.mlp || 0),
+      msh: acc.msh + Number(row.msh || 0),
+      mum: acc.mum + Number(row.mum || 0),
+      ts: acc.ts + Number(row.ts || 0),
     }),
     { mhb: 0, mlp: 0, msh: 0, mum: 0, ts: 0 }
   );
@@ -148,7 +183,7 @@ const Sales = () => {
             <PopoverTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <CalendarIcon className="h-4 w-4" />
-                {format(filterDate, 'MMMM d, yyyy')}
+                {format(filterDate, 'EEEE, MMMM d, yyyy')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -162,84 +197,18 @@ const Sales = () => {
           </Popover>
 
           {userRole === 'admin' && (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Sale
+            <>
+              <Button variant="outline" onClick={addNewRow} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Row
+              </Button>
+              {hasChanges && (
+                <Button onClick={saveAllChanges} disabled={saving} className="gap-2">
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Saving...' : 'Save All'}
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Sales Record</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Input
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        placeholder="Enter category"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>MP</Label>
-                      <Input
-                        value={formData.mp}
-                        onChange={(e) => setFormData({ ...formData, mp: e.target.value })}
-                        placeholder="Enter MP"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Branch</Label>
-                    <Input
-                      value={formData.branch_name}
-                      onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
-                      placeholder="Enter branch name"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(selectedDate, 'PPP')}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={(date) => date && setSelectedDate(date)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="grid grid-cols-5 gap-2">
-                    {['mhb', 'mlp', 'msh', 'mum', 'ts'].map((field) => (
-                      <div key={field} className="space-y-1">
-                        <Label className="text-xs uppercase">{field}</Label>
-                        <Input
-                          type="number"
-                          value={formData[field as keyof typeof formData]}
-                          onChange={(e) => setFormData({ ...formData, [field]: Number(e.target.value) })}
-                          className="text-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button type="submit" className="w-full">Add Record</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -260,44 +229,103 @@ const Sales = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-12 text-center font-bold">No.</TableHead>
-                    <TableHead className="w-16 text-center font-bold">CAT</TableHead>
-                    <TableHead className="w-12 text-center font-bold">MP</TableHead>
-                    <TableHead className="font-bold">Branch Name</TableHead>
-                    <TableHead className="w-24 text-right font-bold">MHB</TableHead>
-                    <TableHead className="w-24 text-right font-bold">MLP</TableHead>
-                    <TableHead className="w-24 text-right font-bold">MSH</TableHead>
-                    <TableHead className="w-24 text-right font-bold">MUM</TableHead>
-                    <TableHead className="w-24 text-right font-bold">TS</TableHead>
+                    <TableHead className="w-20 text-center font-bold">CAT</TableHead>
+                    <TableHead className="w-16 text-center font-bold">MP</TableHead>
+                    <TableHead className="w-48 font-bold">Branch Name</TableHead>
+                    <TableHead className="w-28 text-center font-bold">MHB</TableHead>
+                    <TableHead className="w-28 text-center font-bold">MLP</TableHead>
+                    <TableHead className="w-28 text-center font-bold">MSH</TableHead>
+                    <TableHead className="w-28 text-center font-bold">MUM</TableHead>
+                    <TableHead className="w-28 text-center font-bold">TS</TableHead>
                     {userRole === 'admin' && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.length === 0 ? (
+                  {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={userRole === 'admin' ? 10 : 9} className="text-center py-8 text-muted-foreground">
-                        No sales records for this date
+                      <TableCell colSpan={userRole === 'admin' ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                        No sales records for this date. Click "Add Row" to start.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sales.map((sale, index) => (
-                      <TableRow key={sale.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
-                        <TableCell className="text-center">{index + 1}</TableCell>
-                        <TableCell className="text-center font-medium">{sale.category}</TableCell>
-                        <TableCell className="text-center">{sale.mp}</TableCell>
-                        <TableCell>{sale.branch_name}</TableCell>
-                        <TableCell className="text-right tabular-nums">{Number(sale.mhb).toLocaleString()}</TableCell>
-                        <TableCell className="text-right tabular-nums">{Number(sale.mlp).toLocaleString()}</TableCell>
-                        <TableCell className="text-right tabular-nums">{Number(sale.msh).toLocaleString()}</TableCell>
-                        <TableCell className="text-right tabular-nums">{Number(sale.mum).toLocaleString()}</TableCell>
-                        <TableCell className="text-right tabular-nums">{Number(sale.ts).toLocaleString()}</TableCell>
+                    rows.map((row, index) => (
+                      <TableRow key={row.id || `new-${index}`} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                        <TableCell className="p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) => handleCellChange(index, 'category', e.target.value)}
+                            className="h-8 text-center text-sm"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            value={row.mp}
+                            onChange={(e) => handleCellChange(index, 'mp', e.target.value)}
+                            className="h-8 text-center text-sm"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            value={row.branch_name}
+                            onChange={(e) => handleCellChange(index, 'branch_name', e.target.value)}
+                            className="h-8 text-sm"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="number"
+                            value={row.mhb || ''}
+                            onChange={(e) => handleCellChange(index, 'mhb', Number(e.target.value) || 0)}
+                            className="h-8 text-right text-sm tabular-nums"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="number"
+                            value={row.mlp || ''}
+                            onChange={(e) => handleCellChange(index, 'mlp', Number(e.target.value) || 0)}
+                            className="h-8 text-right text-sm tabular-nums"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="number"
+                            value={row.msh || ''}
+                            onChange={(e) => handleCellChange(index, 'msh', Number(e.target.value) || 0)}
+                            className="h-8 text-right text-sm tabular-nums"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="number"
+                            value={row.mum || ''}
+                            onChange={(e) => handleCellChange(index, 'mum', Number(e.target.value) || 0)}
+                            className="h-8 text-right text-sm tabular-nums"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="number"
+                            value={row.ts || ''}
+                            onChange={(e) => handleCellChange(index, 'ts', Number(e.target.value) || 0)}
+                            className="h-8 text-right text-sm tabular-nums"
+                            disabled={userRole !== 'admin'}
+                          />
+                        </TableCell>
                         {userRole === 'admin' && (
-                          <TableCell>
+                          <TableCell className="p-1">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(sale.id)}
+                              onClick={() => deleteRow(index)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -306,22 +334,22 @@ const Sales = () => {
                       </TableRow>
                     ))
                   )}
-                  {sales.length > 0 && (
+                  {rows.length > 0 && (
                     <TableRow className="bg-primary/10 font-bold border-t-2 border-primary">
-                      <TableCell colSpan={4} className="text-right">
+                      <TableCell colSpan={3} className="text-right font-bold">
                         Metro Sales Total:
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{totals.mhb.toLocaleString()}</TableCell>
-                      <TableCell className="text-right tabular-nums">{totals.mlp.toLocaleString()}</TableCell>
-                      <TableCell className="text-right tabular-nums">{totals.msh.toLocaleString()}</TableCell>
-                      <TableCell className="text-right tabular-nums">{totals.mum.toLocaleString()}</TableCell>
-                      <TableCell className="text-right tabular-nums">{totals.ts.toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums p-2">{totals.mhb.toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums p-2">{totals.mlp.toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums p-2">{totals.msh.toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums p-2">{totals.mum.toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums p-2">{totals.ts.toLocaleString()}</TableCell>
                       {userRole === 'admin' && <TableCell></TableCell>}
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
-              {sales.length > 0 && (
+              {rows.length > 0 && (
                 <div className="mt-4 text-right">
                   <span className="text-lg font-bold">Grand Total: </span>
                   <span className="text-xl font-bold text-primary">{grandTotal.toLocaleString()}</span>
