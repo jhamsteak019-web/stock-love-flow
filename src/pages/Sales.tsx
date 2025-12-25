@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -352,25 +352,23 @@ const Sales = () => {
           <table className="w-full border-collapse text-sm">
             <thead>
               {/* Header Row 1 - Main headers */}
-              <tr className="border-b-2 border-black bg-white">
-                <th className="border border-black p-2 font-bold text-center w-12 align-middle text-xs" rowSpan={2}>No.</th>
-                <th className="border border-black p-2 font-bold text-center w-16 align-middle text-xs" rowSpan={2}>CAT</th>
-                <th className="border border-black p-2 font-bold text-center w-12 align-middle text-xs" rowSpan={2}>MP</th>
-                <th className="border border-black p-2 bg-blue-600 text-white font-bold text-center align-middle text-base" rowSpan={2}>
-                  METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}
-                </th>
+              <tr className="border-b border-border">
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12" rowSpan={2}>No.</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-16" rowSpan={2}>CAT</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12" rowSpan={2}>MP</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-left" rowSpan={2}>METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
                 
                 {/* Date columns */}
                 {datePages.map((datePage, idx) => (
-                  <th key={datePage.id} colSpan={5} className={`border border-black p-2 text-center ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                  <th key={datePage.id} colSpan={5} className={`border border-border p-2 text-center ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}>
                     <div className="flex items-center justify-center gap-2">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <button className="text-primary font-bold hover:underline cursor-pointer text-xs">
+                          <button className="text-primary font-bold hover:underline cursor-pointer">
                             {format(datePage.date, 'EEEE,MMMM d,yyyy')}
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 bg-background" align="center">
+                        <PopoverContent className="w-auto p-0" align="center">
                           <Calendar
                             mode="single"
                             selected={datePage.date}
@@ -392,40 +390,40 @@ const Sales = () => {
                   </th>
                 ))}
                 
-                <th className="border border-black p-2 bg-yellow-100 text-center font-bold align-middle text-xs" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   Running Sale<br/>{currentMonth} 1-{format(firstDate, 'd')}
                 </th>
-                <th className="border border-black p-2 bg-yellow-100 text-center font-bold align-middle text-xs" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   SALES PLAN
                 </th>
-                <th className="border border-black p-2 bg-yellow-100 text-center font-bold align-middle text-xs" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   DIFFERENCE<br/>vs Quota
                 </th>
-                <th className="border border-black p-2 bg-yellow-100 text-center font-bold align-middle text-xs" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   %<br/>ACHIEVED
                 </th>
-                <th colSpan={2} className="border border-black p-2 bg-blue-100 text-center font-bold text-xs">
+                <th colSpan={2} className="border border-border p-2 bg-blue-100 text-center font-bold">
                   {prevYear} VS {currentYear}
                 </th>
-                <th className="border border-black p-2 bg-blue-100 text-center font-bold align-middle text-xs" rowSpan={2}>
+                <th className="border border-border p-2 bg-blue-100 text-center font-bold" rowSpan={2}>
                   %<br/>ACHIEVED
                 </th>
-                {userRole === 'admin' && <th className="border border-black p-2 bg-muted/30 w-10 align-middle" rowSpan={2}></th>}
+                {userRole === 'admin' && <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={2}></th>}
               </tr>
               
               {/* Header Row 2 - Sub-headers */}
-              <tr className="border-b-2 border-black bg-white">
+              <tr className="border-b border-border">
                 {datePages.map((datePage, idx) => (
-                  <React.Fragment key={datePage.id}>
-                    <th className={`border border-black p-1 font-bold text-center w-20 text-xs ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MHB</th>
-                    <th className={`border border-black p-1 font-bold text-center w-20 text-xs ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MLP</th>
-                    <th className={`border border-black p-1 font-bold text-center w-20 text-xs ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MSH</th>
-                    <th className={`border border-black p-1 font-bold text-center w-20 text-xs ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MUM</th>
-                    <th className={`border border-black p-1 font-bold text-center w-24 text-xs ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>TS</th>
-                  </React.Fragment>
+                  <>
+                    <th key={`${datePage.id}-mhb`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MHB</th>
+                    <th key={`${datePage.id}-mlp`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MLP</th>
+                    <th key={`${datePage.id}-msh`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MSH</th>
+                    <th key={`${datePage.id}-mum`} className={`border border-border p-2 font-bold text-center w-20 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>MUM</th>
+                    <th key={`${datePage.id}-ts`} className={`border border-border p-2 font-bold text-center w-24 ${idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100'}`}>TS</th>
+                  </>
                 ))}
-                <th className="border border-black p-1 bg-blue-100 font-bold text-center w-24 text-xs">{currentMonth} {prevYear}</th>
-                <th className="border border-black p-1 bg-blue-100 font-bold text-center w-24 text-xs">DIFFERENCE</th>
+                <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">{currentMonth} {prevYear}</th>
+                <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">DIFFERENCE</th>
               </tr>
             </thead>
             <tbody>
@@ -443,29 +441,29 @@ const Sales = () => {
                   const percent2024 = calcPercent2024(row.running_sale, row.dec_2024);
 
                   return (
-                    <tr key={row.id || `new-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-blue-50'}>
-                      <td className="border border-black p-1 text-center font-medium text-xs">{index + 1}</td>
-                      <td className="border border-black p-0 bg-blue-100">
+                    <tr key={row.id || `new-${index}`} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                      <td className="border border-border p-1 text-center font-medium">{index + 1}</td>
+                      <td className="border border-border p-0">
                         <Input
                           value={row.category}
                           onChange={(e) => handleCellChange(index, 'category', e.target.value)}
-                          className="h-7 text-center text-xs font-medium border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset bg-transparent"
+                          className="h-8 text-center text-sm border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset"
                           disabled={userRole !== 'admin'}
                         />
                       </td>
-                      <td className="border border-black p-0">
+                      <td className="border border-border p-0">
                         <Input
                           value={row.mp}
                           onChange={(e) => handleCellChange(index, 'mp', e.target.value)}
-                          className="h-7 text-center text-xs border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset bg-transparent"
+                          className="h-8 text-center text-sm border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset"
                           disabled={userRole !== 'admin'}
                         />
                       </td>
-                      <td className="border border-black p-0">
+                      <td className="border border-border p-0">
                         <Input
                           value={row.branch_name}
                           onChange={(e) => handleCellChange(index, 'branch_name', e.target.value)}
-                          className="h-7 text-xs border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset bg-transparent"
+                          className="h-8 text-sm border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset"
                           disabled={userRole !== 'admin'}
                         />
                       </td>
@@ -477,99 +475,99 @@ const Sales = () => {
                         const bgClass = idx % 2 === 0 ? 'bg-red-50/30' : 'bg-green-50/30';
                         
                         return (
-                          <React.Fragment key={datePage.id}>
-                            <td className={`border border-black p-0 ${bgClass}`}>
+                          <>
+                            <td key={`${datePage.id}-${index}-mhb`} className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.mhb || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'mhb', Number(e.target.value) || 0)}
-                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td className={`border border-black p-0 ${bgClass}`}>
+                            <td key={`${datePage.id}-${index}-mlp`} className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.mlp || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'mlp', Number(e.target.value) || 0)}
-                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td className={`border border-black p-0 ${bgClass}`}>
+                            <td key={`${datePage.id}-${index}-msh`} className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.msh || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'msh', Number(e.target.value) || 0)}
-                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td className={`border border-black p-0 ${bgClass}`}>
+                            <td key={`${datePage.id}-${index}-mum`} className={`border border-border p-0 ${bgClass}`}>
                               <Input
                                 type="number"
                                 value={data.mum || ''}
                                 onChange={(e) => handleDateDataChange(index, dateStr, 'mum', Number(e.target.value) || 0)}
-                                className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td className={`border border-black p-1 text-right tabular-nums font-medium text-xs ${bgClass}`}>
+                            <td key={`${datePage.id}-${index}-ts`} className={`border border-border p-2 text-right tabular-nums font-medium ${bgClass}`}>
                               {formatNumber(data.mhb + data.mlp + data.msh + data.mum)}
                             </td>
-                          </React.Fragment>
+                          </>
                         );
                       })}
                       
                       {/* Running Sale */}
-                      <td className="border border-black p-0 bg-yellow-50">
+                      <td className="border border-border p-0 bg-yellow-50">
                         <Input
                           type="number"
                           value={row.running_sale || ''}
                           onChange={(e) => handleCellChange(index, 'running_sale', Number(e.target.value) || 0)}
-                          className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                          className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                           disabled={userRole !== 'admin'}
                         />
                       </td>
                       {/* Sales Plan */}
-                      <td className="border border-black p-0 bg-yellow-50">
+                      <td className="border border-border p-0 bg-yellow-50">
                         <Input
                           type="number"
                           value={row.sales_plan || ''}
                           onChange={(e) => handleCellChange(index, 'sales_plan', Number(e.target.value) || 0)}
-                          className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                          className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                           disabled={userRole !== 'admin'}
                         />
                       </td>
                       {/* Difference vs Quota */}
-                      <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(diffQuota)}`}>
+                      <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(diffQuota)}`}>
                         {formatNumber(diffQuota)}
                       </td>
                       {/* % Achieved */}
-                      <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(percentAchieved - 100)}`}>
+                      <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(percentAchieved - 100)}`}>
                         {formatPercent(percentAchieved)}
                       </td>
                       {/* Dec 2024 */}
-                      <td className="border border-black p-0 bg-blue-50">
+                      <td className="border border-border p-0 bg-blue-50">
                         <Input
                           type="number"
                           value={row.dec_2024 || ''}
                           onChange={(e) => handleCellChange(index, 'dec_2024', Number(e.target.value) || 0)}
-                          className="h-7 text-right text-xs tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
+                          className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
                           disabled={userRole !== 'admin'}
                         />
                       </td>
                       {/* Difference 2024 */}
-                      <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(diff2024)}`}>
+                      <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(diff2024)}`}>
                         {formatNumber(diff2024)}
                       </td>
                       {/* % Achieved 2024 */}
-                      <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(percent2024)}`}>
+                      <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(percent2024)}`}>
                         {formatPercent(percent2024)}
                       </td>
                       {/* Delete button */}
                       {userRole === 'admin' && (
-                        <td className="border border-black p-1 text-center">
+                        <td className="border border-border p-1 text-center">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -587,11 +585,11 @@ const Sales = () => {
               
               {/* Totals row */}
               {rows.length > 0 && (
-                <tr className="bg-yellow-100 font-bold">
-                  <td className="border border-black p-1 text-center text-xs">{rows.length}</td>
-                  <td className="border border-black p-1 text-xs"></td>
-                  <td className="border border-black p-1 text-xs"></td>
-                  <td className="border border-black p-1 text-xs">Metro Sales Total</td>
+                <tr className="bg-muted/50 font-bold">
+                  <td className="border border-border p-2 text-center">{rows.length}</td>
+                  <td className="border border-border p-2"></td>
+                  <td className="border border-border p-2"></td>
+                  <td className="border border-border p-2">Metro Sales Total</td>
                   
                   {/* Date totals */}
                   {datePages.map((datePage, idx) => {
@@ -600,23 +598,23 @@ const Sales = () => {
                     const bgClass = idx % 2 === 0 ? 'bg-red-100' : 'bg-green-100';
                     
                     return (
-                      <React.Fragment key={datePage.id}>
-                        <td className={`border border-black p-1 text-right tabular-nums text-xs ${bgClass}`}>{formatNumber(dateTotals.mhb)}</td>
-                        <td className={`border border-black p-1 text-right tabular-nums text-xs ${bgClass}`}>{formatNumber(dateTotals.mlp)}</td>
-                        <td className={`border border-black p-1 text-right tabular-nums text-xs ${bgClass}`}>{formatNumber(dateTotals.msh)}</td>
-                        <td className={`border border-black p-1 text-right tabular-nums text-xs ${bgClass}`}>{formatNumber(dateTotals.mum)}</td>
-                        <td className={`border border-black p-1 text-right tabular-nums text-xs ${bgClass}`}>{formatNumber(dateTotals.ts)}</td>
-                      </React.Fragment>
+                      <>
+                        <td key={`${datePage.id}-total-mhb`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mhb)}</td>
+                        <td key={`${datePage.id}-total-mlp`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mlp)}</td>
+                        <td key={`${datePage.id}-total-msh`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.msh)}</td>
+                        <td key={`${datePage.id}-total-mum`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.mum)}</td>
+                        <td key={`${datePage.id}-total-ts`} className={`border border-border p-2 text-right tabular-nums ${bgClass}`}>{formatNumber(dateTotals.ts)}</td>
+                      </>
                     );
                   })}
-                  <td className="border border-black p-1 text-right tabular-nums text-xs bg-yellow-100">{formatNumber(totals.running_sale)}</td>
-                  <td className="border border-black p-1 text-right tabular-nums text-xs bg-yellow-100">{formatNumber(totals.sales_plan)}</td>
-                  <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(totalDiffQuota)}`}>{formatNumber(totalDiffQuota)}</td>
-                  <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(totalPercentAchieved - 100)}`}>{formatPercent(totalPercentAchieved)}</td>
-                  <td className="border border-black p-1 text-right tabular-nums text-xs bg-blue-100">{formatNumber(totals.dec_2024)}</td>
-                  <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(totalDiff2024)}`}>{formatNumber(totalDiff2024)}</td>
-                  <td className={`border border-black p-1 text-right tabular-nums text-xs ${getColorClass(totalPercent2024)}`}>{formatPercent(totalPercent2024)}</td>
-                  {userRole === 'admin' && <td className="border border-black p-1"></td>}
+                  <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.running_sale)}</td>
+                  <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.sales_plan)}</td>
+                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalDiffQuota)}`}>{formatNumber(totalDiffQuota)}</td>
+                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalPercentAchieved - 100)}`}>{formatPercent(totalPercentAchieved)}</td>
+                  <td className="border border-border p-2 text-right tabular-nums bg-blue-100">{formatNumber(totals.dec_2024)}</td>
+                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalDiff2024)}`}>{formatNumber(totalDiff2024)}</td>
+                  <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalPercent2024)}`}>{formatPercent(totalPercent2024)}</td>
+                  {userRole === 'admin' && <td className="border border-border p-2"></td>}
                 </tr>
               )}
             </tbody>
