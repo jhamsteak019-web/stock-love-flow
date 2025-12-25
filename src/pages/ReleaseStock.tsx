@@ -380,11 +380,13 @@ const ReleaseStock = () => {
     setSheetNoSearch('');
   };
 
-  // Filter parsed items by sheet no search
+  // Filter parsed items by sheet no or destination search
   const filteredParsedItems = useMemo(() => {
     if (!sheetNoSearch.trim()) return parsedItems;
+    const searchLower = sheetNoSearch.toLowerCase();
     return parsedItems.filter(item => 
-      item.sheetNo.toLowerCase().includes(sheetNoSearch.toLowerCase())
+      item.sheetNo.toLowerCase().includes(searchLower) ||
+      item.deliverTo.toLowerCase().includes(searchLower)
     );
   }, [parsedItems, sheetNoSearch]);
 
@@ -486,7 +488,7 @@ const ReleaseStock = () => {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search Sheet No..."
+                    placeholder="Search Sheet No. or Branch..."
                     value={sheetNoSearch}
                     onChange={(e) => setSheetNoSearch(e.target.value)}
                     className="h-8 w-[180px] pl-8 text-sm"
