@@ -343,7 +343,7 @@ const Sales = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : (
-          <table className="w-full border-collapse text-sm">
+          <table className="border-collapse text-sm table-fixed">
             <thead>
               {/* Header Row 1 - Date headers */}
               <tr className="border-b border-border">
