@@ -147,6 +147,8 @@ const History = () => {
         if (group.destination.toLowerCase().includes(query)) return true;
         if (group.courier?.toLowerCase().includes(query)) return true;
         if (group.delivery_status.toLowerCase().includes(query)) return true;
+        if (group.allocation_bill?.toLowerCase().includes(query)) return true;
+        if (group.waybill_no?.toLowerCase().includes(query)) return true;
         
         const itemMatch = group.items.some(item => 
           item.inventory_item?.item_name?.toLowerCase().includes(query) ||
@@ -346,7 +348,7 @@ const History = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by destination, courier, item name, or status..."
+                placeholder="Search by allocation bill, waybill, destination, courier..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
