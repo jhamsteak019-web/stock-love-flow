@@ -87,6 +87,11 @@ const Dashboard = () => {
                     <div>
                       <p className="font-medium text-foreground">
                         {release.inventory_item?.item_name || 'Unknown Item'}
+                        {release.category && (
+                          <span className="ml-2 text-xs font-normal text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            {release.category}
+                          </span>
+                        )}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {release.destination} • {release.boxes_released} boxes

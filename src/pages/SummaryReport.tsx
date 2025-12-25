@@ -23,6 +23,7 @@ const SummaryReport = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
+  const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
 
   // Get available years from releases
   const availableYears = useMemo(() => {
@@ -236,15 +237,33 @@ const SummaryReport = () => {
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);
   }, [filteredReleases]);
 
-  // Get all unique categories (only from delivered releases)
+  // Get all unique categories (from all releases)
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     filteredReleases
-      .filter(release => release.delivery_status === 'delivered')
       .forEach(release => {
         if (release.category) cats.add(release.category);
       });
     return Array.from(cats).sort();
+  }, [filteredReleases]);
+
+  // Get categories per branch
+  const categoriesPerBranch = useMemo(() => {
+    const branchCategories: Record<string, string[]> = {};
+    filteredReleases.forEach(release => {
+      const branch = release.destination || 'Unknown';
+      if (!branchCategories[branch]) {
+        branchCategories[branch] = [];
+      }
+      if (release.category && !branchCategories[branch].includes(release.category)) {
+        branchCategories[branch].push(release.category);
+      }
+    });
+    // Sort categories in each branch
+    Object.keys(branchCategories).forEach(branch => {
+      branchCategories[branch].sort();
+    });
+    return branchCategories;
   }, [filteredReleases]);
 
   // Total statistics
@@ -852,12 +871,26 @@ const SummaryReport = () => {
               {filteredDeliveredByBranch.length > 0 ? (
                 <div className="space-y-6">
                   {filteredDeliveredByBranch.map(branch => {
+                    // Get category filter for this branch
+                    const selectedCategory = branchCategoryFilters[branch.branch] || 'all';
+                    
+                    // Filter items by category if a category is selected
+                    const filteredItems = selectedCategory === 'all' 
+                      ? branch.items 
+                      : branch.items.filter(item => item.category === selectedCategory);
+                    
+                    const filteredTotalBoxes = filteredItems.reduce((sum, item) => sum + item.boxes, 0);
+                    const filteredTotalQty = filteredItems.reduce((sum, item) => sum + item.qty, 0);
+                    
                     // Count unique allocation bills
                     const uniqueAllocationBills = new Set(
-                      branch.items
+                      filteredItems
                         .map(item => item.allocation_bill)
                         .filter(Boolean)
                     ).size;
+                    
+                    // Get categories for this branch
+                    const branchCategories = categoriesPerBranch[branch.branch] || [];
                     
                     return (
                     <div key={branch.branch} className="rounded-lg border overflow-hidden">
@@ -869,14 +902,39 @@ const SummaryReport = () => {
                             {uniqueAllocationBills} allocation bill{uniqueAllocationBills !== 1 ? 's' : ''}
                           </Badge>
                         </h3>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handlePrintBranchSummary(branch)}
-                        >
-                          <Printer className="h-4 w-4 mr-1" />
-                          Print
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {branchCategories.length > 0 && (
+                            <Select
+                              value={selectedCategory}
+                              onValueChange={(value) => 
+                                setBranchCategoryFilters(prev => ({ ...prev, [branch.branch]: value }))
+                              }
+                            >
+                              <SelectTrigger className="w-[140px] h-8 text-xs">
+                                <SelectValue placeholder="All Categories" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                {branchCategories.map(cat => (
+                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handlePrintBranchSummary({
+                              ...branch,
+                              items: filteredItems,
+                              totalBoxes: filteredTotalBoxes,
+                              totalQty: filteredTotalQty
+                            })}
+                          >
+                            <Printer className="h-4 w-4 mr-1" />
+                            Print
+                          </Button>
+                        </div>
                       </div>
                       <Table>
                         <TableHeader>
@@ -894,7 +952,7 @@ const SummaryReport = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {branch.items.map((item, idx) => (
+                          {filteredItems.map((item, idx) => (
                             <TableRow key={idx}>
                               <TableCell className="font-mono">{item.allocation_bill || '-'}</TableCell>
                               <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
@@ -914,8 +972,8 @@ const SummaryReport = () => {
                           ))}
                           <TableRow className="bg-muted/50 font-semibold">
                             <TableCell colSpan={8}>Subtotal</TableCell>
-                            <TableCell className="text-center">{branch.totalBoxes}</TableCell>
-                            <TableCell className="text-center">{branch.totalQty}</TableCell>
+                            <TableCell className="text-center">{filteredTotalBoxes}</TableCell>
+                            <TableCell className="text-center">{filteredTotalQty}</TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>
