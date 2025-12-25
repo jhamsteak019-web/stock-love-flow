@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PresenceTracker } from "@/components/PresenceTracker";
 import AuthPage from "./pages/AuthPage";
+import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import ReleaseStock from "./pages/ReleaseStock";
 import Deliveries from "./pages/Deliveries";
@@ -27,9 +28,10 @@ const App = () => (
         <AuthProvider>
           <PresenceTracker />
           <Routes>
-            <Route path="/" element={<Navigate to="/release" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route element={<DashboardLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/release" element={<ReleaseStock />} />
               <Route path="/deliveries" element={<Deliveries />} />
