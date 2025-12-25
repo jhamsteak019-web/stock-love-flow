@@ -214,6 +214,17 @@ const Sales = () => {
 
   return (
     <div className="space-y-4">
+      {/* Action buttons */}
+      <div className="flex items-center gap-3">
+        <Button variant="outline" onClick={addNewRow} className="gap-2 border-2">
+          <Plus className="h-4 w-4" />
+          Add Row
+        </Button>
+        <Button onClick={saveAllChanges} disabled={saving || !hasChanges} className="gap-2">
+          <Save className="h-4 w-4" />
+          {saving ? 'Saving...' : 'Save All'}
+        </Button>
+      </div>
 
       {/* Excel-like table */}
       <div className="overflow-x-auto border border-border rounded-lg bg-background">
