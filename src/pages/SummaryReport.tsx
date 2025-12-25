@@ -115,7 +115,7 @@ const SummaryReport = () => {
     return Object.values(branches).sort((a, b) => b.totalDeliveries - a.totalDeliveries);
   }, [filteredReleases]);
 
-  // Delivered items grouped by branch for printing
+  // Items grouped by branch for printing (includes all statuses)
   const deliveredByBranch = useMemo(() => {
     const branches: Record<string, {
       branch: string;
@@ -128,13 +128,13 @@ const SummaryReport = () => {
         category: string | null;
         boxes: number;
         qty: number;
+        delivery_status: string;
       }[];
       totalBoxes: number;
       totalQty: number;
     }> = {};
 
     filteredReleases
-      .filter(release => release.delivery_status === 'delivered')
       .forEach(release => {
         const branch = release.destination || 'Unknown';
         
@@ -156,6 +156,7 @@ const SummaryReport = () => {
           category: release.category,
           boxes: release.boxes_released,
           qty: release.total_qty || 0,
+          delivery_status: release.delivery_status,
         });
         branches[branch].totalBoxes += release.boxes_released;
         branches[branch].totalQty += release.total_qty || 0;
@@ -300,6 +301,7 @@ const SummaryReport = () => {
               <th>Courier</th>
               <th>Waybill No</th>
               <th>Category</th>
+              <th>Status</th>
               <th class="text-center">Boxes</th>
               <th class="text-center">Qty</th>
             </tr>
@@ -313,12 +315,13 @@ const SummaryReport = () => {
                 <td>${item.courier || '-'}</td>
                 <td>${item.waybill_no || '-'}</td>
                 <td>${item.category || '-'}</td>
+                <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
               </tr>
             `).join('')}
             <tr class="subtotal">
-              <td colspan="6"><strong>Subtotal</strong></td>
+              <td colspan="7"><strong>Subtotal</strong></td>
               <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
               <td class="text-center"><strong>${branch.totalQty}</strong></td>
             </tr>
@@ -430,6 +433,7 @@ const SummaryReport = () => {
                   <th>Courier</th>
                   <th>Waybill No</th>
                   <th>Category</th>
+                  <th>Status</th>
                   <th class="text-center">Boxes</th>
                   <th class="text-center">Qty</th>
                 </tr>
@@ -443,12 +447,13 @@ const SummaryReport = () => {
                     <td>${item.courier || '-'}</td>
                     <td>${item.waybill_no || '-'}</td>
                     <td>${item.category || '-'}</td>
+                    <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
                     <td class="text-center">${item.boxes}</td>
                     <td class="text-center">${item.qty}</td>
                   </tr>
                 `).join('')}
                 <tr class="subtotal">
-                  <td colspan="6"><strong>Total</strong></td>
+                  <td colspan="7"><strong>Total</strong></td>
                   <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
                   <td class="text-center"><strong>${branch.totalQty}</strong></td>
                 </tr>
@@ -876,6 +881,7 @@ const SummaryReport = () => {
                             <TableHead>Courier</TableHead>
                             <TableHead>Waybill No</TableHead>
                             <TableHead>Category</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead className="text-center">Boxes</TableHead>
                             <TableHead className="text-center">Qty</TableHead>
                           </TableRow>
@@ -889,12 +895,17 @@ const SummaryReport = () => {
                               <TableCell>{item.courier || '-'}</TableCell>
                               <TableCell>{item.waybill_no || '-'}</TableCell>
                               <TableCell>{item.category || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'}>
+                                  {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
+                                </Badge>
+                              </TableCell>
                               <TableCell className="text-center">{item.boxes}</TableCell>
                               <TableCell className="text-center">{item.qty}</TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/50 font-semibold">
-                            <TableCell colSpan={6}>Subtotal</TableCell>
+                            <TableCell colSpan={7}>Subtotal</TableCell>
                             <TableCell className="text-center">{branch.totalBoxes}</TableCell>
                             <TableCell className="text-center">{branch.totalQty}</TableCell>
                           </TableRow>
