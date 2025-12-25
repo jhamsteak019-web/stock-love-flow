@@ -840,14 +840,22 @@ const SummaryReport = () => {
             <CardContent>
               {filteredDeliveredByBranch.length > 0 ? (
                 <div className="space-y-6">
-                  {filteredDeliveredByBranch.map(branch => (
+                  {filteredDeliveredByBranch.map(branch => {
+                    // Count unique allocation bills
+                    const uniqueAllocationBills = new Set(
+                      branch.items
+                        .map(item => item.allocation_bill)
+                        .filter(Boolean)
+                    ).size;
+                    
+                    return (
                     <div key={branch.branch} className="rounded-lg border overflow-hidden">
                       <div className="bg-muted px-4 py-2 border-b flex items-center justify-between">
                         <h3 className="font-semibold flex items-center gap-2">
                           <Store className="h-4 w-4" />
                           {branch.branch}
                           <Badge variant="secondary">
-                            {branch.items.length} deliveries
+                            {uniqueAllocationBills} allocation bill{uniqueAllocationBills !== 1 ? 's' : ''}
                           </Badge>
                         </h3>
                         <Button 
@@ -893,7 +901,8 @@ const SummaryReport = () => {
                         </TableBody>
                       </Table>
                     </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Grand Total */}
                   <div className="rounded-lg bg-primary/10 p-4">
