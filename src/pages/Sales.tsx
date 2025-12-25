@@ -260,6 +260,16 @@ const Sales = () => {
                   </Popover>
                 </th>
                 <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addNewRow} 
+                    className="mb-1 gap-1 text-xs bg-white hover:bg-yellow-50"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add New Page
+                  </Button>
+                  <br/>
                   Running Sale<br/>{currentMonth} 1-{format(filterDate, 'd')}
                 </th>
                 <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
