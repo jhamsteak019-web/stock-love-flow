@@ -343,10 +343,10 @@ const Sales = () => {
             <thead>
               {/* Header Row 1 - Date headers */}
               <tr className="border-b border-border">
-                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={3}></th>
-                <th className="border border-border p-2 bg-muted/30 w-16" rowSpan={3}></th>
-                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={3}></th>
-                <th className="border border-border p-2 bg-muted/30" rowSpan={3}></th>
+                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30 w-16" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/30" rowSpan={2}></th>
                 
                 {/* Date columns */}
                 {datePages.map((datePage, idx) => (
@@ -381,7 +381,7 @@ const Sales = () => {
                 ))}
                 
                 {/* Add New Page button */}
-                <th className="border border-border p-2 bg-yellow-100 text-center" rowSpan={2}>
+                <th className="border border-border p-2 bg-yellow-100 text-center" rowSpan={3}>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -427,7 +427,7 @@ const Sales = () => {
                 <th className="border border-border p-2 bg-blue-100 font-bold text-center w-20">% ACHIEVED</th>
               </tr>
               
-              {/* Header Row 3 - Column labels */}
+              {/* Header Row 3 - No., CAT, MP, METRO GROUP labels */}
               <tr className="border-b border-border bg-muted/50">
                 <th className="border border-border p-2 font-bold text-center w-12">No.</th>
                 <th className="border border-border p-2 font-bold text-center w-16">CAT</th>
@@ -442,11 +442,6 @@ const Sales = () => {
                     <th key={`${datePage.id}-h-ts`} className={`border border-border p-2 w-24 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
                   </>
                 ))}
-                <th className="border border-border p-2 bg-yellow-50"></th>
-                <th className="border border-border p-2 bg-yellow-50"></th>
-                <th className="border border-border p-2 bg-yellow-50"></th>
-                <th className="border border-border p-2 bg-yellow-50"></th>
-                <th className="border border-border p-2 bg-yellow-50"></th>
                 <th className="border border-border p-2 bg-blue-50"></th>
                 <th className="border border-border p-2 bg-blue-50"></th>
                 <th className="border border-border p-2 bg-blue-50"></th>
