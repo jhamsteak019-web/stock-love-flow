@@ -224,7 +224,7 @@ const Sales = () => {
             mlp: dateData.mlp,
             msh: dateData.msh,
             mum: dateData.mum,
-            ts: dateData.ts,
+            ts: dateData.mhb + dateData.mlp + dateData.msh + dateData.mum,
             running_sale: row.running_sale,
             sales_plan: row.sales_plan,
             dec_2024: row.dec_2024,
@@ -280,13 +280,14 @@ const Sales = () => {
   const calculateDateTotals = (dateStr: string) => {
     return rows.reduce(
       (acc, row) => {
-        const data = row.dateData[dateStr] || { mhb: 0, mlp: 0, msh: 0, mum: 0, ts: 0 };
+        const data = row.dateData[dateStr] || { mhb: 0, mlp: 0, msh: 0, mum: 0 };
+        const ts = data.mhb + data.mlp + data.msh + data.mum;
         return {
           mhb: acc.mhb + data.mhb,
           mlp: acc.mlp + data.mlp,
           msh: acc.msh + data.msh,
           mum: acc.mum + data.mum,
-          ts: acc.ts + data.ts,
+          ts: acc.ts + ts,
         };
       },
       { mhb: 0, mlp: 0, msh: 0, mum: 0, ts: 0 }
@@ -511,14 +512,8 @@ const Sales = () => {
                                 disabled={userRole !== 'admin'}
                               />
                             </td>
-                            <td key={`${datePage.id}-${index}-ts`} className={`border border-border p-0 ${bgClass}`}>
-                              <Input
-                                type="number"
-                                value={data.ts || ''}
-                                onChange={(e) => handleDateDataChange(index, dateStr, 'ts', Number(e.target.value) || 0)}
-                                className="h-8 text-right text-sm tabular-nums border-0 rounded-none focus-visible:ring-1 focus-visible:ring-inset pr-2 bg-transparent"
-                                disabled={userRole !== 'admin'}
-                              />
+                            <td key={`${datePage.id}-${index}-ts`} className={`border border-border p-2 text-right tabular-nums font-medium ${bgClass}`}>
+                              {formatNumber(data.mhb + data.mlp + data.msh + data.mum)}
                             </td>
                           </>
                         );
