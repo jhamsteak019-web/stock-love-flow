@@ -129,6 +129,7 @@ const SummaryReport = () => {
         boxes: number;
         qty: number;
         delivery_status: string;
+        remarks: string | null;
       }[];
       totalBoxes: number;
       totalQty: number;
@@ -157,6 +158,7 @@ const SummaryReport = () => {
           boxes: release.boxes_released,
           qty: release.total_qty || 0,
           delivery_status: release.delivery_status,
+          remarks: release.notes,
         });
         branches[branch].totalBoxes += release.boxes_released;
         branches[branch].totalQty += release.total_qty || 0;
@@ -302,6 +304,7 @@ const SummaryReport = () => {
               <th>Waybill No</th>
               <th>Category</th>
               <th>Status</th>
+              <th>Remarks</th>
               <th class="text-center">Boxes</th>
               <th class="text-center">Qty</th>
             </tr>
@@ -316,12 +319,13 @@ const SummaryReport = () => {
                 <td>${item.waybill_no || '-'}</td>
                 <td>${item.category || '-'}</td>
                 <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
+                <td>${item.remarks || '-'}</td>
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
               </tr>
             `).join('')}
             <tr class="subtotal">
-              <td colspan="7"><strong>Subtotal</strong></td>
+              <td colspan="8"><strong>Subtotal</strong></td>
               <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
               <td class="text-center"><strong>${branch.totalQty}</strong></td>
             </tr>
@@ -434,6 +438,7 @@ const SummaryReport = () => {
                   <th>Waybill No</th>
                   <th>Category</th>
                   <th>Status</th>
+                  <th>Remarks</th>
                   <th class="text-center">Boxes</th>
                   <th class="text-center">Qty</th>
                 </tr>
@@ -448,12 +453,13 @@ const SummaryReport = () => {
                     <td>${item.waybill_no || '-'}</td>
                     <td>${item.category || '-'}</td>
                     <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
+                    <td>${item.remarks || '-'}</td>
                     <td class="text-center">${item.boxes}</td>
                     <td class="text-center">${item.qty}</td>
                   </tr>
                 `).join('')}
                 <tr class="subtotal">
-                  <td colspan="7"><strong>Total</strong></td>
+                  <td colspan="8"><strong>Total</strong></td>
                   <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
                   <td class="text-center"><strong>${branch.totalQty}</strong></td>
                 </tr>
@@ -882,6 +888,7 @@ const SummaryReport = () => {
                             <TableHead>Waybill No</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Remarks</TableHead>
                             <TableHead className="text-center">Boxes</TableHead>
                             <TableHead className="text-center">Qty</TableHead>
                           </TableRow>
@@ -900,12 +907,13 @@ const SummaryReport = () => {
                                   {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
                                 </Badge>
                               </TableCell>
+                              <TableCell>{item.remarks || '-'}</TableCell>
                               <TableCell className="text-center">{item.boxes}</TableCell>
                               <TableCell className="text-center">{item.qty}</TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/50 font-semibold">
-                            <TableCell colSpan={7}>Subtotal</TableCell>
+                            <TableCell colSpan={8}>Subtotal</TableCell>
                             <TableCell className="text-center">{branch.totalBoxes}</TableCell>
                             <TableCell className="text-center">{branch.totalQty}</TableCell>
                           </TableRow>
