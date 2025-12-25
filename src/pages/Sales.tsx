@@ -321,7 +321,7 @@ const Sales = () => {
   const currentYear = format(firstDate, 'yyyy');
   const prevYear = String(Number(currentYear) - 1);
 
-  const colCount = 4 + (datePages.length * 5) + 7 + (userRole === 'admin' ? 1 : 0);
+  const colCount = 4 + (datePages.length * 5) + 6 + (userRole === 'admin' ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -350,12 +350,12 @@ const Sales = () => {
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead>
-              {/* Header Row 1 - Date headers */}
+              {/* Header Row 1 - Main headers */}
               <tr className="border-b border-border">
-                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={2}></th>
-                <th className="border border-border p-2 bg-muted/30 w-16" rowSpan={2}></th>
-                <th className="border border-border p-2 bg-muted/30 w-12" rowSpan={2}></th>
-                <th className="border border-border p-2 bg-muted/30" rowSpan={2}></th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12" rowSpan={2}>No.</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-16" rowSpan={2}>CAT</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-center w-12" rowSpan={2}>MP</th>
+                <th className="border border-border p-2 bg-muted/50 font-bold text-left" rowSpan={2}>METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
                 
                 {/* Date columns */}
                 {datePages.map((datePage, idx) => (
@@ -364,7 +364,7 @@ const Sales = () => {
                       <Popover>
                         <PopoverTrigger asChild>
                           <button className="text-primary font-bold hover:underline cursor-pointer">
-                            {format(datePage.date, 'EEEE, MMMM d, yyyy')}
+                            {format(datePage.date, 'EEEE,MMMM d,yyyy')}
                           </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="center">
@@ -389,28 +389,28 @@ const Sales = () => {
                   </th>
                 ))}
                 
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
-                </th>
-                
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   Running Sale<br/>{currentMonth} 1-{format(firstDate, 'd')}
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   SALES PLAN
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   DIFFERENCE<br/>vs Quota
                 </th>
-                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={3}>
+                <th className="border border-border p-2 bg-yellow-100 text-center font-bold" rowSpan={2}>
                   %<br/>ACHIEVED
                 </th>
-                <th colSpan={3} className="border border-border p-2 bg-blue-100 text-center font-bold">
+                <th colSpan={2} className="border border-border p-2 bg-blue-100 text-center font-bold">
                   {prevYear} VS {currentYear}
                 </th>
-                {userRole === 'admin' && <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={3}></th>}
+                <th className="border border-border p-2 bg-blue-100 text-center font-bold" rowSpan={2}>
+                  %<br/>ACHIEVED
+                </th>
+                {userRole === 'admin' && <th className="border border-border p-2 bg-muted/30 w-10" rowSpan={2}></th>}
               </tr>
               
-              {/* Header Row 2 - MHB MLP MSH MUM TS for each date */}
+              {/* Header Row 2 - Sub-headers */}
               <tr className="border-b border-border">
                 {datePages.map((datePage, idx) => (
                   <>
@@ -423,27 +423,6 @@ const Sales = () => {
                 ))}
                 <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">{currentMonth} {prevYear}</th>
                 <th className="border border-border p-2 bg-blue-100 font-bold text-center w-24">DIFFERENCE</th>
-                <th className="border border-border p-2 bg-blue-100 font-bold text-center w-20">% ACHIEVED</th>
-              </tr>
-              
-              {/* Header Row 3 - No., CAT, MP, METRO GROUP labels */}
-              <tr className="border-b border-border bg-muted/50">
-                <th className="border border-border p-2 font-bold text-center w-12">No.</th>
-                <th className="border border-border p-2 font-bold text-center w-16">CAT</th>
-                <th className="border border-border p-2 font-bold text-center w-12">MP</th>
-                <th className="border border-border p-2 font-bold text-left">METRO GROUP {format(firstDate, 'MMM yyyy').toUpperCase()}</th>
-                {datePages.map((datePage, idx) => (
-                  <>
-                    <th key={`${datePage.id}-h-mhb`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-mlp`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-msh`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-mum`} className={`border border-border p-2 w-20 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                    <th key={`${datePage.id}-h-ts`} className={`border border-border p-2 w-24 ${idx % 2 === 0 ? 'bg-red-50' : 'bg-green-50'}`}></th>
-                  </>
-                ))}
-                <th className="border border-border p-2 bg-blue-50"></th>
-                <th className="border border-border p-2 bg-blue-50"></th>
-                <th className="border border-border p-2 bg-blue-50"></th>
               </tr>
             </thead>
             <tbody>
@@ -545,9 +524,6 @@ const Sales = () => {
                         );
                       })}
                       
-                      {/* Empty cell under Add New Page button */}
-                      <td className="border border-border p-2 bg-yellow-50"></td>
-                      
                       {/* Running Sale */}
                       <td className="border border-border p-0 bg-yellow-50">
                         <Input
@@ -636,8 +612,6 @@ const Sales = () => {
                       </>
                     );
                   })}
-                  
-                  <td className="border border-border p-2 bg-yellow-100"></td>
                   <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.running_sale)}</td>
                   <td className="border border-border p-2 text-right tabular-nums bg-yellow-100">{formatNumber(totals.sales_plan)}</td>
                   <td className={`border border-border p-2 text-right tabular-nums ${getColorClass(totalDiffQuota)}`}>{formatNumber(totalDiffQuota)}</td>
