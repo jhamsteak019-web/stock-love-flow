@@ -42,12 +42,13 @@ const Sales = () => {
   const [datePages, setDatePages] = useState<DatePage[]>([
     { date: new Date(), id: crypto.randomUUID() }
   ]);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  const fetchSales = async () => {
+  const fetchSales = async (datePagesToFetch: DatePage[]) => {
     setLoading(true);
     
     // Fetch sales for all dates
-    const dateStrings = datePages.map(dp => format(dp.date, 'yyyy-MM-dd'));
+    const dateStrings = datePagesToFetch.map(dp => format(dp.date, 'yyyy-MM-dd'));
     
     const { data, error } = await supabase
       .from('sales')
@@ -95,11 +96,15 @@ const Sales = () => {
       setRows(Array.from(branchMap.values()));
     }
     setLoading(false);
+    setInitialLoadDone(true);
   };
 
+  // Only fetch on initial load
   useEffect(() => {
-    fetchSales();
-  }, [datePages]);
+    if (!initialLoadDone) {
+      fetchSales(datePages);
+    }
+  }, []);
 
   const handleCellChange = (index: number, field: keyof SalesRow, value: string | number) => {
     setRows(prev => prev.map((row, i) => {
@@ -248,7 +253,7 @@ const Sales = () => {
       }
       
       toast.success('All changes saved');
-      fetchSales();
+      fetchSales(datePages);
     } catch (error) {
       console.error(error);
       toast.error('Failed to save changes');
