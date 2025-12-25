@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,7 @@ const Deliveries = () => {
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deliveredDateGroup, setDeliveredDateGroup] = useState<GroupedRelease | null>(null);
   const isAdmin = userRole === 'admin';
 
   // Group releases by batch_id
@@ -97,16 +99,36 @@ const Deliveries = () => {
   }, [groupedReleases, searchQuery]);
 
   const handleStatusChange = async (group: GroupedRelease, status: DeliveryStatus) => {
+    // If selecting "delivered", show the date picker first
+    if (status === 'delivered') {
+      setDeliveredDateGroup(group);
+      return;
+    }
+    
     try {
       for (const releaseId of group.releaseIds) {
-        // When status is "delivered", use the set_date as date_delivered (Receive Date)
-        if (status === 'delivered' && group.set_date) {
-          await updateDeliveryStatus(releaseId, status, group.set_date);
-        } else {
-          await updateDeliveryStatus(releaseId, status);
-        }
+        await updateDeliveryStatus(releaseId, status);
       }
       toast({ title: 'Success', description: 'Delivery status updated' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
+  };
+
+  const handleDeliveredWithDate = async (group: GroupedRelease, date: Date) => {
+    try {
+      for (const releaseId of group.releaseIds) {
+        await supabase
+          .from('stock_releases')
+          .update({ 
+            delivery_status: 'delivered' as DeliveryStatus,
+            date_delivered: date.toISOString()
+          })
+          .eq('id', releaseId);
+      }
+      await fetchReleases();
+      setDeliveredDateGroup(null);
+      toast({ title: 'Success', description: `Marked as delivered on ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
     }
@@ -302,6 +324,36 @@ const Deliveries = () => {
           onSuccess={() => fetchReleases()}
         />
       )}
+
+      {/* Date picker dialog for marking as delivered */}
+      <Dialog open={!!deliveredDateGroup} onOpenChange={(open) => !open && setDeliveredDateGroup(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Select Order Received Date</DialogTitle>
+            <DialogDescription>
+              Choose the date when the order was received at {deliveredDateGroup?.destination}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="single"
+              selected={undefined}
+              onSelect={(date) => {
+                if (date && deliveredDateGroup) {
+                  handleDeliveredWithDate(deliveredDateGroup, date);
+                }
+              }}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeliveredDateGroup(null)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
