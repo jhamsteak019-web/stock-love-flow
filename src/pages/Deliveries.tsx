@@ -127,6 +127,21 @@ const Deliveries = () => {
     }
   };
 
+  const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
+    try {
+      for (const releaseId of group.releaseIds) {
+        await supabase
+          .from('stock_releases')
+          .update({ notes })
+          .eq('id', releaseId);
+      }
+      await fetchReleases();
+      toast({ title: 'Success', description: 'Remarks updated' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update remarks', variant: 'destructive' });
+    }
+  };
+
   const handleSetDateChange = async (group: GroupedRelease, date: Date) => {
     try {
       for (const releaseId of group.releaseIds) {
@@ -236,8 +251,17 @@ const Deliveries = () => {
                       }}
                     />
                   </TableCell>
-                  <TableCell className="text-muted-foreground max-w-[150px] truncate" title={group.notes || ''}>
-                    {group.notes || '-'}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      placeholder="Enter remarks"
+                      defaultValue={group.notes || ''}
+                      className="h-8 w-[120px] text-sm"
+                      onBlur={(e) => {
+                        if (e.target.value !== (group.notes || '')) {
+                          handleRemarksChange(group, e.target.value);
+                        }
+                      }}
+                    />
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
