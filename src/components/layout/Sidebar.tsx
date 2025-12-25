@@ -12,8 +12,7 @@ import {
   Menu,
   ChevronLeft,
   BarChart3,
-  Archive,
-  DollarSign
+  Archive
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -78,12 +77,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/users', 
       icon: Users, 
       label: 'Manage Users',
-      roles: ['admin']
-    },
-    { 
-      to: '/sales', 
-      icon: DollarSign, 
-      label: 'Sales',
       roles: ['admin']
     },
   ];
