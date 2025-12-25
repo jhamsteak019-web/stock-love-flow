@@ -330,7 +330,7 @@ const Deliveries = () => {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Select Order Received Date</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="select-none">
               Choose the date when the order was received at {deliveredDateGroup?.destination}
             </DialogDescription>
           </DialogHeader>
