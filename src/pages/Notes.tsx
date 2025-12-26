@@ -66,7 +66,7 @@ const Notes = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
-  const [statusChangeNote, setStatusChangeNote] = useState<{ id: string; status: NoteStatus } | null>(null);
+  const [statusChangeNote, setStatusChangeNote] = useState<{ id: string; status: NoteStatus; currentDate: string } | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 350);
 
@@ -245,8 +245,11 @@ const Notes = () => {
   };
 
   const handleStatusChange = async (noteId: string, newStatus: NoteStatus) => {
-    // Store the status change and show calendar to pick the updated_at date
-    setStatusChangeNote({ id: noteId, status: newStatus });
+    // Find the note to get its current updated_at
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      setStatusChangeNote({ id: noteId, status: newStatus, currentDate: note.updated_at });
+    }
   };
 
   const confirmStatusChangeWithDate = async (date: Date) => {
@@ -669,7 +672,7 @@ const Notes = () => {
             </p>
             <CalendarComponent
               mode="single"
-              selected={new Date()}
+              selected={statusChangeNote ? new Date(statusChangeNote.currentDate) : new Date()}
               onSelect={(date) => date && confirmStatusChangeWithDate(date)}
               initialFocus
               className="rounded-md border pointer-events-auto"
