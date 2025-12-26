@@ -44,11 +44,25 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
   const [allocationBill, setAllocationBill] = useState(group.allocation_bill || '');
   const [waybillNo, setWaybillNo] = useState(group.waybill_no || '');
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus>(group.delivery_status);
+  const [totalBoxes, setTotalBoxes] = useState(group.totalBoxes);
+  const [totalQty, setTotalQty] = useState(group.totalQty);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      for (const releaseId of group.releaseIds) {
+      // Calculate distributed values for boxes and qty per release
+      const releaseCount = group.releaseIds.length;
+      const boxesPerRelease = Math.floor(totalBoxes / releaseCount);
+      const qtyPerRelease = Math.floor(totalQty / releaseCount);
+      const remainingBoxes = totalBoxes % releaseCount;
+      const remainingQty = totalQty % releaseCount;
+
+      for (let i = 0; i < group.releaseIds.length; i++) {
+        const releaseId = group.releaseIds[i];
+        // Distribute remaining to first release
+        const boxes = boxesPerRelease + (i === 0 ? remainingBoxes : 0);
+        const qty = qtyPerRelease + (i === 0 ? remainingQty : 0);
+        
         const { error } = await supabase
           .from('stock_releases')
           .update({
@@ -58,6 +72,8 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
             allocation_bill: allocationBill || null,
             waybill_no: waybillNo || null,
             delivery_status: deliveryStatus,
+            boxes_released: boxes,
+            total_qty: qty,
           })
           .eq('id', releaseId);
 
@@ -135,6 +151,32 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
               onChange={(e) => setWaybillNo(e.target.value)}
               placeholder="Enter waybill number"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="totalBoxes">QTY Box</Label>
+              <Input
+                id="totalBoxes"
+                type="number"
+                min={0}
+                value={totalBoxes}
+                onChange={(e) => setTotalBoxes(Number(e.target.value))}
+                placeholder="Enter box quantity"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="totalQty">QTY Items</Label>
+              <Input
+                id="totalQty"
+                type="number"
+                min={0}
+                value={totalQty}
+                onChange={(e) => setTotalQty(Number(e.target.value))}
+                placeholder="Enter item quantity"
+              />
+            </div>
           </div>
 
           <div className="grid gap-2">
