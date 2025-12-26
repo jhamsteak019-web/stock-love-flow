@@ -72,13 +72,14 @@ const Notes = () => {
     try {
       const { data, error } = await supabase
         .from('notes')
-        .select('*, profiles:user_id(full_name, email)')
+        .select('*, profiles(full_name, email)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setNotes((data || []).map(note => ({
         ...note,
-        status: note.status as NoteStatus
+        status: note.status as NoteStatus,
+        profiles: note.profiles as { full_name: string | null; email: string } | undefined
       })));
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
