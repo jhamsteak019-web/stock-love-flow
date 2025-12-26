@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +13,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+type NoteStatus = 'pending' | 'waiting_to_follow' | 'waiting_approval' | 'approved';
 
 interface Note {
   id: string;
@@ -21,8 +24,15 @@ interface Note {
   created_at: string;
   updated_at: string;
   color: string;
-  status: 'pending' | 'approved';
+  status: NoteStatus;
 }
+
+const STATUS_OPTIONS: { value: NoteStatus; label: string; icon: React.ComponentType<{ className?: string }>; bgClass: string; textClass: string }[] = [
+  { value: 'pending', label: 'Pending', icon: Clock, bgClass: 'bg-yellow-500 hover:bg-yellow-600', textClass: 'text-black' },
+  { value: 'waiting_to_follow', label: 'Waiting to Follow', icon: Hourglass, bgClass: 'bg-blue-500 hover:bg-blue-600', textClass: 'text-white' },
+  { value: 'waiting_approval', label: 'Waiting Approval', icon: FileCheck, bgClass: 'bg-orange-500 hover:bg-orange-600', textClass: 'text-white' },
+  { value: 'approved', label: 'Approved', icon: CheckCircle, bgClass: 'bg-green-500 hover:bg-green-600', textClass: 'text-white' },
+];
 
 const COLORS = [
   { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' },
@@ -63,7 +73,7 @@ const Notes = () => {
       if (error) throw error;
       setNotes((data || []).map(note => ({
         ...note,
-        status: note.status as 'pending' | 'approved'
+        status: note.status as NoteStatus
       })));
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -88,7 +98,7 @@ const Notes = () => {
         (payload) => {
           setNotes(prev => prev.map(note =>
             note.id === payload.new.id
-              ? { ...note, ...payload.new, status: payload.new.status as 'pending' | 'approved' }
+              ? { ...note, ...payload.new, status: payload.new.status as NoteStatus }
               : note
           ));
         }
@@ -197,7 +207,7 @@ const Notes = () => {
 
         if (error) throw error;
 
-        setNotes([{ ...data, status: data.status as 'pending' | 'approved' }, ...notes]);
+        setNotes([{ ...data, status: data.status as NoteStatus }, ...notes]);
         toast({ title: 'Success', description: 'Reminder created' });
       }
       closeDialog();
@@ -226,19 +236,19 @@ const Notes = () => {
     }
   };
 
-  const handleApprove = async (noteId: string) => {
+  const handleStatusChange = async (noteId: string, newStatus: NoteStatus) => {
     try {
       const { error } = await supabase
         .from('notes')
-        .update({ status: 'approved' })
+        .update({ status: newStatus })
         .eq('id', noteId);
 
       if (error) throw error;
 
       setNotes(notes.map(note =>
-        note.id === noteId ? { ...note, status: 'approved' } : note
+        note.id === noteId ? { ...note, status: newStatus } : note
       ));
-      toast({ title: 'Success', description: 'Reminder approved' });
+      toast({ title: 'Success', description: 'Status updated' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -357,16 +367,39 @@ const Notes = () => {
                     {note.content || 'No content'}
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={note.status === 'approved' ? 'default' : 'secondary'}
-                      className={note.status === 'approved' ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600 text-black'}
-                    >
-                      {note.status === 'approved' ? (
-                        <><CheckCircle className="h-3 w-3 mr-1" /> Approved</>
-                      ) : (
-                        <><Clock className="h-3 w-3 mr-1" /> Pending</>
-                      )}
-                    </Badge>
+                    {isAdmin ? (
+                      <Select
+                        value={note.status}
+                        onValueChange={(value: NoteStatus) => handleStatusChange(note.id, value)}
+                      >
+                        <SelectTrigger className="w-[160px] h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <div className="flex items-center gap-2">
+                                <option.icon className="h-3 w-3" />
+                                {option.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      (() => {
+                        const statusOption = STATUS_OPTIONS.find(s => s.value === note.status) || STATUS_OPTIONS[0];
+                        return (
+                          <Badge 
+                            variant="secondary"
+                            className={`${statusOption.bgClass} ${statusOption.textClass}`}
+                          >
+                            <statusOption.icon className="h-3 w-3 mr-1" />
+                            {statusOption.label}
+                          </Badge>
+                        );
+                      })()
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {isAdmin ? (
@@ -414,17 +447,6 @@ const Notes = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
-                      {isAdmin && note.status === 'pending' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-green-600 hover:text-green-700 transition-transform hover:scale-110"
-                          onClick={() => handleApprove(note.id)}
-                          title="Approve note"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                      )}
                       {note.status !== 'approved' && (
                         <Button
                           variant="ghost"
