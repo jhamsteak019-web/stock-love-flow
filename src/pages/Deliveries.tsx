@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useTransition } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, Settings2, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +20,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 
 const ITEMS_PER_PAGE = 15;
+
+type ColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'status' | 'waybill' | 'remarks';
+
+const COLUMN_CONFIG: { key: ColumnKey; label: string }[] = [
+  { key: 'allocation', label: 'Allocation' },
+  { key: 'destination', label: 'Destination' },
+  { key: 'category', label: 'Category' },
+  { key: 'totalBoxes', label: 'Total Boxes' },
+  { key: 'totalQty', label: 'Total Qty/Items' },
+  { key: 'dateOut', label: 'Date Out Warehouse' },
+  { key: 'status', label: 'Status' },
+  { key: 'waybill', label: 'Waybill No.' },
+  { key: 'remarks', label: 'Remarks' },
+];
 
 interface GroupedRelease {
   batch_id: string;
@@ -49,7 +64,24 @@ const Deliveries = () => {
   const [deliveredDateGroup, setDeliveredDateGroup] = useState<GroupedRelease | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>({
+    allocation: true,
+    destination: true,
+    category: true,
+    totalBoxes: true,
+    totalQty: true,
+    dateOut: true,
+    status: true,
+    waybill: true,
+    remarks: true,
+  });
   const isAdmin = userRole === 'admin';
+
+  const toggleColumn = (key: ColumnKey) => {
+    setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length + 1 + (isAdmin ? 1 : 0); // +1 for View, +1 for Edit if admin
   
   // Debounced search for smooth performance
   const debouncedSearch = useDebounce(searchQuery, 350);
@@ -242,38 +274,60 @@ const Deliveries = () => {
             </Button>
           )}
         </div>
-        {pendingGroups.length > 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
-            {isPending && (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {pendingGroups.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
+              {isPending && (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              )}
+            </div>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings2 className="h-4 w-4" />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {COLUMN_CONFIG.map(col => (
+                <DropdownMenuCheckboxItem
+                  key={col.key}
+                  checked={visibleColumns[col.key]}
+                  onCheckedChange={() => toggleColumn(col.key)}
+                >
+                  {col.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Allocation</TableHead>
-              <TableHead>Destination</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Total Boxes</TableHead>
-              <TableHead className="text-right">Total Qty/Items</TableHead>
-              <TableHead>Date Out Warehouse</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Waybill No.</TableHead>
-              <TableHead>Remarks</TableHead>
+              {visibleColumns.allocation && <TableHead>Allocation</TableHead>}
+              {visibleColumns.destination && <TableHead>Destination</TableHead>}
+              {visibleColumns.category && <TableHead>Category</TableHead>}
+              {visibleColumns.totalBoxes && <TableHead className="text-right">Total Boxes</TableHead>}
+              {visibleColumns.totalQty && <TableHead className="text-right">Total Qty/Items</TableHead>}
+              {visibleColumns.dateOut && <TableHead>Date Out Warehouse</TableHead>}
+              {visibleColumns.status && <TableHead>Status</TableHead>}
+              {visibleColumns.waybill && <TableHead>Waybill No.</TableHead>}
+              {visibleColumns.remarks && <TableHead>Remarks</TableHead>}
               <TableHead className="w-[80px]">View</TableHead>
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
-              
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedGroups.length === 0 ? (
               <TableRow>
-              <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
-                <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                <TableCell colSpan={visibleColumnCount} className="text-center py-12">
+                  <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">
                     {debouncedSearch ? 'No matching deliveries found' : 'No pending deliveries'}
                   </p>
@@ -286,54 +340,64 @@ const Deliveries = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
-                  <TableCell className="font-medium">
-                    {group.allocation_bill || group.batch_id.slice(0, 8)}
-                  </TableCell>
-                  <TableCell>{group.destination}</TableCell>
-                  <TableCell>{group.category || '-'}</TableCell>
-                  <TableCell className="text-right">{group.totalBoxes}</TableCell>
-                  <TableCell className="text-right">{group.totalQty}</TableCell>
-                  <TableCell>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Select 
-                      value={group.delivery_status} 
-                      onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in_transit">In Transit</SelectItem>
-                        <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Input
-                      placeholder="Enter waybill"
-                      defaultValue={group.waybill_no || ''}
-                      className="h-8 w-[120px] text-sm"
-                      onBlur={(e) => {
-                        if (e.target.value !== (group.waybill_no || '')) {
-                          handleWaybillChange(group, e.target.value);
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Input
-                      placeholder="Enter remarks"
-                      defaultValue={group.notes || ''}
-                      className="h-8 w-[120px] text-sm"
-                      onBlur={(e) => {
-                        if (e.target.value !== (group.notes || '')) {
-                          handleRemarksChange(group, e.target.value);
-                        }
-                      }}
-                    />
-                  </TableCell>
+                  {visibleColumns.allocation && (
+                    <TableCell className="font-medium">
+                      {group.allocation_bill || group.batch_id.slice(0, 8)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.destination && <TableCell>{group.destination}</TableCell>}
+                  {visibleColumns.category && <TableCell>{group.category || '-'}</TableCell>}
+                  {visibleColumns.totalBoxes && <TableCell className="text-right">{group.totalBoxes}</TableCell>}
+                  {visibleColumns.totalQty && <TableCell className="text-right">{group.totalQty}</TableCell>}
+                  {visibleColumns.dateOut && (
+                    <TableCell>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
+                  )}
+                  {visibleColumns.status && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={group.delivery_status} 
+                        onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_transit">In Transit</SelectItem>
+                          <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                          <SelectItem value="delivered">Delivered</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  )}
+                  {visibleColumns.waybill && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        placeholder="Enter waybill"
+                        defaultValue={group.waybill_no || ''}
+                        className="h-8 w-[120px] text-sm"
+                        onBlur={(e) => {
+                          if (e.target.value !== (group.waybill_no || '')) {
+                            handleWaybillChange(group, e.target.value);
+                          }
+                        }}
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumns.remarks && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        placeholder="Enter remarks"
+                        defaultValue={group.notes || ''}
+                        className="h-8 w-[120px] text-sm"
+                        onBlur={(e) => {
+                          if (e.target.value !== (group.notes || '')) {
+                            handleRemarksChange(group, e.target.value);
+                          }
+                        }}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
                       <Eye className="h-4 w-4" />
