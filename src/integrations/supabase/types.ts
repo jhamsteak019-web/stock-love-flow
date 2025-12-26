@@ -199,6 +199,63 @@ export type Database = {
         }
         Relationships: []
       }
+      sales: {
+        Row: {
+          branch_name: string
+          category: string
+          created_at: string
+          created_by: string | null
+          dec_2024: number | null
+          id: string
+          mhb: number | null
+          mlp: number | null
+          mp: string
+          msh: number | null
+          mum: number | null
+          running_sale: number | null
+          sale_date: string
+          sales_plan: number | null
+          ts: number | null
+          updated_at: string
+        }
+        Insert: {
+          branch_name: string
+          category: string
+          created_at?: string
+          created_by?: string | null
+          dec_2024?: number | null
+          id?: string
+          mhb?: number | null
+          mlp?: number | null
+          mp: string
+          msh?: number | null
+          mum?: number | null
+          running_sale?: number | null
+          sale_date: string
+          sales_plan?: number | null
+          ts?: number | null
+          updated_at?: string
+        }
+        Update: {
+          branch_name?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          dec_2024?: number | null
+          id?: string
+          mhb?: number | null
+          mlp?: number | null
+          mp?: string
+          msh?: number | null
+          mum?: number | null
+          running_sale?: number | null
+          sale_date?: string
+          sales_plan?: number | null
+          ts?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_releases: {
         Row: {
           allocation_bill: string | null

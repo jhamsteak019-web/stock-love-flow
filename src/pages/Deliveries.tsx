@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search, X } from 'lucide-react';
+import { useState, useMemo, useCallback, useTransition } from 'react';
+import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import { supabase } from '@/integrations/supabase/client';
+import { useDebounce } from '@/hooks/useDebounce';
+
+const ITEMS_PER_PAGE = 15;
 
 interface GroupedRelease {
   batch_id: string;
@@ -44,7 +47,12 @@ const Deliveries = () => {
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [deliveredDateGroup, setDeliveredDateGroup] = useState<GroupedRelease | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
   const isAdmin = userRole === 'admin';
+  
+  // Debounced search for smooth performance
+  const debouncedSearch = useDebounce(searchQuery, 350);
 
   // Group releases by batch_id
   const groupedReleases = useMemo(() => {
@@ -86,17 +94,46 @@ const Deliveries = () => {
     );
   }, [releases]);
 
+  // Filtered results using debounced search - case-insensitive and partial match
   const pendingGroups = useMemo(() => {
     return groupedReleases
       .filter(g => g.delivery_status !== 'delivered')
       .filter(g => {
-        if (!searchQuery.trim()) return true;
-        const query = searchQuery.toLowerCase();
+        if (!debouncedSearch.trim()) return true;
+        const query = debouncedSearch.toLowerCase();
         const allocation = (g.allocation_bill || '').toLowerCase();
         const waybill = (g.waybill_no || '').toLowerCase();
-        return allocation.includes(query) || waybill.includes(query);
+        const destination = (g.destination || '').toLowerCase();
+        const category = (g.category || '').toLowerCase();
+        const notes = (g.notes || '').toLowerCase();
+        return allocation.includes(query) || 
+               waybill.includes(query) || 
+               destination.includes(query) || 
+               category.includes(query) ||
+               notes.includes(query);
       });
-  }, [groupedReleases, searchQuery]);
+  }, [groupedReleases, debouncedSearch]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(pendingGroups.length / ITEMS_PER_PAGE);
+  const paginatedGroups = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return pendingGroups.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [pendingGroups, currentPage]);
+
+  // Reset to page 1 when search changes
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const goToPage = useCallback((page: number) => {
+    startTransition(() => {
+      setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    });
+  }, [totalPages]);
 
   const handleStatusChange = async (group: GroupedRelease, status: DeliveryStatus) => {
     // If selecting "delivered", show the date picker first
@@ -185,23 +222,33 @@ const Deliveries = () => {
 
   return (
     <div className="space-y-6">
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by Allocation or Waybill No..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 pr-10"
-        />
-        {searchQuery && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-            onClick={() => setSearchQuery('')}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search allocation, waybill, destination, category..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => handleSearchChange('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {pendingGroups.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
+            {isPending && (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            )}
+          </div>
         )}
       </div>
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
@@ -223,19 +270,21 @@ const Deliveries = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pendingGroups.length === 0 ? (
+            {paginatedGroups.length === 0 ? (
               <TableRow>
               <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
                 <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-muted-foreground">No pending deliveries</p>
+                  <p className="text-muted-foreground">
+                    {debouncedSearch ? 'No matching deliveries found' : 'No pending deliveries'}
+                  </p>
                 </TableCell>
               </TableRow>
             ) : (
-              pendingGroups.map((group, index) => (
+              paginatedGroups.map((group, index) => (
                 <TableRow 
                   key={group.batch_id} 
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
-                  style={{ animation: `fade-in 0.4s ease-out ${index * 50}ms forwards`, opacity: 0 }}
+                  style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
                   <TableCell className="font-medium">
                     {group.allocation_bill || group.batch_id.slice(0, 8)}
@@ -303,6 +352,63 @@ const Deliveries = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pendingGroups.length)} of {pendingGroups.length}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1 || isPending}
+              className="gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(pageNum)}
+                    disabled={isPending}
+                    className="w-9"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages || isPending}
+              className="gap-1"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {selectedBatch && (
         <AllocationBillModal
