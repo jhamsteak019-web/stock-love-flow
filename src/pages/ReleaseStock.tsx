@@ -409,16 +409,29 @@ const ReleaseStock = () => {
   };
 
   // Filter parsed items by sheet no or destination search - use debounced value
+  // Also sort checked items to the top
   const filteredParsedItems = useMemo(() => {
-    if (!debouncedSearch.trim()) return parsedItems;
-    const searchLower = debouncedSearch.toLowerCase();
-    return parsedItems.filter(item => 
-      item.sheetNo.toLowerCase().includes(searchLower) ||
-      item.deliverTo.toLowerCase().includes(searchLower) ||
-      item.category.toLowerCase().includes(searchLower) ||
-      item.remarks.toLowerCase().includes(searchLower)
-    );
-  }, [parsedItems, debouncedSearch]);
+    let filtered = parsedItems;
+    
+    if (debouncedSearch.trim()) {
+      const searchLower = debouncedSearch.toLowerCase();
+      filtered = parsedItems.filter(item => 
+        item.sheetNo.toLowerCase().includes(searchLower) ||
+        item.deliverTo.toLowerCase().includes(searchLower) ||
+        item.category.toLowerCase().includes(searchLower) ||
+        item.remarks.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Sort checked items to the top
+    return [...filtered].sort((a, b) => {
+      const aChecked = selectedItems.has(a.id);
+      const bChecked = selectedItems.has(b.id);
+      if (aChecked && !bChecked) return -1;
+      if (!aChecked && bChecked) return 1;
+      return 0;
+    });
+  }, [parsedItems, debouncedSearch, selectedItems]);
 
   // Pagination for filtered items
   const totalPages = Math.ceil(filteredParsedItems.length / ITEMS_PER_PAGE);
