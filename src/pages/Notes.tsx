@@ -453,26 +453,7 @@ const Notes = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {isAdmin ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
-                            {format(new Date(note.updated_at), 'MMM d, yyyy')}
-                            <Calendar className="h-3 w-3" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={new Date(note.updated_at)}
-                            onSelect={(date) => date && handleUpdateDate(note.id, date, 'updated_at')}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      format(new Date(note.updated_at), 'MMM d, yyyy')
-                    )}
+                    {format(new Date(note.updated_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
