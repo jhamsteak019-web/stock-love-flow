@@ -277,11 +277,11 @@ const Deliveries = () => {
               )}
             </div>
           )}
-          <ColumnSettings columns={columns} onColumnChange={setColumns} />
+          <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_COLUMNS} />
         </div>
       </div>
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <Table>
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto">
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
               {isColumnVisible('allocation') && <TableHead style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
