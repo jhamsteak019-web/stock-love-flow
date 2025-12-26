@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, X, Check, Trash2, Circle, Clock } from 'lucide-react';
+import { Users, Edit2, Shield, ShieldCheck, X, Check, Trash2, Circle, Clock, Info } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useUsers, UserWithRole } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPresence } from '@/hooks/useUserPresence';
@@ -233,6 +234,21 @@ const ManageUsers = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Notes Section */}
+      <Alert className="bg-muted/50">
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-sm">
+          <strong>Notes:</strong>
+          <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+            <li><strong>Admin</strong> - Full access to all features including user management, inventory, and reports.</li>
+            <li><strong>Staff</strong> - Limited access to inventory operations and deliveries.</li>
+            <li>You cannot change your own role or delete your own account.</li>
+            <li>Online status updates in real-time. Green dot indicates the user is currently active.</li>
+            <li>Deleting a user will permanently remove all their data. This action cannot be undone.</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };
