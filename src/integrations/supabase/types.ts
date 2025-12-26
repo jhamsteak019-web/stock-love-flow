@@ -32,6 +32,30 @@ export type Database = {
         }
         Relationships: []
       }
+      column_settings: {
+        Row: {
+          id: string
+          page_name: string
+          settings: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          page_name: string
+          settings?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          page_name?: string
+          settings?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       imported_items: {
         Row: {
           batch_id: string
