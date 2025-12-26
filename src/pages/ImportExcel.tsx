@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2, PackagePlus, Archive } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo, useCallback, useTransition } from 'react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Printer, FolderOpen, Trash2, PackagePlus, Archive, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useDebounce } from '@/hooks/useDebounce';
 import * as XLSX from 'xlsx';
 import {
   AlertDialog,
@@ -17,6 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+const ITEMS_PER_PAGE = 20;
 
 // Format 1: Sheet No., Deliver To, Supplier, Price, Box, Pieces/Box, Remarks (auto-generated)
 interface Format1Item {
@@ -79,6 +83,14 @@ const ImportExcel = () => {
   const [importBucket, setImportBucket] = useState<ImportBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; batch: ImportBatch | null }>({ open: false, batch: null });
+  
+  // Search and pagination state for results
+  const [resultsSearch, setResultsSearch] = useState('');
+  const [resultsPage, setResultsPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
+  
+  // Debounced search for smooth typing
+  const debouncedResultsSearch = useDebounce(resultsSearch, 350);
 
   const fetchImportBucket = async () => {
     try {
@@ -382,6 +394,8 @@ const ImportExcel = () => {
       if (error) throw error;
 
       setResults({ success: items.length, failed: 0, formatType, items });
+      setResultsSearch('');
+      setResultsPage(1);
       await fetchImportBucket();
       toast({ title: 'Import Complete', description: `${items.length} items imported` });
     } catch (error) {
@@ -392,6 +406,40 @@ const ImportExcel = () => {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  // Filtered and paginated results with memoization
+  const filteredResults = useMemo(() => {
+    if (!results?.items) return [];
+    if (!debouncedResultsSearch.trim()) return results.items;
+    
+    const query = debouncedResultsSearch.toLowerCase();
+    return results.items.filter(item => 
+      item.sheetNo.toLowerCase().includes(query) ||
+      item.deliverTo.toLowerCase().includes(query) ||
+      item.supplier.toLowerCase().includes(query) ||
+      item.remarks.toLowerCase().includes(query)
+    );
+  }, [results?.items, debouncedResultsSearch]);
+
+  const resultsTotalPages = Math.ceil(filteredResults.length / ITEMS_PER_PAGE);
+  
+  const paginatedResults = useMemo(() => {
+    const startIndex = (resultsPage - 1) * ITEMS_PER_PAGE;
+    return filteredResults.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredResults, resultsPage]);
+
+  const handleResultsSearchChange = useCallback((value: string) => {
+    setResultsSearch(value);
+    startTransition(() => {
+      setResultsPage(1);
+    });
+  }, []);
+
+  const goToResultsPage = useCallback((page: number) => {
+    startTransition(() => {
+      setResultsPage(Math.max(1, Math.min(page, resultsTotalPages)));
+    });
+  }, [resultsTotalPages]);
 
   const handlePrint = (batch: ImportBatch) => {
     const items = batch.items;
@@ -520,33 +568,106 @@ const ImportExcel = () => {
           </div>
 
           {results.items.length > 0 && (
-            <div className="mt-4 rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted">
-                    <TableHead>Sheet No.</TableHead>
-                    <TableHead>Deliver To</TableHead>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Box</TableHead>
-                    <TableHead className="text-right">Pieces/Box</TableHead>
-                    <TableHead>Remarks (Auto)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {results.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                      <TableCell>{item.deliverTo || '-'}</TableCell>
-                      <TableCell>{item.supplier || '-'}</TableCell>
-                      <TableCell className="text-right">{item.price.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{item.box.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{item.remarks || '-'}</TableCell>
+            <div className="space-y-4">
+              {/* Search input for results */}
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search sheet no, deliver to, supplier..."
+                    value={resultsSearch}
+                    onChange={(e) => handleResultsSearchChange(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {resultsSearch && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => handleResultsSearchChange('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>{filteredResults.length} of {results.items.length} items</span>
+                  {isPending && (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted">
+                      <TableHead>Sheet No.</TableHead>
+                      <TableHead>Deliver To</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">Box</TableHead>
+                      <TableHead className="text-right">Pieces/Box</TableHead>
+                      <TableHead>Remarks (Auto)</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedResults.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          {debouncedResultsSearch ? 'No matching items found' : 'No items'}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedResults.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
+                          <TableCell>{item.deliverTo || '-'}</TableCell>
+                          <TableCell>{item.supplier || '-'}</TableCell>
+                          <TableCell className="text-right">{item.price.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{item.box.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.remarks || '-'}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination for results */}
+              {resultsTotalPages > 1 && (
+                <div className="flex items-center justify-between px-2">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((resultsPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(resultsPage * ITEMS_PER_PAGE, filteredResults.length)} of {filteredResults.length}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToResultsPage(resultsPage - 1)}
+                      disabled={resultsPage === 1 || isPending}
+                      className="gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </Button>
+                    <span className="text-sm text-muted-foreground px-2">
+                      {resultsPage} / {resultsTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToResultsPage(resultsPage + 1)}
+                      disabled={resultsPage === resultsTotalPages || isPending}
+                      className="gap-1"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
