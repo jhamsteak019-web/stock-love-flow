@@ -1,18 +1,20 @@
-import { useState } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Note {
   id: string;
   title: string;
   content: string;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: string;
+  updated_at: string;
   color: string;
 }
 
@@ -25,25 +27,12 @@ const COLORS = [
   'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700',
 ];
 
-const STORAGE_KEY = 'app-notes';
-
 const Notes = () => {
   const { toast } = useToast();
-  const [notes, setNotes] = useState<Note[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved).map((note: Note) => ({
-          ...note,
-          createdAt: new Date(note.createdAt),
-          updatedAt: new Date(note.updatedAt),
-        }));
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
+  const { user } = useAuth();
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -53,32 +42,63 @@ const Notes = () => {
   const [newContent, setNewContent] = useState('');
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
-  const saveNotes = (updatedNotes: Note[]) => {
-    setNotes(updatedNotes);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedNotes));
+  const fetchNotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotes(data || []);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCreateNote = () => {
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  const handleCreateNote = async () => {
     if (!newTitle.trim() && !newContent.trim()) {
       toast({ title: 'Error', description: 'Please enter a title or content', variant: 'destructive' });
       return;
     }
 
-    const newNote: Note = {
-      id: crypto.randomUUID(),
-      title: newTitle.trim() || 'Untitled',
-      content: newContent.trim(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      color: selectedColor,
-    };
+    if (!user) {
+      toast({ title: 'Error', description: 'You must be logged in', variant: 'destructive' });
+      return;
+    }
 
-    saveNotes([newNote, ...notes]);
-    setNewTitle('');
-    setNewContent('');
-    setIsCreating(false);
-    setSelectedColor(COLORS[0]);
-    toast({ title: 'Success', description: 'Note created' });
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          user_id: user.id,
+          title: newTitle.trim() || 'Untitled',
+          content: newContent.trim(),
+          color: selectedColor,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setNotes([data, ...notes]);
+      setNewTitle('');
+      setNewContent('');
+      setIsCreating(false);
+      setSelectedColor(COLORS[0]);
+      toast({ title: 'Success', description: 'Note created' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditNote = (note: Note) => {
@@ -87,33 +107,68 @@ const Notes = () => {
     setEditContent(note.content);
   };
 
-  const handleSaveEdit = (noteId: string) => {
+  const handleSaveEdit = async (noteId: string) => {
     if (!editTitle.trim() && !editContent.trim()) {
       toast({ title: 'Error', description: 'Please enter a title or content', variant: 'destructive' });
       return;
     }
 
-    const updatedNotes = notes.map(note =>
-      note.id === noteId
-        ? { ...note, title: editTitle.trim() || 'Untitled', content: editContent.trim(), updatedAt: new Date() }
-        : note
-    );
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({
+          title: editTitle.trim() || 'Untitled',
+          content: editContent.trim(),
+        })
+        .eq('id', noteId);
 
-    saveNotes(updatedNotes);
-    setEditingId(null);
-    toast({ title: 'Success', description: 'Note updated' });
+      if (error) throw error;
+
+      setNotes(notes.map(note =>
+        note.id === noteId
+          ? { ...note, title: editTitle.trim() || 'Untitled', content: editContent.trim(), updated_at: new Date().toISOString() }
+          : note
+      ));
+      setEditingId(null);
+      toast({ title: 'Success', description: 'Note updated' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeleteNote = (noteId: string) => {
+  const handleDeleteNote = async (noteId: string) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
-    saveNotes(notes.filter(note => note.id !== noteId));
-    toast({ title: 'Success', description: 'Note deleted' });
+
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      setNotes(notes.filter(note => note.id !== noteId));
+      toast({ title: 'Success', description: 'Note deleted' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
   };
 
   const filteredNotes = notes.filter(note =>
     note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     note.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -170,8 +225,8 @@ const Notes = () => {
                 <X className="h-4 w-4 mr-1" />
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleCreateNote}>
-                <Save className="h-4 w-4 mr-1" />
+              <Button size="sm" onClick={handleCreateNote} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
                 Save Note
               </Button>
             </div>
@@ -214,11 +269,11 @@ const Notes = () => {
                     placeholder="Content"
                   />
                   <div className="flex gap-2 justify-end">
-                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} disabled={saving}>
                       <X className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" onClick={() => handleSaveEdit(note.id)}>
-                      <Save className="h-4 w-4" />
+                    <Button size="sm" onClick={() => handleSaveEdit(note.id)} disabled={saving}>
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     </Button>
                   </div>
                 </CardContent>
@@ -235,7 +290,7 @@ const Notes = () => {
                     </p>
                     <div className="flex items-center justify-between pt-2 border-t border-foreground/10">
                       <span className="text-xs text-muted-foreground">
-                        {format(note.updatedAt, 'MMM d, yyyy')}
+                        {format(new Date(note.updated_at), 'MMM d, yyyy')}
                       </span>
                       <div className="flex gap-1">
                         <Button
