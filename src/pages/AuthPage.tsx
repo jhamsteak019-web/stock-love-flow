@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Package, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { User, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ const AuthPage = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [authError, setAuthError] = useState<string | null>(null);
   
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
@@ -58,6 +59,7 @@ const AuthPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     
     if (!validateForm()) return;
     
@@ -68,17 +70,9 @@ const AuthPage = () => {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
-            toast({
-              title: 'Login Failed',
-              description: 'Invalid email or password. Please try again.',
-              variant: 'destructive',
-            });
+            setAuthError('Invalid username or password.');
           } else {
-            toast({
-              title: 'Error',
-              description: error.message,
-              variant: 'destructive',
-            });
+            setAuthError(error.message);
           }
         } else {
           toast({
@@ -91,22 +85,14 @@ const AuthPage = () => {
         const { error } = await signUp(email, password, fullName);
         if (error) {
           if (error.message.includes('already registered')) {
-            toast({
-              title: 'Account Exists',
-              description: 'This email is already registered. Please sign in instead.',
-              variant: 'destructive',
-            });
+            setAuthError('This email is already registered. Please sign in instead.');
           } else {
-            toast({
-              title: 'Error',
-              description: error.message,
-              variant: 'destructive',
-            });
+            setAuthError(error.message);
           }
         } else {
           toast({
             title: 'Account Created!',
-            description: 'Welcome to Stock. The first user becomes admin.',
+            description: 'Welcome to Stock Focus System.',
           });
           navigate('/dashboard');
         }
@@ -117,161 +103,142 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-sidebar text-sidebar-foreground flex-col justify-between p-12">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 shadow-lg">
-              <Package className="h-7 w-7 text-sidebar-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 p-4">
+      {/* Login Card */}
+      <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 animate-fade-in">
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-200 to-sky-400" />
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Stock</h1>
+            {/* Decorative swoosh */}
+            <div className="absolute -right-1 top-1/2 w-8 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transform -translate-y-1/2 rotate-12" />
           </div>
         </div>
-        
-        <div className="space-y-6">
-          <h2 className="text-4xl font-bold leading-tight">
-            Manage your inventory<br />
-            with confidence
-          </h2>
-          <p className="text-lg text-sidebar-foreground/70 max-w-md">
-            Streamline your stock management, track deliveries in real-time, 
-            and import data effortlessly from Excel files.
+
+        {/* Welcome Text */}
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-foreground">
+            {isLogin ? 'Welcome Back' : 'Create Account'}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isLogin 
+              ? 'Please enter your credentials to continue' 
+              : 'Fill in the details to get started'}
           </p>
-          <div className="flex gap-8 pt-6">
-            <div>
-              <p className="text-3xl font-bold">10k+</p>
-              <p className="text-sm text-sidebar-foreground/60">Items tracked</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold">99.9%</p>
-              <p className="text-sm text-sidebar-foreground/60">Uptime</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold">24/7</p>
-              <p className="text-sm text-sidebar-foreground/60">Support</p>
-            </div>
-          </div>
         </div>
-        
-        <p className="text-sm text-sidebar-foreground/50">
-          © 2024 Stock. All rights reserved.
-        </p>
-      </div>
 
-      {/* Right side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md space-y-8 animate-fade-in">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg">
-              <Package className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">Stock</h1>
+        {/* Error Message */}
+        {authError && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span className="text-sm">{authError}</span>
           </div>
+        )}
 
-          <div className="text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-foreground">
-              {isLogin ? 'Welcome back' : 'Create your account'}
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              {isLogin 
-                ? 'Enter your credentials to access your account' 
-                : 'Start managing your inventory today'}
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {errors.fullName && (
-                  <p className="text-sm text-destructive">{errors.fullName}</p>
-                )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div className="space-y-1.5">
+              <Label htmlFor="fullName" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Full Name
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="pl-10 h-11 bg-muted/50 border-border/50 focus:border-primary"
+                />
               </div>
+              {errors.fullName && (
+                <p className="text-xs text-destructive">{errors.fullName}</p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Username
+            </Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 h-11 bg-muted/50 border-border/50 focus:border-primary"
+              />
+            </div>
+            {errors.email && (
+              <p className="text-xs text-destructive">{errors.email}</p>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full h-11 gap-2"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                <>
-                  {isLogin ? 'Sign In' : 'Create Account'}
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              {isLogin ? "Don't have an account?" : 'Already have an account?'}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="ml-1 font-medium text-primary hover:underline"
-              >
-                {isLogin ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Password
+            </Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10 h-11 bg-muted/50 border-border/50 focus:border-primary"
+              />
+            </div>
+            {errors.password && (
+              <p className="text-xs text-destructive">{errors.password}</p>
+            )}
+          </div>
+
+          <Button 
+            type="submit" 
+            className="w-full h-11 gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-md mt-6"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <>
+                {isLogin ? 'SECURE SIGN IN' : 'CREATE ACCOUNT'}
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </form>
+
+        <div className="text-center mt-4">
+          <p className="text-sm text-muted-foreground">
+            {isLogin ? "Don't have an account?" : 'Already have an account?'}
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+                setAuthError(null);
+              }}
+              className="ml-1 font-medium text-primary hover:underline"
+            >
+              {isLogin ? 'Sign up' : 'Sign in'}
+            </button>
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 pt-4 border-t border-border/50">
           <p className="text-xs text-center text-muted-foreground">
-            Note: The first user to sign up automatically becomes an Admin.
+            © 2025 Stock Focus System. All Rights Reserved.
           </p>
         </div>
       </div>
