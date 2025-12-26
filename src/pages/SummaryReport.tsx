@@ -666,21 +666,23 @@ const SummaryReport = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[60px] text-center">No.</TableHead>
                         <TableHead>Branch/Store</TableHead>
                         <TableHead className="text-center">Pending</TableHead>
                         <TableHead className="text-center">In Transit</TableHead>
                         <TableHead className="text-center">Out for Delivery</TableHead>
                         <TableHead className="text-center">Delivered</TableHead>
-                        <TableHead className="text-right">Total Boxes</TableHead>
-                        <TableHead className="text-right">Total Qty</TableHead>
+                        <TableHead className="text-center">Total Boxes</TableHead>
+                        <TableHead className="text-center">Total Qty/Items</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {branchReport.map((item) => {
+                      {branchReport.map((item, index) => {
                         const allDelivered = item.pendingCount === 0 && item.inTransitCount === 0 && item.outForDeliveryCount === 0;
                         return (
                           <TableRow key={item.branch}>
+                            <TableCell className="text-center font-medium text-muted-foreground">{index + 1}</TableCell>
                             <TableCell className="font-medium">{item.branch}</TableCell>
                             <TableCell className="text-center">
                               {item.pendingCount > 0 ? (
@@ -710,8 +712,8 @@ const SummaryReport = () => {
                                 </Badge>
                               ) : '-'}
                             </TableCell>
-                            <TableCell className="text-right font-medium">{item.totalBoxes.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">{item.totalQty.toLocaleString()}</TableCell>
+                            <TableCell className="text-center font-medium">{item.totalBoxes.toLocaleString()}</TableCell>
+                            <TableCell className="text-center font-medium">{item.totalQty.toLocaleString()}</TableCell>
                             <TableCell className="text-center">
                               {allDelivered ? (
                                 <Badge className="bg-green-600 hover:bg-green-700">All Delivered</Badge>
