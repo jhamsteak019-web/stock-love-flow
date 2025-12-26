@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ReminderColumnSettings, { ReminderColumnConfig } from '@/components/reminder/ColumnSettings';
+import { useReminderColumnSettings } from '@/hooks/useReminderColumnSettings';
 
 type NoteStatus = 'pending' | 'waiting_to_follow' | 'waiting_approval' | 'approved';
 
@@ -50,6 +52,17 @@ const COLORS = [
 
 const ITEMS_PER_PAGE = 15;
 
+const DEFAULT_COLUMNS: ReminderColumnConfig[] = [
+  { key: 'color', label: 'Color', visible: true, width: 50, minWidth: 40, maxWidth: 80 },
+  { key: 'title', label: 'Title', visible: true, width: 200, minWidth: 100, maxWidth: 300 },
+  { key: 'remarks', label: 'Remarks', visible: true, width: 250, minWidth: 150, maxWidth: 400 },
+  { key: 'createdBy', label: 'Created By', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'status', label: 'Status', visible: true, width: 160, minWidth: 120, maxWidth: 200 },
+  { key: 'dateCreated', label: 'Date Created', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
+  { key: 'lastUpdated', label: 'Last Updated', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
+  { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
+];
+
 const Notes = () => {
   const { toast } = useToast();
   const { user, userRole } = useAuth();
@@ -65,6 +78,10 @@ const Notes = () => {
   const [formColor, setFormColor] = useState('yellow');
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
+  const { columns, setColumns } = useReminderColumnSettings('reminder', DEFAULT_COLUMNS);
+
+  const getColumnWidth = (key: string) => columns.find(c => c.key === key)?.width || 100;
+  const isColumnVisible = (key: string) => columns.find(c => c.key === key)?.visible ?? true;
 
   const debouncedSearch = useDebounce(searchQuery, 350);
 
@@ -322,6 +339,13 @@ const Notes = () => {
               )}
             </div>
           )}
+          {isAdmin && (
+            <ReminderColumnSettings
+              columns={columns}
+              onColumnChange={setColumns}
+              defaultColumns={DEFAULT_COLUMNS}
+            />
+          )}
           <Button onClick={openCreateDialog} className="gap-2">
             <Plus className="h-4 w-4" />
             New Reminder
@@ -334,20 +358,20 @@ const Notes = () => {
         <Table>
           <TableHeader>
             <TableRow className="transition-all duration-300">
-              <TableHead className="w-[50px]">Color</TableHead>
-              <TableHead className="w-[200px]">Title</TableHead>
-              <TableHead>Remarks</TableHead>
-              <TableHead className="w-[150px]">Created By</TableHead>
-              <TableHead className="w-[130px]">Status</TableHead>
-              <TableHead className="w-[120px]">Date Created</TableHead>
-              <TableHead className="w-[120px]">Last Updated</TableHead>
-              <TableHead className="w-[100px] text-center">Actions</TableHead>
+              {isColumnVisible('color') && <TableHead style={{ width: getColumnWidth('color') }}>Color</TableHead>}
+              {isColumnVisible('title') && <TableHead style={{ width: getColumnWidth('title') }}>Title</TableHead>}
+              {isColumnVisible('remarks') && <TableHead style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
+              {isColumnVisible('createdBy') && <TableHead style={{ width: getColumnWidth('createdBy') }}>Created By</TableHead>}
+              {isColumnVisible('status') && <TableHead style={{ width: getColumnWidth('status') }}>Status</TableHead>}
+              {isColumnVisible('dateCreated') && <TableHead style={{ width: getColumnWidth('dateCreated') }}>Date Created</TableHead>}
+              {isColumnVisible('lastUpdated') && <TableHead style={{ width: getColumnWidth('lastUpdated') }}>Last Updated</TableHead>}
+              {isColumnVisible('actions') && <TableHead style={{ width: getColumnWidth('actions') }} className="text-center">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedNotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-12">
                   <StickyNote className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">
                     {debouncedSearch ? 'No matching notes found' : 'No notes yet'}
@@ -366,119 +390,135 @@ const Notes = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
-                  <TableCell>
-                    <div className={`h-4 w-4 rounded-full ${getColorClass(note.color)}`} />
-                  </TableCell>
-                  <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
-                  <TableCell className="max-w-[250px] truncate text-muted-foreground">
-                    {note.content || 'No content'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {note.profiles?.full_name || note.profiles?.email?.split('@')[0] || 'Unknown'}
-                  </TableCell>
-                  <TableCell>
-                    {isAdmin && note.status !== 'approved' ? (
-                      <Select
-                        value={note.status}
-                        onValueChange={(value: NoteStatus) => handleStatusChange(note.id, value)}
-                      >
-                        <SelectTrigger className="w-[160px] h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              <div className="flex items-center gap-2">
-                                <option.icon className="h-3 w-3" />
-                                {option.label}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      (() => {
-                        const statusOption = STATUS_OPTIONS.find(s => s.value === note.status) || STATUS_OPTIONS[0];
-                        return (
-                          <Badge 
-                            variant="secondary"
-                            className={`${statusOption.bgClass} ${statusOption.textClass}`}
+                  {isColumnVisible('color') && (
+                    <TableCell>
+                      <div className={`h-4 w-4 rounded-full ${getColorClass(note.color)}`} />
+                    </TableCell>
+                  )}
+                  {isColumnVisible('title') && (
+                    <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
+                  )}
+                  {isColumnVisible('remarks') && (
+                    <TableCell className="max-w-[250px] truncate text-muted-foreground">
+                      {note.content || 'No content'}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('createdBy') && (
+                    <TableCell className="text-muted-foreground">
+                      {note.profiles?.full_name || note.profiles?.email?.split('@')[0] || 'Unknown'}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('status') && (
+                    <TableCell>
+                      {isAdmin && note.status !== 'approved' ? (
+                        <Select
+                          value={note.status}
+                          onValueChange={(value: NoteStatus) => handleStatusChange(note.id, value)}
+                        >
+                          <SelectTrigger className="w-[160px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                <div className="flex items-center gap-2">
+                                  <option.icon className="h-3 w-3" />
+                                  {option.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        (() => {
+                          const statusOption = STATUS_OPTIONS.find(s => s.value === note.status) || STATUS_OPTIONS[0];
+                          return (
+                            <Badge 
+                              variant="secondary"
+                              className={`${statusOption.bgClass} ${statusOption.textClass}`}
+                            >
+                              <statusOption.icon className="h-3 w-3 mr-1" />
+                              {statusOption.label}
+                            </Badge>
+                          );
+                        })()
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('dateCreated') && (
+                    <TableCell className="text-muted-foreground">
+                      {isAdmin ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
+                              {format(new Date(note.created_at), 'MMM d, yyyy')}
+                              <Calendar className="h-3 w-3" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={new Date(note.created_at)}
+                              onSelect={(date) => date && handleUpdateDate(note.id, date, 'created_at')}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        format(new Date(note.created_at), 'MMM d, yyyy')
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('lastUpdated') && (
+                    <TableCell className="text-muted-foreground">
+                      {isAdmin ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
+                              {format(new Date(note.updated_at), 'MMM d, yyyy')}
+                              <Calendar className="h-3 w-3" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={new Date(note.updated_at)}
+                              onSelect={(date) => date && handleUpdateDate(note.id, date, 'updated_at')}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        format(new Date(note.updated_at), 'MMM d, yyyy')
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('actions') && (
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1">
+                        {note.status !== 'approved' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 transition-transform hover:scale-110"
+                            onClick={() => openEditDialog(note)}
                           >
-                            <statusOption.icon className="h-3 w-3 mr-1" />
-                            {statusOption.label}
-                          </Badge>
-                        );
-                      })()
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {isAdmin ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
-                            {format(new Date(note.created_at), 'MMM d, yyyy')}
-                            <Calendar className="h-3 w-3" />
+                            <Edit2 className="h-4 w-4" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={new Date(note.created_at)}
-                            onSelect={(date) => date && handleUpdateDate(note.id, date, 'created_at')}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      format(new Date(note.created_at), 'MMM d, yyyy')
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {isAdmin ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
-                            {format(new Date(note.updated_at), 'MMM d, yyyy')}
-                            <Calendar className="h-3 w-3" />
+                        )}
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive transition-transform hover:scale-110"
+                            onClick={() => handleDelete(note.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={new Date(note.updated_at)}
-                            onSelect={(date) => date && handleUpdateDate(note.id, date, 'updated_at')}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      format(new Date(note.updated_at), 'MMM d, yyyy')
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1">
-                      {note.status !== 'approved' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 transition-transform hover:scale-110"
-                          onClick={() => openEditDialog(note)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive transition-transform hover:scale-110"
-                          onClick={() => handleDelete(note.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
