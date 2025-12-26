@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDebounce } from '@/hooks/useDebounce';
+import { Badge } from '@/components/ui/badge';
 
 interface Note {
   id: string;
@@ -18,6 +19,7 @@ interface Note {
   created_at: string;
   updated_at: string;
   color: string;
+  status: 'pending' | 'approved';
 }
 
 const COLORS = [
@@ -33,10 +35,11 @@ const ITEMS_PER_PAGE = 15;
 
 const Notes = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const isAdmin = userRole === 'admin';
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -56,7 +59,10 @@ const Notes = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setNotes(data || []);
+      setNotes((data || []).map(note => ({
+        ...note,
+        status: note.status as 'pending' | 'approved'
+      })));
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -165,7 +171,7 @@ const Notes = () => {
 
         if (error) throw error;
 
-        setNotes([data, ...notes]);
+        setNotes([{ ...data, status: data.status as 'pending' | 'approved' }, ...notes]);
         toast({ title: 'Success', description: 'Note created' });
       }
       closeDialog();
@@ -189,6 +195,24 @@ const Notes = () => {
 
       setNotes(notes.filter(note => note.id !== noteId));
       toast({ title: 'Success', description: 'Note deleted' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleApprove = async (noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ status: 'approved' })
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      setNotes(notes.map(note =>
+        note.id === noteId ? { ...note, status: 'approved' } : note
+      ));
+      toast({ title: 'Success', description: 'Note approved' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -253,15 +277,16 @@ const Notes = () => {
               <TableHead className="w-[50px]">Color</TableHead>
               <TableHead className="w-[200px]">Title</TableHead>
               <TableHead>Content</TableHead>
+              <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[150px]">Date Created</TableHead>
               <TableHead className="w-[150px]">Last Updated</TableHead>
-              <TableHead className="w-[100px] text-center">Actions</TableHead>
+              <TableHead className="w-[120px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedNotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12">
+                <TableCell colSpan={7} className="text-center py-12">
                   <StickyNote className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">
                     {debouncedSearch ? 'No matching notes found' : 'No notes yet'}
@@ -287,6 +312,18 @@ const Notes = () => {
                   <TableCell className="max-w-[300px] truncate text-muted-foreground">
                     {note.content || 'No content'}
                   </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={note.status === 'approved' ? 'default' : 'secondary'}
+                      className={note.status === 'approved' ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600 text-black'}
+                    >
+                      {note.status === 'approved' ? (
+                        <><CheckCircle className="h-3 w-3 mr-1" /> Approved</>
+                      ) : (
+                        <><Clock className="h-3 w-3 mr-1" /> Pending</>
+                      )}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {format(new Date(note.created_at), 'MMM d, yyyy')}
                   </TableCell>
@@ -295,14 +332,27 @@ const Notes = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 transition-transform hover:scale-110"
-                        onClick={() => openEditDialog(note)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                      {isAdmin && note.status === 'pending' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-green-600 hover:text-green-700 transition-transform hover:scale-110"
+                          onClick={() => handleApprove(note.id)}
+                          title="Approve note"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {note.status !== 'approved' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 transition-transform hover:scale-110"
+                          onClick={() => openEditDialog(note)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
