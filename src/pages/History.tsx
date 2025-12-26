@@ -458,20 +458,20 @@ const History = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto">
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto transition-all duration-300">
             <Table className="table-fixed">
               <TableHeader>
-                <TableRow>
-                  {isColumnVisible('allocation') && <TableHead style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
-                  {isColumnVisible('destination') && <TableHead style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
-                  {isColumnVisible('category') && <TableHead style={{ width: getColumnWidth('category') }}>Category</TableHead>}
-                  {isColumnVisible('totalBoxes') && <TableHead className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
-                  {isColumnVisible('totalQty') && <TableHead className="text-center" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
-                  {isColumnVisible('dateOut') && <TableHead style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
-                  {isColumnVisible('dateReceived') && <TableHead style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
-                  {isColumnVisible('courier') && <TableHead style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
-                  {isColumnVisible('waybill') && <TableHead style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
-                  {isColumnVisible('remarks') && <TableHead style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
+                <TableRow className="transition-all duration-300">
+                  {isColumnVisible('allocation') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
+                  {isColumnVisible('destination') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
+                  {isColumnVisible('category') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>Category</TableHead>}
+                  {isColumnVisible('totalBoxes') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+                  {isColumnVisible('totalQty') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
+                  {isColumnVisible('dateOut') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
+                  {isColumnVisible('dateReceived') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
+                  {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
+                  {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
+                  {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -486,23 +486,28 @@ const History = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredReleases.map((group) => (
-                    <TableRow key={group.batch_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
-                      {isColumnVisible('allocation') && <TableCell className="font-medium" style={{ width: getColumnWidth('allocation') }}>{group.allocation_bill || '-'}</TableCell>}
-                      {isColumnVisible('destination') && <TableCell style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
-                      {isColumnVisible('category') && <TableCell style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
-                      {isColumnVisible('totalBoxes') && <TableCell className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
-                      {isColumnVisible('totalQty') && <TableCell className="text-center" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
-                      {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
+                  filteredReleases.map((group, index) => (
+                    <TableRow 
+                      key={group.batch_id} 
+                      className="cursor-pointer transition-all duration-300 ease-out hover:bg-muted/50" 
+                      onClick={() => setSelectedBatch(group)}
+                      style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
+                    >
+                      {isColumnVisible('allocation') && <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>{group.allocation_bill || '-'}</TableCell>}
+                      {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
+                      {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
+                      {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                      {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
+                      {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
                       {isColumnVisible('dateReceived') && (
-                        <TableCell className="text-muted-foreground" style={{ width: getColumnWidth('dateReceived') }}>
+                        <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>
                           {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
                         </TableCell>
                       )}
-                      {isColumnVisible('courier') && <TableCell style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
-                      {isColumnVisible('waybill') && <TableCell style={{ width: getColumnWidth('waybill') }}>{group.waybill_no || '-'}</TableCell>}
+                      {isColumnVisible('courier') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
+                      {isColumnVisible('waybill') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>{group.waybill_no || '-'}</TableCell>}
                       {isColumnVisible('remarks') && (
-                        <TableCell onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('remarks') }}>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>
                           <Input
                             placeholder="Enter remarks"
                             defaultValue={group.notes || ''}
@@ -517,7 +522,7 @@ const History = () => {
                       )}
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
                             <Eye className="h-4 w-4" />
                           </Button>
                           {isAdmin && (
@@ -526,6 +531,7 @@ const History = () => {
                               size="icon" 
                               onClick={(e) => handleEditDates(group, e)}
                               title="Edit dates"
+                              className="transition-transform hover:scale-110"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -535,7 +541,7 @@ const History = () => {
                               variant="ghost" 
                               size="icon" 
                               onClick={(e) => handleDelete(group, e)}
-                              className="text-destructive hover:text-destructive"
+                              className="text-destructive hover:text-destructive transition-transform hover:scale-110"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
