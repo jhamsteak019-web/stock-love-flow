@@ -66,6 +66,7 @@ const Notes = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
+  const [statusChangeNote, setStatusChangeNote] = useState<{ id: string; status: NoteStatus } | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 350);
 
@@ -244,20 +245,34 @@ const Notes = () => {
   };
 
   const handleStatusChange = async (noteId: string, newStatus: NoteStatus) => {
+    // Store the status change and show calendar to pick the updated_at date
+    setStatusChangeNote({ id: noteId, status: newStatus });
+  };
+
+  const confirmStatusChangeWithDate = async (date: Date) => {
+    if (!statusChangeNote) return;
+    
     try {
       const { error } = await supabase
         .from('notes')
-        .update({ status: newStatus })
-        .eq('id', noteId);
+        .update({ 
+          status: statusChangeNote.status,
+          updated_at: date.toISOString()
+        })
+        .eq('id', statusChangeNote.id);
 
       if (error) throw error;
 
       setNotes(notes.map(note =>
-        note.id === noteId ? { ...note, status: newStatus } : note
+        note.id === statusChangeNote.id 
+          ? { ...note, status: statusChangeNote.status, updated_at: date.toISOString() } 
+          : note
       ));
-      toast({ title: 'Success', description: 'Status updated' });
+      toast({ title: 'Success', description: 'Status and date updated' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setStatusChangeNote(null);
     }
   };
 
@@ -634,6 +649,35 @@ const Notes = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewingNote(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Change Date Picker Dialog */}
+      <Dialog open={!!statusChangeNote} onOpenChange={(open) => !open && setStatusChangeNote(null)}>
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Select Last Update Date
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Pick a date for the "Last Updated" field:
+            </p>
+            <CalendarComponent
+              mode="single"
+              selected={new Date()}
+              onSelect={(date) => date && confirmStatusChangeWithDate(date)}
+              initialFocus
+              className="rounded-md border pointer-events-auto"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusChangeNote(null)}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
