@@ -16,6 +16,8 @@ import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +29,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'courier' | 'waybill' | 'remarks';
+
+const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
+  { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
+  { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
+  { key: 'totalBoxes' as ColumnKey, label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
+  { key: 'totalQty' as ColumnKey, label: 'Total Qty/Items', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
+  { key: 'dateOut' as ColumnKey, label: 'Date Out', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
+  { key: 'dateReceived' as ColumnKey, label: 'Date Received', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
+  { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
+  { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
+  { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
+];
 
 interface GroupedRelease {
   batch_id: string;
@@ -49,7 +66,6 @@ interface GroupedRelease {
 
 const History = () => {
   const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, updateBatchDates } = useInventory();
-  const { userRole } = useAuth();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -64,7 +80,20 @@ const History = () => {
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [editDateOut, setEditDateOut] = useState<Date | undefined>(undefined);
   const [editDateReceived, setEditDateReceived] = useState<Date | undefined>(undefined);
-  const isAdmin = userRole === 'admin';
+  
+  const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
+
+  const isColumnVisible = (key: string) => {
+    const col = columns.find(c => c.key === key);
+    return col?.visible ?? true;
+  };
+
+  const getColumnWidth = (key: string) => {
+    const col = columns.find(c => c.key === key);
+    return col?.width || 100;
+  };
+
+  const visibleColumnCount = columns.filter(c => c.visible).length + 1; // +1 for Actions
 
   // Fetch deleted releases when switching to deleted tab
   useEffect(() => {
@@ -425,30 +454,31 @@ const History = () => {
                   Clear filters
                 </Button>
               )}
+              {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_HISTORY_COLUMNS} />}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <Table>
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto">
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Allocation</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-center">Total Boxes</TableHead>
-                  <TableHead className="text-center">Total Qty/Items</TableHead>
-                  <TableHead>Date Out</TableHead>
-                  <TableHead>Date Received</TableHead>
-                  <TableHead>Courier</TableHead>
-                  <TableHead>Waybill No.</TableHead>
-                  <TableHead>Remarks</TableHead>
+                  {isColumnVisible('allocation') && <TableHead style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
+                  {isColumnVisible('destination') && <TableHead style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
+                  {isColumnVisible('category') && <TableHead style={{ width: getColumnWidth('category') }}>Category</TableHead>}
+                  {isColumnVisible('totalBoxes') && <TableHead className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+                  {isColumnVisible('totalQty') && <TableHead className="text-center" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
+                  {isColumnVisible('dateOut') && <TableHead style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
+                  {isColumnVisible('dateReceived') && <TableHead style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
+                  {isColumnVisible('courier') && <TableHead style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
+                  {isColumnVisible('waybill') && <TableHead style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
+                  {isColumnVisible('remarks') && <TableHead style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredReleases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-12">
+                    <TableCell colSpan={visibleColumnCount} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
                         {searchQuery || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
@@ -458,29 +488,33 @@ const History = () => {
                 ) : (
                   filteredReleases.map((group) => (
                     <TableRow key={group.batch_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBatch(group)}>
-                      <TableCell className="font-medium">{group.allocation_bill || '-'}</TableCell>
-                      <TableCell>{group.destination}</TableCell>
-                      <TableCell>{group.category || '-'}</TableCell>
-                      <TableCell className="text-center">{group.totalBoxes}</TableCell>
-                      <TableCell className="text-center">{group.totalQty || group.itemCount}</TableCell>
-                      <TableCell className="text-muted-foreground">{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
-                      </TableCell>
-                      <TableCell>{group.courier || '-'}</TableCell>
-                      <TableCell>{group.waybill_no || '-'}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Input
-                          placeholder="Enter remarks"
-                          defaultValue={group.notes || ''}
-                          className="h-8 w-[120px] text-sm"
-                          onBlur={(e) => {
-                            if (e.target.value !== (group.notes || '')) {
-                              handleRemarksChange(group, e.target.value);
-                            }
-                          }}
-                        />
-                      </TableCell>
+                      {isColumnVisible('allocation') && <TableCell className="font-medium" style={{ width: getColumnWidth('allocation') }}>{group.allocation_bill || '-'}</TableCell>}
+                      {isColumnVisible('destination') && <TableCell style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
+                      {isColumnVisible('category') && <TableCell style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
+                      {isColumnVisible('totalBoxes') && <TableCell className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                      {isColumnVisible('totalQty') && <TableCell className="text-center" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
+                      {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
+                      {isColumnVisible('dateReceived') && (
+                        <TableCell className="text-muted-foreground" style={{ width: getColumnWidth('dateReceived') }}>
+                          {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                      )}
+                      {isColumnVisible('courier') && <TableCell style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
+                      {isColumnVisible('waybill') && <TableCell style={{ width: getColumnWidth('waybill') }}>{group.waybill_no || '-'}</TableCell>}
+                      {isColumnVisible('remarks') && (
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('remarks') }}>
+                          <Input
+                            placeholder="Enter remarks"
+                            defaultValue={group.notes || ''}
+                            className="h-8 w-[120px] text-sm"
+                            onBlur={(e) => {
+                              if (e.target.value !== (group.notes || '')) {
+                                handleRemarksChange(group, e.target.value);
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }}>
