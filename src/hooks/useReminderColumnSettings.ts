@@ -63,41 +63,20 @@ export const useReminderColumnSettings = (pageName: string, defaultColumns: Remi
     };
 
     try {
-      // Check if record exists
-      const { data: existingData } = await supabase
+      // Use upsert to avoid race conditions
+      const { error } = await supabase
         .from('column_settings')
-        .select('id')
-        .eq('page_name', pageName)
-        .maybeSingle();
+        .upsert({
+          page_name: pageName,
+          settings: settings as unknown as Json,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'page_name'
+        });
 
-      if (existingData) {
-        // Update existing record
-        const { error } = await supabase
-          .from('column_settings')
-          .update({
-            settings: settings as unknown as Json,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('page_name', pageName);
-
-        if (error) {
-          console.error('Error updating column settings:', error);
-          toast({ title: 'Error', description: 'Failed to save column settings', variant: 'destructive' });
-        }
-      } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('column_settings')
-          .insert([{
-            page_name: pageName,
-            settings: settings as unknown as Json,
-            updated_at: new Date().toISOString(),
-          }]);
-
-        if (error) {
-          console.error('Error inserting column settings:', error);
-          toast({ title: 'Error', description: 'Failed to save column settings', variant: 'destructive' });
-        }
+      if (error) {
+        console.error('Error saving column settings:', error);
+        toast({ title: 'Error', description: 'Failed to save column settings', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Error saving column settings:', error);
