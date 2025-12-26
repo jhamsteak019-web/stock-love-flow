@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
-import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon } from 'lucide-react';
+import { useState, useRef, useMemo, useEffect, useCallback, useTransition, memo } from 'react';
+import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,11 @@ import { cn } from '@/lib/utils';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+
+const ITEMS_PER_PAGE = 15;
 
 interface ParsedReleaseItem {
   id: string;
@@ -76,6 +79,11 @@ const ReleaseStock = () => {
   const [importSetDate, setImportSetDate] = useState<Date | undefined>(undefined);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [sheetNoSearch, setSheetNoSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
+  
+  // Debounced search for smooth typing
+  const debouncedSearch = useDebounce(sheetNoSearch, 350);
 
   // Persist parsedItems to localStorage
   useEffect(() => {
@@ -378,17 +386,41 @@ const ReleaseStock = () => {
     setImportSetDate(undefined);
     setSelectedItems(new Set());
     setSheetNoSearch('');
+    setCurrentPage(1);
   };
 
-  // Filter parsed items by sheet no or destination search
+  // Filter parsed items by sheet no or destination search - use debounced value
   const filteredParsedItems = useMemo(() => {
-    if (!sheetNoSearch.trim()) return parsedItems;
-    const searchLower = sheetNoSearch.toLowerCase();
+    if (!debouncedSearch.trim()) return parsedItems;
+    const searchLower = debouncedSearch.toLowerCase();
     return parsedItems.filter(item => 
       item.sheetNo.toLowerCase().includes(searchLower) ||
-      item.deliverTo.toLowerCase().includes(searchLower)
+      item.deliverTo.toLowerCase().includes(searchLower) ||
+      item.category.toLowerCase().includes(searchLower) ||
+      item.remarks.toLowerCase().includes(searchLower)
     );
-  }, [parsedItems, sheetNoSearch]);
+  }, [parsedItems, debouncedSearch]);
+
+  // Pagination for filtered items
+  const totalPages = Math.ceil(filteredParsedItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredParsedItems.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredParsedItems, currentPage]);
+
+  // Reset page when search changes
+  const handleSearchChange = useCallback((value: string) => {
+    setSheetNoSearch(value);
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const goToPage = useCallback((page: number) => {
+    startTransition(() => {
+      setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    });
+  }, [totalPages]);
 
   // Checkbox handlers - enable checkboxes when courier AND set date are set for item
   const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && p.courier && p.setDate);
@@ -479,160 +511,243 @@ const ReleaseStock = () => {
         {/* Import Preview */}
         {showImportPreview && parsedItems.length > 0 && (
           <div className="space-y-4 mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium">
-                Preview: {parsedItems.length} items found, {parsedItems.filter(p => p.matchedItemId).length} matched
-                {sheetNoSearch && ` (showing ${filteredParsedItems.length})`}
-              </p>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">
+                  {filteredParsedItems.length} of {parsedItems.length} items
+                </p>
+                {isPending && (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search Sheet No. or Branch..."
+                    placeholder="Search..."
                     value={sheetNoSearch}
-                    onChange={(e) => setSheetNoSearch(e.target.value)}
-                    className="h-8 w-[180px] pl-8 text-sm"
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="h-8 w-[160px] pl-8 pr-8 text-sm"
                   />
+                  {sheetNoSearch && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => handleSearchChange('')}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
                 <Button variant="outline" size="sm" onClick={cancelImport}>
                   Cancel
                 </Button>
               </div>
             </div>
-            <div className="rounded-lg border overflow-hidden max-h-80 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12 px-2">
-                      <Checkbox 
-                        checked={allSelectableSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Select all"
-                      />
-                    </TableHead>
-                    <TableHead className="min-w-[130px] px-2">Allocation Bill</TableHead>
-                    <TableHead className="min-w-[130px] px-2">Destination</TableHead>
-                    <TableHead className="min-w-[110px] px-2">Category</TableHead>
-                    <TableHead className="w-24 px-2">Boxes</TableHead>
-                    <TableHead className="w-24 px-2">Qty/Item</TableHead>
-                    <TableHead className="min-w-[130px] px-2">Remarks</TableHead>
-                    <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>
-                    <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>
-                    <TableHead className="min-w-[130px] px-2">Courier</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredParsedItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="px-2">
+            <div className="rounded-lg border overflow-hidden">
+              <div className="max-h-[400px] overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead className="w-12 px-2">
                         <Checkbox 
-                          checked={selectedItems.has(item.id)}
-                          onCheckedChange={() => toggleSelectItem(item.id)}
-                          disabled={item.qtyBoxes <= 0}
-                          aria-label={`Select ${item.sheetNo}`}
+                          checked={allSelectableSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all"
                         />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          value={item.sheetNo}
-                          onChange={(e) => updateParsedItem(item.id, 'sheetNo', e.target.value)}
-                          className="h-8 text-xs font-mono min-w-[110px]"
-                          placeholder="Allocation Bill"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          value={item.deliverTo}
-                          onChange={(e) => updateParsedItem(item.id, 'deliverTo', e.target.value)}
-                          className="h-8 text-xs min-w-[110px]"
-                          placeholder="Destination"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          value={item.category}
-                          onChange={(e) => updateParsedItem(item.id, 'category', e.target.value)}
-                          className="h-8 text-xs min-w-[90px]"
-                          placeholder="Category"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          type="number"
-                          value={item.qtyBoxes}
-                          onChange={(e) => updateParsedItem(item.id, 'qtyBoxes', parseInt(e.target.value) || 0)}
-                          className="h-8 text-xs w-20"
-                          min={0}
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          type="number"
-                          value={item.qtyItem}
-                          onChange={(e) => updateParsedItem(item.id, 'qtyItem', parseInt(e.target.value) || 0)}
-                          className="h-8 text-xs w-20"
-                          min={0}
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          value={item.remarks}
-                          onChange={(e) => updateParsedItem(item.id, 'remarks', e.target.value)}
-                          className="h-8 text-xs min-w-[110px]"
-                          placeholder="Remarks"
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Input 
-                          value={item.waybillNo || ''}
-                          onChange={(e) => updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value)}
-                          className="h-8 text-xs min-w-[110px]"
-                          placeholder="Waybill No."
-                        />
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
-                              <CalendarIcon className="mr-1 h-3 w-3" />
-                              {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={item.setDate ? new Date(item.setDate) : undefined}
-                              onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
-                              initialFocus
-                              className={cn("p-3 pointer-events-auto")}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </TableCell>
-                      <TableCell className="px-2">
-                        <Select value={item.courier} onValueChange={(val) => updateParsedItemWithBulk(item.id, 'courier', val)}>
-                          <SelectTrigger className="h-8 text-xs min-w-[110px]">
-                            <SelectValue placeholder="Courier" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover">
-                            <SelectItem value="AP CARGO">AP CARGO</SelectItem>
-                            <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
-                            <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
-                            <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
-                            <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
-                            <SelectItem value="RDS DC">RDS DC</SelectItem>
-                            <SelectItem value="SC DEC TO SM DC">SC DEC TO SM DC</SelectItem>
-                            <SelectItem value="SM DC">SM DC</SelectItem>
-                            <SelectItem value="PRIETO">PRIETO</SelectItem>
-                            <SelectItem value="DIRECT">DIRECT</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead className="min-w-[130px] px-2">Allocation Bill</TableHead>
+                      <TableHead className="min-w-[130px] px-2">Destination</TableHead>
+                      <TableHead className="min-w-[110px] px-2">Category</TableHead>
+                      <TableHead className="w-24 px-2">Boxes</TableHead>
+                      <TableHead className="w-24 px-2">Qty/Item</TableHead>
+                      <TableHead className="min-w-[130px] px-2">Remarks</TableHead>
+                      <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>
+                      <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>
+                      <TableHead className="min-w-[130px] px-2">Courier</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                          {debouncedSearch ? 'No matching items found' : 'No items'}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="px-2">
+                            <Checkbox 
+                              checked={selectedItems.has(item.id)}
+                              onCheckedChange={() => toggleSelectItem(item.id)}
+                              disabled={item.qtyBoxes <= 0}
+                              aria-label={`Select ${item.sheetNo}`}
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              defaultValue={item.sheetNo}
+                              onBlur={(e) => {
+                                if (e.target.value !== item.sheetNo) {
+                                  updateParsedItem(item.id, 'sheetNo', e.target.value);
+                                }
+                              }}
+                              className="h-8 text-xs font-mono min-w-[110px]"
+                              placeholder="Allocation Bill"
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              defaultValue={item.deliverTo}
+                              onBlur={(e) => {
+                                if (e.target.value !== item.deliverTo) {
+                                  updateParsedItem(item.id, 'deliverTo', e.target.value);
+                                }
+                              }}
+                              className="h-8 text-xs min-w-[110px]"
+                              placeholder="Destination"
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              defaultValue={item.category}
+                              onBlur={(e) => {
+                                if (e.target.value !== item.category) {
+                                  updateParsedItem(item.id, 'category', e.target.value);
+                                }
+                              }}
+                              className="h-8 text-xs min-w-[90px]"
+                              placeholder="Category"
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              type="number"
+                              defaultValue={item.qtyBoxes}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                if (val !== item.qtyBoxes) {
+                                  updateParsedItem(item.id, 'qtyBoxes', val);
+                                }
+                              }}
+                              className="h-8 text-xs w-20"
+                              min={0}
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              type="number"
+                              defaultValue={item.qtyItem}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                if (val !== item.qtyItem) {
+                                  updateParsedItem(item.id, 'qtyItem', val);
+                                }
+                              }}
+                              className="h-8 text-xs w-20"
+                              min={0}
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              defaultValue={item.remarks}
+                              onBlur={(e) => {
+                                if (e.target.value !== item.remarks) {
+                                  updateParsedItem(item.id, 'remarks', e.target.value);
+                                }
+                              }}
+                              className="h-8 text-xs min-w-[110px]"
+                              placeholder="Remarks"
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Input 
+                              defaultValue={item.waybillNo || ''}
+                              onBlur={(e) => {
+                                if (e.target.value !== (item.waybillNo || '')) {
+                                  updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
+                                }
+                              }}
+                              className="h-8 text-xs min-w-[110px]"
+                              placeholder="Waybill No."
+                            />
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
+                                  <CalendarIcon className="mr-1 h-3 w-3" />
+                                  {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={item.setDate ? new Date(item.setDate) : undefined}
+                                  onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </TableCell>
+                          <TableCell className="px-2">
+                            <Select value={item.courier} onValueChange={(val) => updateParsedItemWithBulk(item.id, 'courier', val)}>
+                              <SelectTrigger className="h-8 text-xs min-w-[110px]">
+                                <SelectValue placeholder="Courier" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover">
+                                <SelectItem value="AP CARGO">AP CARGO</SelectItem>
+                                <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
+                                <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
+                                <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
+                                <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
+                                <SelectItem value="RDS DC">RDS DC</SelectItem>
+                                <SelectItem value="SC DEC TO SM DC">SC DEC TO SM DC</SelectItem>
+                                <SelectItem value="SM DC">SM DC</SelectItem>
+                                <SelectItem value="PRIETO">PRIETO</SelectItem>
+                                <SelectItem value="DIRECT">DIRECT</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2">
+                <div className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages} ({filteredParsedItems.length} items)
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1 || isPending}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages || isPending}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
             
             <div className="flex justify-end pt-2 border-t">
               <Button 
