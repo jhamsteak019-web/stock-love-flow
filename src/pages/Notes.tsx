@@ -25,6 +25,11 @@ interface Note {
   updated_at: string;
   color: string;
   status: NoteStatus;
+  user_id: string;
+  profiles?: {
+    full_name: string | null;
+    email: string;
+  };
 }
 
 const STATUS_OPTIONS: { value: NoteStatus; label: string; icon: React.ComponentType<{ className?: string }>; bgClass: string; textClass: string }[] = [
@@ -67,7 +72,7 @@ const Notes = () => {
     try {
       const { data, error } = await supabase
         .from('notes')
-        .select('*')
+        .select('*, profiles:user_id(full_name, email)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -331,16 +336,17 @@ const Notes = () => {
               <TableHead className="w-[50px]">Color</TableHead>
               <TableHead className="w-[200px]">Title</TableHead>
               <TableHead>Remarks</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[150px]">Date Created</TableHead>
-              <TableHead className="w-[150px]">Last Updated</TableHead>
-              <TableHead className="w-[120px] text-center">Actions</TableHead>
+              <TableHead className="w-[150px]">Created By</TableHead>
+              <TableHead className="w-[130px]">Status</TableHead>
+              <TableHead className="w-[120px]">Date Created</TableHead>
+              <TableHead className="w-[120px]">Last Updated</TableHead>
+              <TableHead className="w-[100px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedNotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={8} className="text-center py-12">
                   <StickyNote className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground">
                     {debouncedSearch ? 'No matching notes found' : 'No notes yet'}
@@ -363,8 +369,11 @@ const Notes = () => {
                     <div className={`h-4 w-4 rounded-full ${getColorClass(note.color)}`} />
                   </TableCell>
                   <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
-                  <TableCell className="max-w-[300px] truncate text-muted-foreground">
+                  <TableCell className="max-w-[250px] truncate text-muted-foreground">
                     {note.content || 'No content'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {note.profiles?.full_name || note.profiles?.email?.split('@')[0] || 'Unknown'}
                   </TableCell>
                   <TableCell>
                     {isAdmin && note.status !== 'approved' ? (
