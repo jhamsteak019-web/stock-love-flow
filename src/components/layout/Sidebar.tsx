@@ -83,7 +83,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     { 
       to: '/notes', 
       icon: StickyNote, 
-      label: 'Notes',
+      label: 'Reminder',
       roles: ['admin', 'staff']
     },
   ];
