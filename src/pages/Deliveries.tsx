@@ -304,8 +304,8 @@ const Deliveries = () => {
               {isColumnVisible('allocation') && <TableHead style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
               {isColumnVisible('destination') && <TableHead style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
               {isColumnVisible('category') && <TableHead style={{ width: getColumnWidth('category') }}>Category</TableHead>}
-              {isColumnVisible('totalBoxes') && <TableHead className="text-right" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
-              {isColumnVisible('totalQty') && <TableHead className="text-right" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
+              {isColumnVisible('totalBoxes') && <TableHead className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+              {isColumnVisible('totalQty') && <TableHead className="text-center" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
               {isColumnVisible('dateOut') && <TableHead style={{ width: getColumnWidth('dateOut') }}>Date Out Warehouse</TableHead>}
               {isColumnVisible('status') && <TableHead style={{ width: getColumnWidth('status') }}>Status</TableHead>}
               {isColumnVisible('waybill') && <TableHead style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
@@ -338,8 +338,8 @@ const Deliveries = () => {
                   )}
                   {isColumnVisible('destination') && <TableCell style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
                   {isColumnVisible('category') && <TableCell style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
-                  {isColumnVisible('totalBoxes') && <TableCell className="text-right" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
-                  {isColumnVisible('totalQty') && <TableCell className="text-right" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty}</TableCell>}
+                  {isColumnVisible('totalBoxes') && <TableCell className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                  {isColumnVisible('totalQty') && <TableCell className="text-center" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty}</TableCell>}
                   {isColumnVisible('dateOut') && (
                     <TableCell style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                   )}
