@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useTransition } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, Settings2, Check } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,23 +15,22 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
+import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 
 const ITEMS_PER_PAGE = 15;
 
-type ColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'status' | 'waybill' | 'remarks';
-
-const COLUMN_CONFIG: { key: ColumnKey; label: string }[] = [
-  { key: 'allocation', label: 'Allocation' },
-  { key: 'destination', label: 'Destination' },
-  { key: 'category', label: 'Category' },
-  { key: 'totalBoxes', label: 'Total Boxes' },
-  { key: 'totalQty', label: 'Total Qty/Items' },
-  { key: 'dateOut', label: 'Date Out Warehouse' },
-  { key: 'status', label: 'Status' },
-  { key: 'waybill', label: 'Waybill No.' },
-  { key: 'remarks', label: 'Remarks' },
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+  { key: 'allocation', label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
+  { key: 'destination', label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'category', label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
+  { key: 'totalBoxes', label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
+  { key: 'totalQty', label: 'Total Qty/Items', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
+  { key: 'dateOut', label: 'Date Out Warehouse', visible: true, width: 140, minWidth: 100, maxWidth: 200 },
+  { key: 'status', label: 'Status', visible: true, width: 150, minWidth: 120, maxWidth: 180 },
+  { key: 'waybill', label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
+  { key: 'remarks', label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
 
 interface GroupedRelease {
@@ -64,24 +62,20 @@ const Deliveries = () => {
   const [deliveredDateGroup, setDeliveredDateGroup] = useState<GroupedRelease | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
-  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>({
-    allocation: true,
-    destination: true,
-    category: true,
-    totalBoxes: true,
-    totalQty: true,
-    dateOut: true,
-    status: true,
-    waybill: true,
-    remarks: true,
-  });
+  const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const isAdmin = userRole === 'admin';
 
-  const toggleColumn = (key: ColumnKey) => {
-    setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  const getColumnWidth = (key: ColumnKey) => {
+    const col = columns.find(c => c.key === key);
+    return col?.width || 100;
   };
 
-  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length + 1 + (isAdmin ? 1 : 0); // +1 for View, +1 for Edit if admin
+  const isColumnVisible = (key: ColumnKey) => {
+    const col = columns.find(c => c.key === key);
+    return col?.visible ?? true;
+  };
+
+  const visibleColumnCount = columns.filter(c => c.visible).length + 1 + (isAdmin ? 1 : 0); // +1 for View, +1 for Edit if admin
   
   // Debounced search for smooth performance
   const debouncedSearch = useDebounce(searchQuery, 350);
@@ -283,42 +277,22 @@ const Deliveries = () => {
               )}
             </div>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings2 className="h-4 w-4" />
-                Columns
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {COLUMN_CONFIG.map(col => (
-                <DropdownMenuCheckboxItem
-                  key={col.key}
-                  checked={visibleColumns[col.key]}
-                  onCheckedChange={() => toggleColumn(col.key)}
-                >
-                  {col.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ColumnSettings columns={columns} onColumnChange={setColumns} />
         </div>
       </div>
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              {visibleColumns.allocation && <TableHead>Allocation</TableHead>}
-              {visibleColumns.destination && <TableHead>Destination</TableHead>}
-              {visibleColumns.category && <TableHead>Category</TableHead>}
-              {visibleColumns.totalBoxes && <TableHead className="text-right">Total Boxes</TableHead>}
-              {visibleColumns.totalQty && <TableHead className="text-right">Total Qty/Items</TableHead>}
-              {visibleColumns.dateOut && <TableHead>Date Out Warehouse</TableHead>}
-              {visibleColumns.status && <TableHead>Status</TableHead>}
-              {visibleColumns.waybill && <TableHead>Waybill No.</TableHead>}
-              {visibleColumns.remarks && <TableHead>Remarks</TableHead>}
+              {isColumnVisible('allocation') && <TableHead style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
+              {isColumnVisible('destination') && <TableHead style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
+              {isColumnVisible('category') && <TableHead style={{ width: getColumnWidth('category') }}>Category</TableHead>}
+              {isColumnVisible('totalBoxes') && <TableHead className="text-right" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+              {isColumnVisible('totalQty') && <TableHead className="text-right" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
+              {isColumnVisible('dateOut') && <TableHead style={{ width: getColumnWidth('dateOut') }}>Date Out Warehouse</TableHead>}
+              {isColumnVisible('status') && <TableHead style={{ width: getColumnWidth('status') }}>Status</TableHead>}
+              {isColumnVisible('waybill') && <TableHead style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
+              {isColumnVisible('remarks') && <TableHead style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
               <TableHead className="w-[80px]">View</TableHead>
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
             </TableRow>
@@ -340,20 +314,20 @@ const Deliveries = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
-                  {visibleColumns.allocation && (
-                    <TableCell className="font-medium">
+                  {isColumnVisible('allocation') && (
+                    <TableCell className="font-medium" style={{ width: getColumnWidth('allocation') }}>
                       {group.allocation_bill || group.batch_id.slice(0, 8)}
                     </TableCell>
                   )}
-                  {visibleColumns.destination && <TableCell>{group.destination}</TableCell>}
-                  {visibleColumns.category && <TableCell>{group.category || '-'}</TableCell>}
-                  {visibleColumns.totalBoxes && <TableCell className="text-right">{group.totalBoxes}</TableCell>}
-                  {visibleColumns.totalQty && <TableCell className="text-right">{group.totalQty}</TableCell>}
-                  {visibleColumns.dateOut && (
-                    <TableCell>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
+                  {isColumnVisible('destination') && <TableCell style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
+                  {isColumnVisible('category') && <TableCell style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
+                  {isColumnVisible('totalBoxes') && <TableCell className="text-right" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                  {isColumnVisible('totalQty') && <TableCell className="text-right" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty}</TableCell>}
+                  {isColumnVisible('dateOut') && (
+                    <TableCell style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                   )}
-                  {visibleColumns.status && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                  {isColumnVisible('status') && (
+                    <TableCell onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('status') }}>
                       <Select 
                         value={group.delivery_status} 
                         onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
@@ -370,12 +344,12 @@ const Deliveries = () => {
                       </Select>
                     </TableCell>
                   )}
-                  {visibleColumns.waybill && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                  {isColumnVisible('waybill') && (
+                    <TableCell onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('waybill') }}>
                       <Input
                         placeholder="Enter waybill"
                         defaultValue={group.waybill_no || ''}
-                        className="h-8 w-[120px] text-sm"
+                        className="h-8 text-sm"
                         onBlur={(e) => {
                           if (e.target.value !== (group.waybill_no || '')) {
                             handleWaybillChange(group, e.target.value);
@@ -384,12 +358,12 @@ const Deliveries = () => {
                       />
                     </TableCell>
                   )}
-                  {visibleColumns.remarks && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                  {isColumnVisible('remarks') && (
+                    <TableCell onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('remarks') }}>
                       <Input
                         placeholder="Enter remarks"
                         defaultValue={group.notes || ''}
-                        className="h-8 w-[120px] text-sm"
+                        className="h-8 text-sm"
                         onBlur={(e) => {
                           if (e.target.value !== (group.notes || '')) {
                             handleRemarksChange(group, e.target.value);
