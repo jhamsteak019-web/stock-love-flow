@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface Note {
   id: string;
@@ -19,13 +21,15 @@ interface Note {
 }
 
 const COLORS = [
-  'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700',
-  'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700',
-  'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700',
-  'bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700',
-  'bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700',
-  'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700',
+  { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' },
+  { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
+  { value: 'green', label: 'Green', class: 'bg-green-500' },
+  { value: 'pink', label: 'Pink', class: 'bg-pink-500' },
+  { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
+  { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
 ];
+
+const ITEMS_PER_PAGE = 15;
 
 const Notes = () => {
   const { toast } = useToast();
@@ -34,13 +38,15 @@ const Notes = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editContent, setEditContent] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newContent, setNewContent] = useState('');
-  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [formTitle, setFormTitle] = useState('');
+  const [formContent, setFormContent] = useState('');
+  const [formColor, setFormColor] = useState('yellow');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
+
+  const debouncedSearch = useDebounce(searchQuery, 350);
 
   const fetchNotes = async () => {
     try {
@@ -62,8 +68,60 @@ const Notes = () => {
     fetchNotes();
   }, []);
 
-  const handleCreateNote = async () => {
-    if (!newTitle.trim() && !newContent.trim()) {
+  const filteredNotes = useMemo(() => {
+    if (!debouncedSearch.trim()) return notes;
+    const query = debouncedSearch.toLowerCase();
+    return notes.filter(note =>
+      note.title.toLowerCase().includes(query) ||
+      note.content.toLowerCase().includes(query)
+    );
+  }, [notes, debouncedSearch]);
+
+  const totalPages = Math.ceil(filteredNotes.length / ITEMS_PER_PAGE);
+  const paginatedNotes = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredNotes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredNotes, currentPage]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const goToPage = useCallback((page: number) => {
+    startTransition(() => {
+      setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    });
+  }, [totalPages]);
+
+  const openCreateDialog = () => {
+    setFormTitle('');
+    setFormContent('');
+    setFormColor('yellow');
+    setEditingNote(null);
+    setIsCreateOpen(true);
+  };
+
+  const openEditDialog = (note: Note) => {
+    setFormTitle(note.title);
+    setFormContent(note.content);
+    setFormColor(note.color || 'yellow');
+    setEditingNote(note);
+    setIsCreateOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsCreateOpen(false);
+    setEditingNote(null);
+    setFormTitle('');
+    setFormContent('');
+    setFormColor('yellow');
+  };
+
+  const handleSave = async () => {
+    if (!formTitle.trim() && !formContent.trim()) {
       toast({ title: 'Error', description: 'Please enter a title or content', variant: 'destructive' });
       return;
     }
@@ -75,25 +133,42 @@ const Notes = () => {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase
-        .from('notes')
-        .insert({
-          user_id: user.id,
-          title: newTitle.trim() || 'Untitled',
-          content: newContent.trim(),
-          color: selectedColor,
-        })
-        .select()
-        .single();
+      if (editingNote) {
+        const { error } = await supabase
+          .from('notes')
+          .update({
+            title: formTitle.trim() || 'Untitled',
+            content: formContent.trim(),
+            color: formColor,
+          })
+          .eq('id', editingNote.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setNotes([data, ...notes]);
-      setNewTitle('');
-      setNewContent('');
-      setIsCreating(false);
-      setSelectedColor(COLORS[0]);
-      toast({ title: 'Success', description: 'Note created' });
+        setNotes(notes.map(note =>
+          note.id === editingNote.id
+            ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), color: formColor, updated_at: new Date().toISOString() }
+            : note
+        ));
+        toast({ title: 'Success', description: 'Note updated' });
+      } else {
+        const { data, error } = await supabase
+          .from('notes')
+          .insert({
+            user_id: user.id,
+            title: formTitle.trim() || 'Untitled',
+            content: formContent.trim(),
+            color: formColor,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setNotes([data, ...notes]);
+        toast({ title: 'Success', description: 'Note created' });
+      }
+      closeDialog();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -101,45 +176,7 @@ const Notes = () => {
     }
   };
 
-  const handleEditNote = (note: Note) => {
-    setEditingId(note.id);
-    setEditTitle(note.title);
-    setEditContent(note.content);
-  };
-
-  const handleSaveEdit = async (noteId: string) => {
-    if (!editTitle.trim() && !editContent.trim()) {
-      toast({ title: 'Error', description: 'Please enter a title or content', variant: 'destructive' });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('notes')
-        .update({
-          title: editTitle.trim() || 'Untitled',
-          content: editContent.trim(),
-        })
-        .eq('id', noteId);
-
-      if (error) throw error;
-
-      setNotes(notes.map(note =>
-        note.id === noteId
-          ? { ...note, title: editTitle.trim() || 'Untitled', content: editContent.trim(), updated_at: new Date().toISOString() }
-          : note
-      ));
-      setEditingId(null);
-      toast({ title: 'Success', description: 'Note updated' });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteNote = async (noteId: string) => {
+  const handleDelete = async (noteId: string) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
 
     try {
@@ -157,15 +194,14 @@ const Notes = () => {
     }
   };
 
-  const filteredNotes = notes.filter(note =>
-    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getColorClass = (color: string) => {
+    return COLORS.find(c => c.value === color)?.class || 'bg-yellow-500';
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
@@ -173,151 +209,197 @@ const Notes = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search notes..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10 pr-10"
           />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => handleSearchChange('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        <Button onClick={() => setIsCreating(true)} disabled={isCreating} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Note
-        </Button>
+        <div className="flex items-center gap-3">
+          {filteredNotes.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}</span>
+              {isPending && (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              )}
+            </div>
+          )}
+          <Button onClick={openCreateDialog} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Note
+          </Button>
+        </div>
       </div>
 
-      {/* Create Note Form */}
-      {isCreating && (
-        <Card className="border-2 border-dashed border-primary/50 animate-scale-in">
-          <CardHeader className="pb-3">
-            <Input
-              placeholder="Note title..."
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="text-lg font-semibold border-none p-0 h-auto focus-visible:ring-0"
-            />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Write your note here..."
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Color:</span>
-              {COLORS.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
-                  className={`h-6 w-6 rounded-full border-2 transition-transform ${color} ${
-                    selectedColor === color ? 'scale-125 ring-2 ring-primary' : 'hover:scale-110'
-                  }`}
-                />
-              ))}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => { setIsCreating(false); setNewTitle(''); setNewContent(''); }}>
-                <X className="h-4 w-4 mr-1" />
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleCreateNote} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                Save Note
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Table */}
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto transition-all duration-300">
+        <Table>
+          <TableHeader>
+            <TableRow className="transition-all duration-300">
+              <TableHead className="w-[50px]">Color</TableHead>
+              <TableHead className="w-[200px]">Title</TableHead>
+              <TableHead>Content</TableHead>
+              <TableHead className="w-[150px]">Date Created</TableHead>
+              <TableHead className="w-[150px]">Last Updated</TableHead>
+              <TableHead className="w-[100px] text-center">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedNotes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-12">
+                  <StickyNote className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                  <p className="text-muted-foreground">
+                    {debouncedSearch ? 'No matching notes found' : 'No notes yet'}
+                  </p>
+                  {!debouncedSearch && (
+                    <p className="text-sm text-muted-foreground/60 mt-1">
+                      Click "New Note" to create your first note
+                    </p>
+                  )}
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedNotes.map((note, index) => (
+                <TableRow
+                  key={note.id}
+                  className="transition-all duration-300 ease-out hover:bg-muted/50"
+                  style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
+                >
+                  <TableCell>
+                    <div className={`h-4 w-4 rounded-full ${getColorClass(note.color)}`} />
+                  </TableCell>
+                  <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
+                  <TableCell className="max-w-[300px] truncate text-muted-foreground">
+                    {note.content || 'No content'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {format(new Date(note.created_at), 'MMM d, yyyy')}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {format(new Date(note.updated_at), 'MMM d, yyyy')}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 transition-transform hover:scale-110"
+                        onClick={() => openEditDialog(note)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive transition-transform hover:scale-110"
+                        onClick={() => handleDelete(note.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1 || isPending}
+              className="h-8 w-8"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages || isPending}
+              className="h-8 w-8"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
-      {/* Notes Grid */}
-      {filteredNotes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <StickyNote className="h-16 w-16 text-muted-foreground/40 mb-4" />
-          <h3 className="text-lg font-medium text-muted-foreground">
-            {searchQuery ? 'No notes found' : 'No notes yet'}
-          </h3>
-          <p className="text-sm text-muted-foreground/60 mt-1">
-            {searchQuery ? 'Try a different search term' : 'Click "New Note" to create your first note'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredNotes.map((note, index) => (
-            <Card
-              key={note.id}
-              className={`${note.color} border transition-all duration-300 hover:shadow-lg hover:-translate-y-1`}
-              style={{ animation: `fade-in 0.3s ease-out ${index * 50}ms forwards`, opacity: 0 }}
-            >
-              {editingId === note.id ? (
-                <CardContent className="p-4 space-y-3">
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="font-semibold"
-                    placeholder="Title"
+      {/* Create/Edit Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingNote ? 'Edit Note' : 'Create New Note'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                placeholder="Note title..."
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Content</label>
+              <Textarea
+                placeholder="Write your note here..."
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                rows={5}
+                className="resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex items-center gap-2">
+                {COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => setFormColor(color.value)}
+                    className={`h-8 w-8 rounded-full ${color.class} border-2 transition-transform ${
+                      formColor === color.value ? 'scale-125 ring-2 ring-primary ring-offset-2' : 'hover:scale-110'
+                    }`}
                   />
-                  <Textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    rows={4}
-                    className="resize-none"
-                    placeholder="Content"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} disabled={saving}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" onClick={() => handleSaveEdit(note.id)} disabled={saving}>
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </CardContent>
-              ) : (
-                <>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-semibold line-clamp-1 text-foreground">
-                      {note.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4 mb-3">
-                      {note.content || 'No content'}
-                    </p>
-                    <div className="flex items-center justify-between pt-2 border-t border-foreground/10">
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(note.updated_at), 'MMM d, yyyy')}
-                      </span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 transition-transform hover:scale-110"
-                          onClick={() => handleEditNote(note)}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive transition-transform hover:scale-110"
-                          onClick={() => handleDeleteNote(note.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </>
-              )}
-            </Card>
-          ))}
-        </div>
-      )}
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              {editingNote ? 'Save Changes' : 'Create Note'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
