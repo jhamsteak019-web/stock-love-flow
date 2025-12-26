@@ -367,7 +367,7 @@ const Notes = () => {
                     {note.content || 'No content'}
                   </TableCell>
                   <TableCell>
-                    {isAdmin ? (
+                    {isAdmin && note.status !== 'approved' ? (
                       <Select
                         value={note.status}
                         onValueChange={(value: NoteStatus) => handleStatusChange(note.id, value)}
@@ -457,14 +457,16 @@ const Notes = () => {
                           <Edit2 className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive transition-transform hover:scale-110"
-                        onClick={() => handleDelete(note.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive transition-transform hover:scale-110"
+                          onClick={() => handleDelete(note.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
