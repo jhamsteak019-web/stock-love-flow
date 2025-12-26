@@ -435,8 +435,8 @@ const History = () => {
                   <TableHead>Allocation</TableHead>
                   <TableHead>Destination</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Total Boxes</TableHead>
-                  <TableHead>Total Qty/Items</TableHead>
+                  <TableHead className="text-center">Total Boxes</TableHead>
+                  <TableHead className="text-center">Total Qty/Items</TableHead>
                   <TableHead>Date Out</TableHead>
                   <TableHead>Date Received</TableHead>
                   <TableHead>Courier</TableHead>
@@ -461,8 +461,8 @@ const History = () => {
                       <TableCell className="font-medium">{group.allocation_bill || '-'}</TableCell>
                       <TableCell>{group.destination}</TableCell>
                       <TableCell>{group.category || '-'}</TableCell>
-                      <TableCell>{group.totalBoxes}</TableCell>
-                      <TableCell>{group.totalQty || group.itemCount}</TableCell>
+                      <TableCell className="text-center">{group.totalBoxes}</TableCell>
+                      <TableCell className="text-center">{group.totalQty || group.itemCount}</TableCell>
                       <TableCell className="text-muted-foreground">{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
