@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface Note {
   id: string;
@@ -72,6 +74,30 @@ const Notes = () => {
 
   useEffect(() => {
     fetchNotes();
+
+    // Subscribe to realtime updates for status changes
+    const channel = supabase
+      .channel('notes-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes'
+        },
+        (payload) => {
+          setNotes(prev => prev.map(note =>
+            note.id === payload.new.id
+              ? { ...note, ...payload.new, status: payload.new.status as 'pending' | 'approved' }
+              : note
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filteredNotes = useMemo(() => {
@@ -156,7 +182,7 @@ const Notes = () => {
             ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), color: formColor, updated_at: new Date().toISOString() }
             : note
         ));
-        toast({ title: 'Success', description: 'Note updated' });
+        toast({ title: 'Success', description: 'Reminder updated' });
       } else {
         const { data, error } = await supabase
           .from('notes')
@@ -172,7 +198,7 @@ const Notes = () => {
         if (error) throw error;
 
         setNotes([{ ...data, status: data.status as 'pending' | 'approved' }, ...notes]);
-        toast({ title: 'Success', description: 'Note created' });
+        toast({ title: 'Success', description: 'Reminder created' });
       }
       closeDialog();
     } catch (error: any) {
@@ -194,7 +220,7 @@ const Notes = () => {
       if (error) throw error;
 
       setNotes(notes.filter(note => note.id !== noteId));
-      toast({ title: 'Success', description: 'Note deleted' });
+      toast({ title: 'Success', description: 'Reminder deleted' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -212,7 +238,25 @@ const Notes = () => {
       setNotes(notes.map(note =>
         note.id === noteId ? { ...note, status: 'approved' } : note
       ));
-      toast({ title: 'Success', description: 'Note approved' });
+      toast({ title: 'Success', description: 'Reminder approved' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateDate = async (noteId: string, newDate: Date, field: 'created_at' | 'updated_at') => {
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ [field]: newDate.toISOString() })
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      setNotes(notes.map(note =>
+        note.id === noteId ? { ...note, [field]: newDate.toISOString() } : note
+      ));
+      toast({ title: 'Success', description: 'Date updated' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -264,7 +308,7 @@ const Notes = () => {
           )}
           <Button onClick={openCreateDialog} className="gap-2">
             <Plus className="h-4 w-4" />
-            New Note
+            New Reminder
           </Button>
         </div>
       </div>
@@ -276,7 +320,7 @@ const Notes = () => {
             <TableRow className="transition-all duration-300">
               <TableHead className="w-[50px]">Color</TableHead>
               <TableHead className="w-[200px]">Title</TableHead>
-              <TableHead>Content</TableHead>
+              <TableHead>Remarks</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[150px]">Date Created</TableHead>
               <TableHead className="w-[150px]">Last Updated</TableHead>
@@ -325,10 +369,48 @@ const Notes = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {format(new Date(note.created_at), 'MMM d, yyyy')}
+                    {isAdmin ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
+                            {format(new Date(note.created_at), 'MMM d, yyyy')}
+                            <Calendar className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={new Date(note.created_at)}
+                            onSelect={(date) => date && handleUpdateDate(note.id, date, 'created_at')}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      format(new Date(note.created_at), 'MMM d, yyyy')
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {format(new Date(note.updated_at), 'MMM d, yyyy')}
+                    {isAdmin ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-auto p-1 gap-1 hover:bg-muted">
+                            {format(new Date(note.updated_at), 'MMM d, yyyy')}
+                            <Calendar className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={new Date(note.updated_at)}
+                            onSelect={(date) => date && handleUpdateDate(note.id, date, 'updated_at')}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      format(new Date(note.updated_at), 'MMM d, yyyy')
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-1">
@@ -403,7 +485,7 @@ const Notes = () => {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editingNote ? 'Edit Note' : 'Create New Note'}</DialogTitle>
+            <DialogTitle>{editingNote ? 'Edit Reminder' : 'Create New Reminder'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -415,9 +497,9 @@ const Notes = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Content</label>
+              <label className="text-sm font-medium">Remarks</label>
               <Textarea
-                placeholder="Write your note here..."
+                placeholder="Write your remarks here..."
                 value={formContent}
                 onChange={(e) => setFormContent(e.target.value)}
                 rows={5}
@@ -445,7 +527,7 @@ const Notes = () => {
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {editingNote ? 'Save Changes' : 'Create Note'}
+              {editingNote ? 'Save Changes' : 'Create Reminder'}
             </Button>
           </DialogFooter>
         </DialogContent>
