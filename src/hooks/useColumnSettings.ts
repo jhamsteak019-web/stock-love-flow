@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ColumnConfig } from '@/components/deliveries/ColumnSettings';
+import { Json } from '@/integrations/supabase/types';
 
 interface ColumnSettingsData {
   visibleColumns: string[];
@@ -23,15 +24,16 @@ export const useColumnSettings = (pageName: string, defaultColumns: ColumnConfig
         .from('column_settings')
         .select('settings')
         .eq('page_name', pageName)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching column settings:', error);
+        setLoading(false);
         return;
       }
 
       if (data?.settings) {
-        const settings = data.settings as ColumnSettingsData;
+        const settings = data.settings as unknown as ColumnSettingsData;
         const updatedColumns = defaultColumns.map(col => ({
           ...col,
           visible: settings.visibleColumns?.includes(col.key) ?? col.visible,
@@ -61,19 +63,41 @@ export const useColumnSettings = (pageName: string, defaultColumns: ColumnConfig
     };
 
     try {
-      const { error } = await supabase
+      // Check if record exists
+      const { data: existingData } = await supabase
         .from('column_settings')
-        .upsert({
-          page_name: pageName,
-          settings,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'page_name',
-        });
+        .select('id')
+        .eq('page_name', pageName)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error saving column settings:', error);
-        toast({ title: 'Error', description: 'Failed to save column settings', variant: 'destructive' });
+      if (existingData) {
+        // Update existing record
+        const { error } = await supabase
+          .from('column_settings')
+          .update({
+            settings: settings as unknown as Json,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('page_name', pageName);
+
+        if (error) {
+          console.error('Error updating column settings:', error);
+          toast({ title: 'Error', description: 'Failed to save column settings', variant: 'destructive' });
+        }
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('column_settings')
+          .insert([{
+            page_name: pageName,
+            settings: settings as unknown as Json,
+            updated_at: new Date().toISOString(),
+          }]);
+
+        if (error) {
+          console.error('Error inserting column settings:', error);
+          toast({ title: 'Error', description: 'Failed to save column settings', variant: 'destructive' });
+        }
       }
     } catch (error) {
       console.error('Error saving column settings:', error);

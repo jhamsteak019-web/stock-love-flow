@@ -16,6 +16,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
+import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
+
+const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
+  { key: 'allocation' as ColumnKey, label: 'Allocation Bill', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 110, minWidth: 60, maxWidth: 150 },
+  { key: 'totalBoxes' as ColumnKey, label: 'Boxes', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
+  { key: 'totalQty' as ColumnKey, label: 'Qty/Item', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
+  { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'dateOut' as ColumnKey, label: 'Date Out Warehouse', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
+];
 
 const ITEMS_PER_PAGE = 15;
 
@@ -43,9 +56,15 @@ interface ReleaseItem {
 
 const ReleaseStock = () => {
   const { items, releases, releaseStockBatch, loading } = useInventory();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
+  
+  const isColumnVisible = (key: string) => {
+    const col = columns.find(c => c.key === key);
+    return col?.visible ?? true;
+  };
   
   const [releaseItems, setReleaseItems] = useState<ReleaseItem[]>([
     { id: crypto.randomUUID(), itemId: '', boxes: 1 }
@@ -540,6 +559,7 @@ const ReleaseStock = () => {
                     </Button>
                   )}
                 </div>
+                {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_RELEASE_COLUMNS} />}
                 <Button variant="outline" size="sm" onClick={cancelImport}>
                   Cancel
                 </Button>
