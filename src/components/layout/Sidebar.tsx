@@ -12,7 +12,8 @@ import {
   Menu,
   ChevronLeft,
   BarChart3,
-  Archive
+  Archive,
+  StickyNote
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: Users, 
       label: 'Manage Users',
       roles: ['admin']
+    },
+    { 
+      to: '/notes', 
+      icon: StickyNote, 
+      label: 'Notes',
+      roles: ['admin', 'staff']
     },
   ];
 

@@ -15,6 +15,7 @@ import History from "./pages/History";
 import ImportExcel from "./pages/ImportExcel";
 import ManageUsers from "./pages/ManageUsers";
 import SummaryReport from "./pages/SummaryReport";
+import Notes from "./pages/Notes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/summary" element={<SummaryReport />} />
               <Route path="/import" element={<ImportExcel />} />
               <Route path="/users" element={<ManageUsers />} />
+              <Route path="/notes" element={<Notes />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
