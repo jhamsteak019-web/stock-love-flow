@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useTransition } from 'react';
+import { useState, useMemo, useCallback, useTransition, useEffect } from 'react';
 import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 
 const ITEMS_PER_PAGE = 15;
+const STORAGE_KEY = 'deliveries-column-settings';
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'allocation', label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
@@ -62,8 +63,24 @@ const Deliveries = () => {
   const [deliveredDateGroup, setDeliveredDateGroup] = useState<GroupedRelease | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
-  const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
+  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+    // Load from localStorage on initial render
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return DEFAULT_COLUMNS;
+      }
+    }
+    return DEFAULT_COLUMNS;
+  });
   const isAdmin = userRole === 'admin';
+
+  // Save to localStorage when columns change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(columns));
+  }, [columns]);
 
   const getColumnWidth = (key: ColumnKey) => {
     const col = columns.find(c => c.key === key);
