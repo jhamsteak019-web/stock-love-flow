@@ -122,7 +122,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   <Package className="h-5 w-5 text-sidebar-primary-foreground" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold tracking-tight">Stock</h1>
+                  <h1 className="text-lg font-bold tracking-tight">Reminder</h1>
                   <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole} Panel</p>
                 </div>
               </div>
