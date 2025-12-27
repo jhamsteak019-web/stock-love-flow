@@ -206,6 +206,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          is_public: boolean
           status: string
           title: string
           updated_at: string
@@ -217,6 +218,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_public?: boolean
           status?: string
           title?: string
           updated_at?: string
@@ -228,6 +230,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_public?: boolean
           status?: string
           title?: string
           updated_at?: string
