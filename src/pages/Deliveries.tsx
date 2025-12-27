@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useTransition } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
+import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -63,6 +64,7 @@ const Deliveries = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const { columns, setColumns, isAdmin } = useColumnSettings('deliveries', DEFAULT_COLUMNS);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const getColumnWidth = (key: ColumnKey) => {
     const col = columns.find(c => c.key === key);
@@ -278,6 +280,10 @@ const Deliveries = () => {
               )}
             </div>
           )}
+          <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
+            <FileDown className="h-4 w-4 mr-2" />
+            SD FILE
+          </Button>
           {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_COLUMNS} />}
         </div>
       </div>
@@ -501,6 +507,12 @@ const Deliveries = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Summary Delivery Modal */}
+      <SummaryDeliveryModal
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+      />
     </div>
   );
 };
