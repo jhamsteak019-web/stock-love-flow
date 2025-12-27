@@ -14,10 +14,13 @@ const pageTitles: Record<string, string> = {
   '/notes': 'Reminder',
 };
 
+// Routes restricted from viewers - they can only access /deliveries
+const viewerRestrictedRoutes = ['/dashboard', '/history', '/summary', '/release', '/import', '/users', '/notes', '/inventory'];
+
 export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { user, loading } = useAuth();
+  const { user, loading, userRole } = useAuth();
 
   if (loading) {
     return (
@@ -32,6 +35,11 @@ export const DashboardLayout = () => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Redirect viewers to deliveries if they try to access restricted routes
+  if (userRole === 'viewer' && viewerRestrictedRoutes.includes(location.pathname)) {
+    return <Navigate to="/deliveries" replace />;
   }
 
   const title = pageTitles[location.pathname] || 'MONITORING DELIVERY';
