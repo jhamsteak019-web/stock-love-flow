@@ -42,6 +42,7 @@ interface ParsedReleaseItem {
   remarks: string;
   category: string;
   waybillNo: string;
+  billDate: string;
   setDate: string;
   courier: string;
   matchedItemId: string | null;
@@ -322,7 +323,8 @@ const ReleaseStock = () => {
           category,
           remarks: rem,
           waybillNo,
-          setDate: setDateStr,
+          billDate: setDateStr,
+          setDate: '',
           courier: '',
           matchedItemId: matchedItem?.id || null,
           matchedItemName: matchedItem?.item_name || null,
@@ -739,9 +741,23 @@ const ReleaseStock = () => {
                           )}
                           {isColumnVisible('billDate') && (
                             <TableCell className="px-2">
-                              <div className="h-8 text-xs flex items-center min-w-[100px] px-2 bg-muted/50 rounded border">
-                                {item.setDate ? format(new Date(item.setDate), 'MMM d, yyyy') : '-'}
-                              </div>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
+                                    <CalendarIcon className="mr-1 h-3 w-3" />
+                                    {item.billDate ? format(new Date(item.billDate), 'MMM d') : 'Bill Date'}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={item.billDate ? new Date(item.billDate) : undefined}
+                                    onSelect={(date) => updateParsedItem(item.id, 'billDate', date?.toISOString() || '')}
+                                    initialFocus
+                                    className={cn("p-3 pointer-events-auto")}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           )}
                           {isColumnVisible('waybill') && (
