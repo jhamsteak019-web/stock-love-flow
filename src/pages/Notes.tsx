@@ -24,6 +24,7 @@ interface Note {
   created_at: string;
   updated_at: string;
   color: string;
+  concern: string;
   status: NoteStatus;
   user_id: string;
   profiles?: {
@@ -39,14 +40,6 @@ const STATUS_OPTIONS: { value: NoteStatus; label: string; icon: React.ComponentT
   { value: 'approved', label: 'Approved', icon: CheckCircle, bgClass: 'bg-green-500 hover:bg-green-600', textClass: 'text-white' },
 ];
 
-const COLORS = [
-  { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' },
-  { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
-  { value: 'green', label: 'Green', class: 'bg-green-500' },
-  { value: 'pink', label: 'Pink', class: 'bg-pink-500' },
-  { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
-  { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
-];
 
 const ITEMS_PER_PAGE = 15;
 
@@ -62,7 +55,7 @@ const Notes = () => {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [formTitle, setFormTitle] = useState('');
   const [formContent, setFormContent] = useState('');
-  const [formColor, setFormColor] = useState('yellow');
+  const [formConcern, setFormConcern] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
@@ -151,7 +144,7 @@ const Notes = () => {
   const openCreateDialog = () => {
     setFormTitle('');
     setFormContent('');
-    setFormColor('yellow');
+    setFormConcern('');
     setEditingNote(null);
     setIsCreateOpen(true);
   };
@@ -159,7 +152,7 @@ const Notes = () => {
   const openEditDialog = (note: Note) => {
     setFormTitle(note.title);
     setFormContent(note.content);
-    setFormColor(note.color || 'yellow');
+    setFormConcern(note.concern || '');
     setEditingNote(note);
     setIsCreateOpen(true);
   };
@@ -169,7 +162,7 @@ const Notes = () => {
     setEditingNote(null);
     setFormTitle('');
     setFormContent('');
-    setFormColor('yellow');
+    setFormConcern('');
   };
 
   const handleSave = async () => {
@@ -191,7 +184,7 @@ const Notes = () => {
           .update({
             title: formTitle.trim() || 'Untitled',
             content: formContent.trim(),
-            color: formColor,
+            concern: formConcern.trim(),
           })
           .eq('id', editingNote.id);
 
@@ -199,7 +192,7 @@ const Notes = () => {
 
         setNotes(notes.map(note =>
           note.id === editingNote.id
-            ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), color: formColor, updated_at: new Date().toISOString() }
+            ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), concern: formConcern.trim(), updated_at: new Date().toISOString() }
             : note
         ));
         toast({ title: 'Success', description: 'Reminder updated' });
@@ -210,7 +203,7 @@ const Notes = () => {
             user_id: user.id,
             title: formTitle.trim() || 'Untitled',
             content: formContent.trim(),
-            color: formColor,
+            concern: formConcern.trim(),
           })
           .select()
           .single();
@@ -311,9 +304,6 @@ const Notes = () => {
     }
   };
 
-  const getColorClass = (color: string) => {
-    return COLORS.find(c => c.value === color)?.class || 'bg-yellow-500';
-  };
 
   if (loading) {
     return (
@@ -399,7 +389,7 @@ const Notes = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
-                  <TableCell className="text-muted-foreground">-</TableCell>
+                  <TableCell className="text-muted-foreground">{note.concern || '-'}</TableCell>
                   <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
                   <TableCell className="max-w-[250px] truncate text-muted-foreground">
                     {note.content || 'No content'}
@@ -541,18 +531,12 @@ const Notes = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Color</label>
-              <div className="flex items-center gap-2">
-                {COLORS.map((color) => (
-                  <button
-                    key={color.value}
-                    onClick={() => setFormColor(color.value)}
-                    className={`h-8 w-8 rounded-full ${color.class} border-2 transition-transform ${
-                      formColor === color.value ? 'scale-125 ring-2 ring-primary ring-offset-2' : 'hover:scale-110'
-                    }`}
-                  />
-                ))}
-              </div>
+              <label className="text-sm font-medium">Concern</label>
+              <Input
+                placeholder="Enter concern..."
+                value={formConcern}
+                onChange={(e) => setFormConcern(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -571,10 +555,7 @@ const Notes = () => {
       <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {viewingNote && (
-                <div className={`h-4 w-4 rounded-full ${getColorClass(viewingNote.color)}`} />
-              )}
+            <DialogTitle>
               {viewingNote?.title || 'Untitled'}
             </DialogTitle>
           </DialogHeader>
