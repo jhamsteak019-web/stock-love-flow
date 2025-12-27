@@ -335,6 +335,7 @@ const Deliveries = () => {
                         <PhotoUploadCell 
                           batchId={group.batch_id} 
                           photoUrl={group.photo_url} 
+                          currentAllocation={group.allocation_bill}
                           onPhotoUpdate={fetchReleases}
                         />
                         <span className="truncate flex-1">{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
