@@ -11,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/history': 'Transaction History',
   '/import': 'Bucket',
   '/users': 'Manage Users',
+  '/notes': 'Reminder',
 };
 
 export const DashboardLayout = () => {
@@ -33,7 +34,7 @@ export const DashboardLayout = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const title = pageTitles[location.pathname] || 'StockFlow';
+  const title = pageTitles[location.pathname] || 'Reminder';
 
   return (
     <div className="min-h-screen bg-background">
