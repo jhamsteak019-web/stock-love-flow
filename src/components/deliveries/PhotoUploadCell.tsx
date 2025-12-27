@@ -236,12 +236,21 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
 
   const handleMouseUp = () => setIsDragging(false);
 
+  const handleDialogOpen = () => {
+    // Pre-fill allocation text with current allocation when opening
+    if (currentAllocation) {
+      setAllocationText(currentAllocation);
+      setShowTextBox(true);
+    }
+    setPreviewOpen(true);
+  };
+
   const handleDialogClose = (open: boolean) => {
     if (!open) resetTransforms();
     setPreviewOpen(open);
   };
 
-  const hasChanges = rotation !== 0 || allocationText.trim() !== '';
+  const hasChanges = rotation !== 0 || allocationText.trim() !== currentAllocation;
 
   return (
     <div className="flex items-center">
@@ -256,7 +265,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
       {photoUrl ? (
         <div className="relative group">
           <button
-            onClick={() => setPreviewOpen(true)}
+            onClick={handleDialogOpen}
             className="w-9 h-9 rounded-lg overflow-hidden border-2 border-primary/30 hover:border-primary transition-all duration-200 hover:scale-105"
           >
             <img src={photoUrl} alt="Delivery" className="w-full h-full object-cover" />
