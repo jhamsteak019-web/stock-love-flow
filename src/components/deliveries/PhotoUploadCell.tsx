@@ -3,18 +3,21 @@ import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save,
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface PhotoUploadCellProps {
   batchId: string;
   photoUrl: string | null;
+  photoStatus?: string | null;
   currentAllocation?: string | null;
   onPhotoUpdate: () => void;
 }
 
-export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoUpdate }: PhotoUploadCellProps) => {
+export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocation, onPhotoUpdate }: PhotoUploadCellProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -27,6 +30,26 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { userRole } = useAuth();
+  
+  const canChangeStatus = userRole === 'admin' || userRole === 'staff';
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ photo_status: newStatus })
+        .eq('batch_id', batchId);
+
+      if (error) throw error;
+      
+      toast({ title: 'Success', description: `Photo status updated to ${newStatus}` });
+      onPhotoUpdate();
+    } catch (error: any) {
+      console.error('Status update error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to update status', variant: 'destructive' });
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -390,6 +413,36 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
             )}
           </div>
           
+          {/* Photo Status Dropdown */}
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+            <Label className="text-sm font-medium whitespace-nowrap">
+              Status:
+            </Label>
+            {canChangeStatus ? (
+              <Select 
+                value={photoStatus || 'no_photo'} 
+                onValueChange={handleStatusChange}
+              >
+                <SelectTrigger className="w-[140px] bg-background">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="approved">APPROVED</SelectItem>
+                  <SelectItem value="reupload">REUPLOAD</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className={cn(
+                "px-3 py-1 rounded-md text-sm font-medium uppercase",
+                photoStatus === 'approved' && "bg-green-500/20 text-green-600",
+                photoStatus === 'reupload' && "bg-orange-500/20 text-orange-600",
+                (!photoStatus || photoStatus === 'no_photo') && "bg-muted text-muted-foreground"
+              )}>
+                {photoStatus === 'approved' ? 'APPROVED' : photoStatus === 'reupload' ? 'REUPLOAD' : 'NO STATUS'}
+              </span>
+            )}
+          </div>
+
           <div className="flex justify-end gap-2">
             {hasChanges && (
               <Button 
@@ -409,10 +462,12 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
               <Upload className="w-4 h-4 mr-2" />
               Replace
             </Button>
-            <Button variant="destructive" onClick={() => { handleRemovePhoto(); setPreviewOpen(false); }}>
-              <X className="w-4 h-4 mr-2" />
-              Remove
-            </Button>
+            {canChangeStatus && (
+              <Button variant="destructive" onClick={() => { handleRemovePhoto(); setPreviewOpen(false); }}>
+                <X className="w-4 h-4 mr-2" />
+                Remove
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

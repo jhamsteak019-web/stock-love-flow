@@ -54,6 +54,7 @@ interface GroupedRelease {
   set_date: string | null;
   notes: string | null;
   photo_url: string | null;
+  photo_status: string | null;
 }
 
 const Deliveries = () => {
@@ -112,6 +113,7 @@ const Deliveries = () => {
           set_date: release.set_date,
           notes: release.notes,
           photo_url: release.photo_url || null,
+          photo_status: release.photo_status || null,
         };
       }
       
@@ -334,7 +336,8 @@ const Deliveries = () => {
                       <div className="flex items-center gap-2">
                         <PhotoUploadCell 
                           batchId={group.batch_id} 
-                          photoUrl={group.photo_url} 
+                          photoUrl={group.photo_url}
+                          photoStatus={group.photo_status}
                           currentAllocation={group.allocation_bill}
                           onPhotoUpdate={fetchReleases}
                         />
