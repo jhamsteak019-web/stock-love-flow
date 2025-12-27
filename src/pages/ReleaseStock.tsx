@@ -627,8 +627,8 @@ const ReleaseStock = () => {
                       {isColumnVisible('totalBoxes') && <TableHead className="w-24 px-2">Boxes</TableHead>}
                       {isColumnVisible('totalQty') && <TableHead className="w-24 px-2">Qty/Item</TableHead>}
                       {isColumnVisible('remarks') && <TableHead className="min-w-[130px] px-2">Remarks</TableHead>}
-                      {isColumnVisible('billDate') && <TableHead className="min-w-[120px] px-2">Bill Date</TableHead>}
                       {isColumnVisible('waybill') && <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>}
+                      {isColumnVisible('billDate') && <TableHead className="min-w-[120px] px-2">Bill Date</TableHead>}
                       {isColumnVisible('dateOut') && <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>}
                       <TableHead className="min-w-[130px] px-2">Courier</TableHead>
                     </TableRow>
@@ -739,27 +739,6 @@ const ReleaseStock = () => {
                               />
                             </TableCell>
                           )}
-                          {isColumnVisible('billDate') && (
-                            <TableCell className="px-2">
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
-                                    <CalendarIcon className="mr-1 h-3 w-3" />
-                                    {item.billDate ? format(new Date(item.billDate), 'MMM d') : 'Bill Date'}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={item.billDate ? new Date(item.billDate) : undefined}
-                                    onSelect={(date) => updateParsedItem(item.id, 'billDate', date?.toISOString() || '')}
-                                    initialFocus
-                                    className={cn("p-3 pointer-events-auto")}
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </TableCell>
-                          )}
                           {isColumnVisible('waybill') && (
                             <TableCell className="px-2">
                               <Input 
@@ -771,6 +750,20 @@ const ReleaseStock = () => {
                                 }}
                                 className="h-8 text-xs min-w-[110px]"
                                 placeholder="Waybill No."
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('billDate') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                defaultValue={item.billDate || ''}
+                                onBlur={(e) => {
+                                  if (e.target.value !== (item.billDate || '')) {
+                                    updateParsedItem(item.id, 'billDate', e.target.value);
+                                  }
+                                }}
+                                className="h-8 text-xs min-w-[100px]"
+                                placeholder="Bill Date"
                               />
                             </TableCell>
                           )}
