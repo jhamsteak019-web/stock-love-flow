@@ -140,9 +140,22 @@ const History = () => {
       groups[batchKey].itemCount += 1;
     });
     
-    return Object.values(groups).sort(
-      (a, b) => new Date(b.date_released).getTime() - new Date(a.date_released).getTime()
-    );
+    // Sort by set_date (Date Out) ascending - earlier dates first
+    return Object.values(groups).sort((a, b) => {
+      const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
+      const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
+      
+      // If both have set_date, sort by set_date ascending (Dec 1 before Dec 5)
+      if (dateA && dateB) {
+        return dateA - dateB;
+      }
+      // Items without set_date go to the end
+      if (!dateA && dateB) return 1;
+      if (dateA && !dateB) return -1;
+      
+      // If neither has set_date, sort by date_released descending
+      return new Date(b.date_released).getTime() - new Date(a.date_released).getTime();
+    });
   };
 
   const groupedReleases = useMemo(() => groupReleases(releases), [releases]);
