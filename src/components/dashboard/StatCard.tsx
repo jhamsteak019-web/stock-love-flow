@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 interface StatCardProps {
   title: string;
   value: number | string;
+  subtitle?: string;
   icon: LucideIcon;
   trend?: {
     value: number;
@@ -30,6 +31,7 @@ const iconVariantStyles = {
 export const StatCard = ({ 
   title, 
   value, 
+  subtitle,
   icon: Icon, 
   trend, 
   variant = 'default',
@@ -45,8 +47,19 @@ export const StatCard = ({
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <div className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-lg",
+              iconVariantStyles[variant]
+            )}>
+              <Icon className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          )}
           {trend && (
             <p className={cn(
               "mt-1 text-sm font-medium",
@@ -55,12 +68,6 @@ export const StatCard = ({
               {trend.isPositive ? '+' : ''}{trend.value}% from last month
             </p>
           )}
-        </div>
-        <div className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-xl",
-          iconVariantStyles[variant]
-        )}>
-          <Icon className="h-6 w-6" />
         </div>
       </div>
     </div>
