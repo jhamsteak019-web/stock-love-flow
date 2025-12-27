@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,8 @@ interface PhotoUploadCellProps {
 export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploadCellProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -82,6 +84,34 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
     }
   };
 
+  const handleRotateRight = () => {
+    setRotation((prev) => (prev + 90) % 360);
+  };
+
+  const handleRotateLeft = () => {
+    setRotation((prev) => (prev - 90 + 360) % 360);
+  };
+
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev - 0.25, 0.5));
+  };
+
+  const resetTransforms = () => {
+    setRotation(0);
+    setZoom(1);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      resetTransforms();
+    }
+    setPreviewOpen(open);
+  };
+
   return (
     <div className="flex items-center">
       <input
@@ -126,14 +156,49 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
         </Button>
       )}
 
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+      <Dialog open={previewOpen} onOpenChange={handleDialogClose}>
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>Delivery Photo</DialogTitle>
           </DialogHeader>
-          <div className="relative">
-            {photoUrl && <img src={photoUrl} alt="Delivery" className="w-full rounded-lg" />}
+          
+          {/* Image Controls */}
+          <div className="flex items-center justify-center gap-2 py-2 border-b">
+            <Button variant="outline" size="sm" onClick={handleRotateLeft} title="Rotate Left">
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRotateRight} title="Rotate Right">
+              <RotateCw className="w-4 h-4" />
+            </Button>
+            <div className="w-px h-6 bg-border mx-1" />
+            <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoom <= 0.5} title="Zoom Out">
+              <ZoomOut className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium w-14 text-center">{Math.round(zoom * 100)}%</span>
+            <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={zoom >= 3} title="Zoom In">
+              <ZoomIn className="w-4 h-4" />
+            </Button>
+            <div className="w-px h-6 bg-border mx-1" />
+            <Button variant="ghost" size="sm" onClick={resetTransforms} title="Reset">
+              Reset
+            </Button>
           </div>
+          
+          {/* Image Preview */}
+          <div className="relative overflow-auto max-h-[60vh] flex items-center justify-center bg-muted/30 rounded-lg p-4">
+            {photoUrl && (
+              <img 
+                src={photoUrl} 
+                alt="Delivery" 
+                className="max-w-full rounded-lg transition-transform duration-200"
+                style={{ 
+                  transform: `rotate(${rotation}deg) scale(${zoom})`,
+                  transformOrigin: 'center center'
+                }}
+              />
+            )}
+          </div>
+          
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-4 h-4 mr-2" />
