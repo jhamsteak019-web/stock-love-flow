@@ -237,10 +237,11 @@ const SummaryReport = () => {
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);
   }, [filteredReleases]);
 
-  // Get all unique categories (from all releases)
+  // Get all unique categories (only from delivered releases to match categoryByStore)
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     filteredReleases
+      .filter(release => release.delivery_status === 'delivered')
       .forEach(release => {
         if (release.category) cats.add(release.category);
       });
