@@ -51,7 +51,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
 
       const { error: updateError } = await supabase
         .from('stock_releases')
-        .update({ photo_url: publicUrl, photo_status: 'uploaded' })
+        .update({ photo_url: publicUrl, photo_status: 'approved' })
         .eq('batch_id', batchId);
 
       if (updateError) throw updateError;
@@ -71,7 +71,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
     try {
       const { error } = await supabase
         .from('stock_releases')
-        .update({ photo_url: null, photo_status: null })
+        .update({ photo_url: null, photo_status: 'no_photo' })
         .eq('batch_id', batchId);
 
       if (error) throw error;
