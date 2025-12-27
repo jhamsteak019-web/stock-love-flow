@@ -125,7 +125,7 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
             </DialogTitle>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-1" />
-              SD FILE
+              Print / Save PDF
             </Button>
           </div>
         </DialogHeader>
