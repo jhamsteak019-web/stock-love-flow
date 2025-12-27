@@ -31,12 +31,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchingRole = useRef(false);
   const lastUserId = useRef<string | null>(null);
 
-  const fetchUserRole = async (userId: string, force: boolean = false) => {
-    // Prevent duplicate fetches for the same user unless forced
-    if (fetchingRole.current || (!force && lastUserId.current === userId)) return;
+  const fetchUserRole = async (userId: string) => {
+    // Prevent duplicate fetches for the same user
+    if (fetchingRole.current || lastUserId.current === userId) return;
     
     fetchingRole.current = true;
-    if (!force) lastUserId.current = userId;
+    lastUserId.current = userId;
     
     try {
       const { data, error } = await supabase
@@ -57,7 +57,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
-    let roleSubscription: ReturnType<typeof supabase.channel> | null = null;
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,25 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (session?.user) {
         fetchUserRole(session.user.id);
-        
-        // Subscribe to real-time role changes for this user
-        roleSubscription = supabase
-          .channel(`user_role_${session.user.id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'user_roles',
-              filter: `user_id=eq.${session.user.id}`,
-            },
-            (payload) => {
-              if (mounted && payload.new) {
-                setUserRole((payload.new as { role: UserRole }).role);
-              }
-            }
-          )
-          .subscribe();
       }
       setLoading(false);
     });
@@ -102,34 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user && event !== 'TOKEN_REFRESHED') {
           // Only fetch role on actual auth changes, not token refreshes
           fetchUserRole(session.user.id);
-          
-          // Set up role subscription if not already done
-          if (!roleSubscription) {
-            roleSubscription = supabase
-              .channel(`user_role_${session.user.id}`)
-              .on(
-                'postgres_changes',
-                {
-                  event: 'UPDATE',
-                  schema: 'public',
-                  table: 'user_roles',
-                  filter: `user_id=eq.${session.user.id}`,
-                },
-                (payload) => {
-                  if (mounted && payload.new) {
-                    setUserRole((payload.new as { role: UserRole }).role);
-                  }
-                }
-              )
-              .subscribe();
-          }
         } else if (!session) {
           setUserRole(null);
           lastUserId.current = null;
-          if (roleSubscription) {
-            supabase.removeChannel(roleSubscription);
-            roleSubscription = null;
-          }
         }
         setLoading(false);
       }
@@ -138,9 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       mounted = false;
       subscription.unsubscribe();
-      if (roleSubscription) {
-        supabase.removeChannel(roleSubscription);
-      }
     };
   }, []);
 

@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface PhotoUploadCellProps {
   batchId: string;
@@ -18,8 +17,6 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { userRole } = useAuth();
-  const isAdmin = userRole === 'admin';
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,14 +100,12 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
           >
             <img src={photoUrl} alt="Delivery" className="w-full h-full object-cover" />
           </button>
-          {isAdmin && (
-            <button
-              onClick={(e) => { e.stopPropagation(); handleRemovePhoto(); }}
-              className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleRemovePhoto(); }}
+            className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
+          >
+            <X className="w-3 h-3" />
+          </button>
         </div>
       ) : (
         <Button
@@ -140,18 +135,14 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
             {photoUrl && <img src={photoUrl} alt="Delivery" className="w-full rounded-lg" />}
           </div>
           <div className="flex justify-end gap-2">
-            {isAdmin && (
-              <>
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Replace
-                </Button>
-                <Button variant="destructive" onClick={() => { handleRemovePhoto(); setPreviewOpen(false); }}>
-                  <X className="w-4 h-4 mr-2" />
-                  Remove
-                </Button>
-              </>
-            )}
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />
+              Replace
+            </Button>
+            <Button variant="destructive" onClick={() => { handleRemovePhoto(); setPreviewOpen(false); }}>
+              <X className="w-4 h-4 mr-2" />
+              Remove
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
