@@ -591,14 +591,14 @@ const ReleaseStock = () => {
                           aria-label="Select all"
                         />
                       </TableHead>
-                      <TableHead className="min-w-[130px] px-2">Allocation Bill</TableHead>
-                      <TableHead className="min-w-[130px] px-2">Destination</TableHead>
-                      <TableHead className="min-w-[110px] px-2">Category</TableHead>
-                      <TableHead className="w-24 px-2">Boxes</TableHead>
-                      <TableHead className="w-24 px-2">Qty/Item</TableHead>
-                      <TableHead className="min-w-[130px] px-2">Remarks</TableHead>
-                      <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>
-                      <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>
+                      {isColumnVisible('allocation') && <TableHead className="min-w-[130px] px-2">Allocation Bill</TableHead>}
+                      {isColumnVisible('destination') && <TableHead className="min-w-[130px] px-2">Destination</TableHead>}
+                      {isColumnVisible('category') && <TableHead className="min-w-[110px] px-2">Category</TableHead>}
+                      {isColumnVisible('totalBoxes') && <TableHead className="w-24 px-2">Boxes</TableHead>}
+                      {isColumnVisible('totalQty') && <TableHead className="w-24 px-2">Qty/Item</TableHead>}
+                      {isColumnVisible('remarks') && <TableHead className="min-w-[130px] px-2">Remarks</TableHead>}
+                      {isColumnVisible('waybill') && <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>}
+                      {isColumnVisible('dateOut') && <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>}
                       <TableHead className="min-w-[130px] px-2">Courier</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -620,113 +620,129 @@ const ReleaseStock = () => {
                               aria-label={`Select ${item.sheetNo}`}
                             />
                           </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.sheetNo}
-                              onBlur={(e) => {
-                                if (e.target.value !== item.sheetNo) {
-                                  updateParsedItem(item.id, 'sheetNo', e.target.value);
-                                }
-                              }}
-                              className="h-8 text-xs font-mono min-w-[110px]"
-                              placeholder="Allocation Bill"
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.deliverTo}
-                              onBlur={(e) => {
-                                if (e.target.value !== item.deliverTo) {
-                                  updateParsedItem(item.id, 'deliverTo', e.target.value);
-                                }
-                              }}
-                              className="h-8 text-xs min-w-[110px]"
-                              placeholder="Destination"
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.category}
-                              onBlur={(e) => {
-                                if (e.target.value !== item.category) {
-                                  updateParsedItem(item.id, 'category', e.target.value);
-                                }
-                              }}
-                              className="h-8 text-xs min-w-[90px]"
-                              placeholder="Category"
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              type="number"
-                              defaultValue={item.qtyBoxes}
-                              onBlur={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                if (val !== item.qtyBoxes) {
-                                  updateParsedItem(item.id, 'qtyBoxes', val);
-                                }
-                              }}
-                              className="h-8 text-xs w-20"
-                              min={0}
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              type="number"
-                              defaultValue={item.qtyItem}
-                              onBlur={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                if (val !== item.qtyItem) {
-                                  updateParsedItem(item.id, 'qtyItem', val);
-                                }
-                              }}
-                              className="h-8 text-xs w-20"
-                              min={0}
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.remarks}
-                              onBlur={(e) => {
-                                if (e.target.value !== item.remarks) {
-                                  updateParsedItem(item.id, 'remarks', e.target.value);
-                                }
-                              }}
-                              className="h-8 text-xs min-w-[110px]"
-                              placeholder="Remarks"
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.waybillNo || ''}
-                              onBlur={(e) => {
-                                if (e.target.value !== (item.waybillNo || '')) {
-                                  updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
-                                }
-                              }}
-                              className="h-8 text-xs min-w-[110px]"
-                              placeholder="Waybill No."
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
-                                  <CalendarIcon className="mr-1 h-3 w-3" />
-                                  {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={item.setDate ? new Date(item.setDate) : undefined}
-                                  onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
-                                  initialFocus
-                                  className={cn("p-3 pointer-events-auto")}
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </TableCell>
+                          {isColumnVisible('allocation') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                defaultValue={item.sheetNo}
+                                onBlur={(e) => {
+                                  if (e.target.value !== item.sheetNo) {
+                                    updateParsedItem(item.id, 'sheetNo', e.target.value);
+                                  }
+                                }}
+                                className="h-8 text-xs font-mono min-w-[110px]"
+                                placeholder="Allocation Bill"
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('destination') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                defaultValue={item.deliverTo}
+                                onBlur={(e) => {
+                                  if (e.target.value !== item.deliverTo) {
+                                    updateParsedItem(item.id, 'deliverTo', e.target.value);
+                                  }
+                                }}
+                                className="h-8 text-xs min-w-[110px]"
+                                placeholder="Destination"
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('category') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                defaultValue={item.category}
+                                onBlur={(e) => {
+                                  if (e.target.value !== item.category) {
+                                    updateParsedItem(item.id, 'category', e.target.value);
+                                  }
+                                }}
+                                className="h-8 text-xs min-w-[90px]"
+                                placeholder="Category"
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('totalBoxes') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                type="number"
+                                defaultValue={item.qtyBoxes}
+                                onBlur={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  if (val !== item.qtyBoxes) {
+                                    updateParsedItem(item.id, 'qtyBoxes', val);
+                                  }
+                                }}
+                                className="h-8 text-xs w-20"
+                                min={0}
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('totalQty') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                type="number"
+                                defaultValue={item.qtyItem}
+                                onBlur={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  if (val !== item.qtyItem) {
+                                    updateParsedItem(item.id, 'qtyItem', val);
+                                  }
+                                }}
+                                className="h-8 text-xs w-20"
+                                min={0}
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('remarks') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                defaultValue={item.remarks}
+                                onBlur={(e) => {
+                                  if (e.target.value !== item.remarks) {
+                                    updateParsedItem(item.id, 'remarks', e.target.value);
+                                  }
+                                }}
+                                className="h-8 text-xs min-w-[110px]"
+                                placeholder="Remarks"
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('waybill') && (
+                            <TableCell className="px-2">
+                              <Input 
+                                defaultValue={item.waybillNo || ''}
+                                onBlur={(e) => {
+                                  if (e.target.value !== (item.waybillNo || '')) {
+                                    updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
+                                  }
+                                }}
+                                className="h-8 text-xs min-w-[110px]"
+                                placeholder="Waybill No."
+                              />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('dateOut') && (
+                            <TableCell className="px-2">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
+                                    <CalendarIcon className="mr-1 h-3 w-3" />
+                                    {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={item.setDate ? new Date(item.setDate) : undefined}
+                                    onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
+                                    initialFocus
+                                    className={cn("p-3 pointer-events-auto")}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </TableCell>
+                          )}
                           <TableCell className="px-2">
                             <Select value={item.courier} onValueChange={(val) => updateParsedItemWithBulk(item.id, 'courier', val)}>
                               <SelectTrigger className="h-8 text-xs min-w-[110px]">
