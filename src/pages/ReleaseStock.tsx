@@ -274,7 +274,33 @@ const ReleaseStock = () => {
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
         const waybillNo = findColumnValue(row, 'Waybill No.', 'Waybill No', 'Waybill', 'WAYBILL', 'WAYBILL NO');
-        const setDateStr = findColumnValue(row, 'BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE');
+        
+        // Parse BILL DATE - handle both Date objects and strings from Excel
+        let setDateStr = '';
+        const billDateKeys = ['BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE'];
+        for (const key of billDateKeys) {
+          const val = row[key];
+          if (val !== undefined && val !== null && val !== '') {
+            if (val instanceof Date) {
+              setDateStr = val.toISOString();
+            } else if (typeof val === 'string') {
+              // Try to parse the date string
+              const parsed = new Date(val);
+              if (!isNaN(parsed.getTime())) {
+                setDateStr = parsed.toISOString();
+              } else {
+                setDateStr = val;
+              }
+            } else if (typeof val === 'number') {
+              // Excel serial date number
+              const excelDate = new Date((val - 25569) * 86400 * 1000);
+              if (!isNaN(excelDate.getTime())) {
+                setDateStr = excelDate.toISOString();
+              }
+            }
+            if (setDateStr) break;
+          }
+        }
 
         // Try to match with inventory item by item_code or item_name
         const matchedItem = items.find(i => 
