@@ -32,7 +32,7 @@ interface EditDeliveryModalProps {
   onSuccess: () => void;
 }
 
-const COURIER_OPTIONS = ['JT', 'JRS', 'J&T', 'LBC', 'SM DC', 'PICK UP', 'LALAMOVE'];
+const COURIER_OPTIONS = ['AP CARGO', 'SOUTHSEA', 'AIRSPEED', 'FAST CARGO', 'JUNIX TRACKING', 'RDS DC', 'SM DC', 'PRIETO', 'DIRECT'];
 
 const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliveryModalProps) => {
   const { toast } = useToast();
