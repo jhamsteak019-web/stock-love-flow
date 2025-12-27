@@ -17,6 +17,7 @@ import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
+import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -24,7 +25,7 @@ import { useColumnSettings } from '@/hooks/useColumnSettings';
 const ITEMS_PER_PAGE = 15;
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { key: 'allocation', label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
+  { key: 'allocation', label: 'Allocation', visible: true, width: 180, minWidth: 140, maxWidth: 250 },
   { key: 'destination', label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'category', label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
   { key: 'totalBoxes', label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
@@ -52,6 +53,7 @@ interface GroupedRelease {
   waybill_no: string | null;
   set_date: string | null;
   notes: string | null;
+  photo_url: string | null;
 }
 
 const Deliveries = () => {
@@ -106,6 +108,7 @@ const Deliveries = () => {
           waybill_no: release.waybill_no,
           set_date: release.set_date,
           notes: release.notes,
+          photo_url: release.photo_url || null,
         };
       }
       
@@ -323,7 +326,14 @@ const Deliveries = () => {
                 >
                   {isColumnVisible('allocation') && (
                     <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>
-                      {group.allocation_bill || group.batch_id.slice(0, 8)}
+                      <div className="flex items-center gap-2">
+                        <PhotoUploadCell 
+                          batchId={group.batch_id} 
+                          photoUrl={group.photo_url} 
+                          onPhotoUpdate={fetchReleases}
+                        />
+                        <span>{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
+                      </div>
                     </TableCell>
                   )}
                   {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}

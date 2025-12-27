@@ -64,6 +64,8 @@ export interface StockRelease {
   waybill_no: string | null;
   set_date: string | null;
   total_qty: number | null;
+  photo_url: string | null;
+  photo_status: string | null;
   created_at: string;
   updated_at: string;
   inventory_item?: InventoryItem;
