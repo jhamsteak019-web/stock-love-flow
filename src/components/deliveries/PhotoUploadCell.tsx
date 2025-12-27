@@ -83,7 +83,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
   };
 
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center">
       <input
         type="file"
         ref={fileInputRef}
