@@ -60,13 +60,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff']
     },
     { 
       to: '/import', 
