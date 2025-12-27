@@ -265,17 +265,16 @@ const ReleaseStock = () => {
         }
       }
 
-      // Parse rows into release items - Format: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Category, Remarks
-      // Note: BILL column is intentionally excluded from parsing
+      // Parse rows into release items - Format: Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
         const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Destination', 'DESTINATION', 'Branch');
-        const qtyBoxes = findNumericValue(row, 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOX', 'BOXES');
-        const qtyItem = findNumericValue(row, 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'Qty');
+        const qtyBoxes = findNumericValue(row, 'BOX', 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOXES');
+        const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
         const waybillNo = findColumnValue(row, 'Waybill No.', 'Waybill No', 'Waybill', 'WAYBILL', 'WAYBILL NO');
-        const setDateStr = findColumnValue(row, 'Set Date', 'SET DATE', 'Date', 'DATE');
+        const setDateStr = findColumnValue(row, 'BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE');
 
         // Try to match with inventory item by item_code or item_name
         const matchedItem = items.find(i => 
@@ -302,7 +301,7 @@ const ReleaseStock = () => {
       }).filter(item => item.sheetNo || item.qtyBoxes > 0);
 
       if (parsed.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks).', variant: 'destructive' });
+        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE).', variant: 'destructive' });
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -519,7 +518,7 @@ const ReleaseStock = () => {
             </div>
             <div>
               <h2 className="text-lg font-semibold select-none">Import from Excel</h2>
-              <p className="text-sm text-muted-foreground select-none">Upload Excel with: Sheet No., Deliver To, Qty/Boxes, Qty/Item, Remarks</p>
+              <p className="text-sm text-muted-foreground select-none">Upload Excel with: Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE</p>
             </div>
           </div>
           <div>
