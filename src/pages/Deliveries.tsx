@@ -114,9 +114,11 @@ const Deliveries = () => {
       groups[batchKey].releaseIds.push(release.id);
     });
     
-    return Object.values(groups).sort(
-      (a, b) => new Date(b.date_released).getTime() - new Date(a.date_released).getTime()
-    );
+    return Object.values(groups).sort((a, b) => {
+      const dateA = a.set_date ? new Date(a.set_date).getTime() : new Date(a.date_released).getTime();
+      const dateB = b.set_date ? new Date(b.set_date).getTime() : new Date(b.date_released).getTime();
+      return dateA - dateB; // Ascending order - earliest dates first
+    });
   }, [releases]);
 
   // Filtered results using debounced search - case-insensitive and partial match
