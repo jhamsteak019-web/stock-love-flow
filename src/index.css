@@ -270,9 +270,99 @@
 .stagger-item:nth-child(4) { animation-delay: 150ms; }
 .stagger-item:nth-child(5) { animation-delay: 200ms; }
 .stagger-item:nth-child(6) { animation-delay: 250ms; }
+.stagger-item:nth-child(7) { animation-delay: 300ms; }
+.stagger-item:nth-child(8) { animation-delay: 350ms; }
+.stagger-item:nth-child(9) { animation-delay: 400ms; }
+.stagger-item:nth-child(10) { animation-delay: 450ms; }
 
 /* Table row animations */
 .table-row-animate {
   animation: fade-in 0.4s ease-out forwards;
   opacity: 0;
+}
+
+/* Page transition */
+.page-transition {
+  animation: page-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth hover effects */
+.hover-lift {
+  @apply transition-all duration-300;
+}
+
+.hover-lift:hover {
+  @apply -translate-y-1 shadow-lg;
+}
+
+/* Card hover effect */
+.card-interactive {
+  @apply transition-all duration-300 ease-out;
+}
+
+.card-interactive:hover {
+  @apply -translate-y-0.5 shadow-md border-primary/20;
+}
+
+/* Button press effect */
+.btn-press:active {
+  @apply scale-[0.98];
+}
+
+/* Smooth focus states */
+.focus-smooth {
+  @apply transition-all duration-200 outline-none;
+}
+
+.focus-smooth:focus-visible {
+  @apply ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
+}
+
+/* Fade in up for content */
+.fade-in-up {
+  animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skeleton loading pulse */
+.skeleton-pulse {
+  @apply animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted bg-[length:200%_100%];
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Modal/Dialog backdrop */
+.backdrop-blur-smooth {
+  @apply backdrop-blur-md transition-all duration-300;
 }

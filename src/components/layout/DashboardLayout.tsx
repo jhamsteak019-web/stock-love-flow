@@ -47,7 +47,9 @@ export const DashboardLayout = () => {
         />
         
         <main className="p-4 lg:p-6">
-          <Outlet />
+          <div className="page-transition">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
