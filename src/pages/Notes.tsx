@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 type NoteStatus = 'pending' | 'waiting_to_follow' | 'waiting_approval' | 'approved';
 
@@ -27,6 +29,7 @@ interface Note {
   concern: string;
   status: NoteStatus;
   user_id: string;
+  is_public: boolean;
   profiles?: {
     full_name: string | null;
     email: string;
@@ -56,6 +59,7 @@ const Notes = () => {
   const [formTitle, setFormTitle] = useState('');
   const [formContent, setFormContent] = useState('');
   const [formConcern, setFormConcern] = useState('');
+  const [formIsPublic, setFormIsPublic] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
@@ -145,6 +149,7 @@ const Notes = () => {
     setFormTitle('');
     setFormContent('');
     setFormConcern('');
+    setFormIsPublic(false);
     setEditingNote(null);
     setIsCreateOpen(true);
   };
@@ -153,6 +158,7 @@ const Notes = () => {
     setFormTitle(note.title);
     setFormContent(note.content);
     setFormConcern(note.concern || '');
+    setFormIsPublic(note.is_public || false);
     setEditingNote(note);
     setIsCreateOpen(true);
   };
@@ -163,6 +169,7 @@ const Notes = () => {
     setFormTitle('');
     setFormContent('');
     setFormConcern('');
+    setFormIsPublic(false);
   };
 
   const handleSave = async () => {
@@ -185,6 +192,7 @@ const Notes = () => {
             title: formTitle.trim() || 'Untitled',
             content: formContent.trim(),
             concern: formConcern.trim(),
+            is_public: isAdmin ? formIsPublic : editingNote.is_public,
           })
           .eq('id', editingNote.id);
 
@@ -192,7 +200,7 @@ const Notes = () => {
 
         setNotes(notes.map(note =>
           note.id === editingNote.id
-            ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), concern: formConcern.trim(), updated_at: new Date().toISOString() }
+            ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), concern: formConcern.trim(), is_public: isAdmin ? formIsPublic : editingNote.is_public, updated_at: new Date().toISOString() }
             : note
         ));
         toast({ title: 'Success', description: 'Reminder updated' });
@@ -204,13 +212,14 @@ const Notes = () => {
             title: formTitle.trim() || 'Untitled',
             content: formContent.trim(),
             concern: formConcern.trim(),
+            is_public: isAdmin ? formIsPublic : false,
           })
           .select()
           .single();
 
         if (error) throw error;
 
-        setNotes([{ ...data, status: data.status as NoteStatus }, ...notes]);
+        setNotes([{ ...data, status: data.status as NoteStatus, is_public: data.is_public }, ...notes]);
         toast({ title: 'Success', description: 'Reminder created' });
       }
       closeDialog();
@@ -540,6 +549,19 @@ const Notes = () => {
                 className="resize-none"
               />
             </div>
+            {isAdmin && (
+              <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/50">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is-public" className="text-sm font-medium">Staff View</Label>
+                  <p className="text-xs text-muted-foreground">Make this reminder visible to all staff</p>
+                </div>
+                <Switch
+                  id="is-public"
+                  checked={formIsPublic}
+                  onCheckedChange={setFormIsPublic}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>
