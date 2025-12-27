@@ -59,6 +59,7 @@ interface GroupedRelease {
 const Deliveries = () => {
   const { releases, loading, updateDeliveryStatus, fetchReleases } = useInventory();
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,6 +68,8 @@ const Deliveries = () => {
   const [isPending, startTransition] = useTransition();
   const { columns, setColumns, isAdmin } = useColumnSettings('deliveries', DEFAULT_COLUMNS);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  
+  const isViewer = userRole === 'viewer';
 
   const getColumnWidth = (key: ColumnKey) => {
     const col = columns.find(c => c.key === key);
@@ -345,48 +348,60 @@ const Deliveries = () => {
                   )}
                   {isColumnVisible('status') && (
                     <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('status') }}>
-                      <Select 
-                        value={group.delivery_status} 
-                        onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_transit">In Transit</SelectItem>
-                          <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
-                          <SelectItem value="delivered">Delivered</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {isViewer ? (
+                        <span className="text-sm capitalize">{group.delivery_status.replace('_', ' ')}</span>
+                      ) : (
+                        <Select 
+                          value={group.delivery_status} 
+                          onValueChange={(value) => handleStatusChange(group, value as DeliveryStatus)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in_transit">In Transit</SelectItem>
+                            <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible('waybill') && (
                     <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>
-                      <Input
-                        placeholder="Enter waybill"
-                        defaultValue={group.waybill_no || ''}
-                        className="h-8 text-sm"
-                        onBlur={(e) => {
-                          if (e.target.value !== (group.waybill_no || '')) {
-                            handleWaybillChange(group, e.target.value);
-                          }
-                        }}
-                      />
+                      {isViewer ? (
+                        <span className="text-sm">{group.waybill_no || '-'}</span>
+                      ) : (
+                        <Input
+                          placeholder="Enter waybill"
+                          defaultValue={group.waybill_no || ''}
+                          className="h-8 text-sm"
+                          onBlur={(e) => {
+                            if (e.target.value !== (group.waybill_no || '')) {
+                              handleWaybillChange(group, e.target.value);
+                            }
+                          }}
+                        />
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible('remarks') && (
                     <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>
-                      <Input
-                        placeholder="Enter remarks"
-                        defaultValue={group.notes || ''}
-                        className="h-8 text-sm"
-                        onBlur={(e) => {
-                          if (e.target.value !== (group.notes || '')) {
-                            handleRemarksChange(group, e.target.value);
-                          }
-                        }}
-                      />
+                      {isViewer ? (
+                        <span className="text-sm">{group.notes || '-'}</span>
+                      ) : (
+                        <Input
+                          placeholder="Enter remarks"
+                          defaultValue={group.notes || ''}
+                          className="h-8 text-sm"
+                          onBlur={(e) => {
+                            if (e.target.value !== (group.notes || '')) {
+                              handleRemarksChange(group, e.target.value);
+                            }
+                          }}
+                        />
+                      )}
                     </TableCell>
                   )}
                   <TableCell>
