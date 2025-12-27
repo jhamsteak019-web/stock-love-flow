@@ -77,6 +77,7 @@ const ReleaseStock = () => {
   const [qtyItems, setQtyItems] = useState<number>(0);
   const [remarks, setRemarks] = useState('');
   const [waybillNo, setWaybillNo] = useState('');
+  const [billDate, setBillDate] = useState<Date | undefined>(undefined);
   const [setDate, setSetDate] = useState<Date | undefined>(undefined);
   const [courier, setCourier] = useState('');
   const [notes, setNotes] = useState('');
@@ -199,6 +200,7 @@ const ReleaseStock = () => {
       setQtyItems(0);
       setRemarks('');
       setWaybillNo('');
+      setBillDate(undefined);
       setSetDate(undefined);
       setCourier('');
     } catch (error) {
@@ -911,6 +913,22 @@ const ReleaseStock = () => {
           <div className="space-y-2">
             <Label>Waybill No.</Label>
             <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Enter waybill number" />
+          </div>
+
+          {/* 8. Bill Date */}
+          <div className="space-y-2">
+            <Label>Bill Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !billDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {billDate ? format(billDate, 'PPP') : 'Select bill date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={billDate} onSelect={setBillDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* 8. Set Date */}
