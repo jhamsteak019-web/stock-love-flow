@@ -326,7 +326,14 @@ const Deliveries = () => {
                 >
                   {isColumnVisible('allocation') && (
                     <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>
-                      {group.allocation_bill || group.batch_id.slice(0, 8)}
+                      <div className="flex items-center gap-3">
+                        <PhotoUploadCell 
+                          batchId={group.batch_id} 
+                          photoUrl={group.photo_url} 
+                          onPhotoUpdate={fetchReleases}
+                        />
+                        <span className="truncate">{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
+                      </div>
                     </TableCell>
                   )}
                   {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
