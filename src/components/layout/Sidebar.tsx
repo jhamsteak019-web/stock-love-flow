@@ -13,8 +13,7 @@ import {
   ChevronLeft,
   BarChart3,
   Archive,
-  StickyNote,
-  Link
+  StickyNote
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -86,12 +85,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: StickyNote, 
       label: 'Reminder',
       roles: ['admin', 'staff']
-    },
-    { 
-      to: '/store-tokens', 
-      icon: Link, 
-      label: 'Store Portal Links',
-      roles: ['admin']
     },
   ];
 

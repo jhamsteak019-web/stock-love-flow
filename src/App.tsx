@@ -17,8 +17,6 @@ import ManageUsers from "./pages/ManageUsers";
 import SummaryReport from "./pages/SummaryReport";
 import Notes from "./pages/Notes";
 import NotFound from "./pages/NotFound";
-import StorePortal from "./pages/StorePortal";
-import ManageStoreTokens from "./pages/ManageStoreTokens";
 
 const queryClient = new QueryClient();
 
@@ -43,9 +41,7 @@ const App = () => (
               <Route path="/import" element={<ImportExcel />} />
               <Route path="/users" element={<ManageUsers />} />
               <Route path="/notes" element={<Notes />} />
-              <Route path="/store-tokens" element={<ManageStoreTokens />} />
             </Route>
-            <Route path="/store-portal" element={<StorePortal />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
