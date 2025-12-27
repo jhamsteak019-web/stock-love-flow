@@ -916,6 +916,9 @@ const SummaryReport = () => {
                         <Badge variant="secondary">
                           {categoryData.stores.reduce((sum, s) => sum + s.boxes, 0)} boxes
                         </Badge>
+                        <Badge variant="outline">
+                          {categoryData.stores.reduce((sum, s) => sum + s.qty, 0).toLocaleString()} qty items
+                        </Badge>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                         {categoryData.stores.map((store, idx) => (
@@ -930,7 +933,7 @@ const SummaryReport = () => {
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {store.boxes} boxes • {store.percentage}% delivered
+                              {store.boxes} boxes • {store.qty.toLocaleString()} qty • {store.percentage}% delivered
                             </div>
                             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                               <div 
