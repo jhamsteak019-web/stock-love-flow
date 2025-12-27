@@ -57,6 +57,63 @@ export const useUsers = () => {
 
   useEffect(() => {
     fetchUsers();
+
+    // Subscribe to real-time role changes
+    const roleChannel = supabase
+      .channel('user_roles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_roles',
+        },
+        (payload) => {
+          if (payload.new) {
+            const updatedRole = payload.new as { user_id: string; role: UserRole };
+            setUsers(prev => prev.map(user =>
+              user.id === updatedRole.user_id
+                ? { ...user, role: updatedRole.role }
+                : user
+            ));
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to profile changes
+    const profileChannel = supabase
+      .channel('profiles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // New user added, refetch to get complete data
+            fetchUsers();
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            const updatedProfile = payload.new as Profile;
+            setUsers(prev => prev.map(user =>
+              user.id === updatedProfile.id
+                ? { ...user, ...updatedProfile }
+                : user
+            ));
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            const deletedProfile = payload.old as { id: string };
+            setUsers(prev => prev.filter(user => user.id !== deletedProfile.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(roleChannel);
+      supabase.removeChannel(profileChannel);
+    };
   }, []);
 
   const updateProfile = async (userId: string, updates: Partial<Profile>) => {
