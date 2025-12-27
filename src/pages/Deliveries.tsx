@@ -326,13 +326,13 @@ const Deliveries = () => {
                 >
                   {isColumnVisible('allocation') && (
                     <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate flex-1">{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
                         <PhotoUploadCell 
                           batchId={group.batch_id} 
                           photoUrl={group.photo_url} 
                           onPhotoUpdate={fetchReleases}
                         />
-                        <span className="truncate">{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
                       </div>
                     </TableCell>
                   )}
