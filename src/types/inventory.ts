@@ -66,6 +66,8 @@ export interface StockRelease {
   total_qty: number | null;
   created_at: string;
   updated_at: string;
+  photo_url: string | null;
+  photo_status: string | null;
   inventory_item?: InventoryItem;
   profile?: Profile;
 }

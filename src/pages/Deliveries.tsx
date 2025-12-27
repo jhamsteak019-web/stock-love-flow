@@ -17,6 +17,7 @@ import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
+import PhotoApprovalCell from '@/components/deliveries/PhotoApprovalCell';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -24,6 +25,7 @@ import { useColumnSettings } from '@/hooks/useColumnSettings';
 const ITEMS_PER_PAGE = 15;
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
+  { key: 'photo', label: 'Photo', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
   { key: 'allocation', label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
   { key: 'destination', label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'category', label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
@@ -52,6 +54,8 @@ interface GroupedRelease {
   waybill_no: string | null;
   set_date: string | null;
   notes: string | null;
+  photo_url: string | null;
+  photo_status: string | null;
 }
 
 const Deliveries = () => {
@@ -106,6 +110,8 @@ const Deliveries = () => {
           waybill_no: release.waybill_no,
           set_date: release.set_date,
           notes: release.notes,
+          photo_url: release.photo_url || null,
+          photo_status: release.photo_status || 'no_photo',
         };
       }
       
@@ -291,6 +297,7 @@ const Deliveries = () => {
         <Table className="table-fixed">
           <TableHeader>
             <TableRow className="transition-all duration-300">
+              {isColumnVisible('photo') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('photo') }}>Photo</TableHead>}
               {isColumnVisible('allocation') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
               {isColumnVisible('destination') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
               {isColumnVisible('category') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>Category</TableHead>}
@@ -321,6 +328,18 @@ const Deliveries = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
+                  {isColumnVisible('photo') && (
+                    <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('photo') }}>
+                      <PhotoApprovalCell
+                        batchId={group.batch_id}
+                        photoUrl={group.photo_url}
+                        photoStatus={group.photo_status || 'no_photo'}
+                        allocationBill={group.allocation_bill}
+                        isAdmin={isAdmin}
+                        onStatusChange={fetchReleases}
+                      />
+                    </TableCell>
+                  )}
                   {isColumnVisible('allocation') && (
                     <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>
                       {group.allocation_bill || group.batch_id.slice(0, 8)}
