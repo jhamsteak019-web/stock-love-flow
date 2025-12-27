@@ -242,7 +242,7 @@ const ReleaseStock = () => {
     if (!file || !user) return;
 
     setImporting(true);
-    setParsedItems([]);
+    // Don't clear existing items - we'll append to them
 
     try {
       const data = await file.arrayBuffer();
@@ -308,9 +308,10 @@ const ReleaseStock = () => {
         return;
       }
 
-      setParsedItems(parsed);
+      // Append new items to existing ones instead of replacing
+      setParsedItems(prev => [...prev, ...parsed]);
       setShowImportPreview(true);
-      toast({ title: 'File Parsed', description: `${parsed.length} items found. Review and confirm.` });
+      toast({ title: 'File Parsed', description: `${parsed.length} items added. Total: ${parsedItems.length + parsed.length} items.` });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
