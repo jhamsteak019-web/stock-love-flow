@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'courier' | 'waybill' | 'remarks';
+type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
@@ -40,6 +40,7 @@ const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'totalQty' as ColumnKey, label: 'Total Qty/Items', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
   { key: 'dateOut' as ColumnKey, label: 'Date Out', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
   { key: 'dateReceived' as ColumnKey, label: 'Date Received', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
+  { key: 'deliveryTime' as ColumnKey, label: 'Delivery Time', visible: true, width: 110, minWidth: 80, maxWidth: 150 },
   { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
   { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
@@ -140,22 +141,9 @@ const History = () => {
       groups[batchKey].itemCount += 1;
     });
     
-    // Sort by set_date (Date Out) ascending - earlier dates first
-    return Object.values(groups).sort((a, b) => {
-      const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
-      const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
-      
-      // If both have set_date, sort by set_date ascending (Dec 1 before Dec 5)
-      if (dateA && dateB) {
-        return dateA - dateB;
-      }
-      // Items without set_date go to the end
-      if (!dateA && dateB) return 1;
-      if (dateA && !dateB) return -1;
-      
-      // If neither has set_date, sort by date_released descending
-      return new Date(b.date_released).getTime() - new Date(a.date_released).getTime();
-    });
+    return Object.values(groups).sort(
+      (a, b) => new Date(b.date_released).getTime() - new Date(a.date_released).getTime()
+    );
   };
 
   const groupedReleases = useMemo(() => groupReleases(releases), [releases]);
@@ -482,6 +470,7 @@ const History = () => {
                   {isColumnVisible('totalQty') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
                   {isColumnVisible('dateOut') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
                   {isColumnVisible('dateReceived') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
+                  {isColumnVisible('deliveryTime') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Time</TableHead>}
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
@@ -515,6 +504,15 @@ const History = () => {
                       {isColumnVisible('dateReceived') && (
                         <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>
                           {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                      )}
+                      {isColumnVisible('deliveryTime') && (
+                        <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>
+                          {group.set_date && group.date_delivered ? (
+                            <span className="font-medium text-primary">
+                              {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} days
+                            </span>
+                          ) : '-'}
                         </TableCell>
                       )}
                       {isColumnVisible('courier') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
