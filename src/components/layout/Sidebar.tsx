@@ -42,7 +42,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff']
     },
     { 
       to: '/release', 
