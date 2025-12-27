@@ -284,6 +284,9 @@ const SummaryReport = () => {
     const deliveredCount = filteredReleases.filter(r => r.delivery_status === 'delivered').length;
     const pendingCount = filteredReleases.filter(r => r.delivery_status !== 'delivered').length;
     const uniqueDestinations = new Set(filteredReleases.map(r => r.destination)).size;
+    const deliveryPercentage = filteredReleases.length > 0 
+      ? Math.round((deliveredCount / filteredReleases.length) * 100) 
+      : 0;
 
     return {
       totalBoxes,
@@ -292,6 +295,7 @@ const SummaryReport = () => {
       deliveredCount,
       pendingCount,
       uniqueDestinations,
+      deliveryPercentage,
     };
   }, [filteredReleases]);
 
@@ -315,6 +319,86 @@ const SummaryReport = () => {
 
     return monthlyData;
   }, [yearlyReleases]);
+
+  // Top stores per category - which stores receive most deliveries per category
+  const topStoresPerCategory = useMemo(() => {
+    const categoryStores: Record<string, Record<string, { boxes: number; qty: number; delivered: number; total: number }>> = {};
+
+    filteredReleases.forEach(release => {
+      const category = release.category || 'Uncategorized';
+      const store = release.destination || 'Unknown';
+
+      if (!categoryStores[category]) {
+        categoryStores[category] = {};
+      }
+      if (!categoryStores[category][store]) {
+        categoryStores[category][store] = { boxes: 0, qty: 0, delivered: 0, total: 0 };
+      }
+
+      categoryStores[category][store].boxes += release.boxes_released;
+      categoryStores[category][store].qty += release.total_qty || 0;
+      categoryStores[category][store].total += 1;
+      if (release.delivery_status === 'delivered') {
+        categoryStores[category][store].delivered += 1;
+      }
+    });
+
+    // Convert to array and get top 5 stores per category
+    return Object.entries(categoryStores).map(([category, stores]) => ({
+      category,
+      stores: Object.entries(stores)
+        .map(([store, data]) => ({
+          store,
+          ...data,
+          percentage: data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0,
+        }))
+        .sort((a, b) => b.boxes - a.boxes)
+        .slice(0, 5),
+    })).sort((a, b) => {
+      const totalA = a.stores.reduce((sum, s) => sum + s.boxes, 0);
+      const totalB = b.stores.reduce((sum, s) => sum + s.boxes, 0);
+      return totalB - totalA;
+    });
+  }, [filteredReleases]);
+
+  // Store delivery percentages
+  const storeDeliveryPercentages = useMemo(() => {
+    const stores: Record<string, { delivered: number; total: number; boxes: number }> = {};
+
+    filteredReleases.forEach(release => {
+      const store = release.destination || 'Unknown';
+      if (!stores[store]) {
+        stores[store] = { delivered: 0, total: 0, boxes: 0 };
+      }
+      stores[store].total += 1;
+      stores[store].boxes += release.boxes_released;
+      if (release.delivery_status === 'delivered') {
+        stores[store].delivered += 1;
+      }
+    });
+
+    return Object.entries(stores)
+      .map(([store, data]) => ({
+        store,
+        ...data,
+        percentage: data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.boxes - a.boxes);
+  }, [filteredReleases]);
+
+  // Category distribution for pie chart
+  const categoryDistribution = useMemo(() => {
+    const categories: Record<string, number> = {};
+
+    filteredReleases.forEach(release => {
+      const category = release.category || 'Uncategorized';
+      categories[category] = (categories[category] || 0) + release.boxes_released;
+    });
+
+    return Object.entries(categories)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredReleases]);
 
   // Print delivered summary by branch
   const handlePrintDeliveredSummary = () => {
@@ -566,7 +650,7 @@ const SummaryReport = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Boxes</CardTitle>
@@ -614,6 +698,17 @@ const SummaryReport = () => {
           <CardContent>
             <div className="text-2xl font-bold">{totalStats.uniqueDestinations}</div>
             <p className="text-xs text-muted-foreground">unique locations</p>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+            <CheckCircle className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{totalStats.deliveryPercentage}%</div>
+            <p className="text-xs text-muted-foreground">delivery success</p>
           </CardContent>
         </Card>
       </div>
@@ -666,7 +761,142 @@ const SummaryReport = () => {
             </CardContent>
           </Card>
 
-          {/* Branch Report Table */}
+          {/* Category Distribution & Delivery Percentage */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Category Distribution Pie Chart */}
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle>Category Distribution - {MONTHS[parseInt(selectedMonth)]}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  {categoryDistribution.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryDistribution}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {categoryDistribution.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number) => [`${value} boxes`, 'Boxes']}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      No data available
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Store Delivery Percentage */}
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Delivery Completion Rate</span>
+                  <Badge variant="outline" className="text-lg px-3 py-1">
+                    {totalStats.deliveryPercentage}% Overall
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-[280px] overflow-y-auto">
+                  {storeDeliveryPercentages.slice(0, 10).map((store) => (
+                    <div key={store.store} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium truncate max-w-[200px]">{store.store}</span>
+                        <span className="text-muted-foreground">
+                          {store.delivered}/{store.total} ({store.percentage}%)
+                        </span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-green-500 transition-all duration-500"
+                          style={{ width: `${store.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {storeDeliveryPercentages.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      No data available
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Stores per Category */}
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Top Stores by Category - {MONTHS[parseInt(selectedMonth)]}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topStoresPerCategory.length > 0 ? (
+                <div className="space-y-6">
+                  {topStoresPerCategory.slice(0, 5).map((categoryData) => (
+                    <div key={categoryData.category} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="h-4 w-4 text-primary" />
+                        <h4 className="font-semibold">{categoryData.category}</h4>
+                        <Badge variant="secondary">
+                          {categoryData.stores.reduce((sum, s) => sum + s.boxes, 0)} boxes
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        {categoryData.stores.map((store, idx) => (
+                          <div 
+                            key={store.store} 
+                            className="p-3 rounded-lg border bg-muted/30 space-y-1"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-muted-foreground">#{idx + 1}</span>
+                              <span className="font-medium text-sm truncate" title={store.store}>
+                                {store.store}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {store.boxes} boxes • {store.percentage}% delivered
+                            </div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary transition-all duration-500"
+                                style={{ width: `${store.percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  No data available for this period
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Branch Delivery Status - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
