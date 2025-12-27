@@ -27,11 +27,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <PresenceTracker />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route element={<DashboardLayout />}>
+            <Route element={<><PresenceTracker /><DashboardLayout /></>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/release" element={<ReleaseStock />} />
