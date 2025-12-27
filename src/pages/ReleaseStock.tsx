@@ -26,6 +26,7 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'totalBoxes' as ColumnKey, label: 'Boxes', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
   { key: 'totalQty' as ColumnKey, label: 'Qty/Item', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
+  { key: 'billDate' as ColumnKey, label: 'Bill Date', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
   { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'dateOut' as ColumnKey, label: 'Date Out Warehouse', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
@@ -622,6 +623,7 @@ const ReleaseStock = () => {
                       {isColumnVisible('totalBoxes') && <TableHead className="w-24 px-2">Boxes</TableHead>}
                       {isColumnVisible('totalQty') && <TableHead className="w-24 px-2">Qty/Item</TableHead>}
                       {isColumnVisible('remarks') && <TableHead className="min-w-[130px] px-2">Remarks</TableHead>}
+                      {isColumnVisible('billDate') && <TableHead className="min-w-[120px] px-2">Bill Date</TableHead>}
                       {isColumnVisible('waybill') && <TableHead className="min-w-[130px] px-2">Waybill No.</TableHead>}
                       {isColumnVisible('dateOut') && <TableHead className="min-w-[130px] px-2">Date Out Warehouse</TableHead>}
                       <TableHead className="min-w-[130px] px-2">Courier</TableHead>
@@ -731,6 +733,13 @@ const ReleaseStock = () => {
                                 className="h-8 text-xs min-w-[110px]"
                                 placeholder="Remarks"
                               />
+                            </TableCell>
+                          )}
+                          {isColumnVisible('billDate') && (
+                            <TableCell className="px-2">
+                              <div className="h-8 text-xs flex items-center min-w-[100px] px-2 bg-muted/50 rounded border">
+                                {item.setDate ? format(new Date(item.setDate), 'MMM d, yyyy') : '-'}
+                              </div>
                             </TableCell>
                           )}
                           {isColumnVisible('waybill') && (
