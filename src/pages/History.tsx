@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
+import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -62,10 +63,11 @@ interface GroupedRelease {
   totalQty: number;
   itemCount: number;
   items: StockRelease[];
+  releaseIds: string[];
 }
 
 const History = () => {
-  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, updateBatchDates } = useInventory();
+  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, fetchReleases } = useInventory();
   const { toast } = useToast();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -78,8 +80,6 @@ const History = () => {
   const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
   const [loadingDeleted, setLoadingDeleted] = useState(false);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
-  const [editDateOut, setEditDateOut] = useState<Date | undefined>(undefined);
-  const [editDateReceived, setEditDateReceived] = useState<Date | undefined>(undefined);
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
 
@@ -131,10 +131,12 @@ const History = () => {
           totalQty: 0,
           itemCount: 0,
           items: [],
+          releaseIds: [],
         };
       }
       
       groups[batchKey].items.push(release);
+      groups[batchKey].releaseIds.push(release.id);
       groups[batchKey].totalBoxes += release.boxes_released;
       groups[batchKey].totalQty += release.total_qty || 0;
       groups[batchKey].itemCount += 1;
@@ -247,29 +249,9 @@ const History = () => {
     }
   };
 
-  const handleEditDates = (group: GroupedRelease, e: React.MouseEvent) => {
+  const handleEditDelivery = (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingBatch(group);
-    setEditDateOut(group.set_date ? new Date(group.set_date) : undefined);
-    setEditDateReceived(group.date_delivered ? new Date(group.date_delivered) : undefined);
-  };
-
-  const handleSaveDates = async () => {
-    if (!editingBatch) return;
-    
-    try {
-      await updateBatchDates(
-        editingBatch.batch_id, 
-        editDateOut ? editDateOut.toISOString() : null,
-        editDateReceived ? editDateReceived.toISOString() : null
-      );
-      toast({ title: 'Success', description: 'Dates updated successfully' });
-      setEditingBatch(null);
-      setEditDateOut(undefined);
-      setEditDateReceived(undefined);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update dates', variant: 'destructive' });
-    }
   };
 
   const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
@@ -542,8 +524,8 @@ const History = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={(e) => handleEditDates(group, e)}
-                              title="Edit dates"
+                              onClick={(e) => handleEditDelivery(group, e)}
+                              title="Edit delivery"
                               className="transition-transform hover:scale-110"
                             >
                               <Pencil className="h-4 w-4" />
@@ -656,77 +638,15 @@ const History = () => {
         />
       )}
 
-      {/* Edit Dates Dialog */}
-      <AlertDialog open={!!editingBatch} onOpenChange={(open) => !open && setEditingBatch(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Edit Dates</AlertDialogTitle>
-            <AlertDialogDescription>
-              Update the Date Out and Date Received for transaction to {editingBatch?.destination}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Date Out Warehouse</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !editDateOut && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {editDateOut ? format(editDateOut, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={editDateOut}
-                    onSelect={setEditDateOut}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Date Received</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !editDateReceived && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {editDateReceived ? format(editDateReceived, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={editDateReceived}
-                    onSelect={setEditDateReceived}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveDates}>
-              Save
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Edit Delivery Modal */}
+      {editingBatch && (
+        <EditDeliveryModal
+          open={!!editingBatch}
+          onOpenChange={(open) => !open && setEditingBatch(null)}
+          group={editingBatch}
+          onSuccess={() => fetchReleases()}
+        />
+      )}
     </div>
   );
 };
