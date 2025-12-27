@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -250,7 +249,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
     setPreviewOpen(open);
   };
 
-  const hasChanges = rotation !== 0 || allocationText.trim() !== currentAllocation;
+  const hasChanges = rotation !== 0;
 
   return (
     <div className="flex items-center">
@@ -334,19 +333,15 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
             </Button>
           </div>
 
-          {/* Allocation Text Input */}
+          {/* Allocation Text Display */}
           {showTextBox && (
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-              <Label htmlFor="allocation-text" className="text-sm font-medium whitespace-nowrap">
+              <Label className="text-sm font-medium whitespace-nowrap">
                 Allocation:
               </Label>
-              <Input
-                id="allocation-text"
-                value={allocationText}
-                onChange={(e) => setAllocationText(e.target.value)}
-                placeholder="Enter allocation number..."
-                className="flex-1"
-              />
+              <span className="flex-1 px-3 py-2 bg-background border rounded-md text-sm">
+                {allocationText || 'No allocation set'}
+              </span>
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 Drag text on image to position
               </span>
