@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-export type ColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'status' | 'waybill' | 'remarks' | 'billDate';
+export type ColumnKey = 'photo' | 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'status' | 'waybill' | 'remarks' | 'billDate';
 
 export interface ColumnConfig {
   key: ColumnKey;
@@ -95,7 +95,7 @@ const ColumnSettings = ({ columns, onColumnChange, defaultColumns }: ColumnSetti
                 Column Widths
               </h5>
               <div className="space-y-4">
-                {columns.filter(col => col.visible).map(col => (
+                {columns.filter(col => col.visible && col.key !== 'photo').map(col => (
                   <div key={col.key} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm">{col.label}</Label>
@@ -111,7 +111,7 @@ const ColumnSettings = ({ columns, onColumnChange, defaultColumns }: ColumnSetti
                     />
                   </div>
                 ))}
-                {columns.filter(col => col.visible).length === 0 && (
+                {columns.filter(col => col.visible && col.key !== 'photo').length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-2">No visible columns</p>
                 )}
               </div>
@@ -135,7 +135,7 @@ const ColumnSettings = ({ columns, onColumnChange, defaultColumns }: ColumnSetti
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {columns.map(col => (
+                {columns.filter(col => col.key !== 'photo').map(col => (
                   <div key={col.key} className="flex items-center gap-2">
                     <Switch
                       id={`visibility-${col.key}`}
