@@ -16,9 +16,10 @@ interface AllocationBillModalProps {
   dateDelivered?: string | null;
   allocationBill?: string | null;
   setDate?: string | null;
+  isViewer?: boolean;
 }
 
-const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate }: AllocationBillModalProps) => {
+const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate, isViewer = false }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const totalBoxes = releases.reduce((sum, r) => sum + r.boxes_released, 0);
   const totalQty = releases.reduce((sum, r) => sum + (r.total_qty || 0), 0);
@@ -169,10 +170,12 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
               <FileText className="h-5 w-5 text-primary" />
               Warehouse Allocation Bill
             </DialogTitle>
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-1" />
-              SD FILE
-            </Button>
+            {!isViewer && (
+              <Button variant="outline" size="sm" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-1" />
+                SD FILE
+              </Button>
+            )}
           </div>
         </DialogHeader>
 

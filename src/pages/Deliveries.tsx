@@ -286,10 +286,12 @@ const Deliveries = () => {
               )}
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
-            <FileDown className="h-4 w-4 mr-2" />
-            SD FILE
-          </Button>
+          {!isViewer && (
+            <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
+              <FileDown className="h-4 w-4 mr-2" />
+              SD FILE
+            </Button>
+          )}
           {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_COLUMNS} />}
         </div>
       </div>
@@ -491,6 +493,7 @@ const Deliveries = () => {
           dateDelivered={selectedBatch.date_delivered}
           setDate={selectedBatch.set_date}
           allocationBill={selectedBatch.allocation_bill}
+          isViewer={isViewer}
         />
       )}
 
