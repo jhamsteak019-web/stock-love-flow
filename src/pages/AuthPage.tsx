@@ -93,7 +93,7 @@ const AuthPage = () => {
         } else {
           toast({
             title: 'Account Created!',
-            description: 'Welcome to Stock Focus System.',
+            description: 'Welcome to MONITORING DELIVERY.',
           });
           navigate('/dashboard');
         }
@@ -246,7 +246,7 @@ const AuthPage = () => {
         {/* Footer */}
         <div className="mt-6 pt-4 border-t border-border/50">
           <p className="text-xs text-center text-muted-foreground">
-            © 2025 Stock Focus System. All Rights Reserved.
+            © 2025 MONITORING DELIVERY. All Rights Reserved.
           </p>
         </div>
       </div>
