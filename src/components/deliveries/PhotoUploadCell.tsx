@@ -80,16 +80,19 @@ export const PhotoUploadCell = ({ batchId, photoUrl, currentAllocation, onPhotoU
 
   const handleRemovePhoto = async () => {
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('stock_releases')
         .update({ photo_url: null, photo_status: 'no_photo' })
-        .eq('batch_id', batchId);
+        .eq('batch_id', batchId)
+        .select();
 
       if (error) throw error;
+      
       toast({ title: 'Success', description: 'Photo removed' });
       onPhotoUpdate();
     } catch (error: any) {
-      toast({ title: 'Error', description: 'Failed to remove photo', variant: 'destructive' });
+      console.error('Remove photo error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to remove photo', variant: 'destructive' });
     }
   };
 
