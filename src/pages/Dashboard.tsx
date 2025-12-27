@@ -113,6 +113,45 @@ const Dashboard = () => {
       .slice(0, 5);
   }, [releases]);
 
+  // Branch delivery status breakdown
+  const branchDeliveryStatus = useMemo(() => {
+    const branchData: Record<string, { 
+      branch: string; 
+      pending: number; 
+      inTransit: number; 
+      outForDelivery: number;
+      delivered: number;
+      total: number;
+    }> = {};
+    
+    releases.forEach(release => {
+      const branch = release.destination || 'Unknown';
+      if (!branchData[branch]) {
+        branchData[branch] = { branch, pending: 0, inTransit: 0, outForDelivery: 0, delivered: 0, total: 0 };
+      }
+      branchData[branch].total += 1;
+      
+      switch (release.delivery_status) {
+        case 'pending':
+          branchData[branch].pending += 1;
+          break;
+        case 'in_transit':
+          branchData[branch].inTransit += 1;
+          break;
+        case 'out_for_delivery':
+          branchData[branch].outForDelivery += 1;
+          break;
+        case 'delivered':
+          branchData[branch].delivered += 1;
+          break;
+      }
+    });
+
+    return Object.values(branchData)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [releases]);
+
   // Get current month name
   const currentMonth = new Date().toLocaleString('default', { month: 'long' });
 
@@ -300,6 +339,70 @@ const Dashboard = () => {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Branch Delivery Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            Branch Delivery Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {branchDeliveryStatus.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No branch data available</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Branch</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Pending</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">In Transit</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Out for Delivery</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Delivered</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {branchDeliveryStatus.map((branch) => (
+                    <tr key={branch.branch} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <td className="py-3 px-2">
+                        <span className="text-sm font-medium text-foreground truncate max-w-[200px] block" title={branch.branch}>
+                          {branch.branch}
+                        </span>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <Badge variant="outline" className="bg-status-pending-bg text-status-pending border-status-pending/30 min-w-[40px] justify-center">
+                          {branch.pending}
+                        </Badge>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <Badge variant="outline" className="bg-status-transit-bg text-status-transit border-status-transit/30 min-w-[40px] justify-center">
+                          {branch.inTransit}
+                        </Badge>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400 min-w-[40px] justify-center">
+                          {branch.outForDelivery}
+                        </Badge>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <Badge variant="outline" className="bg-status-delivered-bg text-status-delivered border-status-delivered/30 min-w-[40px] justify-center">
+                          {branch.delivered}
+                        </Badge>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <span className="text-sm font-semibold text-foreground">{branch.total}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
