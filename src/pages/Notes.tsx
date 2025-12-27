@@ -367,7 +367,7 @@ const Notes = () => {
         <Table>
           <TableHeader>
             <TableRow className="transition-all duration-300">
-              <TableHead className="w-[50px]">Color</TableHead>
+              <TableHead className="w-[150px]">Concern</TableHead>
               <TableHead className="w-[200px]">Title</TableHead>
               <TableHead>Remarks</TableHead>
               <TableHead className="w-[150px]">Created By</TableHead>
@@ -399,8 +399,8 @@ const Notes = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
-                  <TableCell>
-                    <div className={`h-4 w-4 rounded-full ${getColorClass(note.color)}`} />
+                  <TableCell className="text-muted-foreground">
+                    -
                   </TableCell>
                   <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
                   <TableCell className="max-w-[250px] truncate text-muted-foreground">
