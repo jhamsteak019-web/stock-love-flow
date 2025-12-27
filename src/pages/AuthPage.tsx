@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import authBackground from '@/assets/auth-background.png';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -104,10 +105,13 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 p-4">
+    <div 
+      className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${authBackground})` }}
+    >
       {/* Title - Above Card */}
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-primary tracking-wide">MONITORING DELIVERY</h1>
+        <h1 className="text-3xl font-bold text-white tracking-wide drop-shadow-lg">MONITORING DELIVERY</h1>
       </div>
 
       {/* Login Card */}
