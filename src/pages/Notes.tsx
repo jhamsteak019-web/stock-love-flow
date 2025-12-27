@@ -66,7 +66,7 @@ const Notes = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
-  const [statusChangeNote, setStatusChangeNote] = useState<{ id: string; status: NoteStatus; currentDate: string } | null>(null);
+  
 
   const debouncedSearch = useDebounce(searchQuery, 350);
 
@@ -245,37 +245,23 @@ const Notes = () => {
   };
 
   const handleStatusChange = async (noteId: string, newStatus: NoteStatus) => {
-    // Find the note to get its current updated_at
-    const note = notes.find(n => n.id === noteId);
-    if (note) {
-      setStatusChangeNote({ id: noteId, status: newStatus, currentDate: note.updated_at });
-    }
-  };
-
-  const confirmStatusChangeWithDate = async (date: Date) => {
-    if (!statusChangeNote) return;
-    
     try {
+      // Only update status, NOT the updated_at date
       const { error } = await supabase
         .from('notes')
-        .update({ 
-          status: statusChangeNote.status,
-          updated_at: date.toISOString()
-        })
-        .eq('id', statusChangeNote.id);
+        .update({ status: newStatus })
+        .eq('id', noteId);
 
       if (error) throw error;
 
       setNotes(notes.map(note =>
-        note.id === statusChangeNote.id 
-          ? { ...note, status: statusChangeNote.status, updated_at: date.toISOString() } 
+        note.id === noteId 
+          ? { ...note, status: newStatus } 
           : note
       ));
-      toast({ title: 'Success', description: 'Status and date updated' });
+      toast({ title: 'Success', description: 'Status updated' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } finally {
-      setStatusChangeNote(null);
     }
   };
 
@@ -447,16 +433,14 @@ const Notes = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {note.status !== 'approved' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 transition-transform hover:scale-110"
-                          onClick={() => openEditDialog(note)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 transition-transform hover:scale-110"
+                        onClick={() => openEditDialog(note)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
                       {isAdmin && (
                         <Button
                           variant="ghost"
@@ -619,34 +603,6 @@ const Notes = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Status Change Date Picker Dialog */}
-      <Dialog open={!!statusChangeNote} onOpenChange={(open) => !open && setStatusChangeNote(null)}>
-        <DialogContent className="sm:max-w-[350px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Select Last Update Date
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Pick a date for the "Last Updated" field:
-            </p>
-            <CalendarComponent
-              mode="single"
-              selected={statusChangeNote ? new Date(statusChangeNote.currentDate) : new Date()}
-              onSelect={(date) => date && confirmStatusChangeWithDate(date)}
-              initialFocus
-              className="rounded-md border pointer-events-auto"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusChangeNote(null)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
