@@ -14,8 +14,8 @@ const pageTitles: Record<string, string> = {
   '/notes': 'Reminder',
 };
 
-// Routes restricted from viewers - they can only access /deliveries
-const viewerRestrictedRoutes = ['/dashboard', '/history', '/summary', '/release', '/import', '/users', '/notes', '/inventory'];
+// Routes restricted from viewers - they can only access /deliveries, /dashboard, /history, /summary
+const viewerRestrictedRoutes = ['/release', '/import', '/users', '/notes', '/inventory'];
 
 export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
