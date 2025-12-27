@@ -294,7 +294,7 @@ const Deliveries = () => {
         <Table className="table-fixed">
           <TableHeader>
             <TableRow className="transition-all duration-300">
-              {isColumnVisible('allocation') && <TableHead className="transition-all duration-300 pl-16" style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
+              {isColumnVisible('allocation') && <TableHead className="transition-all duration-300 pl-20" style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
               {isColumnVisible('destination') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
               {isColumnVisible('category') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>Category</TableHead>}
               {isColumnVisible('totalBoxes') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
