@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 
 const SummaryReport = () => {
   const { releases, items, loading } = useInventory();
+  const { userRole } = useAuth();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   
@@ -24,6 +26,8 @@ const SummaryReport = () => {
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
+  
+  const isViewer = userRole === 'viewer';
 
   // Get available years from releases
   const availableYears = useMemo(() => {
@@ -1149,15 +1153,17 @@ const SummaryReport = () => {
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <CardTitle>Delivered Items by Branch - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handlePrintDeliveredSummary}
-                    disabled={deliveredByBranch.length === 0}
-                  >
-                    <Printer className="h-4 w-4 mr-1" />
-                    Print / Save PDF
-                  </Button>
+                  {!isViewer && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handlePrintDeliveredSummary}
+                      disabled={deliveredByBranch.length === 0}
+                    >
+                      <Printer className="h-4 w-4 mr-1" />
+                      Print / Save PDF
+                    </Button>
+                  )}
                 </div>
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1224,19 +1230,21 @@ const SummaryReport = () => {
                               </SelectContent>
                             </Select>
                           )}
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handlePrintBranchSummary({
-                              ...branch,
-                              items: filteredItems,
-                              totalBoxes: filteredTotalBoxes,
-                              totalQty: filteredTotalQty
-                            })}
-                          >
-                            <Printer className="h-4 w-4 mr-1" />
-                            Print
-                          </Button>
+                          {!isViewer && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handlePrintBranchSummary({
+                                ...branch,
+                                items: filteredItems,
+                                totalBoxes: filteredTotalBoxes,
+                                totalQty: filteredTotalQty
+                              })}
+                            >
+                              <Printer className="h-4 w-4 mr-1" />
+                              Print
+                            </Button>
+                          )}
                         </div>
                       </div>
                       <Table>

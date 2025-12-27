@@ -71,6 +71,7 @@ interface GroupedRelease {
 const History = () => {
   const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, fetchReleases } = useInventory();
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearingDeleted, setClearingDeleted] = useState(false);
@@ -85,6 +86,7 @@ const History = () => {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
+  const isViewer = userRole === 'viewer';
 
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
@@ -313,7 +315,7 @@ const History = () => {
           </TabsList>
           
           <div className="flex items-center gap-2">
-            {activeTab === 'active' && (
+            {activeTab === 'active' && !isViewer && (
               <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
                 <FileDown className="h-4 w-4 mr-2" />
                 SD FILE
@@ -524,16 +526,20 @@ const History = () => {
                       {isColumnVisible('waybill') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>{group.waybill_no || '-'}</TableCell>}
                       {isColumnVisible('remarks') && (
                         <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>
-                          <Input
-                            placeholder="Enter remarks"
-                            defaultValue={group.notes || ''}
-                            className="h-8 w-[120px] text-sm"
-                            onBlur={(e) => {
-                              if (e.target.value !== (group.notes || '')) {
-                                handleRemarksChange(group, e.target.value);
-                              }
-                            }}
-                          />
+                          {isViewer ? (
+                            <span className="text-sm">{group.notes || '-'}</span>
+                          ) : (
+                            <Input
+                              placeholder="Enter remarks"
+                              defaultValue={group.notes || ''}
+                              className="h-8 w-[120px] text-sm"
+                              onBlur={(e) => {
+                                if (e.target.value !== (group.notes || '')) {
+                                  handleRemarksChange(group, e.target.value);
+                                }
+                              }}
+                            />
+                          )}
                         </TableCell>
                       )}
                       <TableCell>
