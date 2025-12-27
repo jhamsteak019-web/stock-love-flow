@@ -42,7 +42,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'viewer']
     },
     { 
       to: '/release', 
@@ -54,19 +54,19 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/deliveries', 
       icon: Truck, 
       label: 'Deliveries',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'viewer']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'viewer']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'viewer']
     },
     { 
       to: '/import', 
