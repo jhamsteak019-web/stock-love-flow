@@ -202,6 +202,7 @@ export type Database = {
       notes: {
         Row: {
           color: string
+          concern: string
           content: string
           created_at: string
           id: string
@@ -212,6 +213,7 @@ export type Database = {
         }
         Insert: {
           color?: string
+          concern?: string
           content?: string
           created_at?: string
           id?: string
@@ -222,6 +224,7 @@ export type Database = {
         }
         Update: {
           color?: string
+          concern?: string
           content?: string
           created_at?: string
           id?: string
