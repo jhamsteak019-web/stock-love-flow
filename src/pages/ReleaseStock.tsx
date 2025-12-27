@@ -741,16 +741,23 @@ const ReleaseStock = () => {
                           )}
                           {isColumnVisible('billDate') && (
                             <TableCell className="px-2">
-                              <Input 
-                                defaultValue={item.billDate || ''}
-                                onBlur={(e) => {
-                                  if (e.target.value !== (item.billDate || '')) {
-                                    updateParsedItem(item.id, 'billDate', e.target.value);
-                                  }
-                                }}
-                                className="h-8 text-xs min-w-[100px]"
-                                placeholder="Bill Date"
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
+                                    <CalendarIcon className="mr-1 h-3 w-3" />
+                                    {item.billDate ? format(new Date(item.billDate), 'MMM d') : 'Bill Date'}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={item.billDate ? new Date(item.billDate) : undefined}
+                                    onSelect={(date) => updateParsedItem(item.id, 'billDate', date?.toISOString() || '')}
+                                    initialFocus
+                                    className={cn("p-3 pointer-events-auto")}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           )}
                           {isColumnVisible('waybill') && (
@@ -769,16 +776,23 @@ const ReleaseStock = () => {
                           )}
                           {isColumnVisible('dateOut') && (
                             <TableCell className="px-2">
-                              <Input 
-                                defaultValue={item.setDate || ''}
-                                onBlur={(e) => {
-                                  if (e.target.value !== (item.setDate || '')) {
-                                    updateParsedItemWithBulk(item.id, 'setDate', e.target.value);
-                                  }
-                                }}
-                                className="h-8 text-xs min-w-[100px]"
-                                placeholder="Date Out"
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 text-xs w-full min-w-[100px] justify-start">
+                                    <CalendarIcon className="mr-1 h-3 w-3" />
+                                    {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={item.setDate ? new Date(item.setDate) : undefined}
+                                    onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
+                                    initialFocus
+                                    className={cn("p-3 pointer-events-auto")}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           )}
                           <TableCell className="px-2">
