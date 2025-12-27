@@ -22,7 +22,7 @@ import {
 
 const ITEMS_PER_PAGE = 20;
 
-// Format 1: Sheet No., Deliver To, Supplier, Price, Box, Pieces/Box, Remarks (auto-generated)
+// Format 1: Sheet No., Deliver To, Supplier, Price, Box, Pieces/Box, Bill Date, Remarks (auto-generated)
 interface Format1Item {
   id: string;
   formatType: 'format1';
@@ -32,6 +32,7 @@ interface Format1Item {
   price: number;
   box: number;
   piecesPerBox: number;
+  billDate: string;
   remarks: string;
 }
 
@@ -44,6 +45,7 @@ interface Format2Item {
   supplier: string;
   price: number;
   box: number;
+  billDate: string;
   remarks: string;
 }
 
@@ -275,9 +277,11 @@ const ImportExcel = () => {
           const box = findNumericValue(row, 'Box', 'BOX', 'Boxes', 'BOXES', 'Box Qty');
           const piecesPerBox = findNumericValue(row, 'Pieces/Box', 'Pieces Per Box', 'PIECES/BOX', 'Pieces', 'Pcs/Box') || 1;
           
+          // Auto-generate bill date (today's date)
+          const billDate = new Date().toISOString().split('T')[0];
+          
           // Auto-generate remarks like: "SHEET-001-2024-12-22"
-          const dateStr = new Date().toISOString().split('T')[0];
-          const autoRemarks = sheetNo ? `${sheetNo}-${dateStr}` : `IMP-${index + 1}-${dateStr}`;
+          const autoRemarks = sheetNo ? `${sheetNo}-${billDate}` : `IMP-${index + 1}-${billDate}`;
           
           return {
             id: `item-${index}-${Date.now()}`,
@@ -288,6 +292,7 @@ const ImportExcel = () => {
             price,
             box,
             piecesPerBox,
+            billDate,
             remarks: autoRemarks,
           };
         });
@@ -328,9 +333,11 @@ const ImportExcel = () => {
           const price = findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY', 'Price', 'PRICE');
           const box = findNumericValue(row, 'Box', 'BOX', 'Boxes', 'BOXES');
           
+          // Auto-generate bill date (today's date)
+          const billDate = new Date().toISOString().split('T')[0];
+          
           // Auto-generate remarks
-          const dateStr = new Date().toISOString().split('T')[0];
-          const autoRemarks = sheetNo ? `${sheetNo}-${dateStr}` : `IMP-${index + 1}-${dateStr}`;
+          const autoRemarks = sheetNo ? `${sheetNo}-${billDate}` : `IMP-${index + 1}-${billDate}`;
           
           return {
             id: `item-${index}-${Date.now()}`,
@@ -340,6 +347,7 @@ const ImportExcel = () => {
             supplier,
             price,
             box,
+            billDate,
             remarks: autoRemarks,
           };
         });
@@ -486,6 +494,7 @@ const ImportExcel = () => {
                 <th class="text-right">Box</th>
                 <th class="text-right">Pieces/Box</th>
                 <th class="text-right">Total Pieces</th>
+                <th>Bill Date</th>
                 <th>Remarks (Auto)</th>
               </tr>
             </thead>
@@ -499,6 +508,7 @@ const ImportExcel = () => {
                   <td class="text-right">${(item.qty ?? 0).toLocaleString()}</td>
                   <td class="text-right">${item.pieces_per_box ?? 1}</td>
                   <td class="text-right">${((item.qty ?? 0) * (item.pieces_per_box ?? 1)).toLocaleString()}</td>
+                  <td>${new Date().toLocaleDateString()}</td>
                   <td>${item.remarks || '-'}</td>
                 </tr>
               `).join('')}
@@ -508,6 +518,7 @@ const ImportExcel = () => {
                 <td class="text-right">${totalBox.toLocaleString()}</td>
                 <td></td>
                 <td class="text-right">${totalPieces.toLocaleString()}</td>
+                <td></td>
                 <td></td>
               </tr>
             </tbody>
@@ -608,13 +619,14 @@ const ImportExcel = () => {
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-right">Box</TableHead>
                       <TableHead className="text-right">Pieces/Box</TableHead>
+                      <TableHead>Bill Date</TableHead>
                       <TableHead>Remarks (Auto)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedResults.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           {debouncedResultsSearch ? 'No matching items found' : 'No items'}
                         </TableCell>
                       </TableRow>
@@ -627,6 +639,7 @@ const ImportExcel = () => {
                           <TableCell className="text-right">{item.price.toLocaleString()}</TableCell>
                           <TableCell className="text-right">{item.box.toLocaleString()}</TableCell>
                           <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
+                          <TableCell className="text-sm">{item.billDate || '-'}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{item.remarks || '-'}</TableCell>
                         </TableRow>
                       ))
