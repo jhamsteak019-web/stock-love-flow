@@ -107,6 +107,11 @@ const AuthPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 p-4">
       {/* Login Card */}
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 animate-fade-in">
+        {/* Title */}
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-bold text-primary tracking-wide">MONITORING DELIVERY</h1>
+        </div>
+
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="relative">
