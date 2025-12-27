@@ -165,7 +165,17 @@ const SummaryReport = () => {
         branches[branch].totalQty += release.total_qty || 0;
       });
 
-    return Object.values(branches).sort((a, b) => a.branch.localeCompare(b.branch));
+    // Sort branches by name and items by set_date ascending (earliest first)
+    return Object.values(branches)
+      .map(branch => ({
+        ...branch,
+        items: branch.items.sort((a, b) => {
+          const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
+          const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
+          return dateA - dateB;
+        })
+      }))
+      .sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
 
   // Filter delivered branches by search (branch name or allocation bill)
