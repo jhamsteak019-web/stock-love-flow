@@ -34,7 +34,7 @@ export const DashboardLayout = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const title = pageTitles[location.pathname] || 'Reminder';
+  const title = pageTitles[location.pathname] || 'MONITORING DELIVERY';
 
   return (
     <div className="min-h-screen bg-background">
