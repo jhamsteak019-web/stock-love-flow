@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
+import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -81,6 +82,7 @@ const History = () => {
   const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
   const [loadingDeleted, setLoadingDeleted] = useState(false);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
 
@@ -310,63 +312,71 @@ const History = () => {
             </TabsTrigger>
           </TabsList>
           
-          {activeTab === 'active' && isAdmin && groupedReleases.length > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={clearing}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {clearing ? 'Clearing...' : 'Clear All'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    Clear All Transaction History
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will move all {groupedReleases.length} transaction records to Recently Deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Yes, Clear All
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+          <div className="flex items-center gap-2">
+            {activeTab === 'active' && (
+              <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
+                <FileDown className="h-4 w-4 mr-2" />
+                SD FILE
+              </Button>
+            )}
 
-          {activeTab === 'deleted' && isAdmin && groupedDeletedReleases.length > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={clearingDeleted}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {clearingDeleted ? 'Clearing...' : 'Clear All'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    Permanently Delete All
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete all {groupedDeletedReleases.length} records. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearAllDeleted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Yes, Delete All Permanently
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+            {activeTab === 'active' && isAdmin && groupedReleases.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={clearing}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {clearing ? 'Clearing...' : 'Clear All'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      Clear All Transaction History
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will move all {groupedReleases.length} transaction records to Recently Deleted.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Yes, Clear All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {activeTab === 'deleted' && isAdmin && groupedDeletedReleases.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={clearingDeleted}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {clearingDeleted ? 'Clearing...' : 'Clear All'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      Permanently Delete All
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all {groupedDeletedReleases.length} records. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearAllDeleted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Yes, Delete All Permanently
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
-
         <TabsContent value="active" className="space-y-4">
           {/* Search and Filters */}
           <div className="flex flex-col gap-3">
@@ -658,6 +668,12 @@ const History = () => {
           onSuccess={() => fetchReleases()}
         />
       )}
+
+      {/* Summary Delivery Modal */}
+      <SummaryDeliveryModal
+        open={showSummaryModal}
+        onOpenChange={setShowSummaryModal}
+      />
     </div>
   );
 };
