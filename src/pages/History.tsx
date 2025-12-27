@@ -308,10 +308,12 @@ const History = () => {
         <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
           <TabsList>
             <TabsTrigger value="active">Transaction History</TabsTrigger>
-            <TabsTrigger value="deleted" className="flex items-center gap-1">
-              <Archive className="h-4 w-4" />
-              Recently Deleted
-            </TabsTrigger>
+            {!isViewer && (
+              <TabsTrigger value="deleted" className="flex items-center gap-1">
+                <Archive className="h-4 w-4" />
+                Recently Deleted
+              </TabsTrigger>
+            )}
           </TabsList>
           
           <div className="flex items-center gap-2">
