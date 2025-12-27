@@ -17,7 +17,7 @@ import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
-import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
+import { PhotoUploadCell, PhotoStatus } from '@/components/deliveries/PhotoUploadCell';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -54,6 +54,7 @@ interface GroupedRelease {
   set_date: string | null;
   notes: string | null;
   photo_url: string | null;
+  photo_status: PhotoStatus;
 }
 
 const Deliveries = () => {
@@ -109,6 +110,7 @@ const Deliveries = () => {
           set_date: release.set_date,
           notes: release.notes,
           photo_url: release.photo_url || null,
+          photo_status: (release.photo_status as PhotoStatus) || 'no_photo',
         };
       }
       
@@ -329,8 +331,10 @@ const Deliveries = () => {
                       <div className="flex items-center gap-2">
                         <PhotoUploadCell 
                           batchId={group.batch_id} 
-                          photoUrl={group.photo_url} 
+                          photoUrl={group.photo_url}
+                          photoStatus={group.photo_status}
                           onPhotoUpdate={fetchReleases}
+                          showApproval={true}
                         />
                         <span className="truncate flex-1">{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
                       </div>
