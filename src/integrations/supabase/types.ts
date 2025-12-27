@@ -343,6 +343,8 @@ export type Database = {
           id: string
           item_id: string | null
           notes: string | null
+          photo_status: string | null
+          photo_url: string | null
           released_by: string
           set_date: string | null
           total_qty: number | null
@@ -364,6 +366,8 @@ export type Database = {
           id?: string
           item_id?: string | null
           notes?: string | null
+          photo_status?: string | null
+          photo_url?: string | null
           released_by: string
           set_date?: string | null
           total_qty?: number | null
@@ -385,6 +389,8 @@ export type Database = {
           id?: string
           item_id?: string | null
           notes?: string | null
+          photo_status?: string | null
+          photo_url?: string | null
           released_by?: string
           set_date?: string | null
           total_qty?: number | null
@@ -400,6 +406,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      store_access_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          is_active: boolean
+          store_name: string
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          store_name: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          store_name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
