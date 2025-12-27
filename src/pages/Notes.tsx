@@ -513,19 +513,19 @@ const Notes = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Concern</label>
-              <Input
-                placeholder="Enter concern..."
-                value={formConcern}
-                onChange={(e) => setFormConcern(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
               <label className="text-sm font-medium">Title</label>
               <Input
                 placeholder="Note title..."
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Concern</label>
+              <Input
+                placeholder="Enter concern..."
+                value={formConcern}
+                onChange={(e) => setFormConcern(e.target.value)}
               />
             </div>
             <div className="space-y-2">
