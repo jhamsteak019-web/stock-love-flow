@@ -66,7 +66,9 @@ const Notes = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
-  
+  const [statusChangeNote, setStatusChangeNote] = useState<{ id: string; status: NoteStatus; currentDate: string } | null>(null);
+  const [selectedStatusDate, setSelectedStatusDate] = useState<Date | undefined>(undefined);
+
 
   const debouncedSearch = useDebounce(searchQuery, 350);
 
@@ -245,23 +247,49 @@ const Notes = () => {
   };
 
   const handleStatusChange = async (noteId: string, newStatus: NoteStatus) => {
+    // Show calendar dialog for admin to optionally set a new date
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      setStatusChangeNote({ id: noteId, status: newStatus, currentDate: note.updated_at });
+      setSelectedStatusDate(new Date(note.updated_at));
+    }
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusChangeNote) return;
+    
     try {
-      // Only update status, NOT the updated_at date
+      const updateData: { status: NoteStatus; updated_at?: string } = { 
+        status: statusChangeNote.status 
+      };
+      
+      // Only update the date if admin selected a different date
+      if (selectedStatusDate) {
+        updateData.updated_at = selectedStatusDate.toISOString();
+      }
+
       const { error } = await supabase
         .from('notes')
-        .update({ status: newStatus })
-        .eq('id', noteId);
+        .update(updateData)
+        .eq('id', statusChangeNote.id);
 
       if (error) throw error;
 
       setNotes(notes.map(note =>
-        note.id === noteId 
-          ? { ...note, status: newStatus } 
+        note.id === statusChangeNote.id 
+          ? { 
+              ...note, 
+              status: statusChangeNote.status,
+              ...(selectedStatusDate && { updated_at: selectedStatusDate.toISOString() })
+            } 
           : note
       ));
       toast({ title: 'Success', description: 'Status updated' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setStatusChangeNote(null);
+      setSelectedStatusDate(undefined);
     }
   };
 
@@ -603,6 +631,45 @@ const Notes = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Status Change Date Picker Dialog */}
+      <Dialog open={!!statusChangeNote} onOpenChange={(open) => {
+        if (!open) {
+          setStatusChangeNote(null);
+          setSelectedStatusDate(undefined);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Update Status
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Select a date for "Last Updated" (optional):
+            </p>
+            <CalendarComponent
+              mode="single"
+              selected={selectedStatusDate}
+              onSelect={setSelectedStatusDate}
+              initialFocus
+              className="rounded-md border pointer-events-auto"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              setStatusChangeNote(null);
+              setSelectedStatusDate(undefined);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={confirmStatusChange}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
