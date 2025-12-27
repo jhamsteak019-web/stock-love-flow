@@ -399,9 +399,7 @@ const Notes = () => {
                   className="transition-all duration-300 ease-out hover:bg-muted/50"
                   style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                 >
-                  <TableCell className="text-muted-foreground">
-                    -
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
                   <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
                   <TableCell className="max-w-[250px] truncate text-muted-foreground">
                     {note.content || 'No content'}
