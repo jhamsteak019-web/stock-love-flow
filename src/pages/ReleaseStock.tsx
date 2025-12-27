@@ -279,30 +279,25 @@ const ReleaseStock = () => {
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
         const waybillNo = findColumnValue(row, 'Waybill No.', 'Waybill No', 'Waybill', 'WAYBILL', 'WAYBILL NO');
         
-        // Parse BILL DATE - handle both Date objects and strings from Excel
-        let setDateStr = '';
+        // Parse BILL DATE - keep as string for manual input
+        let billDateStr = '';
         const billDateKeys = ['BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE'];
         for (const key of billDateKeys) {
           const val = row[key];
           if (val !== undefined && val !== null && val !== '') {
             if (val instanceof Date) {
-              setDateStr = val.toISOString();
+              // Format as readable date string
+              billDateStr = format(val, 'MM/dd/yyyy');
             } else if (typeof val === 'string') {
-              // Try to parse the date string
-              const parsed = new Date(val);
-              if (!isNaN(parsed.getTime())) {
-                setDateStr = parsed.toISOString();
-              } else {
-                setDateStr = val;
-              }
+              billDateStr = val;
             } else if (typeof val === 'number') {
               // Excel serial date number
               const excelDate = new Date((val - 25569) * 86400 * 1000);
               if (!isNaN(excelDate.getTime())) {
-                setDateStr = excelDate.toISOString();
+                billDateStr = format(excelDate, 'MM/dd/yyyy');
               }
             }
-            if (setDateStr) break;
+            if (billDateStr) break;
           }
         }
 
@@ -323,7 +318,7 @@ const ReleaseStock = () => {
           category,
           remarks: rem,
           waybillNo,
-          billDate: setDateStr,
+          billDate: billDateStr,
           setDate: '',
           courier: '',
           matchedItemId: matchedItem?.id || null,
