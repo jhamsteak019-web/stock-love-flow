@@ -63,11 +63,13 @@ const SummaryReport = () => {
 
     filteredReleases.forEach(release => {
       const batchKey = release.batch_id || release.id;
+      // Normalize category: trim whitespace and convert to uppercase
+      const normalizedCategory = release.category?.trim().toUpperCase() || null;
       if (!batches[batchKey]) {
         batches[batchKey] = {
           batch_id: batchKey,
           destination: release.destination,
-          category: release.category,
+          category: normalizedCategory,
           delivery_status: release.delivery_status,
           boxes_released: 0,
           total_qty: 0,
