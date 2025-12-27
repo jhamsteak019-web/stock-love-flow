@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,7 @@ interface PhotoUploadCellProps {
 
 export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploadCellProps) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingRotation, setIsSavingRotation] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -103,6 +104,77 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
   const resetTransforms = () => {
     setRotation(0);
     setZoom(1);
+  };
+
+  const handleSaveRotation = async () => {
+    if (!photoUrl || rotation === 0) return;
+
+    setIsSavingRotation(true);
+
+    try {
+      // Load the image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = photoUrl;
+      });
+
+      // Create canvas with rotated dimensions
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Failed to get canvas context');
+
+      // Swap dimensions for 90/270 degree rotations
+      const isRotated90or270 = rotation === 90 || rotation === 270;
+      canvas.width = isRotated90or270 ? img.height : img.width;
+      canvas.height = isRotated90or270 ? img.width : img.height;
+
+      // Translate and rotate
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+      // Convert to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Failed to create blob'));
+        }, 'image/jpeg', 0.9);
+      });
+
+      // Upload rotated image
+      const fileName = `${batchId}-${Date.now()}.jpg`;
+      const filePath = `photos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('delivery-photos')
+        .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('delivery-photos')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('stock_releases')
+        .update({ photo_url: publicUrl })
+        .eq('batch_id', batchId);
+
+      if (updateError) throw updateError;
+
+      toast({ title: 'Success', description: 'Rotated image saved' });
+      setRotation(0);
+      onPhotoUpdate();
+    } catch (error: any) {
+      console.error('Save rotation error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to save rotation', variant: 'destructive' });
+    } finally {
+      setIsSavingRotation(false);
+    }
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -200,6 +272,20 @@ export const PhotoUploadCell = ({ batchId, photoUrl, onPhotoUpdate }: PhotoUploa
           </div>
           
           <div className="flex justify-end gap-2">
+            {rotation !== 0 && (
+              <Button 
+                onClick={handleSaveRotation} 
+                disabled={isSavingRotation}
+                className="bg-primary"
+              >
+                {isSavingRotation ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save Rotation
+              </Button>
+            )}
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-4 h-4 mr-2" />
               Replace
