@@ -633,70 +633,14 @@ const ImportExcel = () => {
                     ) : (
                       paginatedResults.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.sheetNo}
-                              className="h-8 text-xs font-mono min-w-[100px] bg-muted/30 border-border/50"
-                              placeholder="Sheet No."
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.deliverTo}
-                              className="h-8 text-xs min-w-[100px] bg-muted/30 border-border/50"
-                              placeholder="Deliver To"
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.supplier}
-                              className="h-8 text-xs min-w-[90px] bg-muted/30 border-border/50"
-                              placeholder="Supplier"
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              type="number"
-                              defaultValue={item.price}
-                              className="h-8 text-xs w-20 text-right bg-muted/30 border-border/50"
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              type="number"
-                              defaultValue={item.box}
-                              className="h-8 text-xs w-16 text-right bg-muted/30 border-border/50"
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              type="number"
-                              defaultValue={item.formatType === 'format1' ? item.piecesPerBox : 1}
-                              className="h-8 text-xs w-16 text-right bg-muted/30 border-border/50"
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.billDate || ''}
-                              className="h-8 text-xs min-w-[90px] bg-muted/30 border-border/50"
-                              placeholder="Bill Date"
-                              readOnly
-                            />
-                          </TableCell>
-                          <TableCell className="px-2">
-                            <Input 
-                              defaultValue={item.remarks || ''}
-                              className="h-8 text-xs min-w-[120px] bg-muted/30 border-border/50"
-                              placeholder="Remarks"
-                              readOnly
-                            />
-                          </TableCell>
+                          <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
+                          <TableCell>{item.deliverTo || '-'}</TableCell>
+                          <TableCell>{item.supplier || '-'}</TableCell>
+                          <TableCell className="text-right">{item.price.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{item.box.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
+                          <TableCell className="text-sm">{item.billDate || '-'}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.remarks || '-'}</TableCell>
                         </TableRow>
                       ))
                     )}
