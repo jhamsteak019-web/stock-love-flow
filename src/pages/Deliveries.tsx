@@ -458,6 +458,8 @@ const Deliveries = () => {
           courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
           dateDelivered={selectedBatch.date_delivered}
+          setDate={selectedBatch.set_date}
+          allocationBill={selectedBatch.allocation_bill}
         />
       )}
 
