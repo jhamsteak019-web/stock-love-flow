@@ -48,6 +48,40 @@ const SummaryReport = () => {
     });
   }, [releases, selectedYear, selectedMonth]);
 
+  // Group filtered releases by batch_id to avoid counting same delivery multiple times
+  const groupedByBatch = useMemo(() => {
+    const batches: Record<string, {
+      batch_id: string;
+      destination: string;
+      category: string | null;
+      delivery_status: string;
+      boxes_released: number;
+      total_qty: number;
+      set_date: string | null;
+      date_released: string;
+    }> = {};
+
+    filteredReleases.forEach(release => {
+      const batchKey = release.batch_id || release.id;
+      if (!batches[batchKey]) {
+        batches[batchKey] = {
+          batch_id: batchKey,
+          destination: release.destination,
+          category: release.category,
+          delivery_status: release.delivery_status,
+          boxes_released: 0,
+          total_qty: 0,
+          set_date: release.set_date,
+          date_released: release.date_released,
+        };
+      }
+      batches[batchKey].boxes_released += release.boxes_released;
+      batches[batchKey].total_qty += release.total_qty || 0;
+    });
+
+    return Object.values(batches);
+  }, [filteredReleases]);
+
   // Filter releases by year only (for yearly stats)
   const yearlyReleases = useMemo(() => {
     return releases.filter(release => {
@@ -277,29 +311,29 @@ const SummaryReport = () => {
     return branchCategories;
   }, [filteredReleases]);
 
-  // Total statistics
+  // Total statistics - use groupedByBatch to avoid duplicate counting
   const totalStats = useMemo(() => {
-    const totalBoxes = filteredReleases.reduce((sum, r) => sum + r.boxes_released, 0);
-    const totalQty = filteredReleases.reduce((sum, r) => sum + (r.total_qty || 0), 0);
-    const deliveredCount = filteredReleases.filter(r => r.delivery_status === 'delivered').length;
-    const pendingCount = filteredReleases.filter(r => r.delivery_status !== 'delivered').length;
-    const uniqueDestinations = new Set(filteredReleases.map(r => r.destination)).size;
-    const deliveryPercentage = filteredReleases.length > 0 
-      ? Math.round((deliveredCount / filteredReleases.length) * 100) 
+    const totalBoxes = groupedByBatch.reduce((sum, r) => sum + r.boxes_released, 0);
+    const totalQty = groupedByBatch.reduce((sum, r) => sum + r.total_qty, 0);
+    const deliveredCount = groupedByBatch.filter(r => r.delivery_status === 'delivered').length;
+    const pendingCount = groupedByBatch.filter(r => r.delivery_status !== 'delivered').length;
+    const uniqueDestinations = new Set(groupedByBatch.map(r => r.destination)).size;
+    const deliveryPercentage = groupedByBatch.length > 0 
+      ? Math.round((deliveredCount / groupedByBatch.length) * 100) 
       : 0;
 
     return {
       totalBoxes,
       totalQty,
-      totalDeliveries: filteredReleases.length,
+      totalDeliveries: groupedByBatch.length,
       deliveredCount,
       pendingCount,
       uniqueDestinations,
       deliveryPercentage,
     };
-  }, [filteredReleases]);
+  }, [groupedByBatch]);
 
-  // Monthly summary for chart
+  // Monthly summary for chart - group by batch first
   const monthlySummary = useMemo(() => {
     const monthlyData = MONTHS.map((month, index) => ({
       month: month.substring(0, 3),
@@ -307,26 +341,47 @@ const SummaryReport = () => {
       pending: 0,
     }));
 
+    // Group yearly releases by batch first
+    const yearlyBatches: Record<string, {
+      boxes_released: number;
+      delivery_status: string;
+      set_date: string | null;
+      date_released: string;
+    }> = {};
+
     yearlyReleases.forEach(release => {
-      const dateToUse = release.set_date || release.date_released;
+      const batchKey = release.batch_id || release.id;
+      if (!yearlyBatches[batchKey]) {
+        yearlyBatches[batchKey] = {
+          boxes_released: 0,
+          delivery_status: release.delivery_status,
+          set_date: release.set_date,
+          date_released: release.date_released,
+        };
+      }
+      yearlyBatches[batchKey].boxes_released += release.boxes_released;
+    });
+
+    Object.values(yearlyBatches).forEach(batch => {
+      const dateToUse = batch.set_date || batch.date_released;
       const monthIndex = new Date(dateToUse).getMonth();
-      if (release.delivery_status === 'delivered') {
-        monthlyData[monthIndex].delivered += release.boxes_released;
+      if (batch.delivery_status === 'delivered') {
+        monthlyData[monthIndex].delivered += batch.boxes_released;
       } else {
-        monthlyData[monthIndex].pending += release.boxes_released;
+        monthlyData[monthIndex].pending += batch.boxes_released;
       }
     });
 
     return monthlyData;
   }, [yearlyReleases]);
 
-  // Top stores per category - which stores receive most deliveries per category
+  // Top stores per category - use groupedByBatch to avoid duplicates
   const topStoresPerCategory = useMemo(() => {
     const categoryStores: Record<string, Record<string, { boxes: number; qty: number; delivered: number; total: number }>> = {};
 
-    filteredReleases.forEach(release => {
-      const category = release.category || 'Uncategorized';
-      const store = release.destination || 'Unknown';
+    groupedByBatch.forEach(batch => {
+      const category = batch.category || 'Uncategorized';
+      const store = batch.destination || 'Unknown';
 
       if (!categoryStores[category]) {
         categoryStores[category] = {};
@@ -335,10 +390,10 @@ const SummaryReport = () => {
         categoryStores[category][store] = { boxes: 0, qty: 0, delivered: 0, total: 0 };
       }
 
-      categoryStores[category][store].boxes += release.boxes_released;
-      categoryStores[category][store].qty += release.total_qty || 0;
+      categoryStores[category][store].boxes += batch.boxes_released;
+      categoryStores[category][store].qty += batch.total_qty;
       categoryStores[category][store].total += 1;
-      if (release.delivery_status === 'delivered') {
+      if (batch.delivery_status === 'delivered') {
         categoryStores[category][store].delivered += 1;
       }
     });
@@ -359,20 +414,20 @@ const SummaryReport = () => {
       const totalB = b.stores.reduce((sum, s) => sum + s.boxes, 0);
       return totalB - totalA;
     });
-  }, [filteredReleases]);
+  }, [groupedByBatch]);
 
-  // Store delivery percentages
+  // Store delivery percentages - use groupedByBatch
   const storeDeliveryPercentages = useMemo(() => {
     const stores: Record<string, { delivered: number; total: number; boxes: number }> = {};
 
-    filteredReleases.forEach(release => {
-      const store = release.destination || 'Unknown';
+    groupedByBatch.forEach(batch => {
+      const store = batch.destination || 'Unknown';
       if (!stores[store]) {
         stores[store] = { delivered: 0, total: 0, boxes: 0 };
       }
       stores[store].total += 1;
-      stores[store].boxes += release.boxes_released;
-      if (release.delivery_status === 'delivered') {
+      stores[store].boxes += batch.boxes_released;
+      if (batch.delivery_status === 'delivered') {
         stores[store].delivered += 1;
       }
     });
@@ -384,21 +439,21 @@ const SummaryReport = () => {
         percentage: data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0,
       }))
       .sort((a, b) => b.boxes - a.boxes);
-  }, [filteredReleases]);
+  }, [groupedByBatch]);
 
-  // Category distribution for pie chart
+  // Category distribution for pie chart - use groupedByBatch
   const categoryDistribution = useMemo(() => {
     const categories: Record<string, number> = {};
 
-    filteredReleases.forEach(release => {
-      const category = release.category || 'Uncategorized';
-      categories[category] = (categories[category] || 0) + release.boxes_released;
+    groupedByBatch.forEach(batch => {
+      const category = batch.category || 'Uncategorized';
+      categories[category] = (categories[category] || 0) + batch.boxes_released;
     });
 
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredReleases]);
+  }, [groupedByBatch]);
 
   // Print delivered summary by branch
   const handlePrintDeliveredSummary = () => {
