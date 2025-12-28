@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from "react";
 import { useInventory } from '@/hooks/useInventory';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar, FileDown, Loader2 } from 'lucide-react';
