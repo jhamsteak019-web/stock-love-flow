@@ -325,7 +325,7 @@ const History = () => {
             {activeTab === 'active' && !isViewer && (
               <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
                 <FileDown className="h-4 w-4 mr-2" />
-                SD FILE
+                Save PDF
               </Button>
             )}
 
