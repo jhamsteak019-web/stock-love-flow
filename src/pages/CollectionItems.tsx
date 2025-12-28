@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface CollectionItem {
@@ -25,6 +27,15 @@ interface CollectionItem {
   created_at: string;
 }
 
+interface PreviewItem {
+  item_name: string;
+  description: string | null;
+  category: string | null;
+  quantity: number;
+  photo_url: string | null;
+  notes: string | null;
+}
+
 const CollectionItems = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
@@ -33,7 +44,12 @@ const CollectionItems = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importStatus, setImportStatus] = useState<'idle' | 'reading' | 'previewing' | 'importing' | 'done' | 'error'>('idle');
+  const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
+  const [importedCount, setImportedCount] = useState(0);
   const [newItem, setNewItem] = useState({
     item_name: '',
     description: '',
@@ -133,63 +149,125 @@ const CollectionItems = () => {
     });
   };
 
-  // Import from Excel
-  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Read Excel file and show preview
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
+    setImportStatus('reading');
+    setImportProgress(10);
+    setIsImportDialogOpen(true);
 
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
+          setImportProgress(30);
           const data = new Uint8Array(event.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+          setImportProgress(50);
+
           if (jsonData.length === 0) {
             toast.error('No data found in the file');
-            setIsImporting(false);
+            setImportStatus('error');
             return;
           }
 
-          // Map Excel columns to database columns
-          const itemsToInsert = jsonData.map((row: any) => ({
+          // Map Excel columns to preview items
+          const mappedItems: PreviewItem[] = jsonData.map((row: any) => ({
             item_name: row['Item Name'] || row['item_name'] || row['Name'] || row['name'] || 'Unknown Item',
             description: row['Description'] || row['description'] || null,
             category: row['Category'] || row['category'] || null,
             quantity: parseInt(row['Quantity'] || row['quantity'] || row['Qty'] || row['qty'] || 0) || 0,
             photo_url: row['Photo URL'] || row['photo_url'] || row['Photo'] || row['photo'] || null,
             notes: row['Notes'] || row['notes'] || row['Remarks'] || row['remarks'] || null,
-            status: 'active',
-            created_by: user?.id
           }));
 
-          const { error } = await supabase
-            .from('collection_items')
-            .insert(itemsToInsert);
-
-          if (error) throw error;
-
-          queryClient.invalidateQueries({ queryKey: ['collection-items'] });
-          toast.success(`Successfully imported ${itemsToInsert.length} items`);
+          setPreviewItems(mappedItems);
+          setImportProgress(100);
+          setImportStatus('previewing');
         } catch (err: any) {
-          toast.error(`Import failed: ${err.message}`);
-        } finally {
-          setIsImporting(false);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
+          toast.error(`Failed to read file: ${err.message}`);
+          setImportStatus('error');
         }
       };
       reader.readAsArrayBuffer(file);
     } catch (error: any) {
       toast.error(`Failed to read file: ${error.message}`);
+      setImportStatus('error');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Confirm and import items
+  const handleConfirmImport = async () => {
+    setIsImporting(true);
+    setImportStatus('importing');
+    setImportProgress(0);
+    setImportedCount(0);
+
+    const batchSize = 10;
+    const totalBatches = Math.ceil(previewItems.length / batchSize);
+    let successCount = 0;
+
+    try {
+      for (let i = 0; i < totalBatches; i++) {
+        const batch = previewItems.slice(i * batchSize, (i + 1) * batchSize);
+        
+        const itemsToInsert = batch.map(item => ({
+          ...item,
+          status: 'active',
+          created_by: user?.id
+        }));
+
+        const { error } = await supabase
+          .from('collection_items')
+          .insert(itemsToInsert);
+
+        if (error) throw error;
+
+        successCount += batch.length;
+        setImportedCount(successCount);
+        setImportProgress(Math.round(((i + 1) / totalBatches) * 100));
+        
+        // Small delay for smooth animation
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      setImportStatus('done');
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      toast.success(`Successfully imported ${successCount} items`);
+      
+      // Auto close after success
+      setTimeout(() => {
+        setIsImportDialogOpen(false);
+        resetImportState();
+      }, 2000);
+    } catch (err: any) {
+      toast.error(`Import failed: ${err.message}`);
+      setImportStatus('error');
+    } finally {
       setIsImporting(false);
     }
+  };
+
+  const resetImportState = () => {
+    setImportStatus('idle');
+    setImportProgress(0);
+    setPreviewItems([]);
+    setImportedCount(0);
+  };
+
+  const handleCloseImportDialog = () => {
+    setIsImportDialogOpen(false);
+    resetImportState();
   };
 
   // Filter items
@@ -212,7 +290,7 @@ const CollectionItems = () => {
           <input
             type="file"
             ref={fileInputRef}
-            onChange={handleFileImport}
+            onChange={handleFileSelect}
             accept=".xlsx,.xls,.csv"
             className="hidden"
           />
@@ -221,11 +299,7 @@ const CollectionItems = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
           >
-            {isImporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-            )}
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
             Import Excel
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -320,6 +394,145 @@ const CollectionItems = () => {
         </div>
       </div>
 
+      {/* Import Preview Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={handleCloseImportDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+              Import Collection Items
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Reading State */}
+          {importStatus === 'reading' && (
+            <div className="py-8 space-y-4">
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              </div>
+              <p className="text-center text-muted-foreground">Reading file...</p>
+              <Progress value={importProgress} className="h-2" />
+            </div>
+          )}
+
+          {/* Preview State */}
+          {importStatus === 'previewing' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Preview ({previewItems.length} items)</span>
+                </div>
+                <Badge variant="secondary">{previewItems.length} items ready</Badge>
+              </div>
+              
+              <ScrollArea className="h-[300px] border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">#</TableHead>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Photo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {previewItems.map((item, index) => (
+                      <TableRow key={index} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${index * 20}ms` }}>
+                        <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell className="font-medium">{item.item_name}</TableCell>
+                        <TableCell>
+                          {item.category ? (
+                            <Badge variant="outline">{item.category}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>
+                          {item.photo_url ? (
+                            <Badge variant="default" className="bg-green-100 text-green-700">Has Photo</Badge>
+                          ) : (
+                            <Badge variant="secondary">No Photo</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCloseImportDialog}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmImport} disabled={isImporting}>
+                  {isImporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Import {previewItems.length} Items
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Importing State */}
+          {importStatus === 'importing' && (
+            <div className="py-8 space-y-4">
+              <div className="flex items-center justify-center">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-sm font-bold">{importProgress}%</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-muted-foreground">
+                Importing items... ({importedCount} of {previewItems.length})
+              </p>
+              <Progress value={importProgress} className="h-3 transition-all duration-300" />
+            </div>
+          )}
+
+          {/* Done State */}
+          {importStatus === 'done' && (
+            <div className="py-8 space-y-4 animate-in zoom-in-50 duration-500">
+              <div className="flex items-center justify-center">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 className="h-10 w-10 text-green-600" />
+                </div>
+              </div>
+              <p className="text-center text-lg font-medium text-green-600">
+                Successfully imported {importedCount} items!
+              </p>
+              <Progress value={100} className="h-3 bg-green-100" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {importStatus === 'error' && (
+            <div className="py-8 space-y-4">
+              <div className="flex items-center justify-center">
+                <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center">
+                  <XCircle className="h-10 w-10 text-red-600" />
+                </div>
+              </div>
+              <p className="text-center text-lg font-medium text-red-600">
+                Import failed
+              </p>
+              <DialogFooter className="justify-center">
+                <Button variant="outline" onClick={handleCloseImportDialog}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Search */}
       <Card>
         <CardContent className="pt-4">
@@ -366,14 +579,18 @@ const CollectionItems = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
+                  {filteredItems.map((item, index) => (
+                    <TableRow 
+                      key={item.id} 
+                      className="animate-in fade-in-50 duration-300"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
                       <TableCell>
                         {item.photo_url ? (
                           <img 
                             src={item.photo_url} 
                             alt={item.item_name}
-                            className="w-12 h-12 object-cover rounded-lg"
+                            className="w-12 h-12 object-cover rounded-lg transition-transform hover:scale-110"
                           />
                         ) : (
                           <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
