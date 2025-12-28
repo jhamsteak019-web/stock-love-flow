@@ -613,14 +613,14 @@ const ImportExcel = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted">
-                      <TableHead>Sheet No.</TableHead>
-                      <TableHead>Deliver To</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">Box</TableHead>
-                      <TableHead className="text-right">Pieces/Box</TableHead>
-                      <TableHead>Bill Date</TableHead>
-                      <TableHead>Remarks (Auto)</TableHead>
+                      <TableHead className="min-w-[120px] whitespace-nowrap">Sheet No.</TableHead>
+                      <TableHead className="min-w-[150px] whitespace-nowrap">Deliver To</TableHead>
+                      <TableHead className="min-w-[120px] whitespace-nowrap">Supplier</TableHead>
+                      <TableHead className="text-right min-w-[80px] whitespace-nowrap">Price</TableHead>
+                      <TableHead className="text-right min-w-[70px] whitespace-nowrap">Box</TableHead>
+                      <TableHead className="text-right min-w-[90px] whitespace-nowrap">Pieces/Box</TableHead>
+                      <TableHead className="min-w-[100px] whitespace-nowrap">Bill Date</TableHead>
+                      <TableHead className="min-w-[150px] whitespace-nowrap">Remarks (Auto)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -633,14 +633,14 @@ const ImportExcel = () => {
                     ) : (
                       paginatedResults.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-mono">{item.sheetNo || '-'}</TableCell>
-                          <TableCell>{item.deliverTo || '-'}</TableCell>
-                          <TableCell>{item.supplier || '-'}</TableCell>
-                          <TableCell className="text-right">{item.price.toLocaleString()}</TableCell>
-                          <TableCell className="text-right">{item.box.toLocaleString()}</TableCell>
-                          <TableCell className="text-right">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
-                          <TableCell className="text-sm">{item.billDate || '-'}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{item.remarks || '-'}</TableCell>
+                          <TableCell className="font-mono whitespace-nowrap">{item.sheetNo || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap">{item.deliverTo || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap">{item.supplier || '-'}</TableCell>
+                          <TableCell className="text-right whitespace-nowrap">{item.price.toLocaleString()}</TableCell>
+                          <TableCell className="text-right whitespace-nowrap">{item.box.toLocaleString()}</TableCell>
+                          <TableCell className="text-right whitespace-nowrap">{item.formatType === 'format1' ? item.piecesPerBox : 1}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{item.billDate || '-'}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{item.remarks || '-'}</TableCell>
                         </TableRow>
                       ))
                     )}
