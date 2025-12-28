@@ -419,8 +419,11 @@ const Dashboard = () => {
                           name === 'boxes' ? 'Boxes' : 'Qty'
                         ]}
                       />
-                      <Legend />
-                      <Bar dataKey="boxes" fill="#F59E0B" name="Boxes" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="boxes" name="Boxes" radius={[4, 4, 0, 0]}>
+                        {topStoresDelivery.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
