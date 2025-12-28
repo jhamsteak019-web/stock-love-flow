@@ -34,11 +34,22 @@ export const useColumnSettings = (pageName: string, defaultColumns: ColumnConfig
 
       if (data?.settings) {
         const settings = data.settings as unknown as ColumnSettingsData;
-        const updatedColumns = defaultColumns.map(col => ({
-          ...col,
-          visible: settings.visibleColumns?.includes(col.key) ?? col.visible,
-          width: settings.columnWidths?.[col.key] ?? col.width,
-        }));
+        // Merge stored settings with defaults, ensuring new columns are included
+        const storedColumnKeys = settings.visibleColumns || [];
+        const updatedColumns = defaultColumns.map(col => {
+          // If this column key exists in stored settings, use stored visibility
+          // Otherwise, use the default visibility (for new columns)
+          const isInStoredSettings = storedColumnKeys.length > 0 && 
+            (storedColumnKeys.includes(col.key) || settings.columnWidths?.[col.key] !== undefined);
+          
+          return {
+            ...col,
+            visible: isInStoredSettings 
+              ? settings.visibleColumns?.includes(col.key) ?? col.visible 
+              : col.visible,
+            width: settings.columnWidths?.[col.key] ?? col.width,
+          };
+        });
         setColumns(updatedColumns);
       }
     } catch (error) {
