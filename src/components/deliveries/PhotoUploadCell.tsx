@@ -120,7 +120,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
 
       const { error: updateError } = await supabase
         .from('stock_releases')
-        .update({ photo_url: publicUrl, photo_status: 'approved' })
+        .update({ photo_url: publicUrl, photo_status: 'pending_approval' })
         .eq('batch_id', batchId);
 
       if (updateError) throw updateError;
