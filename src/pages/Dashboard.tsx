@@ -383,7 +383,7 @@ const Dashboard = () => {
 
         {/* Two charts side by side */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Top Store Delivery - Pie Chart */}
+          {/* Top Store Delivery - Bar Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -392,39 +392,36 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {storePieData.length === 0 ? (
+              {topStoresDelivery.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No store data available</p>
               ) : (
                 <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={storePieData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={120}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name.length > 12 ? name.substring(0, 12) + '...' : name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {storePieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
+                    <BarChart data={topStoresDelivery} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="store" 
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} 
+                        angle={-45}
+                        textAnchor="end"
+                        interval={0}
+                        height={80}
+                      />
+                      <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))', 
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
-                        formatter={(value: number, name: string, props: any) => [
-                          `${value.toLocaleString()} boxes (${props.payload.qty.toLocaleString()} qty)`,
-                          props.payload.name
+                        formatter={(value: number, name: string) => [
+                          `${value.toLocaleString()}`,
+                          name === 'boxes' ? 'Boxes' : 'Qty'
                         ]}
                       />
                       <Legend />
-                    </PieChart>
+                      <Bar dataKey="boxes" fill="#F59E0B" name="Boxes" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               )}
