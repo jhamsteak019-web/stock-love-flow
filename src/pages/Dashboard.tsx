@@ -285,6 +285,28 @@ const Dashboard = () => {
     }));
   }, [topStoresDelivery]);
 
+  // Category totals for pie chart
+  const categoryPieData = useMemo(() => {
+    const categoryTotals: Record<string, number> = {};
+    
+    releases.forEach(release => {
+      const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
+      if (!categoryTotals[category]) {
+        categoryTotals[category] = 0;
+      }
+      categoryTotals[category] += release.boxes_released || 0;
+    });
+
+    return Object.entries(categoryTotals)
+      .map(([name, value], index) => ({
+        name,
+        value,
+        color: COLORS[index % COLORS.length]
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8); // Limit to 8 categories for readability
+  }, [releases]);
+
   // Monthly delivery by category (stacked bar chart)
   const monthlyByCategory = useMemo(() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -431,42 +453,45 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Monthly Delivery by Category - Grouped Bar Chart */}
+          {/* Delivery by Category - Pie Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Monthly Delivery by Category (2025)
+                <Store className="h-5 w-5 text-primary" />
+                Delivery by Category (Boxes)
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {monthlyByCategory.categories.length === 0 ? (
+              {categoryPieData.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No category data available</p>
               ) : (
                 <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyByCategory.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                      <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                    <PieChart>
+                      <Pie
+                        data={categoryPieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name.length > 10 ? name.substring(0, 10) + '...' : name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {categoryPieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))', 
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
+                        formatter={(value: number) => [`${value.toLocaleString()} boxes`, 'Total']}
                       />
                       <Legend />
-                      {monthlyByCategory.categories.map((category, index) => (
-                        <Bar 
-                          key={category} 
-                          dataKey={category} 
-                          fill={COLORS[index % COLORS.length]} 
-                          name={category}
-                          radius={[4, 4, 0, 0]}
-                        />
-                      ))}
-                    </BarChart>
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               )}
