@@ -538,8 +538,12 @@ const History = () => {
                       {isColumnVisible('deliveryTime') && (
                         <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>
                           {group.set_date && group.date_delivered ? (
-                            <span className="font-medium">
+                            <span className="font-medium text-green-600">
                               {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} days
+                            </span>
+                          ) : group.set_date && !group.date_delivered ? (
+                            <span className="text-orange-500 font-medium">
+                              {differenceInDays(new Date(), new Date(group.set_date))} days ago
                             </span>
                           ) : '-'}
                         </TableCell>
