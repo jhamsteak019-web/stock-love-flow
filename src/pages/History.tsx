@@ -541,10 +541,6 @@ const History = () => {
                             <span className="font-medium text-green-600">
                               {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} day(s)
                             </span>
-                          ) : group.set_date && !group.date_delivered ? (
-                            <span className="text-orange-500 font-medium">
-                              {differenceInDays(new Date(), new Date(group.set_date))} day(s)
-                            </span>
                           ) : '-'}
                         </TableCell>
                       )}
