@@ -1250,36 +1250,36 @@ const SummaryReport = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Bill No</TableHead>
-                            <TableHead>Date Out</TableHead>
-                            <TableHead>Date Received</TableHead>
-                            <TableHead>Delivery Days</TableHead>
-                            <TableHead>Courier</TableHead>
-                            <TableHead>Waybill No</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Remarks</TableHead>
-                            <TableHead className="text-center">Boxes</TableHead>
-                            <TableHead className="text-center">Qty</TableHead>
+                            <TableHead className="whitespace-nowrap">Bill No</TableHead>
+                            <TableHead className="whitespace-nowrap">Date Out</TableHead>
+                            <TableHead className="whitespace-nowrap">Date Received</TableHead>
+                            <TableHead className="whitespace-nowrap">Delivery Days</TableHead>
+                            <TableHead className="whitespace-nowrap">Courier</TableHead>
+                            <TableHead className="whitespace-nowrap">Waybill No</TableHead>
+                            <TableHead className="whitespace-nowrap">Category</TableHead>
+                            <TableHead className="whitespace-nowrap">Status</TableHead>
+                            <TableHead className="whitespace-nowrap">Remarks</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Boxes</TableHead>
+                            <TableHead className="text-center whitespace-nowrap">Qty</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {filteredItems.map((item, idx) => (
                             <TableRow key={idx}>
-                              <TableCell className="font-mono">{item.allocation_bill || '-'}</TableCell>
-                              <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
-                              <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
-                              <TableCell>
+                              <TableCell className="font-mono whitespace-nowrap">{item.allocation_bill || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">
                                 {item.set_date && item.date_delivered ? (
                                   <span className="font-medium text-green-600">
                                     {differenceInDays(new Date(item.date_delivered), new Date(item.set_date))} day(s)
                                   </span>
                                 ) : '-'}
                               </TableCell>
-                              <TableCell>{item.courier || '-'}</TableCell>
-                              <TableCell>{item.waybill_no || '-'}</TableCell>
-                              <TableCell>{item.category || '-'}</TableCell>
-                              <TableCell>
+                              <TableCell className="whitespace-nowrap">{item.courier || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">{item.waybill_no || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">{item.category || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">
                                 <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'}>
                                   {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
                                 </Badge>
