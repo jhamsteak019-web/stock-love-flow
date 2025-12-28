@@ -1,13 +1,16 @@
 import { useMemo } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store } from 'lucide-react';
+import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid 
+} from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'];
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
 
 const Dashboard = () => {
   const { releases, loading, getStats } = useInventory();
@@ -44,55 +47,8 @@ const Dashboard = () => {
     return Math.round((stats.deliveredCount / releases.length) * 100);
   }, [releases.length, stats.deliveredCount]);
 
-  // Category distribution for pie chart
-  const categoryDistribution = useMemo(() => {
-    const categories: Record<string, number> = {};
-    
-    releases.forEach(release => {
-      const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
-      categories[category] = (categories[category] || 0) + release.boxes_released;
-    });
-
-    const total = Object.values(categories).reduce((sum, val) => sum + val, 0);
-    
-    return Object.entries(categories)
-      .map(([name, value]) => ({
-        name,
-        value,
-        percentage: total > 0 ? Math.round((value / total) * 100) : 0
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  }, [releases]);
-
-  // Delivery completion rate by branch
-  const branchCompletionRates = useMemo(() => {
-    const branchData: Record<string, { total: number; delivered: number }> = {};
-    
-    releases.forEach(release => {
-      const branch = release.destination || 'Unknown';
-      if (!branchData[branch]) {
-        branchData[branch] = { total: 0, delivered: 0 };
-      }
-      branchData[branch].total += 1;
-      if (release.delivery_status === 'delivered') {
-        branchData[branch].delivered += 1;
-      }
-    });
-
-    return Object.entries(branchData)
-      .map(([branch, data]) => ({
-        branch,
-        total: data.total,
-        delivered: data.delivered,
-        percentage: data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 7);
-  }, [releases]);
-
-  // Top stores by total boxes with qty and delivered
-  const topStores = useMemo(() => {
+  // Top stores by total boxes with qty - ALL STORES
+  const topStoresDelivery = useMemo(() => {
     const storeData: Record<string, { store: string; boxes: number; qty: number; deliveries: number; delivered: number }> = {};
     
     releases.forEach(release => {
@@ -110,10 +66,46 @@ const Dashboard = () => {
 
     return Object.values(storeData)
       .sort((a, b) => b.boxes - a.boxes)
-      .slice(0, 5);
+      .slice(0, 10);
   }, [releases]);
 
-  // Branch delivery status breakdown
+  // Delivery completion rate by store - ALL STORES with Box and Qty
+  const storeCompletionRates = useMemo(() => {
+    const storeData: Record<string, { 
+      totalBoxes: number; 
+      deliveredBoxes: number;
+      totalQty: number;
+      deliveredQty: number;
+      total: number;
+      delivered: number;
+    }> = {};
+    
+    releases.forEach(release => {
+      const store = release.destination || 'Unknown';
+      if (!storeData[store]) {
+        storeData[store] = { totalBoxes: 0, deliveredBoxes: 0, totalQty: 0, deliveredQty: 0, total: 0, delivered: 0 };
+      }
+      storeData[store].totalBoxes += release.boxes_released || 0;
+      storeData[store].totalQty += release.total_qty || 0;
+      storeData[store].total += 1;
+      if (release.delivery_status === 'delivered') {
+        storeData[store].deliveredBoxes += release.boxes_released || 0;
+        storeData[store].deliveredQty += release.total_qty || 0;
+        storeData[store].delivered += 1;
+      }
+    });
+
+    return Object.entries(storeData)
+      .map(([store, data]) => ({
+        store,
+        ...data,
+        percentage: data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0
+      }))
+      .sort((a, b) => b.totalBoxes - a.totalBoxes)
+      .slice(0, 10);
+  }, [releases]);
+
+  // Branch delivery status breakdown - ALL STORES with Box and Qty
   const branchDeliveryStatus = useMemo(() => {
     const branchData: Record<string, { 
       branch: string; 
@@ -122,14 +114,23 @@ const Dashboard = () => {
       outForDelivery: number;
       delivered: number;
       total: number;
+      totalBoxes: number;
+      totalQty: number;
+      deliveredBoxes: number;
+      deliveredQty: number;
     }> = {};
     
     releases.forEach(release => {
       const branch = release.destination || 'Unknown';
       if (!branchData[branch]) {
-        branchData[branch] = { branch, pending: 0, inTransit: 0, outForDelivery: 0, delivered: 0, total: 0 };
+        branchData[branch] = { 
+          branch, pending: 0, inTransit: 0, outForDelivery: 0, delivered: 0, total: 0,
+          totalBoxes: 0, totalQty: 0, deliveredBoxes: 0, deliveredQty: 0
+        };
       }
       branchData[branch].total += 1;
+      branchData[branch].totalBoxes += release.boxes_released || 0;
+      branchData[branch].totalQty += release.total_qty || 0;
       
       switch (release.delivery_status) {
         case 'pending':
@@ -143,17 +144,91 @@ const Dashboard = () => {
           break;
         case 'delivered':
           branchData[branch].delivered += 1;
+          branchData[branch].deliveredBoxes += release.boxes_released || 0;
+          branchData[branch].deliveredQty += release.total_qty || 0;
           break;
       }
     });
 
     return Object.values(branchData)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 8);
+      .sort((a, b) => b.totalBoxes - a.totalBoxes);
   }, [releases]);
 
-  // Get current month name
-  const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+  // Top stores by category - ALL STORES
+  const topStoresByCategory = useMemo(() => {
+    const categoryData: Record<string, Record<string, { boxes: number; qty: number }>> = {};
+    
+    releases.forEach(release => {
+      const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
+      const store = release.destination || 'Unknown';
+      
+      if (!categoryData[category]) {
+        categoryData[category] = {};
+      }
+      if (!categoryData[category][store]) {
+        categoryData[category][store] = { boxes: 0, qty: 0 };
+      }
+      categoryData[category][store].boxes += release.boxes_released || 0;
+      categoryData[category][store].qty += release.total_qty || 0;
+    });
+
+    // Get top 3 stores per category
+    return Object.entries(categoryData)
+      .map(([category, stores]) => ({
+        category,
+        stores: Object.entries(stores)
+          .map(([store, data]) => ({ store, ...data }))
+          .sort((a, b) => b.boxes - a.boxes)
+          .slice(0, 3)
+      }))
+      .filter(cat => cat.stores.length > 0)
+      .sort((a, b) => {
+        const totalA = a.stores.reduce((sum, s) => sum + s.boxes, 0);
+        const totalB = b.stores.reduce((sum, s) => sum + s.boxes, 0);
+        return totalB - totalA;
+      })
+      .slice(0, 6);
+  }, [releases]);
+
+  // Monthly Delivery Status for 2025
+  const monthlyDeliveryStatus = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyData = months.map((month, index) => ({
+      month,
+      pending: 0,
+      inTransit: 0,
+      outForDelivery: 0,
+      delivered: 0,
+      totalBoxes: 0,
+      totalQty: 0
+    }));
+
+    releases.forEach(release => {
+      const releaseDate = new Date(release.date_released);
+      if (releaseDate.getFullYear() === 2025) {
+        const monthIndex = releaseDate.getMonth();
+        monthlyData[monthIndex].totalBoxes += release.boxes_released || 0;
+        monthlyData[monthIndex].totalQty += release.total_qty || 0;
+        
+        switch (release.delivery_status) {
+          case 'pending':
+            monthlyData[monthIndex].pending += 1;
+            break;
+          case 'in_transit':
+            monthlyData[monthIndex].inTransit += 1;
+            break;
+          case 'out_for_delivery':
+            monthlyData[monthIndex].outForDelivery += 1;
+            break;
+          case 'delivered':
+            monthlyData[monthIndex].delivered += 1;
+            break;
+        }
+      }
+    });
+
+    return monthlyData;
+  }, [releases]);
 
   if (loading) {
     return (
@@ -170,7 +245,7 @@ const Dashboard = () => {
         <p className="text-muted-foreground">Overview of your inventory and deliveries</p>
       </div>
 
-      {/* Stats Grid - 5 cards like the reference */}
+      {/* Stats Grid */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard
           title="Total Boxes"
@@ -182,7 +257,7 @@ const Dashboard = () => {
         <StatCard
           title="Delivered"
           value={stats.deliveredCount}
-          subtitle="completed deliveries"
+          subtitle={`${totals.deliveredBoxes.toLocaleString()} boxes • ${totals.deliveredQty.toLocaleString()} qty`}
           icon={CheckCircle}
           variant="success"
         />
@@ -209,172 +284,122 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Category Distribution Pie Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Category Distribution - {currentMonth}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {categoryDistribution.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No category data available</p>
-            ) : (
-              <div className="h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, percentage }) => `${name} (${percentage}%)`}
-                      labelLine={false}
-                    >
-                      {categoryDistribution.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value: number) => [`${value.toLocaleString()} boxes`, 'Total']}
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend 
-                      layout="horizontal" 
-                      align="center" 
-                      verticalAlign="bottom"
-                      formatter={(value) => <span className="text-xs text-foreground">{value}</span>}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Delivery Completion Rate by Branch */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Delivery Completion Rate</CardTitle>
-            <Badge variant="secondary" className="text-sm">
-              {completionRate}% Overall
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            {branchCompletionRates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No branch data available</p>
-            ) : (
-              <div className="space-y-4">
-                {branchCompletionRates.map((branch) => (
-                  <div key={branch.branch} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-foreground truncate max-w-[200px]" title={branch.branch}>
-                        {branch.branch}
-                      </span>
-                      <span className="text-muted-foreground whitespace-nowrap">
-                        {branch.delivered}/{branch.total} ({branch.percentage}%)
-                      </span>
-                    </div>
-                    <Progress value={branch.percentage} className="h-2" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Top Stores */}
+      {/* Top Store Delivery - Bar Chart */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Store className="h-5 w-5 text-primary" />
-            Top Stores
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Top Store Delivery (Boxes & Qty) - All Stores
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {topStores.length === 0 ? (
+          {topStoresDelivery.length === 0 ? (
             <p className="text-sm text-muted-foreground">No store data available</p>
           ) : (
-            <div className="space-y-3">
-              {topStores.map((store, index) => {
-                const percentage = store.deliveries > 0 
-                  ? Math.round((store.delivered / store.deliveries) * 100) 
-                  : 0;
-                return (
-                  <div
-                    key={store.store}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                        {index + 1}
-                      </span>
-                      <div>
-                        <p className="font-medium text-foreground">{store.store}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {store.deliveries} deliveries • {percentage}% completed
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-foreground">{store.boxes.toLocaleString()} boxes</p>
-                        <p className="text-xs text-muted-foreground">{store.qty.toLocaleString()} qty</p>
-                      </div>
-                      <Badge 
-                        variant={store.delivered > 0 ? "default" : "secondary"} 
-                        className="min-w-[70px] justify-center"
-                      >
-                        {store.delivered} delivered
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topStoresDelivery} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                  <YAxis 
+                    dataKey="store" 
+                    type="category" 
+                    tick={{ fill: 'hsl(var(--foreground))', fontSize: 11 }} 
+                    width={120}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number, name: string) => [value.toLocaleString(), name === 'boxes' ? 'Boxes' : 'Qty']}
+                  />
+                  <Legend />
+                  <Bar dataKey="boxes" fill="#3B82F6" name="Boxes" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="qty" fill="#10B981" name="Qty" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Branch Delivery Status */}
+      {/* Delivery Completion Rate - All Stores */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Delivery Completion Rate - All Stores (Boxes & Qty)</CardTitle>
+          <Badge variant="secondary" className="text-sm">
+            {completionRate}% Overall
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          {storeCompletionRates.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No store data available</p>
+          ) : (
+            <div className="space-y-4 max-h-[400px] overflow-y-auto">
+              {storeCompletionRates.map((store) => (
+                <div key={store.store} className="space-y-1.5 border-b border-border/50 pb-3 last:border-0">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground font-medium truncate max-w-[200px]" title={store.store}>
+                      {store.store}
+                    </span>
+                    <div className="flex items-center gap-4 text-muted-foreground text-xs">
+                      <span>Boxes: {store.deliveredBoxes.toLocaleString()}/{store.totalBoxes.toLocaleString()}</span>
+                      <span>Qty: {store.deliveredQty.toLocaleString()}/{store.totalQty.toLocaleString()}</span>
+                      <Badge variant={store.percentage >= 80 ? "default" : store.percentage >= 50 ? "secondary" : "destructive"}>
+                        {store.percentage}%
+                      </Badge>
+                    </div>
+                  </div>
+                  <Progress value={store.percentage} className="h-2" />
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Branch Delivery Status - All Stores with Box and Qty */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            Branch Delivery Status
+            Branch Delivery Status - All Stores (Boxes & Qty)
           </CardTitle>
         </CardHeader>
         <CardContent>
           {branchDeliveryStatus.length === 0 ? (
             <p className="text-sm text-muted-foreground">No branch data available</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
               <table className="w-full">
-                <thead>
+                <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Branch</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Boxes</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Qty</th>
                     <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Pending</th>
                     <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">In Transit</th>
                     <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Out for Delivery</th>
                     <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Delivered</th>
-                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Total</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Delivered Boxes</th>
+                    <th className="text-center py-3 px-2 text-sm font-medium text-muted-foreground">Delivered Qty</th>
                   </tr>
                 </thead>
                 <tbody>
                   {branchDeliveryStatus.map((branch) => (
                     <tr key={branch.branch} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="py-3 px-2">
-                        <span className="text-sm font-medium text-foreground truncate max-w-[200px] block" title={branch.branch}>
+                        <span className="text-sm font-medium text-foreground truncate max-w-[180px] block" title={branch.branch}>
                           {branch.branch}
                         </span>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <span className="text-sm font-semibold text-primary">{branch.totalBoxes.toLocaleString()}</span>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <span className="text-sm text-muted-foreground">{branch.totalQty.toLocaleString()}</span>
                       </td>
                       <td className="text-center py-3 px-2">
                         <Badge variant="outline" className="bg-status-pending-bg text-status-pending border-status-pending/30 min-w-[40px] justify-center">
@@ -397,7 +422,10 @@ const Dashboard = () => {
                         </Badge>
                       </td>
                       <td className="text-center py-3 px-2">
-                        <span className="text-sm font-semibold text-foreground">{branch.total}</span>
+                        <span className="text-sm font-semibold text-green-600">{branch.deliveredBoxes.toLocaleString()}</span>
+                      </td>
+                      <td className="text-center py-3 px-2">
+                        <span className="text-sm text-green-600">{branch.deliveredQty.toLocaleString()}</span>
                       </td>
                     </tr>
                   ))}
@@ -405,6 +433,150 @@ const Dashboard = () => {
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Top Stores by Category */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Store className="h-5 w-5 text-primary" />
+            Top Stores by Category - All Stores
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topStoresByCategory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No category data available</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {topStoresByCategory.map((cat, catIndex) => (
+                <div key={cat.category} className="rounded-lg border border-border bg-muted/20 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: COLORS[catIndex % COLORS.length] }}
+                    />
+                    <h4 className="font-semibold text-foreground">{cat.category}</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {cat.stores.map((store, index) => (
+                      <div key={store.store} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-primary w-5">{index + 1}.</span>
+                          <span className="text-foreground truncate max-w-[120px]" title={store.store}>
+                            {store.store}
+                          </span>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground">{store.boxes.toLocaleString()}</span> boxes
+                          <span className="ml-2">{store.qty.toLocaleString()} qty</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Monthly Delivery Status 2025 - Stacked Bar Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            Monthly Delivery Status (2025)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyDeliveryStatus} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const labels: Record<string, string> = {
+                      pending: 'Pending',
+                      inTransit: 'In Transit',
+                      outForDelivery: 'Out for Delivery',
+                      delivered: 'Delivered',
+                      totalBoxes: 'Total Boxes',
+                      totalQty: 'Total Qty'
+                    };
+                    return [value.toLocaleString(), labels[name] || name];
+                  }}
+                />
+                <Legend 
+                  formatter={(value) => {
+                    const labels: Record<string, string> = {
+                      pending: 'Pending',
+                      inTransit: 'In Transit',
+                      outForDelivery: 'Out for Delivery',
+                      delivered: 'Delivered'
+                    };
+                    return labels[value] || value;
+                  }}
+                />
+                <Bar dataKey="pending" stackId="a" fill="#F59E0B" name="pending" />
+                <Bar dataKey="inTransit" stackId="a" fill="#3B82F6" name="inTransit" />
+                <Bar dataKey="outForDelivery" stackId="a" fill="#8B5CF6" name="outForDelivery" />
+                <Bar dataKey="delivered" stackId="a" fill="#10B981" name="delivered" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Monthly Summary Table */}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Month</th>
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground">Boxes</th>
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground">Qty</th>
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground">Pending</th>
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground">In Transit</th>
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground">Out for Delivery</th>
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground">Delivered</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthlyDeliveryStatus.filter(m => m.pending + m.inTransit + m.outForDelivery + m.delivered > 0).map((month) => (
+                  <tr key={month.month} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="py-2 px-2 font-medium text-foreground">{month.month}</td>
+                    <td className="text-center py-2 px-2 text-primary font-semibold">{month.totalBoxes.toLocaleString()}</td>
+                    <td className="text-center py-2 px-2 text-muted-foreground">{month.totalQty.toLocaleString()}</td>
+                    <td className="text-center py-2 px-2">
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400">
+                        {month.pending}
+                      </Badge>
+                    </td>
+                    <td className="text-center py-2 px-2">
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400">
+                        {month.inTransit}
+                      </Badge>
+                    </td>
+                    <td className="text-center py-2 px-2">
+                      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400">
+                        {month.outForDelivery}
+                      </Badge>
+                    </td>
+                    <td className="text-center py-2 px-2">
+                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400">
+                        {month.delivered}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
