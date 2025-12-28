@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1253,6 +1253,7 @@ const SummaryReport = () => {
                             <TableHead>Bill No</TableHead>
                             <TableHead>Date Out</TableHead>
                             <TableHead>Date Received</TableHead>
+                            <TableHead>Delivery Days</TableHead>
                             <TableHead>Courier</TableHead>
                             <TableHead>Waybill No</TableHead>
                             <TableHead>Category</TableHead>
@@ -1268,6 +1269,13 @@ const SummaryReport = () => {
                               <TableCell className="font-mono">{item.allocation_bill || '-'}</TableCell>
                               <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
+                              <TableCell>
+                                {item.set_date && item.date_delivered ? (
+                                  <span className="font-medium text-green-600">
+                                    {differenceInDays(new Date(item.date_delivered), new Date(item.set_date))} day(s)
+                                  </span>
+                                ) : '-'}
+                              </TableCell>
                               <TableCell>{item.courier || '-'}</TableCell>
                               <TableCell>{item.waybill_no || '-'}</TableCell>
                               <TableCell>{item.category || '-'}</TableCell>
@@ -1282,7 +1290,7 @@ const SummaryReport = () => {
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/50 font-semibold">
-                            <TableCell colSpan={8}>Subtotal</TableCell>
+                            <TableCell colSpan={9}>Subtotal</TableCell>
                             <TableCell className="text-center">{filteredTotalBoxes}</TableCell>
                             <TableCell className="text-center">{filteredTotalQty}</TableCell>
                           </TableRow>
