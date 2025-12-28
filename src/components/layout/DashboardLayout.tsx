@@ -12,6 +12,7 @@ const pageTitles: Record<string, string> = {
   '/import': 'Bucket',
   '/users': 'Manage Users',
   '/notes': 'Reminder',
+  '/collections': 'Collection Items',
 };
 
 // Routes restricted from viewers - they can only access /deliveries, /dashboard, /history, /summary

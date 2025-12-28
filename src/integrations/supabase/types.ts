@@ -32,6 +32,48 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          item_name: string
+          notes: string | null
+          photo_url: string | null
+          quantity: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          photo_url?: string | null
+          quantity?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          photo_url?: string | null
+          quantity?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       column_settings: {
         Row: {
           id: string
