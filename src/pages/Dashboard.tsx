@@ -431,7 +431,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Monthly Delivery by Category - Stacked Bar Chart */}
+          {/* Monthly Delivery by Category - Grouped Bar Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -461,10 +461,9 @@ const Dashboard = () => {
                         <Bar 
                           key={category} 
                           dataKey={category} 
-                          stackId="a" 
                           fill={COLORS[index % COLORS.length]} 
                           name={category}
-                          radius={index === monthlyByCategory.categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          radius={[4, 4, 0, 0]}
                         />
                       ))}
                     </BarChart>
