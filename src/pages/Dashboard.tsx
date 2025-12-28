@@ -275,6 +275,51 @@ const Dashboard = () => {
     return monthlyData;
   }, [releases]);
 
+  // Data for pie chart - store distribution by boxes
+  const storePieData = useMemo(() => {
+    return topStoresDelivery.map((store, index) => ({
+      name: store.store,
+      value: store.boxes,
+      qty: store.qty,
+      color: COLORS[index % COLORS.length]
+    }));
+  }, [topStoresDelivery]);
+
+  // Monthly delivery by category (stacked bar chart)
+  const monthlyByCategory = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const categories = new Set<string>();
+    
+    // Get all unique categories
+    releases.forEach(release => {
+      const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
+      categories.add(category);
+    });
+
+    const categoryList = Array.from(categories).slice(0, 6); // Limit to 6 categories for readability
+    
+    const monthlyData = months.map((month) => {
+      const data: Record<string, number | string> = { month };
+      categoryList.forEach(cat => {
+        data[cat] = 0;
+      });
+      return data;
+    });
+
+    releases.forEach(release => {
+      const releaseDate = new Date(release.date_released);
+      if (releaseDate.getFullYear() === 2025) {
+        const monthIndex = releaseDate.getMonth();
+        const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
+        if (categoryList.includes(category)) {
+          (monthlyData[monthIndex][category] as number) += release.boxes_released || 0;
+        }
+      }
+    });
+
+    return { data: monthlyData, categories: categoryList };
+  }, [releases]);
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -336,45 +381,99 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Top Store Delivery - Bar Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Top Store Delivery (Boxes & Qty) - All Stores
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {topStoresDelivery.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No store data available</p>
-            ) : (
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topStoresDelivery} layout="vertical" margin={{ left: 20, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                    <YAxis 
-                      dataKey="store" 
-                      type="category" 
-                      tick={{ fill: 'hsl(var(--foreground))', fontSize: 11 }} 
-                      width={120}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="boxes" fill="#3B82F6" name="Boxes" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="qty" fill="#10B981" name="Qty" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Two charts side by side */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Top Store Delivery - Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Top Store Delivery (Boxes) - All Stores
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {storePieData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No store data available</p>
+              ) : (
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={storePieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name.length > 12 ? name.substring(0, 12) + '...' : name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {storePieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(value: number, name: string, props: any) => [
+                          `${value.toLocaleString()} boxes (${props.payload.qty.toLocaleString()} qty)`,
+                          props.payload.name
+                        ]}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Monthly Delivery by Category - Stacked Bar Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Monthly Delivery by Category (2025)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyByCategory.categories.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No category data available</p>
+              ) : (
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyByCategory.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                      <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Legend />
+                      {monthlyByCategory.categories.map((category, index) => (
+                        <Bar 
+                          key={category} 
+                          dataKey={category} 
+                          stackId="a" 
+                          fill={COLORS[index % COLORS.length]} 
+                          name={category}
+                          radius={index === monthlyByCategory.categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                        />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Delivery Completion Rate - All Stores */}
         <Card>
