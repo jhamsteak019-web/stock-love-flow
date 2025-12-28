@@ -36,14 +36,24 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
 
   const handleStatusChange = async (newStatus: string) => {
     try {
+      // When photo is approved, also set delivery status to 'delivered'
+      const updateData: any = { photo_status: newStatus };
+      if (newStatus === 'approved') {
+        updateData.status = 'delivered';
+        updateData.delivered_date = new Date().toISOString().split('T')[0];
+      }
+
       const { error } = await supabase
         .from('stock_releases')
-        .update({ photo_status: newStatus })
+        .update(updateData)
         .eq('batch_id', batchId);
 
       if (error) throw error;
       
-      toast({ title: 'Success', description: `Photo status updated to ${newStatus}` });
+      const successMsg = newStatus === 'approved' 
+        ? 'Photo approved and delivery marked as delivered' 
+        : `Photo status updated to ${newStatus}`;
+      toast({ title: 'Success', description: successMsg });
       onPhotoUpdate();
     } catch (error: any) {
       console.error('Status update error:', error);
@@ -102,11 +112,10 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
 
   const handleRemovePhoto = async () => {
     try {
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from('stock_releases')
         .update({ photo_url: null, photo_status: 'no_photo' })
-        .eq('batch_id', batchId)
-        .select();
+        .eq('batch_id', batchId);
 
       if (error) throw error;
       
@@ -428,17 +437,19 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="approved">APPROVED</SelectItem>
-                  <SelectItem value="reupload">REUPLOAD</SelectItem>
+                  <SelectItem value="pending_approval">PENDING</SelectItem>
+                  <SelectItem value="rejected">REJECTED</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
               <span className={cn(
                 "px-3 py-1 rounded-md text-sm font-medium uppercase",
                 photoStatus === 'approved' && "bg-green-500/20 text-green-600",
-                photoStatus === 'reupload' && "bg-orange-500/20 text-orange-600",
+                photoStatus === 'pending_approval' && "bg-orange-500/20 text-orange-600",
+                photoStatus === 'rejected' && "bg-red-500/20 text-red-600",
                 (!photoStatus || photoStatus === 'no_photo') && "bg-muted text-muted-foreground"
               )}>
-                {photoStatus === 'approved' ? 'APPROVED' : photoStatus === 'reupload' ? 'REUPLOAD' : 'NO STATUS'}
+                {photoStatus === 'approved' ? 'APPROVED' : photoStatus === 'pending_approval' ? 'PENDING' : photoStatus === 'rejected' ? 'REJECTED' : 'NO STATUS'}
               </span>
             )}
           </div>
