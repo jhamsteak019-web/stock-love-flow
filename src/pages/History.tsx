@@ -42,8 +42,8 @@ const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'totalBoxes' as ColumnKey, label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
   { key: 'totalQty' as ColumnKey, label: 'Total Qty/Items', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
   { key: 'dateOut' as ColumnKey, label: 'Date Out', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
-  { key: 'deliveryTime' as ColumnKey, label: 'Delivery Time', visible: true, width: 110, minWidth: 80, maxWidth: 150 },
   { key: 'dateReceived' as ColumnKey, label: 'Date Received', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
+  { key: 'deliveryTime' as ColumnKey, label: 'Delivery Days', visible: true, width: 120, minWidth: 90, maxWidth: 150 },
   { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
   { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
@@ -483,8 +483,8 @@ const History = () => {
                   {isColumnVisible('totalBoxes') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
                   {isColumnVisible('totalQty') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
                   {isColumnVisible('dateOut') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
-                  {isColumnVisible('deliveryTime') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Time</TableHead>}
                   {isColumnVisible('dateReceived') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
+                  {isColumnVisible('deliveryTime') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Days</TableHead>}
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
@@ -530,22 +530,22 @@ const History = () => {
                       {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
                       {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
                       {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
+                      {isColumnVisible('dateReceived') && (
+                        <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>
+                          {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                      )}
                       {isColumnVisible('deliveryTime') && (
                         <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>
                           {group.set_date && group.date_delivered ? (
                             <span className="font-medium text-green-600">
-                              {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} days
+                              {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} day(s)
                             </span>
                           ) : group.set_date && !group.date_delivered ? (
                             <span className="text-orange-500 font-medium">
-                              {differenceInDays(new Date(), new Date(group.set_date))} days ago
+                              {differenceInDays(new Date(), new Date(group.set_date))} day(s)
                             </span>
                           ) : '-'}
-                        </TableCell>
-                      )}
-                      {isColumnVisible('dateReceived') && (
-                        <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>
-                          {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
                         </TableCell>
                       )}
                       {isColumnVisible('courier') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
