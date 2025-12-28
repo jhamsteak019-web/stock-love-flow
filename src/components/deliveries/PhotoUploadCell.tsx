@@ -1,14 +1,16 @@
 import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type } from 'lucide-react';
+import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-
+import { format } from 'date-fns';
 interface PhotoUploadCellProps {
   batchId: string;
   photoUrl: string | null;
@@ -27,6 +29,8 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
   const [showTextBox, setShowTextBox] = useState(false);
   const [textPosition, setTextPosition] = useState({ x: 50, y: 90 }); // percentage position
   const [isDragging, setIsDragging] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -34,13 +38,35 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
   
   const canChangeStatus = userRole === 'admin' || userRole === 'staff';
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusSelect = (newStatus: string) => {
+    if (newStatus === 'approved') {
+      // Show date picker dialog when approved is selected
+      setSelectedDate(new Date());
+      setShowDatePicker(true);
+    } else {
+      // For other statuses, update directly
+      handleStatusChange(newStatus, null);
+    }
+  };
+
+  const handleApproveWithDate = async () => {
+    if (!selectedDate) {
+      toast({ title: 'Error', description: 'Please select a received date', variant: 'destructive' });
+      return;
+    }
+    await handleStatusChange('approved', selectedDate);
+    setShowDatePicker(false);
+  };
+
+  const handleStatusChange = async (newStatus: string, receivedDate: Date | null) => {
     try {
       // When photo is approved, also set delivery status to 'delivered'
       const updateData: any = { photo_status: newStatus };
       if (newStatus === 'approved') {
-        updateData.status = 'delivered';
-        updateData.delivered_date = new Date().toISOString().split('T')[0];
+        updateData.delivery_status = 'delivered';
+        updateData.date_delivered = receivedDate 
+          ? receivedDate.toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0];
       }
 
       const { error } = await supabase
@@ -430,7 +456,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
             {canChangeStatus ? (
               <Select 
                 value={photoStatus || 'no_photo'} 
-                onValueChange={handleStatusChange}
+                onValueChange={handleStatusSelect}
               >
                 <SelectTrigger className="w-[140px] bg-background">
                   <SelectValue placeholder="Select status" />
@@ -480,6 +506,37 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
               </Button>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date Picker Dialog for Approval */}
+      <Dialog open={showDatePicker} onOpenChange={setShowDatePicker}>
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle>Set Received Date</DialogTitle>
+            <DialogDescription>
+              Select the date the delivery was received
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              initialFocus
+              className="pointer-events-auto rounded-md border"
+            />
+          </div>
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowDatePicker(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApproveWithDate} disabled={!selectedDate}>
+              Confirm Approval
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
