@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
+import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks';
+type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks' | 'photo';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
@@ -46,6 +47,7 @@ const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
   { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
+  { key: 'photo' as ColumnKey, label: 'Photo', visible: true, width: 80, minWidth: 60, maxWidth: 100 },
 ];
 
 interface GroupedRelease {
@@ -66,6 +68,8 @@ interface GroupedRelease {
   itemCount: number;
   items: StockRelease[];
   releaseIds: string[];
+  photo_url: string | null;
+  photo_status: string | null;
 }
 
 const History = () => {
@@ -137,6 +141,8 @@ const History = () => {
           itemCount: 0,
           items: [],
           releaseIds: [],
+          photo_url: release.photo_url,
+          photo_status: release.photo_status,
         };
       }
       
@@ -483,6 +489,7 @@ const History = () => {
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
+                  {isColumnVisible('photo') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('photo') }}>Photo</TableHead>}
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -542,6 +549,17 @@ const History = () => {
                               }}
                             />
                           )}
+                        </TableCell>
+                      )}
+                      {isColumnVisible('photo') && (
+                        <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('photo') }}>
+                          <PhotoUploadCell
+                            batchId={group.batch_id}
+                            photoUrl={group.photo_url}
+                            photoStatus={group.photo_status}
+                            currentAllocation={group.allocation_bill}
+                            onPhotoUpdate={() => fetchReleases()}
+                          />
                         </TableCell>
                       )}
                       <TableCell>
