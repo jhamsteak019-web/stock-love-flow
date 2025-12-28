@@ -33,10 +33,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks' | 'photo';
+type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
-  { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 120, minWidth: 80, maxWidth: 200 },
+  { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 160, minWidth: 120, maxWidth: 250 },
   { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
   { key: 'totalBoxes' as ColumnKey, label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
@@ -47,7 +47,6 @@ const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
   { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
-  { key: 'photo' as ColumnKey, label: 'Photo', visible: true, width: 80, minWidth: 60, maxWidth: 100 },
 ];
 
 interface GroupedRelease {
@@ -489,7 +488,6 @@ const History = () => {
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
-                  {isColumnVisible('photo') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('photo') }}>Photo</TableHead>}
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -511,7 +509,22 @@ const History = () => {
                       onClick={() => setSelectedBatch(group)}
                       style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                     >
-                      {isColumnVisible('allocation') && <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>{group.allocation_bill || '-'}</TableCell>}
+                      {isColumnVisible('allocation') && (
+                        <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>
+                          <div className="flex items-center gap-2">
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <PhotoUploadCell
+                                batchId={group.batch_id}
+                                photoUrl={group.photo_url}
+                                photoStatus={group.photo_status}
+                                currentAllocation={group.allocation_bill}
+                                onPhotoUpdate={() => fetchReleases()}
+                              />
+                            </div>
+                            <span>{group.allocation_bill || '-'}</span>
+                          </div>
+                        </TableCell>
+                      )}
                       {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
                       {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
                       {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
@@ -549,17 +562,6 @@ const History = () => {
                               }}
                             />
                           )}
-                        </TableCell>
-                      )}
-                      {isColumnVisible('photo') && (
-                        <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('photo') }}>
-                          <PhotoUploadCell
-                            batchId={group.batch_id}
-                            photoUrl={group.photo_url}
-                            photoStatus={group.photo_status}
-                            currentAllocation={group.allocation_bill}
-                            onPhotoUpdate={() => fetchReleases()}
-                          />
                         </TableCell>
                       )}
                       <TableCell>
