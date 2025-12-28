@@ -360,51 +360,47 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
           </DialogHeader>
           
           {/* Image Controls */}
-          <div className="flex items-center justify-center gap-2 py-2 border-b flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleRotateLeft} title="Rotate Left">
-              <RotateCcw className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleRotateRight} title="Rotate Right">
-              <RotateCw className="w-4 h-4" />
-            </Button>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoom <= 0.5} title="Zoom Out">
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium w-14 text-center">{Math.round(zoom * 100)}%</span>
-            <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={zoom >= 3} title="Zoom In">
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button 
-              variant={showTextBox ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setShowTextBox(!showTextBox)} 
-              title="Add Allocation Text"
-            >
-              <Type className="w-4 h-4 mr-1" />
-              Allocation
-            </Button>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button variant="ghost" size="sm" onClick={resetTransforms} title="Reset">
-              Reset
-            </Button>
-          </div>
-
-          {/* Allocation Text Display */}
-          {showTextBox && (
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-              <Label className="text-sm font-medium whitespace-nowrap">
-                Allocation:
-              </Label>
-              <span className="flex-1 px-3 py-2 bg-background border rounded-md text-sm">
-                {allocationText || 'No allocation set'}
-              </span>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                Drag text on image to position
-              </span>
+          <div className="flex items-center justify-between gap-2 py-2 border-b flex-wrap">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleRotateLeft} title="Rotate Left">
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleRotateRight} title="Rotate Right">
+                <RotateCw className="w-4 h-4" />
+              </Button>
+              <div className="w-px h-6 bg-border mx-1" />
+              <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoom <= 0.5} title="Zoom Out">
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-medium w-14 text-center">{Math.round(zoom * 100)}%</span>
+              <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={zoom >= 3} title="Zoom In">
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <div className="w-px h-6 bg-border mx-1" />
+              <Button 
+                variant={showTextBox ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setShowTextBox(!showTextBox)} 
+                title="Add Allocation Text"
+              >
+                <Type className="w-4 h-4 mr-1" />
+                Allocation
+              </Button>
+              <div className="w-px h-6 bg-border mx-1" />
+              <Button variant="ghost" size="sm" onClick={resetTransforms} title="Reset">
+                Reset
+              </Button>
             </div>
-          )}
+            
+            {/* Allocation Text Display - moved to the right */}
+            {showTextBox && (
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-background border rounded-md text-sm font-medium min-w-[150px]">
+                  {allocationText || 'No allocation'}
+                </span>
+              </div>
+            )}
+          </div>
           
           {/* Image Preview */}
           <div 
