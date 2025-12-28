@@ -1259,8 +1259,8 @@ const SummaryReport = () => {
                             <TableHead className="whitespace-nowrap">Category</TableHead>
                             <TableHead className="whitespace-nowrap">Status</TableHead>
                             <TableHead className="whitespace-nowrap">Remarks</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Boxes</TableHead>
-                            <TableHead className="text-center whitespace-nowrap">Qty</TableHead>
+                            <TableHead className="text-center whitespace-nowrap w-16">Boxes</TableHead>
+                            <TableHead className="text-center whitespace-nowrap w-16">Qty</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
