@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye } from 'lucide-react';
+import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 
 interface CollectionItem {
@@ -30,11 +31,11 @@ interface CollectionItem {
 
 interface PreviewItem {
   item_name: string;
+  upc: string | null;
   description: string | null;
   category: string | null;
-  quantity: number;
+  price: number;
   photo_url: string | null;
-  notes: string | null;
 }
 
 const CollectionItems = () => {
@@ -53,10 +54,10 @@ const CollectionItems = () => {
   const [importedCount, setImportedCount] = useState(0);
   const [newItem, setNewItem] = useState({
     item_name: '',
+    upc: '',
     description: '',
     category: '',
-    quantity: 0,
-    notes: ''
+    price: 0
   });
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
 
@@ -76,7 +77,7 @@ const CollectionItems = () => {
 
   // Add single item
   const addItemMutation = useMutation({
-    mutationFn: async (item: typeof newItem & { photo_url?: string }) => {
+    mutationFn: async (item: { item_name: string; description?: string; category?: string; quantity?: number; notes?: string; photo_url?: string }) => {
       const { error } = await supabase
         .from('collection_items')
         .insert({
@@ -89,7 +90,7 @@ const CollectionItems = () => {
       queryClient.invalidateQueries({ queryKey: ['collection-items'] });
       toast.success('Item added successfully');
       setIsAddDialogOpen(false);
-      setNewItem({ item_name: '', description: '', category: '', quantity: 0, notes: '' });
+      setNewItem({ item_name: '', upc: '', description: '', category: '', price: 0 });
       setSelectedPhoto(null);
     },
     onError: (error: any) => {
@@ -163,7 +164,11 @@ const CollectionItems = () => {
     }
 
     addItemMutation.mutate({
-      ...newItem,
+      item_name: newItem.item_name,
+      description: newItem.upc ? `UPC: ${newItem.upc} | ${newItem.description}` : newItem.description,
+      category: newItem.category,
+      quantity: newItem.price, // Using quantity field for price
+      notes: `Price: ${newItem.price}`,
       photo_url: photoUrl || undefined
     });
   };
@@ -198,12 +203,12 @@ const CollectionItems = () => {
 
           // Map Excel columns to preview items
           const mappedItems: PreviewItem[] = jsonData.map((row: any) => ({
-            item_name: row['Item Name'] || row['item_name'] || row['Name'] || row['name'] || 'Unknown Item',
+            item_name: row['Name'] || row['name'] || row['Item Name'] || row['item_name'] || 'Unknown Item',
+            upc: row['UPC'] || row['upc'] || row['Upc'] || null,
             description: row['Description'] || row['description'] || null,
             category: row['Category'] || row['category'] || null,
-            quantity: parseInt(row['Quantity'] || row['quantity'] || row['Qty'] || row['qty'] || 0) || 0,
+            price: parseFloat(row['Price'] || row['price'] || row['PRICE'] || 0) || 0,
             photo_url: row['Photo URL'] || row['photo_url'] || row['Photo'] || row['photo'] || null,
-            notes: row['Notes'] || row['notes'] || row['Remarks'] || row['remarks'] || null,
           }));
 
           setPreviewItems(mappedItems);
@@ -241,7 +246,12 @@ const CollectionItems = () => {
         const batch = previewItems.slice(i * batchSize, (i + 1) * batchSize);
         
         const itemsToInsert = batch.map(item => ({
-          ...item,
+          item_name: item.item_name,
+          description: item.upc ? `UPC: ${item.upc} | ${item.description || ''}` : item.description,
+          category: item.category,
+          quantity: item.price, // Store price in quantity
+          notes: `Price: ${item.price}`,
+          photo_url: item.photo_url,
           status: 'active',
           created_by: user?.id
         }));
@@ -365,30 +375,21 @@ const CollectionItems = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="item_name">Item Name *</Label>
+                  <Label htmlFor="item_name">Name *</Label>
                   <Input
                     id="item_name"
                     value={newItem.item_name}
                     onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })}
-                    placeholder="Enter item name"
+                    placeholder="e.g. 2025MCEHB5500001-01"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="upc">UPC</Label>
                   <Input
-                    id="category"
-                    value={newItem.category}
-                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                    placeholder="Enter category"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={newItem.quantity}
-                    onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                    id="upc"
+                    value={newItem.upc}
+                    onChange={(e) => setNewItem({ ...newItem, upc: e.target.value })}
+                    placeholder="e.g. 155000010100"
                   />
                 </div>
                 <div>
@@ -397,16 +398,27 @@ const CollectionItems = () => {
                     id="description"
                     value={newItem.description}
                     onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                    placeholder="Enter description"
+                    placeholder="e.g. MCEHB5500001FB4C"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="category">Category</Label>
                   <Input
-                    id="notes"
-                    value={newItem.notes}
-                    onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
-                    placeholder="Enter notes"
+                    id="category"
+                    value={newItem.category}
+                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                    placeholder="e.g. MHB"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="price">Price</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    value={newItem.price}
+                    onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) || 0 })}
+                    placeholder="e.g. 3000.00"
                   />
                 </div>
                 <div>
@@ -481,10 +493,11 @@ const CollectionItems = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[50px]">#</TableHead>
-                      <TableHead>Item Name</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>UPC</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Qty</TableHead>
-                      <TableHead>Photo</TableHead>
+                      <TableHead>Price</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -492,6 +505,8 @@ const CollectionItems = () => {
                       <TableRow key={index} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${index * 20}ms` }}>
                         <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                         <TableCell className="font-medium">{item.item_name}</TableCell>
+                        <TableCell className="font-mono text-sm">{item.upc || '-'}</TableCell>
+                        <TableCell className="max-w-[150px] truncate">{item.description || '-'}</TableCell>
                         <TableCell>
                           {item.category ? (
                             <Badge variant="outline">{item.category}</Badge>
@@ -499,14 +514,7 @@ const CollectionItems = () => {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>
-                          {item.photo_url ? (
-                            <Badge variant="default" className="bg-green-100 text-green-700">Has Photo</Badge>
-                          ) : (
-                            <Badge variant="secondary">No Photo</Badge>
-                          )}
-                        </TableCell>
+                        <TableCell className="font-medium">{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -620,61 +628,62 @@ const CollectionItems = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Photo</TableHead>
-                    <TableHead>Item Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Quantity</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>UPC</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Price</TableHead>
                     {isAdmin && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item, index) => (
-                    <TableRow 
-                      key={item.id} 
-                      className="animate-in fade-in-50 duration-300"
-                      style={{ animationDelay: `${index * 30}ms` }}
-                    >
-                      <TableCell>
-                        {item.photo_url ? (
-                          <img 
-                            src={item.photo_url} 
-                            alt={item.item_name}
-                            className="w-12 h-12 object-cover rounded-lg transition-transform hover:scale-110"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                            <Image className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">{item.item_name}</TableCell>
-                      <TableCell>
-                        {item.category && (
-                          <Badge variant="secondary">{item.category}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{item.quantity || 0}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={item.status === 'active' ? 'default' : 'secondary'}>
-                          {item.status || 'active'}
-                        </Badge>
-                      </TableCell>
-                      {isAdmin && (
+                  {filteredItems.map((item, index) => {
+                    // Extract UPC and description from stored description
+                    const descParts = item.description?.split(' | ') || [];
+                    const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
+                    const description = upc ? descParts.slice(1).join(' | ') : item.description;
+                    // Extract price from notes or use quantity
+                    const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+                    const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
+                    
+                    return (
+                      <TableRow 
+                        key={item.id} 
+                        className="animate-in fade-in-50 duration-300"
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteItemMutation.mutate(item.id)}
-                            disabled={deleteItemMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <CollectionPhotoCell
+                            itemId={item.id}
+                            photoUrl={item.photo_url}
+                            itemName={item.item_name}
+                            onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['collection-items'] })}
+                          />
                         </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
+                        <TableCell className="font-medium">{item.item_name}</TableCell>
+                        <TableCell className="font-mono text-sm">{upc || '-'}</TableCell>
+                        <TableCell className="max-w-[150px] truncate">{description || '-'}</TableCell>
+                        <TableCell>
+                          {item.category && (
+                            <Badge variant="secondary">{item.category}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteItemMutation.mutate(item.id)}
+                              disabled={deleteItemMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
