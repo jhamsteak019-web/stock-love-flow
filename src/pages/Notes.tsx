@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useTransition } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck, Eye } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useTransition, useRef } from 'react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck, Eye, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,14 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { toast as sonnerToast } from 'sonner';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 type NoteStatus = 'pending' | 'waiting_to_follow' | 'waiting_approval' | 'approved';
 
@@ -65,6 +73,13 @@ const Notes = () => {
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [statusChangeNote, setStatusChangeNote] = useState<{ id: string; status: NoteStatus; currentDate: string } | null>(null);
   const [selectedStatusDate, setSelectedStatusDate] = useState<Date | undefined>(undefined);
+  const [isExporting, setIsExporting] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  // Month/Year filter state
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
 
 
   const debouncedSearch = useDebounce(searchQuery, 350);
@@ -118,13 +133,68 @@ const Notes = () => {
   }, []);
 
   const filteredNotes = useMemo(() => {
-    if (!debouncedSearch.trim()) return notes;
+    // First filter by month/year
+    const monthYearFiltered = notes.filter(note => {
+      const noteDate = new Date(note.created_at);
+      return noteDate.getMonth() === selectedMonth && noteDate.getFullYear() === selectedYear;
+    });
+    
+    // Then filter by search
+    if (!debouncedSearch.trim()) return monthYearFiltered;
     const query = debouncedSearch.toLowerCase();
-    return notes.filter(note =>
+    return monthYearFiltered.filter(note =>
       note.title.toLowerCase().includes(query) ||
       note.content.toLowerCase().includes(query)
     );
-  }, [notes, debouncedSearch]);
+  }, [notes, debouncedSearch, selectedMonth, selectedYear]);
+
+  const handleExportPDF = async () => {
+    if (!tableRef.current) return;
+    
+    setIsExporting(true);
+    sonnerToast.info('Generating PDF...');
+    
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgWidth = 297;
+      const pageHeight = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      const monthName = MONTHS[selectedMonth];
+      pdf.save(`reminders-${monthName}-${selectedYear}.pdf`);
+      sonnerToast.success('PDF exported successfully!');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      sonnerToast.error('Failed to export PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const totalPages = Math.ceil(filteredNotes.length / ITEMS_PER_PAGE);
   const paginatedNotes = useMemo(() => {
@@ -345,7 +415,32 @@ const Notes = () => {
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Month/Year Filter */}
+          <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+              <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+              <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((year) => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {filteredNotes.length > 0 && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}</span>
@@ -354,6 +449,12 @@ const Notes = () => {
               )}
             </div>
           )}
+          
+          <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isExporting || filteredNotes.length === 0}>
+            {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+            Save PDF
+          </Button>
+          
           <Button onClick={openCreateDialog} className="gap-2">
             <Plus className="h-4 w-4" />
             New Reminder
@@ -362,7 +463,7 @@ const Notes = () => {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto transition-all duration-300">
+      <div ref={tableRef} className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto transition-all duration-300">
         <Table>
           <TableHeader>
             <TableRow className="transition-all duration-300">
