@@ -175,7 +175,7 @@ const AuthPage = () => {
 
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Username
+              Email
             </Label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
