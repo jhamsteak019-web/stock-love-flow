@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type, Copy, CheckCircle2 } from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type, Copy, CheckCircle2, Search, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,32 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Common colors for text overlay
+const TEXT_COLORS = [
+  { name: 'White', value: '#FFFFFF' },
+  { name: 'Black', value: '#000000' },
+  { name: 'Red', value: '#EF4444' },
+  { name: 'Orange', value: '#F97316' },
+  { name: 'Yellow', value: '#EAB308' },
+  { name: 'Green', value: '#22C55E' },
+  { name: 'Blue', value: '#3B82F6' },
+  { name: 'Purple', value: '#A855F7' },
+  { name: 'Pink', value: '#EC4899' },
+  { name: 'Gray', value: '#6B7280' },
+  { name: 'Navy', value: '#1E3A8A' },
+  { name: 'Teal', value: '#14B8A6' },
+  { name: 'Cyan', value: '#06B6D4' },
+  { name: 'Lime', value: '#84CC16' },
+  { name: 'Amber', value: '#F59E0B' },
+  { name: 'Rose', value: '#F43F5E' },
+  { name: 'Indigo', value: '#6366F1' },
+  { name: 'Emerald', value: '#10B981' },
+  { name: 'Sky', value: '#0EA5E9' },
+  { name: 'Violet', value: '#8B5CF6' },
+];
 
 interface CollectionPhotoCellProps {
   itemId: string;
@@ -45,11 +71,23 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const [textPosition, setTextPosition] = useState({ x: 5, y: 90 });
   const [isDragging, setIsDragging] = useState(false);
   const [appliedCount, setAppliedCount] = useState<number | null>(null);
+  const [textColor, setTextColor] = useState('#FFFFFF');
+  const [colorSearch, setColorSearch] = useState('');
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { userRole } = useAuth();
   
   const canEdit = userRole === 'admin' || userRole === 'staff';
+  
+  // Filter colors based on search
+  const filteredColors = useMemo(() => {
+    if (!colorSearch.trim()) return TEXT_COLORS;
+    return TEXT_COLORS.filter(c => 
+      c.name.toLowerCase().includes(colorSearch.toLowerCase()) ||
+      c.value.toLowerCase().includes(colorSearch.toLowerCase())
+    );
+  }, [colorSearch]);
   
   // Parse item name to get variant info
   const parsedName = itemName ? parseItemName(itemName) : null;
@@ -246,6 +284,8 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
     setOverlayText('');
     setShowTextBox(false);
     setTextPosition({ x: 50, y: 90 });
+    setTextColor('#FFFFFF');
+    setColorSearch('');
   };
 
   const handleSaveWithText = async () => {
@@ -284,19 +324,23 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
         const fontSize = Math.max(24, Math.min(canvas.width, canvas.height) * 0.04);
         
         ctx.font = `bold ${fontSize}px Arial`;
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         
-        const textMetrics = ctx.measureText(overlayText);
-        const padding = fontSize * 0.4;
-        const bgWidth = textMetrics.width + padding * 2;
-        const bgHeight = fontSize + padding;
+        // Add text shadow for visibility
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
         
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(textX - bgWidth / 2, textY - bgHeight / 2, bgWidth, bgHeight);
-        
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = textColor;
         ctx.fillText(overlayText, textX, textY);
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
       }
 
       const blob = await new Promise<Blob>((resolve, reject) => {
@@ -460,7 +504,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
             </div>
           )}
 
-          {/* Text Input */}
+          {/* Text Input with Color Picker */}
           {showTextBox && canEdit && (
             <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
               <Input
@@ -469,7 +513,58 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                 onChange={(e) => setOverlayText(e.target.value)}
                 className="flex-1"
               />
-              <span className="text-xs text-muted-foreground">Drag text on image to position</span>
+              <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 min-w-[100px]"
+                  >
+                    <div 
+                      className="w-4 h-4 rounded border border-border" 
+                      style={{ backgroundColor: textColor }}
+                    />
+                    <Palette className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 bg-background border border-border shadow-lg z-50" align="end">
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search color..."
+                        value={colorSearch}
+                        onChange={(e) => setColorSearch(e.target.value)}
+                        className="pl-8 h-8"
+                      />
+                    </div>
+                    <ScrollArea className="h-48">
+                      <div className="grid grid-cols-2 gap-1">
+                        {filteredColors.map((color) => (
+                          <button
+                            key={color.value}
+                            onClick={() => {
+                              setTextColor(color.value);
+                              setColorPickerOpen(false);
+                              setColorSearch('');
+                            }}
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded hover:bg-accent text-left w-full transition-colors",
+                              textColor === color.value && "bg-accent"
+                            )}
+                          >
+                            <div 
+                              className="w-4 h-4 rounded border border-border flex-shrink-0" 
+                              style={{ backgroundColor: color.value }}
+                            />
+                            <span className="text-xs truncate">{color.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
           
