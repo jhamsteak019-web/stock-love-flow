@@ -366,20 +366,50 @@ const CollectionItems = () => {
     }
   };
 
-  // Confirm and import items - faster with larger batches
+  // Confirm and import items - skip existing items
   const handleConfirmImport = async () => {
     setIsImporting(true);
     setImportStatus('importing');
     setImportProgress(0);
     setImportedCount(0);
 
-    const batchSize = 500; // Larger batches for faster import
-    const totalBatches = Math.ceil(previewItems.length / batchSize);
-    let successCount = 0;
-
     try {
+      // First, fetch all existing item names to check for duplicates
+      setImportProgress(10);
+      const { data: existingItems, error: fetchError } = await supabase
+        .from('collection_items')
+        .select('item_name');
+      
+      if (fetchError) throw fetchError;
+
+      // Create a Set of existing item names for fast lookup
+      const existingNames = new Set(existingItems?.map(item => item.item_name.toLowerCase().trim()) || []);
+      
+      // Filter out items that already exist
+      const newItems = previewItems.filter(item => 
+        !existingNames.has(item.item_name.toLowerCase().trim())
+      );
+
+      const skippedCount = previewItems.length - newItems.length;
+      
+      if (newItems.length === 0) {
+        toast.info(`All ${previewItems.length} items already exist. No new items to import.`);
+        setImportStatus('done');
+        setTimeout(() => {
+          setIsImportDialogOpen(false);
+          resetImportState();
+        }, 2000);
+        return;
+      }
+
+      setImportProgress(20);
+
+      const batchSize = 500;
+      const totalBatches = Math.ceil(newItems.length / batchSize);
+      let successCount = 0;
+
       for (let i = 0; i < totalBatches; i++) {
-        const batch = previewItems.slice(i * batchSize, (i + 1) * batchSize);
+        const batch = newItems.slice(i * batchSize, (i + 1) * batchSize);
         
         const itemsToInsert = batch.map(item => ({
           item_name: item.item_name,
@@ -400,12 +430,17 @@ const CollectionItems = () => {
 
         successCount += batch.length;
         setImportedCount(successCount);
-        setImportProgress(Math.round(((i + 1) / totalBatches) * 100));
+        setImportProgress(20 + Math.round(((i + 1) / totalBatches) * 80));
       }
 
       setImportStatus('done');
       queryClient.invalidateQueries({ queryKey: ['collection-items'] });
-      toast.success(`Successfully imported ${successCount} items`);
+      
+      if (skippedCount > 0) {
+        toast.success(`Imported ${successCount} new items. Skipped ${skippedCount} existing items.`);
+      } else {
+        toast.success(`Successfully imported ${successCount} items`);
+      }
       
       // Auto close after success
       setTimeout(() => {
