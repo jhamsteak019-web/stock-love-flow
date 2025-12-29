@@ -74,6 +74,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const [textColor, setTextColor] = useState('#FFFFFF');
   const [colorSearch, setColorSearch] = useState('');
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [sameColorCount, setSameColorCount] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { userRole } = useAuth();
@@ -401,9 +402,30 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
 
   const handleMouseUp = () => setIsDragging(false);
 
-  const handleDialogOpen = () => {
+  const handleDialogOpen = async () => {
     // Don't auto-populate text overlay - let users add manually if needed
     setPreviewOpen(true);
+    
+    // Fetch count of items with same color
+    if (parsedName && itemName) {
+      try {
+        const { data: allItems } = await supabase
+          .from('collection_items')
+          .select('id, item_name')
+          .neq('id', itemId);
+        
+        const matchingItems = (allItems || []).filter(item => {
+          const parsed = parseItemName(item.item_name);
+          if (!parsed) return false;
+          return parsed.fullColorCode === parsedName.fullColorCode;
+        });
+        
+        setSameColorCount(matchingItems.length);
+      } catch (error) {
+        console.error('Failed to fetch matching items count:', error);
+        setSameColorCount(0);
+      }
+    }
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -623,9 +645,9 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={applyToSameColor}>
+                      <DropdownMenuItem onClick={applyToSameColor} disabled={sameColorCount === 0}>
                         <div className="flex flex-col">
-                          <span className="font-medium">Same Color ({parsedName.colorCode})</span>
+                          <span className="font-medium">Same Color ({parsedName.colorCode}) - {sameColorCount} items</span>
                           <span className="text-xs text-muted-foreground">
                             Apply to all {parsedName.fullColorCode}
                           </span>
