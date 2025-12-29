@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 
@@ -522,6 +522,62 @@ const CollectionItems = () => {
     setCurrentPage(1);
   };
 
+  // Export collection items to Excel
+  const handleExport = () => {
+    if (filteredItems.length === 0) {
+      toast.error('No items to export');
+      return;
+    }
+
+    // Prepare data for export - matching the visible table columns
+    const exportData = filteredItems.map(item => {
+      // Extract UPC and description from stored description
+      const descParts = item.description?.split(' | ') || [];
+      const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
+      const description = upc ? descParts.slice(1).join(' | ') : item.description;
+      // Extract price from notes or use quantity
+      const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+      const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
+
+      return {
+        'Name': item.item_name,
+        'UPC': upc || '',
+        'Description': description || '',
+        'Category': item.category || '',
+        'Price': price,
+        'Photo URL': item.photo_url || '',
+        'Status': item.status || 'active',
+        'Created At': new Date(item.created_at).toLocaleDateString()
+      };
+    });
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths for better readability
+    ws['!cols'] = [
+      { wch: 30 }, // Name
+      { wch: 15 }, // UPC
+      { wch: 40 }, // Description
+      { wch: 12 }, // Category
+      { wch: 12 }, // Price
+      { wch: 60 }, // Photo URL
+      { wch: 10 }, // Status
+      { wch: 12 }, // Created At
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Collection Items');
+
+    // Generate filename with date
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `collection_items_${date}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(wb, filename);
+    toast.success(`Exported ${filteredItems.length} items to ${filename}`);
+  };
+
   const isAdmin = userRole === 'admin';
 
   return (
@@ -577,6 +633,14 @@ const CollectionItems = () => {
           >
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Import Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleExport}
+            disabled={filteredItems.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
