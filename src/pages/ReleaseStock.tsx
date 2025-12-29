@@ -268,15 +268,30 @@ const ReleaseStock = () => {
         }
       }
 
+      // Log the column names from the first row for debugging
+      if (rows.length > 0) {
+        console.log('Excel column names detected:', Object.keys(rows[0]));
+      }
+
       // Parse rows into release items - Format: Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
+        // Log each row for debugging if index is 0
+        if (index === 0) {
+          console.log('First row data:', row);
+        }
+        
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
-        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION');
+        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER');
         const qtyBoxes = findNumericValue(row, 'BOX', 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOXES');
-        const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity');
-        const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
-        const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES');
+        const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
+        const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
+        const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
         const waybillNo = findColumnValue(row, 'Waybill No.', 'Waybill No', 'Waybill', 'WAYBILL', 'WAYBILL NO');
+        
+        // Log parsed values for first row
+        if (index === 0) {
+          console.log('Parsed first row - sheetNo:', sheetNo, 'deliverTo:', deliverTo, 'category:', category, 'remarks:', rem);
+        }
         
         // Parse BILL DATE - keep as string for manual input
         let billDateStr = '';
