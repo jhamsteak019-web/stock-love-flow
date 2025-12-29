@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -38,6 +39,8 @@ interface PreviewItem {
   price: number;
   photo_url: string | null;
 }
+
+const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM'];
 
 const CollectionItems = () => {
   const { user, userRole } = useAuth();
@@ -112,6 +115,8 @@ const CollectionItems = () => {
     price: 0
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const itemsPerPage = 50;
 
   // Fetch collection items - fetch all items by paginating through results
@@ -144,6 +149,12 @@ const CollectionItems = () => {
       return allItems;
     }
   });
+
+  // Get available years from items
+  const availableYears = [...new Set(items.map(item => {
+    const year = item.created_at ? new Date(item.created_at).getFullYear().toString() : '';
+    return year;
+  }).filter(Boolean))].sort((a, b) => parseInt(b) - parseInt(a));
 
   // Add single item
   const addItemMutation = useMutation({
@@ -477,12 +488,28 @@ const CollectionItems = () => {
 
   // Filter items - when searching, group by same color code
   const filteredItems = (() => {
-    if (!searchTerm.trim()) return items;
+    let result = items;
+
+    // Filter by year
+    if (selectedYear !== 'all') {
+      result = result.filter(item => {
+        const itemYear = item.created_at ? new Date(item.created_at).getFullYear().toString() : '';
+        return itemYear === selectedYear;
+      });
+    }
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      result = result.filter(item => item.category === selectedCategory);
+    }
+
+    // Apply search filter
+    if (!searchTerm.trim()) return result;
 
     const search = searchTerm.toLowerCase();
     
     // First, find all matching items
-    const matchingItems = items.filter(item =>
+    const matchingItems = result.filter(item =>
       item.item_name.toLowerCase().includes(search) ||
       item.category?.toLowerCase().includes(search) ||
       item.description?.toLowerCase().includes(search)
@@ -517,9 +544,19 @@ const CollectionItems = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedItems = sortedItems.slice(startIndex, endIndex);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when search/filters change
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleYearChange = (value: string) => {
+    setSelectedYear(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
     setCurrentPage(1);
   };
 
@@ -747,12 +784,19 @@ const CollectionItems = () => {
                 </div>
                 <div>
                   <Label htmlFor="category">Category</Label>
-                  <Input
-                    id="category"
+                  <Select
                     value={newItem.category}
-                    onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                    placeholder="e.g. MHB"
-                  />
+                    onValueChange={(value) => setNewItem({ ...newItem, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="price">Price</Label>
@@ -941,17 +985,42 @@ const CollectionItems = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <Card>
         <CardContent className="pt-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search items..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search items..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={selectedYear} onValueChange={handleYearChange}>
+              <SelectTrigger className="w-full sm:w-[130px]">
+                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+              <SelectTrigger className="w-full sm:w-[130px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {CATEGORY_OPTIONS.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -1151,12 +1220,19 @@ const CollectionItems = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-category">Category</Label>
-                <Input
-                  id="edit-category"
+                <Select
                   value={editForm.category}
-                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                  placeholder="Category"
-                />
+                  onValueChange={(value) => setEditForm({ ...editForm, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-price">Price</Label>
