@@ -398,11 +398,21 @@ const CollectionItems = () => {
     item.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Sort items: items with photos first, then by created_at
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    const aHasPhoto = a.photo_url ? 1 : 0;
+    const bHasPhoto = b.photo_url ? 1 : 0;
+    if (bHasPhoto !== aHasPhoto) {
+      return bHasPhoto - aHasPhoto; // Items with photos first
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // Then by date
+  });
+
   // Pagination
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+  const paginatedItems = sortedItems.slice(startIndex, endIndex);
 
   // Reset to page 1 when search changes
   const handleSearchChange = (value: string) => {
