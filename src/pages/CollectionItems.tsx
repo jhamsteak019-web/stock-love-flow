@@ -72,17 +72,34 @@ const CollectionItems = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  // Fetch collection items
+  // Fetch collection items - fetch all items by paginating through results
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['collection-items'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('collection_items')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as CollectionItem[];
+      const allItems: CollectionItem[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('collection_items')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allItems.push(...(data as CollectionItem[]));
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allItems;
     }
   });
 
