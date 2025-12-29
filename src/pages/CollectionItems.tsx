@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 
@@ -60,6 +60,15 @@ const CollectionItems = () => {
     price: 0
   });
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    item_name: '',
+    upc: '',
+    description: '',
+    category: '',
+    price: 0
+  });
 
   // Fetch collection items
   const { data: items = [], isLoading } = useQuery({
@@ -97,6 +106,73 @@ const CollectionItems = () => {
       toast.error(`Failed to add item: ${error.message}`);
     }
   });
+
+  // Update item mutation
+  const updateItemMutation = useMutation({
+    mutationFn: async (item: { id: string; item_name: string; description?: string; category?: string; quantity?: number; notes?: string }) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({
+          item_name: item.item_name,
+          description: item.description,
+          category: item.category,
+          quantity: item.quantity,
+          notes: item.notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', item.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      toast.success('Item updated successfully');
+      setIsEditDialogOpen(false);
+      setEditingItem(null);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update item: ${error.message}`);
+    }
+  });
+
+  // Open edit dialog
+  const handleEditItem = (item: CollectionItem) => {
+    const descParts = item.description?.split(' | ') || [];
+    const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
+    const description = upc ? descParts.slice(1).join(' | ') : item.description;
+    const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+    const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
+
+    setEditingItem(item);
+    setEditForm({
+      item_name: item.item_name,
+      upc: upc || '',
+      description: description || '',
+      category: item.category || '',
+      price: price
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  // Submit edit
+  const handleUpdateItem = () => {
+    if (!editingItem || !editForm.item_name.trim()) {
+      toast.error('Item name is required');
+      return;
+    }
+
+    const combinedDescription = editForm.upc 
+      ? `UPC: ${editForm.upc}${editForm.description ? ' | ' + editForm.description : ''}`
+      : editForm.description;
+
+    updateItemMutation.mutate({
+      id: editingItem.id,
+      item_name: editForm.item_name.trim(),
+      description: combinedDescription || undefined,
+      category: editForm.category || undefined,
+      quantity: editForm.price,
+      notes: `Price: ${editForm.price}`
+    });
+  };
 
   // Delete item
   const deleteItemMutation = useMutation({
@@ -633,13 +709,13 @@ const CollectionItems = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Photo</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>UPC</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Price</TableHead>
-                    {isAdmin && <TableHead>Actions</TableHead>}
+                    <TableHead className="w-[70px]">Photo</TableHead>
+                    <TableHead className="min-w-[150px]">Name</TableHead>
+                    <TableHead className="w-[120px]">UPC</TableHead>
+                    <TableHead className="min-w-[180px]">Description</TableHead>
+                    <TableHead className="w-[100px]">Category</TableHead>
+                    <TableHead className="w-[100px] text-right">Price</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -658,7 +734,7 @@ const CollectionItems = () => {
                         className="animate-in fade-in-50 duration-300"
                         style={{ animationDelay: `${index * 30}ms` }}
                       >
-                        <TableCell>
+                        <TableCell className="p-2">
                           <CollectionPhotoCell
                             itemId={item.id}
                             photoUrl={item.photo_url}
@@ -667,26 +743,39 @@ const CollectionItems = () => {
                           />
                         </TableCell>
                         <TableCell className="font-medium">{item.item_name}</TableCell>
-                        <TableCell className="font-mono text-sm">{upc || '-'}</TableCell>
-                        <TableCell className="max-w-[150px] truncate">{description || '-'}</TableCell>
+                        <TableCell className="font-mono text-sm text-muted-foreground">{upc || '-'}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-muted-foreground">{description || '-'}</TableCell>
                         <TableCell>
-                          {item.category && (
-                            <Badge variant="secondary">{item.category}</Badge>
+                          {item.category ? (
+                            <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="font-medium">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
-                        {isAdmin && (
-                          <TableCell>
+                        <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => deleteItemMutation.mutate(item.id)}
-                              disabled={deleteItemMutation.isPending}
+                              onClick={() => handleEditItem(item)}
+                              className="h-8 w-8"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
-                          </TableCell>
-                        )}
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteItemMutation.mutate(item.id)}
+                                disabled={deleteItemMutation.isPending}
+                                className="h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -696,6 +785,82 @@ const CollectionItems = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Item</DialogTitle>
+            <DialogDescription>
+              Update the item details below
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                value={editForm.item_name}
+                onChange={(e) => setEditForm({ ...editForm, item_name: e.target.value })}
+                placeholder="Item name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-upc">UPC</Label>
+              <Input
+                id="edit-upc"
+                value={editForm.upc}
+                onChange={(e) => setEditForm({ ...editForm, upc: e.target.value })}
+                placeholder="UPC code"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Item description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Category</Label>
+                <Input
+                  id="edit-category"
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  placeholder="Category"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-price">Price</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  value={editForm.price}
+                  onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateItem}
+              disabled={updateItemMutation.isPending}
+            >
+              {updateItemMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
