@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 
@@ -69,6 +69,8 @@ const CollectionItems = () => {
     category: '',
     price: 0
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   // Fetch collection items
   const { data: items = [], isLoading } = useQuery({
@@ -382,6 +384,18 @@ const CollectionItems = () => {
     item.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Pagination
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
   const isAdmin = userRole === 'admin';
 
   return (
@@ -681,7 +695,7 @@ const CollectionItems = () => {
             <Input
               placeholder="Search items..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -690,10 +704,15 @@ const CollectionItems = () => {
 
       {/* Items Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Collection Items ({filteredItems.length})</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Collection Items ({filteredItems.length.toLocaleString()})</CardTitle>
+          {totalPages > 1 && (
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1}-{Math.min(endIndex, filteredItems.length)} of {filteredItems.length.toLocaleString()}
+            </div>
+          )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -705,83 +724,135 @@ const CollectionItems = () => {
               <p className="text-sm">Import items from Excel or add them manually</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[70px]">Photo</TableHead>
-                    <TableHead className="min-w-[150px]">Name</TableHead>
-                    <TableHead className="w-[120px]">UPC</TableHead>
-                    <TableHead className="min-w-[180px]">Description</TableHead>
-                    <TableHead className="w-[100px]">Category</TableHead>
-                    <TableHead className="w-[100px] text-right">Price</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map((item, index) => {
-                    // Extract UPC and description from stored description
-                    const descParts = item.description?.split(' | ') || [];
-                    const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
-                    const description = upc ? descParts.slice(1).join(' | ') : item.description;
-                    // Extract price from notes or use quantity
-                    const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
-                    const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
-                    
-                    return (
-                      <TableRow 
-                        key={item.id} 
-                        className="animate-in fade-in-50 duration-300"
-                        style={{ animationDelay: `${index * 30}ms` }}
-                      >
-                        <TableCell className="p-2">
-                          <CollectionPhotoCell
-                            itemId={item.id}
-                            photoUrl={item.photo_url}
-                            itemName={item.item_name}
-                            onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['collection-items'] })}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{item.item_name}</TableCell>
-                        <TableCell className="font-mono text-sm text-muted-foreground">{upc || '-'}</TableCell>
-                        <TableCell className="max-w-[200px] truncate text-muted-foreground">{description || '-'}</TableCell>
-                        <TableCell>
-                          {item.category ? (
-                            <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditItem(item)}
-                              className="h-8 w-8"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {isAdmin && (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[70px]">Photo</TableHead>
+                      <TableHead className="min-w-[150px]">Name</TableHead>
+                      <TableHead className="w-[120px]">UPC</TableHead>
+                      <TableHead className="min-w-[180px]">Description</TableHead>
+                      <TableHead className="w-[100px]">Category</TableHead>
+                      <TableHead className="w-[100px] text-right">Price</TableHead>
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedItems.map((item, index) => {
+                      // Extract UPC and description from stored description
+                      const descParts = item.description?.split(' | ') || [];
+                      const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
+                      const description = upc ? descParts.slice(1).join(' | ') : item.description;
+                      // Extract price from notes or use quantity
+                      const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+                      const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
+                      
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="p-2">
+                            <CollectionPhotoCell
+                              itemId={item.id}
+                              photoUrl={item.photo_url}
+                              itemName={item.item_name}
+                              onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['collection-items'] })}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{item.item_name}</TableCell>
+                          <TableCell className="font-mono text-sm text-muted-foreground">{upc || '-'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate text-muted-foreground">{description || '-'}</TableCell>
+                          <TableCell>
+                            {item.category ? (
+                              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => deleteItemMutation.mutate(item.id)}
-                                disabled={deleteItemMutation.isPending}
+                                onClick={() => handleEditItem(item)}
                                 className="h-8 w-8"
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteItemMutation.mutate(item.id)}
+                                  disabled={deleteItemMutation.isPending}
+                                  className="h-8 w-8"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-1 pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="gap-1"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="w-9 h-9 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="gap-1"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
