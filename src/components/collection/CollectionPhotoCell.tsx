@@ -537,9 +537,9 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                       {parsedName.sizeCode && <DropdownMenuSeparator />}
                       <DropdownMenuItem onClick={applyToAllVariants}>
                         <div className="flex flex-col">
-                          <span className="font-medium">All Variants</span>
+                          <span className="font-medium">All {parsedName.sizeCode ? 'Variants' : 'Colors'}</span>
                           <span className="text-xs text-muted-foreground">
-                            Apply to all {parsedName.baseCode} colors & sizes
+                            Apply to all {parsedName.baseCode} {parsedName.sizeCode ? 'colors & sizes' : 'colors'}
                           </span>
                         </div>
                       </DropdownMenuItem>
