@@ -114,12 +114,12 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
       
       if (fetchError) throw fetchError;
       
-      // Filter to items with same color code
+      // Filter to items with same BASE NAME and COLOR CODE
       const matchingItems = (allItems || []).filter(item => {
         const parsed = parseItemName(item.item_name);
         if (!parsed) return false;
-        // Must have same fullColorCode (base + color)
-        return parsed.fullColorCode === parsedName.fullColorCode;
+        // Match both baseCode AND colorCode
+        return parsed.baseCode === parsedName.baseCode && parsed.colorCode === parsedName.colorCode;
       });
       
       if (matchingItems.length === 0) {
@@ -412,7 +412,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
     }
     setPreviewOpen(true);
     
-    // Fetch count of items with same color
+    // Fetch count of items with same BASE NAME and COLOR CODE
     if (parsedName && itemName) {
       try {
         const { data: allItems } = await supabase
@@ -423,7 +423,8 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
         const matchingItems = (allItems || []).filter(item => {
           const parsed = parseItemName(item.item_name);
           if (!parsed) return false;
-          return parsed.fullColorCode === parsedName.fullColorCode;
+          // Match both baseCode AND colorCode
+          return parsed.baseCode === parsedName.baseCode && parsed.colorCode === parsedName.colorCode;
         });
         
         setSameColorCount(matchingItems.length);
