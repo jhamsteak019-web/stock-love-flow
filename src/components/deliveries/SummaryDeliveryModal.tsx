@@ -16,9 +16,10 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 interface SummaryDeliveryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isViewer?: boolean;
 }
 
-const SummaryDeliveryModal = ({ open, onOpenChange }: SummaryDeliveryModalProps) => {
+const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
   const { releases } = useInventory();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
@@ -584,10 +585,12 @@ const SummaryDeliveryModal = ({ open, onOpenChange }: SummaryDeliveryModalProps)
                   className="pl-9"
                 />
               </div>
-              <Button onClick={handlePrintDeliveredSummary} size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Print / Save PDF
-              </Button>
+              {!isViewer && (
+                <Button onClick={handlePrintDeliveredSummary} size="sm">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print / Save PDF
+                </Button>
+              )}
             </div>
 
             <div className="space-y-4 overflow-auto max-h-[35vh]">
@@ -604,10 +607,12 @@ const SummaryDeliveryModal = ({ open, onOpenChange }: SummaryDeliveryModalProps)
                           <Store className="h-4 w-4" />
                           {branch.branch}
                         </h3>
-                        <Button variant="outline" size="sm" onClick={() => handlePrintBranchSummary(branch)}>
-                          <Printer className="h-3 w-3 mr-1" />
-                          Print
-                        </Button>
+                        {!isViewer && (
+                          <Button variant="outline" size="sm" onClick={() => handlePrintBranchSummary(branch)}>
+                            <Printer className="h-3 w-3 mr-1" />
+                            Print
+                          </Button>
+                        )}
                       </div>
                       <div className="rounded-md border overflow-auto">
                         <Table className="text-xs">
