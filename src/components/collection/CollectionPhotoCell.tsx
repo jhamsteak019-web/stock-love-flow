@@ -42,7 +42,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const [zoom, setZoom] = useState(1);
   const [overlayText, setOverlayText] = useState('');
   const [showTextBox, setShowTextBox] = useState(false);
-  const [textPosition, setTextPosition] = useState({ x: 50, y: 90 });
+  const [textPosition, setTextPosition] = useState({ x: 5, y: 90 });
   const [isDragging, setIsDragging] = useState(false);
   const [appliedCount, setAppliedCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -497,14 +497,15 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                 {showTextBox && overlayText.trim() && (
                   <div
                     className={cn(
-                      "absolute px-3 py-1.5 bg-black/70 text-white font-bold rounded cursor-move select-none transition-shadow",
-                      isDragging && "shadow-lg ring-2 ring-primary"
+                      "absolute text-white font-bold cursor-move select-none transition-shadow",
+                      isDragging && "ring-2 ring-primary"
                     )}
                     style={{
                       left: `${textPosition.x}%`,
                       top: `${textPosition.y}%`,
-                      transform: 'translate(-50%, -50%)',
-                      fontSize: '14px'
+                      transform: 'translateY(-50%)',
+                      fontSize: '14px',
+                      textShadow: '2px 2px 4px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.5)'
                     }}
                     onMouseDown={handleMouseDown}
                   >
