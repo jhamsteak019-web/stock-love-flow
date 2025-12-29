@@ -60,6 +60,47 @@ const CollectionItems = () => {
     price: 0
   });
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [upcSearching, setUpcSearching] = useState(false);
+
+  // Search for item by UPC and auto-fill fields
+  const handleUpcSearch = async (upc: string) => {
+    if (!upc.trim() || upc.length < 5) return;
+    
+    setUpcSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('collection_items')
+        .select('*')
+        .ilike('description', `%UPC: ${upc}%`)
+        .limit(1);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const item = data[0];
+        // Parse description to get model/size info
+        const descParts = item.description?.split(' | ') || [];
+        const modelInfo = descParts.length > 1 ? descParts[1] : '';
+        const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+        const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+        
+        setNewItem(prev => ({
+          ...prev,
+          item_name: item.item_name || '',
+          description: modelInfo,
+          category: item.category || '',
+          price: price
+        }));
+        toast.success('Item found! Fields auto-filled.');
+      } else {
+        toast.info('No matching item found for this UPC');
+      }
+    } catch (error: any) {
+      toast.error(`Search failed: ${error.message}`);
+    } finally {
+      setUpcSearching(false);
+    }
+  };
   const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -489,21 +530,44 @@ const CollectionItems = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
+                  <Label htmlFor="upc">Search by UPC</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="upc"
+                      value={newItem.upc}
+                      onChange={(e) => setNewItem({ ...newItem, upc: e.target.value })}
+                      placeholder="Enter UPC to search..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleUpcSearch(newItem.upc);
+                        }
+                      }}
+                    />
+                    <Button 
+                      type="button"
+                      variant="secondary"
+                      onClick={() => handleUpcSearch(newItem.upc)}
+                      disabled={upcSearching || !newItem.upc.trim()}
+                    >
+                      {upcSearching ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Press Enter or click search to auto-fill Name, Size & Category
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="item_name">Name *</Label>
                   <Input
                     id="item_name"
                     value={newItem.item_name}
                     onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })}
                     placeholder="e.g. 2025MCEHB5500001-01"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="upc">UPC</Label>
-                  <Input
-                    id="upc"
-                    value={newItem.upc}
-                    onChange={(e) => setNewItem({ ...newItem, upc: e.target.value })}
-                    placeholder="e.g. 155000010100"
                   />
                 </div>
                 <div>
