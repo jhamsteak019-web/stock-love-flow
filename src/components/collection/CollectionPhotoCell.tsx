@@ -112,12 +112,12 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
       
       if (fetchError) throw fetchError;
       
-      // Filter to items with same color code (just the color part, e.g., "01")
+      // Filter to items with same color code
       const matchingItems = (allItems || []).filter(item => {
         const parsed = parseItemName(item.item_name);
         if (!parsed) return false;
-        // Match by color code only (e.g., "01" matches any item ending with "-01")
-        return parsed.colorCode === parsedName.colorCode;
+        // Must have same fullColorCode (base + color)
+        return parsed.fullColorCode === parsedName.fullColorCode;
       });
       
       if (matchingItems.length === 0) {
@@ -417,8 +417,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
         const matchingItems = (allItems || []).filter(item => {
           const parsed = parseItemName(item.item_name);
           if (!parsed) return false;
-          // Match by color code only (e.g., "01" matches any item ending with "-01")
-          return parsed.colorCode === parsedName.colorCode;
+          return parsed.fullColorCode === parsedName.fullColorCode;
         });
         
         setSameColorCount(matchingItems.length);
