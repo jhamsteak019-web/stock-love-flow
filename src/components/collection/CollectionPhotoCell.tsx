@@ -402,10 +402,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const handleMouseUp = () => setIsDragging(false);
 
   const handleDialogOpen = () => {
-    if (itemName) {
-      setOverlayText(itemName);
-      setShowTextBox(true);
-    }
+    // Don't auto-populate text overlay - let users add manually if needed
     setPreviewOpen(true);
   };
 
