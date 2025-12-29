@@ -432,12 +432,38 @@ const CollectionItems = () => {
     resetImportState();
   };
 
-  // Filter items
-  const filteredItems = items.filter(item =>
-    item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Helper to extract color code from item name (e.g., "2026MCXSH6527504-1343" -> "13")
+  const extractColorCode = (itemName: string): string => {
+    // Pattern: the 2 digits after the dash before the size
+    const match = itemName.match(/-(\d{2})\d{2}$/);
+    return match ? match[1] : '';
+  };
+
+  // Filter items - when searching, group by same color code
+  const filteredItems = (() => {
+    if (!searchTerm.trim()) return items;
+
+    const search = searchTerm.toLowerCase();
+    
+    // First, find all matching items
+    const matchingItems = items.filter(item =>
+      item.item_name.toLowerCase().includes(search) ||
+      item.category?.toLowerCase().includes(search) ||
+      item.description?.toLowerCase().includes(search)
+    );
+
+    // If we have matches, filter to only show items with the same color code as the first match
+    if (matchingItems.length > 0) {
+      const firstItemColorCode = extractColorCode(matchingItems[0].item_name);
+      
+      // If we found a color code, filter to only same color items
+      if (firstItemColorCode) {
+        return matchingItems.filter(item => extractColorCode(item.item_name) === firstItemColorCode);
+      }
+    }
+
+    return matchingItems;
+  })();
 
   // Sort items: items with photos first, then by created_at
   const sortedItems = [...filteredItems].sort((a, b) => {
