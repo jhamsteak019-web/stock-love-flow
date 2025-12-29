@@ -653,7 +653,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'sheetNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs font-mono w-full"
+                                className="h-8 text-xs font-mono w-full px-2"
                                 placeholder="Allocation Bill"
                               />
                             </TableCell>
@@ -667,7 +667,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'deliverTo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full"
+                                className="h-8 text-xs w-full px-2"
                                 placeholder="Destination"
                               />
                             </TableCell>
@@ -681,7 +681,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'category', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full"
+                                className="h-8 text-xs w-full px-2"
                                 placeholder="Category"
                               />
                             </TableCell>
@@ -697,7 +697,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyBoxes', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-16"
+                                className="h-8 text-xs w-16 px-2"
                                 min={0}
                               />
                             </TableCell>
@@ -713,7 +713,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyItem', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-16"
+                                className="h-8 text-xs w-16 px-2"
                                 min={0}
                               />
                             </TableCell>
@@ -727,7 +727,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'remarks', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full"
+                                className="h-8 text-xs w-full px-2"
                                 placeholder="Remarks"
                               />
                             </TableCell>
@@ -741,7 +741,7 @@ const ReleaseStock = () => {
                                     updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full"
+                                className="h-8 text-xs w-full px-2"
                                 placeholder="Waybill No."
                               />
                             </TableCell>
