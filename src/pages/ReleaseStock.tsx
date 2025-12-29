@@ -605,25 +605,25 @@ const ReleaseStock = () => {
             </div>
             <div className="rounded-lg border overflow-hidden">
               <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
-                <Table className="min-w-[1400px]">
+                <Table className="min-w-[900px]">
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
-                      <TableHead className="w-12 px-4">
+                      <TableHead className="w-10 px-2">
                         <Checkbox 
                           checked={allSelectableSelected}
                           onCheckedChange={toggleSelectAll}
                           aria-label="Select all"
                         />
                       </TableHead>
-                      {isColumnVisible('allocation') && <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Allocation Bill</TableHead>}
-                      {isColumnVisible('destination') && <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Destination</TableHead>}
-                      {isColumnVisible('category') && <TableHead className="min-w-[120px] px-6 whitespace-nowrap">Category</TableHead>}
-                      {isColumnVisible('totalBoxes') && <TableHead className="min-w-[90px] px-6 whitespace-nowrap">Boxes</TableHead>}
-                      {isColumnVisible('totalQty') && <TableHead className="min-w-[90px] px-6 whitespace-nowrap">Qty/Item</TableHead>}
-                      {isColumnVisible('remarks') && <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Remarks</TableHead>}
-                      {isColumnVisible('waybill') && <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Waybill No.</TableHead>}
-                      {isColumnVisible('dateOut') && <TableHead className="min-w-[160px] px-6 whitespace-nowrap">Date Out Warehouse</TableHead>}
-                      <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Courier</TableHead>
+                      {isColumnVisible('allocation') && <TableHead className="px-2 whitespace-nowrap">Allocation Bill</TableHead>}
+                      {isColumnVisible('destination') && <TableHead className="px-2 whitespace-nowrap">Destination</TableHead>}
+                      {isColumnVisible('category') && <TableHead className="px-2 whitespace-nowrap">Category</TableHead>}
+                      {isColumnVisible('totalBoxes') && <TableHead className="w-[80px] px-2 whitespace-nowrap">Boxes</TableHead>}
+                      {isColumnVisible('totalQty') && <TableHead className="w-[80px] px-2 whitespace-nowrap">Qty/Item</TableHead>}
+                      {isColumnVisible('remarks') && <TableHead className="px-2 whitespace-nowrap">Remarks</TableHead>}
+                      {isColumnVisible('waybill') && <TableHead className="px-2 whitespace-nowrap">Waybill No.</TableHead>}
+                      {isColumnVisible('dateOut') && <TableHead className="px-2 whitespace-nowrap">Date Out</TableHead>}
+                      <TableHead className="px-2 whitespace-nowrap">Courier</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -636,7 +636,7 @@ const ReleaseStock = () => {
                     ) : (
                       paginatedItems.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="px-4">
+                          <TableCell className="px-2">
                             <Checkbox 
                               checked={selectedItems.has(item.id)}
                               onCheckedChange={() => toggleSelectItem(item.id)}
@@ -645,7 +645,7 @@ const ReleaseStock = () => {
                             />
                           </TableCell>
                           {isColumnVisible('allocation') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 defaultValue={item.sheetNo}
                                 onBlur={(e) => {
@@ -653,13 +653,13 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'sheetNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs font-mono min-w-[120px]"
+                                className="h-8 text-xs font-mono w-full"
                                 placeholder="Allocation Bill"
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('destination') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 defaultValue={item.deliverTo}
                                 onBlur={(e) => {
@@ -667,13 +667,13 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'deliverTo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[120px]"
+                                className="h-8 text-xs w-full"
                                 placeholder="Destination"
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('category') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 defaultValue={item.category}
                                 onBlur={(e) => {
@@ -681,13 +681,13 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'category', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[100px]"
+                                className="h-8 text-xs w-full"
                                 placeholder="Category"
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('totalBoxes') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 type="number"
                                 defaultValue={item.qtyBoxes}
@@ -697,13 +697,13 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyBoxes', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-20"
+                                className="h-8 text-xs w-16"
                                 min={0}
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('totalQty') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 type="number"
                                 defaultValue={item.qtyItem}
@@ -713,13 +713,13 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyItem', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-20"
+                                className="h-8 text-xs w-16"
                                 min={0}
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('remarks') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 defaultValue={item.remarks}
                                 onBlur={(e) => {
@@ -727,13 +727,13 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'remarks', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[120px]"
+                                className="h-8 text-xs w-full"
                                 placeholder="Remarks"
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('waybill') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Input 
                                 defaultValue={item.waybillNo || ''}
                                 onBlur={(e) => {
@@ -741,16 +741,16 @@ const ReleaseStock = () => {
                                     updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[120px]"
+                                className="h-8 text-xs w-full"
                                 placeholder="Waybill No."
                               />
                             </TableCell>
                           )}
                           {isColumnVisible('dateOut') && (
-                            <TableCell className="px-6">
+                            <TableCell className="px-2">
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-8 text-xs w-full min-w-[120px] justify-start">
+                                  <Button variant="outline" className="h-8 text-xs w-24 justify-start">
                                     <CalendarIcon className="mr-1 h-3 w-3" />
                                     {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
                                   </Button>
@@ -767,9 +767,9 @@ const ReleaseStock = () => {
                               </Popover>
                             </TableCell>
                           )}
-                          <TableCell className="px-6">
+                          <TableCell className="px-2">
                             <Select value={item.courier} onValueChange={(val) => updateParsedItemWithBulk(item.id, 'courier', val)}>
-                              <SelectTrigger className="h-8 text-xs min-w-[120px]">
+                              <SelectTrigger className="h-8 text-xs w-28">
                                 <SelectValue placeholder="Courier" />
                               </SelectTrigger>
                               <SelectContent className="bg-popover">
