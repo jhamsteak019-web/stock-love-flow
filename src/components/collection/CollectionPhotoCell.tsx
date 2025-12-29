@@ -99,7 +99,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
     }
   };
 
-  // Apply photo to all variants (all colors and sizes)
+  // Apply photo to all variants (all colors and optionally sizes)
   const applyToAllVariants = async () => {
     if (!photoUrl || !parsedName) return;
     
@@ -108,10 +108,9 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
     
     try {
       // Find all items with same base code
-      // Pattern: "2026MCXSH6527505" matches "2026MCXSH6527505-XX" or "2026MCXSH6527505-XX YY"
       const basePattern = `${parsedName.baseCode}-%`;
       
-      const { data: matchingItems, error: fetchError } = await supabase
+      const { data: allItems, error: fetchError } = await supabase
         .from('collection_items')
         .select('id, item_name')
         .like('item_name', basePattern)
@@ -119,8 +118,27 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
       
       if (fetchError) throw fetchError;
       
-      if (!matchingItems || matchingItems.length === 0) {
+      if (!allItems || allItems.length === 0) {
         toast.info('No other variants found');
+        setIsApplying(false);
+        return;
+      }
+      
+      // Filter items based on current item's format
+      let matchingItems = allItems;
+      
+      if (!parsedName.sizeCode) {
+        // Current item has NO size (e.g., "2025MLXWP5513114-08")
+        // Only apply to items that also have NO size (just color code)
+        matchingItems = allItems.filter(item => {
+          const parsed = parseItemName(item.item_name);
+          return parsed && !parsed.sizeCode; // Only items without size
+        });
+      }
+      // If current item HAS size, apply to all variants (no filter needed)
+      
+      if (matchingItems.length === 0) {
+        toast.info('No matching items found with the same format');
         setIsApplying(false);
         return;
       }
@@ -134,7 +152,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
       if (updateError) throw updateError;
       
       setAppliedCount(matchingItems.length);
-      toast.success(`Photo applied to ${matchingItems.length} items (all variants)`);
+      toast.success(`Photo applied to ${matchingItems.length} items`);
       onPhotoUpdate();
     } catch (error: any) {
       console.error('Apply to all variants error:', error);
