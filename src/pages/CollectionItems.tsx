@@ -483,14 +483,15 @@ const CollectionItems = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Eye className="h-5 w-5 text-primary" />
-                  <span className="font-medium">Preview ({previewItems.length} items)</span>
+                  <span className="font-medium">Preview ({previewItems.length.toLocaleString()} items)</span>
                 </div>
-                <Badge variant="secondary">{previewItems.length} items ready</Badge>
+                <Badge variant="secondary">{previewItems.length.toLocaleString()} items ready</Badge>
               </div>
               
+              {/* Show only first 50 items for performance */}
               <ScrollArea className="h-[300px] border rounded-lg">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead className="w-[50px]">#</TableHead>
                       <TableHead>Name</TableHead>
@@ -501,8 +502,8 @@ const CollectionItems = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {previewItems.map((item, index) => (
-                      <TableRow key={index} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${index * 20}ms` }}>
+                    {previewItems.slice(0, 50).map((item, index) => (
+                      <TableRow key={index}>
                         <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                         <TableCell className="font-medium">{item.item_name}</TableCell>
                         <TableCell className="font-mono text-sm">{item.upc || '-'}</TableCell>
@@ -519,6 +520,11 @@ const CollectionItems = () => {
                     ))}
                   </TableBody>
                 </Table>
+                {previewItems.length > 50 && (
+                  <div className="p-3 text-center text-sm text-muted-foreground border-t bg-muted/30">
+                    Showing first 50 of {previewItems.length.toLocaleString()} items...
+                  </div>
+                )}
               </ScrollArea>
 
               <DialogFooter>
@@ -531,7 +537,7 @@ const CollectionItems = () => {
                   ) : (
                     <Upload className="h-4 w-4 mr-2" />
                   )}
-                  Import {previewItems.length} Items
+                  Import {previewItems.length.toLocaleString()} Items
                 </Button>
               </DialogFooter>
             </div>
