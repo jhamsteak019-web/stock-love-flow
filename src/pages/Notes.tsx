@@ -471,7 +471,7 @@ const Notes = () => {
               <TableHead className="w-[150px]">Concern</TableHead>
               <TableHead>Remarks</TableHead>
               <TableHead className="w-[150px]">Created By</TableHead>
-              <TableHead className="w-[160px]">Status</TableHead>
+              <TableHead className="w-[180px]">Status</TableHead>
               <TableHead className="w-[120px]">Date Created</TableHead>
               <TableHead className="w-[120px]">Last Updated</TableHead>
               <TableHead className="w-[120px] text-center">Actions</TableHead>
@@ -513,7 +513,7 @@ const Notes = () => {
                         value={note.status}
                         onValueChange={(value: NoteStatus) => handleStatusChange(note.id, value)}
                       >
-                        <SelectTrigger className="w-[160px] h-8">
+                        <SelectTrigger className="w-[170px] h-8">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
