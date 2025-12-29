@@ -493,25 +493,6 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                   }}
                   draggable={false}
                 />
-                {/* Text overlay preview */}
-                {showTextBox && overlayText.trim() && (
-                  <div
-                    className={cn(
-                      "absolute text-white font-bold cursor-move select-none transition-shadow",
-                      isDragging && "ring-2 ring-primary"
-                    )}
-                    style={{
-                      left: `${textPosition.x}%`,
-                      top: `${textPosition.y}%`,
-                      transform: 'translateY(-50%)',
-                      fontSize: '14px',
-                      textShadow: '2px 2px 4px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.5)'
-                    }}
-                    onMouseDown={handleMouseDown}
-                  >
-                    {overlayText}
-                  </div>
-                )}
               </div>
             )}
           </div>
