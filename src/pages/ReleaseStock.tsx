@@ -653,7 +653,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'sheetNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs font-mono w-full px-2"
+                                className="h-[42px] text-xs font-mono w-full px-3 rounded-lg"
                                 placeholder="Allocation Bill"
                               />
                             </TableCell>
@@ -667,7 +667,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'deliverTo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full px-2"
+                                className="h-[42px] text-xs w-full px-3 rounded-lg"
                                 placeholder="Destination"
                               />
                             </TableCell>
@@ -681,7 +681,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'category', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full px-2"
+                                className="h-[42px] text-xs w-full px-3 rounded-lg"
                                 placeholder="Category"
                               />
                             </TableCell>
@@ -697,7 +697,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyBoxes', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-16 px-2"
+                                className="h-[42px] text-xs w-20 px-3 rounded-lg"
                                 min={0}
                               />
                             </TableCell>
@@ -713,7 +713,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyItem', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-16 px-2"
+                                className="h-[42px] text-xs w-20 px-3 rounded-lg"
                                 min={0}
                               />
                             </TableCell>
@@ -727,7 +727,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'remarks', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full px-2"
+                                className="h-[42px] text-xs w-full px-3 rounded-lg"
                                 placeholder="Remarks"
                               />
                             </TableCell>
@@ -741,7 +741,7 @@ const ReleaseStock = () => {
                                     updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs w-full px-2"
+                                className="h-[42px] text-xs w-full px-3 rounded-lg"
                                 placeholder="Waybill No."
                               />
                             </TableCell>
@@ -750,7 +750,7 @@ const ReleaseStock = () => {
                             <TableCell className="px-2">
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-8 text-xs w-24 justify-start">
+                                  <Button variant="outline" className="h-[42px] text-xs w-28 justify-start px-3 rounded-lg">
                                     <CalendarIcon className="mr-1 h-3 w-3" />
                                     {item.setDate ? format(new Date(item.setDate), 'MMM d') : 'Date'}
                                   </Button>
@@ -769,7 +769,7 @@ const ReleaseStock = () => {
                           )}
                           <TableCell className="px-2">
                             <Select value={item.courier} onValueChange={(val) => updateParsedItemWithBulk(item.id, 'courier', val)}>
-                              <SelectTrigger className="h-8 text-xs w-28">
+                              <SelectTrigger className="h-[42px] text-xs w-32 px-3 rounded-lg">
                                 <SelectValue placeholder="Courier" />
                               </SelectTrigger>
                               <SelectContent className="bg-popover">
