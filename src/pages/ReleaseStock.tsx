@@ -720,7 +720,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyBoxes', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-[80px] px-3 rounded-lg"
+                                className="h-7 text-xs w-[60px] px-2 rounded"
                                 min={0}
                               />
                             </TableCell>
@@ -736,7 +736,7 @@ const ReleaseStock = () => {
                                     updateParsedItem(item.id, 'qtyItem', val);
                                   }
                                 }}
-                                className="h-8 text-xs w-[80px] px-3 rounded-lg"
+                                className="h-7 text-xs w-[60px] px-2 rounded"
                                 min={0}
                               />
                             </TableCell>
