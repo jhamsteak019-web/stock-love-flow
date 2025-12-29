@@ -54,27 +54,34 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   // Parse item name to get variant info
   const parsedName = itemName ? parseItemName(itemName) : null;
 
-  // Apply photo to similar items (same color, all sizes)
+  // Apply photo to similar items (same color code)
   const applyToSameColor = async () => {
-    if (!photoUrl || !parsedName?.sizeCode) return;
+    if (!photoUrl || !parsedName) return;
     
     setIsApplying(true);
     setAppliedCount(null);
     
     try {
-      // Find all items with same base code + color (different sizes)
-      // Pattern: "2026MCXSH6527505-01" matches "2026MCXSH6527505-01 XX"
-      const colorPattern = `${parsedName.fullColorCode} %`;
+      // Find all items with same base code + color
+      // If current has size: find others with same color (with or without size)
+      // If current has no size: find others with same color that HAVE sizes
       
-      const { data: matchingItems, error: fetchError } = await supabase
+      const { data: allItems, error: fetchError } = await supabase
         .from('collection_items')
         .select('id, item_name')
-        .like('item_name', colorPattern)
         .neq('id', itemId);
       
       if (fetchError) throw fetchError;
       
-      if (!matchingItems || matchingItems.length === 0) {
+      // Filter to items with same color code
+      const matchingItems = (allItems || []).filter(item => {
+        const parsed = parseItemName(item.item_name);
+        if (!parsed) return false;
+        // Must have same fullColorCode (base + color)
+        return parsed.fullColorCode === parsedName.fullColorCode;
+      });
+      
+      if (matchingItems.length === 0) {
         toast.info('No other items with the same color found');
         setIsApplying(false);
         return;
@@ -542,22 +549,20 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      {parsedName.sizeCode && (
-                        <DropdownMenuItem onClick={applyToSameColor}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">Same Color (All Sizes)</span>
-                            <span className="text-xs text-muted-foreground">
-                              Apply to all {parsedName.fullColorCode} sizes
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      )}
-                      {parsedName.sizeCode && <DropdownMenuSeparator />}
+                      <DropdownMenuItem onClick={applyToSameColor}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">Same Color ({parsedName.colorCode})</span>
+                          <span className="text-xs text-muted-foreground">
+                            Apply to all {parsedName.fullColorCode}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={applyToAllVariants}>
                         <div className="flex flex-col">
                           <span className="font-medium">All {parsedName.sizeCode ? 'Variants' : 'Colors'}</span>
                           <span className="text-xs text-muted-foreground">
-                            Apply to all {parsedName.baseCode} {parsedName.sizeCode ? 'colors & sizes' : 'colors'}
+                            Apply to all {parsedName.baseCode}
                           </span>
                         </div>
                       </DropdownMenuItem>
