@@ -38,6 +38,31 @@ export const DashboardLayout = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  // Redirect pending users to a waiting page
+  if (userRole === 'pending') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 text-center max-w-md px-4">
+          <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
+            <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Waiting for Approval</h1>
+          <p className="text-muted-foreground">
+            Your account is pending approval from an administrator. Please check back later or contact your admin.
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Refresh Status
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Redirect viewers to deliveries if they try to access restricted routes
   if (userRole === 'viewer' && viewerRestrictedRoutes.includes(location.pathname)) {
     return <Navigate to="/deliveries" replace />;
