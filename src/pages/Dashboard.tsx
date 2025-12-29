@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useInventory } from '@/hooks/useInventory';
+import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar, FileDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,9 +19,12 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'
 
 const Dashboard = () => {
   const { releases, loading, getStats } = useInventory();
+  const { userRole } = useAuth();
   const stats = getStats();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  
+  const canExportPDF = userRole === 'admin' || userRole === 'staff';
 
   const handleExportPDF = async () => {
     if (!dashboardRef.current) return;
@@ -357,10 +361,12 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your inventory and deliveries</p>
         </div>
-        <Button onClick={handleExportPDF} disabled={isExporting} className="gap-2">
-          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-          Save to PDF
-        </Button>
+        {canExportPDF && (
+          <Button onClick={handleExportPDF} disabled={isExporting} className="gap-2">
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Save to PDF
+          </Button>
+        )}
       </div>
 
       <div ref={dashboardRef} className="space-y-6 bg-background">
