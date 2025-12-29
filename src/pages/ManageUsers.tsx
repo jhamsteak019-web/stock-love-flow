@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info } from 'lucide-react';
+import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -161,6 +161,22 @@ const ManageUsers = () => {
                           {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : user.role === 'viewer' ? <Eye className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
                           {user.role}
                         </Badge>
+                      ) : user.role === 'pending' ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </Badge>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-7 text-xs gap-1 text-green-600 border-green-200 hover:bg-green-50"
+                            onClick={() => handleRoleChange(user.id, 'viewer')}
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            Approve
+                          </Button>
+                        </div>
                       ) : (
                         <Select
                           value={user.role}
@@ -247,6 +263,7 @@ const ManageUsers = () => {
         <AlertDescription className="text-sm">
           <strong>Notes:</strong>
           <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+            <li><strong>Pending</strong> - New accounts waiting for admin approval. Click "Approve" to grant access.</li>
             <li><strong>Admin</strong> - Full access to all features including user management, inventory, and reports.</li>
             <li><strong>Staff</strong> - Limited access to inventory operations and deliveries.</li>
             <li><strong>Viewer</strong> - Can only view deliveries and upload photos.</li>
