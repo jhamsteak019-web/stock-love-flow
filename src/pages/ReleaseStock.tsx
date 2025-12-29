@@ -271,7 +271,7 @@ const ReleaseStock = () => {
       // Parse rows into release items - Format: Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
-        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Destination', 'DESTINATION', 'Branch');
+        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION');
         const qtyBoxes = findNumericValue(row, 'BOX', 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOXES');
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat');
