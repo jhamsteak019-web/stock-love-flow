@@ -1057,6 +1057,7 @@ const SummaryReport = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[50px] text-center">#</TableHead>
                         <TableHead>Store</TableHead>
                         {allCategories.map(cat => (
                           <TableHead key={cat} className="text-center min-w-[120px]">
@@ -1069,8 +1070,9 @@ const SummaryReport = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {categoryByStore.map((store) => (
+                      {categoryByStore.map((store, index) => (
                         <TableRow key={store.store}>
+                          <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
                           <TableCell className="font-medium">{store.store}</TableCell>
                           {allCategories.map(cat => {
                             const catData = store.categories[cat];
@@ -1091,6 +1093,7 @@ const SummaryReport = () => {
                       ))}
                       {/* Totals Row */}
                       <TableRow className="bg-muted/50 font-bold">
+                        <TableCell></TableCell>
                         <TableCell>TOTAL</TableCell>
                         {allCategories.map(cat => {
                           const totalBoxes = categoryByStore.reduce((sum, store) => sum + (store.categories[cat]?.boxes || 0), 0);
