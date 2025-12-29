@@ -325,14 +325,14 @@ const CollectionItems = () => {
     }
   };
 
-  // Confirm and import items
+  // Confirm and import items - faster with larger batches
   const handleConfirmImport = async () => {
     setIsImporting(true);
     setImportStatus('importing');
     setImportProgress(0);
     setImportedCount(0);
 
-    const batchSize = 10;
+    const batchSize = 500; // Larger batches for faster import
     const totalBatches = Math.ceil(previewItems.length / batchSize);
     let successCount = 0;
 
@@ -344,7 +344,7 @@ const CollectionItems = () => {
           item_name: item.item_name,
           description: item.upc ? `UPC: ${item.upc} | ${item.description || ''}` : item.description,
           category: item.category,
-          quantity: item.price, // Store price in quantity
+          quantity: item.price,
           notes: `Price: ${item.price}`,
           photo_url: item.photo_url,
           status: 'active',
@@ -360,9 +360,6 @@ const CollectionItems = () => {
         successCount += batch.length;
         setImportedCount(successCount);
         setImportProgress(Math.round(((i + 1) / totalBatches) * 100));
-        
-        // Small delay for smooth animation
-        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       setImportStatus('done');
