@@ -94,13 +94,13 @@ const ManageUsers = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Status</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Online Duration</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+              <TableHead className="w-[80px]">Status</TableHead>
+              <TableHead className="w-[150px]">Name</TableHead>
+              <TableHead className="w-[200px]">Email</TableHead>
+              <TableHead className="w-[130px]">Role</TableHead>
+              <TableHead className="w-[120px]">Online Duration</TableHead>
+              <TableHead className="w-[120px]">Joined</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -143,7 +143,7 @@ const ManageUsers = () => {
                         <span className="font-medium">{user.full_name || 'No name'}</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[200px]">
                       {editingUser === user.id ? (
                         <Input
                           value={editForm.email}
@@ -152,7 +152,7 @@ const ManageUsers = () => {
                           className="w-full"
                         />
                       ) : (
-                        <span className="text-muted-foreground">{user.email}</span>
+                        <span className="text-muted-foreground text-sm truncate block">{user.email}</span>
                       )}
                     </TableCell>
                     <TableCell>
