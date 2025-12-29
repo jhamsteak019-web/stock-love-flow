@@ -535,14 +535,14 @@ const CollectionItems = () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Collection Items');
 
-    // Define columns (removed Photo URL, Status, Created At)
+    // Define columns - Image first
     worksheet.columns = [
+      { header: 'Image', key: 'image', width: 20 },
       { header: 'Name', key: 'name', width: 30 },
       { header: 'UPC', key: 'upc', width: 15 },
       { header: 'Description', key: 'description', width: 40 },
       { header: 'Category', key: 'category', width: 12 },
       { header: 'Price', key: 'price', width: 12 },
-      { header: 'Image', key: 'image', width: 20 },
     ];
 
     // Style header row
@@ -564,18 +564,18 @@ const CollectionItems = () => {
 
       const rowIndex = i + 2; // Row 1 is header
       const row = worksheet.addRow({
+        image: '',
         name: item.item_name,
         upc: upc || '',
         description: description || '',
         category: item.category || '',
         price: price,
-        image: '',
       });
 
       // Set row height for images
       row.height = 60;
 
-      // Add image if available
+      // Add image if available - now in column 0 (first column)
       if (item.photo_url) {
         try {
           const response = await fetch(item.photo_url);
@@ -594,7 +594,7 @@ const CollectionItems = () => {
           });
 
           worksheet.addImage(imageId, {
-            tl: { col: 5, row: rowIndex - 1 },
+            tl: { col: 0, row: rowIndex - 1 },
             ext: { width: 80, height: 55 }
           });
         } catch (error) {
