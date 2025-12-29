@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type } from 'lucide-react';
+import { Camera, Upload, X, Loader2, RotateCw, ZoomIn, ZoomOut, RotateCcw, Save, Type, Copy, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 interface CollectionPhotoCellProps {
   itemId: string;
@@ -15,9 +16,27 @@ interface CollectionPhotoCellProps {
   onPhotoUpdate: () => void;
 }
 
+// Extract base code and variant info from item name
+// Pattern 1: "2026MCXSH6527505-01 43" → base: "2026MCXSH6527505", color: "01", size: "43"
+// Pattern 2: "2026MCXUM6555005-23" → base: "2026MCXUM6555005", color: "23", size: null
+const parseItemName = (name: string) => {
+  // Match pattern: BASECODE-COLOR SIZE or BASECODE-COLOR
+  const match = name.match(/^(.+)-(\d{2})\s*(\d+)?$/);
+  if (match) {
+    return {
+      baseCode: match[1],
+      colorCode: match[2],
+      sizeCode: match[3] || null,
+      fullColorCode: `${match[1]}-${match[2]}`, // e.g., "2026MCXSH6527505-01"
+    };
+  }
+  return null;
+};
+
 export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate }: CollectionPhotoCellProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -25,11 +44,106 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const [showTextBox, setShowTextBox] = useState(false);
   const [textPosition, setTextPosition] = useState({ x: 50, y: 90 });
   const [isDragging, setIsDragging] = useState(false);
+  const [appliedCount, setAppliedCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { userRole } = useAuth();
   
   const canEdit = userRole === 'admin' || userRole === 'staff';
+  
+  // Parse item name to get variant info
+  const parsedName = itemName ? parseItemName(itemName) : null;
+
+  // Apply photo to similar items (same color, all sizes)
+  const applyToSameColor = async () => {
+    if (!photoUrl || !parsedName?.sizeCode) return;
+    
+    setIsApplying(true);
+    setAppliedCount(null);
+    
+    try {
+      // Find all items with same base code + color (different sizes)
+      // Pattern: "2026MCXSH6527505-01" matches "2026MCXSH6527505-01 XX"
+      const colorPattern = `${parsedName.fullColorCode} %`;
+      
+      const { data: matchingItems, error: fetchError } = await supabase
+        .from('collection_items')
+        .select('id, item_name')
+        .like('item_name', colorPattern)
+        .neq('id', itemId);
+      
+      if (fetchError) throw fetchError;
+      
+      if (!matchingItems || matchingItems.length === 0) {
+        toast.info('No other items with the same color found');
+        setIsApplying(false);
+        return;
+      }
+      
+      // Update all matching items with the same photo
+      const { error: updateError } = await supabase
+        .from('collection_items')
+        .update({ photo_url: photoUrl })
+        .in('id', matchingItems.map(item => item.id));
+      
+      if (updateError) throw updateError;
+      
+      setAppliedCount(matchingItems.length);
+      toast.success(`Photo applied to ${matchingItems.length} items (same color)`);
+      onPhotoUpdate();
+    } catch (error: any) {
+      console.error('Apply to same color error:', error);
+      toast.error(error.message || 'Failed to apply photo');
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  // Apply photo to all variants (all colors and sizes)
+  const applyToAllVariants = async () => {
+    if (!photoUrl || !parsedName) return;
+    
+    setIsApplying(true);
+    setAppliedCount(null);
+    
+    try {
+      // Find all items with same base code
+      // Pattern: "2026MCXSH6527505" matches "2026MCXSH6527505-XX" or "2026MCXSH6527505-XX YY"
+      const basePattern = `${parsedName.baseCode}-%`;
+      
+      const { data: matchingItems, error: fetchError } = await supabase
+        .from('collection_items')
+        .select('id, item_name')
+        .like('item_name', basePattern)
+        .neq('id', itemId);
+      
+      if (fetchError) throw fetchError;
+      
+      if (!matchingItems || matchingItems.length === 0) {
+        toast.info('No other variants found');
+        setIsApplying(false);
+        return;
+      }
+      
+      // Update all matching items with the same photo
+      const { error: updateError } = await supabase
+        .from('collection_items')
+        .update({ photo_url: photoUrl })
+        .in('id', matchingItems.map(item => item.id));
+      
+      if (updateError) throw updateError;
+      
+      setAppliedCount(matchingItems.length);
+      toast.success(`Photo applied to ${matchingItems.length} items (all variants)`);
+      onPhotoUpdate();
+    } catch (error: any) {
+      console.error('Apply to all variants error:', error);
+      toast.error(error.message || 'Failed to apply photo');
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -378,16 +492,61 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
           
           {/* Action Buttons */}
           {canEdit && (
-            <div className="flex justify-between items-center pt-2 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Replace Photo
-              </Button>
+            <div className="flex justify-between items-center pt-2 border-t gap-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Replace Photo
+                </Button>
+                
+                {/* Apply to Similar Items Dropdown */}
+                {parsedName && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isApplying}
+                      >
+                        {isApplying ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : appliedCount !== null ? (
+                          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4 mr-2" />
+                        )}
+                        Apply to Similar
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {parsedName.sizeCode && (
+                        <DropdownMenuItem onClick={applyToSameColor}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">Same Color (All Sizes)</span>
+                            <span className="text-xs text-muted-foreground">
+                              Apply to all {parsedName.fullColorCode} sizes
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      )}
+                      {parsedName.sizeCode && <DropdownMenuSeparator />}
+                      <DropdownMenuItem onClick={applyToAllVariants}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">All Variants</span>
+                          <span className="text-xs text-muted-foreground">
+                            Apply to all {parsedName.baseCode} colors & sizes
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
               
               <Button
                 onClick={handleSaveWithText}
