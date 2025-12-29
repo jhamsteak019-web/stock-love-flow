@@ -544,6 +544,7 @@ const Deliveries = () => {
       <SummaryDeliveryModal
         open={showSummaryModal}
         onOpenChange={setShowSummaryModal}
+        isViewer={isViewer}
       />
     </div>
   );
