@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface CollectionItem {
   id: string;
@@ -522,60 +523,104 @@ const CollectionItems = () => {
     setCurrentPage(1);
   };
 
-  // Export collection items to Excel
-  const handleExport = () => {
+  // Export collection items to Excel with embedded images
+  const handleExport = async () => {
     if (filteredItems.length === 0) {
       toast.error('No items to export');
       return;
     }
 
-    // Prepare data for export - matching the visible table columns
-    const exportData = filteredItems.map(item => {
-      // Extract UPC and description from stored description
+    toast.info('Preparing export with images...');
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Collection Items');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 30 },
+      { header: 'UPC', key: 'upc', width: 15 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'Category', key: 'category', width: 12 },
+      { header: 'Price', key: 'price', width: 12 },
+      { header: 'Image', key: 'image', width: 20 },
+      { header: 'Status', key: 'status', width: 10 },
+      { header: 'Created At', key: 'createdAt', width: 12 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+
+    // Add data rows with images
+    for (let i = 0; i < filteredItems.length; i++) {
+      const item = filteredItems[i];
       const descParts = item.description?.split(' | ') || [];
       const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
       const description = upc ? descParts.slice(1).join(' | ') : item.description;
-      // Extract price from notes or use quantity
       const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
       const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
 
-      return {
-        'Name': item.item_name,
-        'UPC': upc || '',
-        'Description': description || '',
-        'Category': item.category || '',
-        'Price': price,
-        'Photo URL': item.photo_url || '',
-        'Status': item.status || 'active',
-        'Created At': new Date(item.created_at).toLocaleDateString()
-      };
-    });
+      const rowIndex = i + 2; // Row 1 is header
+      const row = worksheet.addRow({
+        name: item.item_name,
+        upc: upc || '',
+        description: description || '',
+        category: item.category || '',
+        price: price,
+        image: '',
+        status: item.status || 'active',
+        createdAt: new Date(item.created_at).toLocaleDateString()
+      });
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
+      // Set row height for images
+      row.height = 60;
 
-    // Set column widths for better readability
-    ws['!cols'] = [
-      { wch: 30 }, // Name
-      { wch: 15 }, // UPC
-      { wch: 40 }, // Description
-      { wch: 12 }, // Category
-      { wch: 12 }, // Price
-      { wch: 60 }, // Photo URL
-      { wch: 10 }, // Status
-      { wch: 12 }, // Created At
-    ];
+      // Add image if available
+      if (item.photo_url) {
+        try {
+          const response = await fetch(item.photo_url);
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          
+          const extension = item.photo_url.split('.').pop()?.toLowerCase() || 'png';
+          const imageType = extension === 'jpg' ? 'jpeg' : extension;
+          
+          const imageId = workbook.addImage({
+            base64: base64,
+            extension: imageType as 'png' | 'jpeg' | 'gif',
+          });
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Collection Items');
+          worksheet.addImage(imageId, {
+            tl: { col: 5, row: rowIndex - 1 },
+            ext: { width: 80, height: 55 }
+          });
+        } catch (error) {
+          console.error('Failed to load image:', item.photo_url, error);
+        }
+      }
+    }
 
-    // Generate filename with date
+    // Generate and download file
     const date = new Date().toISOString().split('T')[0];
     const filename = `collection_items_${date}.xlsx`;
 
-    // Save file
-    XLSX.writeFile(wb, filename);
-    toast.success(`Exported ${filteredItems.length} items to ${filename}`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${filteredItems.length} items with images to ${filename}`);
   };
 
   const isAdmin = userRole === 'admin';
