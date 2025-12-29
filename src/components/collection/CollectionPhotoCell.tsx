@@ -80,22 +80,12 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   
   const canEdit = userRole === 'admin' || userRole === 'staff';
   
-  // Check if input is a valid hex color
-  const isValidHexColor = (str: string) => /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(str);
-  
   // Filter colors based on search
   const filteredColors = useMemo(() => {
-    const search = colorSearch.trim();
-    if (!search) return TEXT_COLORS;
-    
-    // If it's a valid hex color, show it as custom option
-    if (isValidHexColor(search)) {
-      return [{ name: 'Custom', value: search.toUpperCase() }, ...TEXT_COLORS];
-    }
-    
+    if (!colorSearch.trim()) return TEXT_COLORS;
     return TEXT_COLORS.filter(c => 
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.value.toLowerCase().includes(search.toLowerCase())
+      c.name.toLowerCase().includes(colorSearch.toLowerCase()) ||
+      c.value.toLowerCase().includes(colorSearch.toLowerCase())
     );
   }, [colorSearch]);
   
@@ -542,17 +532,12 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                     <div className="relative">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        placeholder="#FF0000 or Red"
+                        placeholder="Search color..."
                         value={colorSearch}
                         onChange={(e) => setColorSearch(e.target.value)}
-                        className="pl-8 h-8 font-mono"
+                        className="pl-8 h-8"
                       />
                     </div>
-                    {isValidHexColor(colorSearch.trim()) && (
-                      <p className="text-xs text-muted-foreground px-1">
-                        Press a color to apply hex: {colorSearch.trim().toUpperCase()}
-                      </p>
-                    )}
                     <ScrollArea className="h-48">
                       <div className="grid grid-cols-2 gap-1">
                         {filteredColors.map((color) => (
