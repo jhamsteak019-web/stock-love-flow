@@ -11,20 +11,45 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 const Dashboard = () => {
   const { releases, loading, getStats } = useInventory();
   const { userRole } = useAuth();
-  const stats = getStats();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
+  // Month/Year filter state
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
+  
   const canExportPDF = userRole === 'admin' || userRole === 'staff';
+
+  // Filter releases by selected month and year
+  const filteredReleases = useMemo(() => {
+    return releases.filter(release => {
+      const releaseDate = new Date(release.date_released);
+      return releaseDate.getMonth() === selectedMonth && releaseDate.getFullYear() === selectedYear;
+    });
+  }, [releases, selectedMonth, selectedYear]);
+
+  // Use filtered releases for stats
+  const stats = useMemo(() => {
+    const deliveredCount = filteredReleases.filter(r => r.delivery_status === 'delivered').length;
+    const pendingDeliveries = filteredReleases.filter(r => r.delivery_status === 'pending').length;
+    return { deliveredCount, pendingDeliveries };
+  }, [filteredReleases]);
 
   const handleExportPDF = async () => {
     if (!dashboardRef.current) return;
@@ -80,7 +105,7 @@ const Dashboard = () => {
     let deliveredBoxes = 0;
     let deliveredQty = 0;
 
-    releases.forEach(release => {
+    filteredReleases.forEach(release => {
       totalBoxes += release.boxes_released || 0;
       totalQty += release.total_qty || 0;
       if (release.delivery_status === 'delivered') {
@@ -90,22 +115,22 @@ const Dashboard = () => {
     });
 
     return { totalBoxes, totalQty, deliveredBoxes, deliveredQty };
-  }, [releases]);
+  }, [filteredReleases]);
 
   const uniqueBranches = useMemo(() => {
-    const branches = new Set(releases.map(r => r.destination));
+    const branches = new Set(filteredReleases.map(r => r.destination));
     return branches.size;
-  }, [releases]);
+  }, [filteredReleases]);
 
   const completionRate = useMemo(() => {
-    if (releases.length === 0) return 0;
-    return Math.round((stats.deliveredCount / releases.length) * 100);
-  }, [releases.length, stats.deliveredCount]);
+    if (filteredReleases.length === 0) return 0;
+    return Math.round((stats.deliveredCount / filteredReleases.length) * 100);
+  }, [filteredReleases.length, stats.deliveredCount]);
 
   const topStoresDelivery = useMemo(() => {
     const storeData: Record<string, { store: string; boxes: number; qty: number; deliveries: number; delivered: number }> = {};
     
-    releases.forEach(release => {
+    filteredReleases.forEach(release => {
       const store = release.destination || 'Unknown';
       if (!storeData[store]) {
         storeData[store] = { store, boxes: 0, qty: 0, deliveries: 0, delivered: 0 };
@@ -121,7 +146,7 @@ const Dashboard = () => {
     return Object.values(storeData)
       .sort((a, b) => b.boxes - a.boxes)
       .slice(0, 10);
-  }, [releases]);
+  }, [filteredReleases]);
 
   const storeCompletionRates = useMemo(() => {
     const storeData: Record<string, { 
@@ -133,7 +158,7 @@ const Dashboard = () => {
       delivered: number;
     }> = {};
     
-    releases.forEach(release => {
+    filteredReleases.forEach(release => {
       const store = release.destination || 'Unknown';
       if (!storeData[store]) {
         storeData[store] = { totalBoxes: 0, deliveredBoxes: 0, totalQty: 0, deliveredQty: 0, total: 0, delivered: 0 };
@@ -156,7 +181,7 @@ const Dashboard = () => {
       }))
       .sort((a, b) => b.totalBoxes - a.totalBoxes)
       .slice(0, 10);
-  }, [releases]);
+  }, [filteredReleases]);
 
   const branchDeliveryStatus = useMemo(() => {
     const branchData: Record<string, { 
@@ -172,7 +197,7 @@ const Dashboard = () => {
       deliveredQty: number;
     }> = {};
     
-    releases.forEach(release => {
+    filteredReleases.forEach(release => {
       const branch = release.destination || 'Unknown';
       if (!branchData[branch]) {
         branchData[branch] = { 
@@ -204,12 +229,12 @@ const Dashboard = () => {
 
     return Object.values(branchData)
       .sort((a, b) => b.totalBoxes - a.totalBoxes);
-  }, [releases]);
+  }, [filteredReleases]);
 
   const topStoresByCategory = useMemo(() => {
     const categoryData: Record<string, Record<string, { boxes: number; qty: number }>> = {};
     
-    releases.forEach(release => {
+    filteredReleases.forEach(release => {
       const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
       const store = release.destination || 'Unknown';
       
@@ -238,7 +263,7 @@ const Dashboard = () => {
         return totalB - totalA;
       })
       .slice(0, 6);
-  }, [releases]);
+  }, [filteredReleases]);
 
   const monthlyDeliveryStatus = useMemo(() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -293,7 +318,7 @@ const Dashboard = () => {
   const categoryPieData = useMemo(() => {
     const categoryTotals: Record<string, number> = {};
     
-    releases.forEach(release => {
+    filteredReleases.forEach(release => {
       const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
       if (!categoryTotals[category]) {
         categoryTotals[category] = 0;
@@ -309,7 +334,7 @@ const Dashboard = () => {
       }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8); // Limit to 8 categories for readability
-  }, [releases]);
+  }, [filteredReleases]);
 
   // Monthly delivery by category (stacked bar chart)
   const monthlyByCategory = useMemo(() => {
@@ -356,17 +381,43 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your inventory and deliveries</p>
         </div>
-        {canExportPDF && (
-          <Button onClick={handleExportPDF} disabled={isExporting} className="gap-2">
-            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Save to PDF
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Month/Year Filter */}
+          <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+              <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+              <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((year) => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {canExportPDF && (
+            <Button onClick={handleExportPDF} disabled={isExporting} className="gap-2">
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Save to PDF
+            </Button>
+          )}
+        </div>
       </div>
 
       <div ref={dashboardRef} className="space-y-6 bg-background">
