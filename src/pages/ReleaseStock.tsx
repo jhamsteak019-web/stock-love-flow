@@ -26,7 +26,6 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'totalBoxes' as ColumnKey, label: 'Boxes', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
   { key: 'totalQty' as ColumnKey, label: 'Qty/Item', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
-  { key: 'billDate' as ColumnKey, label: 'Bill Date', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
   { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'dateOut' as ColumnKey, label: 'Date Out Warehouse', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
@@ -623,7 +622,6 @@ const ReleaseStock = () => {
                       {isColumnVisible('totalQty') && <TableHead className="min-w-[90px] px-6 whitespace-nowrap">Qty/Item</TableHead>}
                       {isColumnVisible('remarks') && <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Remarks</TableHead>}
                       {isColumnVisible('waybill') && <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Waybill No.</TableHead>}
-                      {isColumnVisible('billDate') && <TableHead className="min-w-[130px] px-6 whitespace-nowrap">Bill Date</TableHead>}
                       {isColumnVisible('dateOut') && <TableHead className="min-w-[160px] px-6 whitespace-nowrap">Date Out Warehouse</TableHead>}
                       <TableHead className="min-w-[140px] px-6 whitespace-nowrap">Courier</TableHead>
                     </TableRow>
@@ -745,20 +743,6 @@ const ReleaseStock = () => {
                                 }}
                                 className="h-8 text-xs min-w-[120px]"
                                 placeholder="Waybill No."
-                              />
-                            </TableCell>
-                          )}
-                          {isColumnVisible('billDate') && (
-                            <TableCell className="px-6">
-                              <Input 
-                                defaultValue={item.billDate || ''}
-                                onBlur={(e) => {
-                                  if (e.target.value !== (item.billDate || '')) {
-                                    updateParsedItem(item.id, 'billDate', e.target.value);
-                                  }
-                                }}
-                                className="h-8 text-xs min-w-[110px]"
-                                placeholder="Bill Date"
                               />
                             </TableCell>
                           )}
