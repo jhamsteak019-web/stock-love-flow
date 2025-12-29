@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks';
 
@@ -82,6 +87,11 @@ const History = () => {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Month/Year filter state
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
   const [activeTab, setActiveTab] = useState('active');
   const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
   const [loadingDeleted, setLoadingDeleted] = useState(false);
@@ -173,12 +183,17 @@ const History = () => {
   const groupedReleases = useMemo(() => groupReleases(releases), [releases]);
   const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases), [deletedReleases]);
 
-  // Filter grouped releases based on search query, date range, and status
+  // Filter grouped releases based on search query, date range, month/year, and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
+      // Month/Year filter
+      const releaseDate = new Date(group.date_released);
+      if (releaseDate.getMonth() !== selectedMonth || releaseDate.getFullYear() !== selectedYear) {
+        return false;
+      }
+
       // Date range filter
       if (startDate || endDate) {
-        const releaseDate = new Date(group.date_released);
         if (startDate && endDate) {
           if (!isWithinInterval(releaseDate, { start: startOfDay(startDate), end: endOfDay(endDate) })) {
             return false;
@@ -215,7 +230,7 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, searchQuery, startDate, endDate, statusFilter]);
+  }, [groupedReleases, searchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear]);
 
   const clearFilters = () => {
     setStartDate(undefined);
@@ -400,6 +415,31 @@ const History = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Month/Year Filter */}
+              <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+                <CalendarLucide className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+                  <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((month, index) => (
+                      <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+                  <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2024, 2025, 2026].map((year) => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Filter by status" />
