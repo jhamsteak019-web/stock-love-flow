@@ -290,7 +290,7 @@ const ReleaseStock = () => {
         
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
         const deliverTo = findColumnValue(row, 'Supplier', 'SUPPLIER', 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER');
-        const qtyBoxes = findNumericValueNullable(row, 'BOX', 'Qty/Boxes', 'Qty/Box', 'QTY/BOXES', 'Boxes', 'Box', 'BOXES') ?? 0;
+        const qtyBoxes = 0; // Always default to 0, users will fill in manually
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
