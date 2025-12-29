@@ -653,7 +653,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={applyToSameColor} disabled={sameColorCount === 0}>
                         <div className="flex flex-col">
-                          <span className="font-medium">Same Color ({parsedName.colorCode})</span>
+                          <span className="font-medium">Same Color ({parsedName.colorCode}) - {sameColorCount} items</span>
                           <span className="text-xs text-muted-foreground">
                             Apply to all {parsedName.fullColorCode}
                           </span>
