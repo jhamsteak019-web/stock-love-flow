@@ -403,7 +403,11 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const handleMouseUp = () => setIsDragging(false);
 
   const handleDialogOpen = async () => {
-    // Don't auto-populate text overlay - let users add manually if needed
+    // Auto-populate text overlay with item name
+    if (itemName) {
+      setOverlayText(itemName);
+      setShowTextBox(true);
+    }
     setPreviewOpen(true);
     
     // Fetch count of items with same color
@@ -647,9 +651,17 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={applyToSameColor} disabled={sameColorCount === 0}>
                         <div className="flex flex-col">
-                          <span className="font-medium">Same Color ({parsedName.colorCode}) - {sameColorCount} items</span>
+                          <span className="font-medium">Same Color ({parsedName.colorCode})</span>
                           <span className="text-xs text-muted-foreground">
                             Apply to all {parsedName.fullColorCode}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={applyToAllVariants}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">All Variants</span>
+                          <span className="text-xs text-muted-foreground">
+                            Apply to all {parsedName.baseCode}
                           </span>
                         </div>
                       </DropdownMenuItem>
