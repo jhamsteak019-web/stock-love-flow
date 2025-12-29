@@ -535,7 +535,7 @@ const CollectionItems = () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Collection Items');
 
-    // Define columns
+    // Define columns (removed Photo URL, Status, Created At)
     worksheet.columns = [
       { header: 'Name', key: 'name', width: 30 },
       { header: 'UPC', key: 'upc', width: 15 },
@@ -543,8 +543,6 @@ const CollectionItems = () => {
       { header: 'Category', key: 'category', width: 12 },
       { header: 'Price', key: 'price', width: 12 },
       { header: 'Image', key: 'image', width: 20 },
-      { header: 'Status', key: 'status', width: 10 },
-      { header: 'Created At', key: 'createdAt', width: 12 },
     ];
 
     // Style header row
@@ -572,8 +570,6 @@ const CollectionItems = () => {
         category: item.category || '',
         price: price,
         image: '',
-        status: item.status || 'active',
-        createdAt: new Date(item.created_at).toLocaleDateString()
       });
 
       // Set row height for images
