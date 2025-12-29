@@ -43,17 +43,19 @@ interface CollectionPhotoCellProps {
 }
 
 // Extract base code and variant info from item name
-// Pattern 1: "2026MCXSH6527505-01 43" → base: "2026MCXSH6527505", color: "01", size: "43"
-// Pattern 2: "2026MCXUM6555005-23" → base: "2026MCXUM6555005", color: "23", size: null
+// Pattern: "2026MCXSH6527501-13 44" → colorCode: "13" (ignores "44" after space)
+// Pattern: "2025MLXUM5555001-27" → colorCode: "27"
 const parseItemName = (name: string) => {
-  // Match pattern: BASECODE-COLOR SIZE or BASECODE-COLOR
-  const match = name.match(/^(.+)-(\d{2})\s*(\d+)?$/);
+  // Match pattern: BASECODE-NUMBER (ignoring anything after space)
+  // Split by space first to ignore shoe sizes
+  const mainPart = name.split(' ')[0];
+  const match = mainPart.match(/^(.+)-(\d+)$/);
   if (match) {
     return {
       baseCode: match[1],
-      colorCode: match[2],
-      sizeCode: match[3] || null,
-      fullColorCode: `${match[1]}-${match[2]}`, // e.g., "2026MCXSH6527505-01"
+      colorCode: match[2], // Extract only the number after dash
+      sizeCode: null,
+      fullColorCode: mainPart, // e.g., "2026MCXSH6527501-13"
     };
   }
   return null;
