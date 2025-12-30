@@ -290,6 +290,28 @@ const Notes = () => {
         if (error) throw error;
 
         setNotes([{ ...data, status: data.status as NoteStatus, is_public: data.is_public }, ...notes]);
+        
+        // Notify all admins when non-admin creates a note
+        if (!isAdmin) {
+          const { data: adminUsers } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'admin');
+          
+          if (adminUsers && adminUsers.length > 0) {
+            const notifications = adminUsers.map(admin => ({
+              user_id: admin.user_id,
+              title: 'New Reminder Created',
+              message: `${user.email} created a new reminder: "${formTitle.trim() || 'Untitled'}"`,
+              type: 'info',
+              link: '/notes',
+              created_by: user.id,
+            }));
+            
+            await supabase.from('notifications').insert(notifications);
+          }
+        }
+        
         toast({ title: 'Success', description: 'Reminder created' });
       }
       closeDialog();

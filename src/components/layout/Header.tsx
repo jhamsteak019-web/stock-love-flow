@@ -1,6 +1,7 @@
 import { Menu, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -29,6 +30,7 @@ export const Header = ({ onMenuClick, title }: HeaderProps) => {
       </div>
       
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <Button variant="ghost" size="icon" onClick={handleRefresh} title="Refresh" className="hover:rotate-180 transition-transform duration-500">
           <RefreshCw className="h-5 w-5" />
         </Button>
