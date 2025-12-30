@@ -39,6 +39,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          is_favorite: boolean
           item_name: string
           notes: string | null
           photo_url: string | null
@@ -52,6 +53,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          is_favorite?: boolean
           item_name: string
           notes?: string | null
           photo_url?: string | null
@@ -65,6 +67,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          is_favorite?: boolean
           item_name?: string
           notes?: string | null
           photo_url?: string | null
