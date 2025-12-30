@@ -44,7 +44,7 @@ const Container = () => {
   const [uploadingReceivePhotoId, setUploadingReceivePhotoId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    date: format(new Date(), 'yyyy-MM-dd'),
+    date: '',
     out_factory: '',
     date_receive_factory: '',
     category: '',
@@ -177,7 +177,7 @@ const Container = () => {
 
   const resetForm = () => {
     setFormData({
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: '',
       out_factory: '',
       date_receive_factory: '',
       category: '',
