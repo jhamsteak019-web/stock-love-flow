@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Heart, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Heart, Loader2, ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
+import { format } from 'date-fns';
 
 interface CollectionItem {
   id: string;
@@ -26,11 +27,128 @@ interface CollectionItem {
 }
 
 const Favorites = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  // PDF Export function
+  const handleExportPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to export PDF');
+      return;
+    }
+
+    // Group favorites by category
+    const categorizedItems: Record<string, typeof filteredItems> = {};
+    filteredItems.forEach(item => {
+      const category = item.category || 'Uncategorized';
+      if (!categorizedItems[category]) {
+        categorizedItems[category] = [];
+      }
+      categorizedItems[category].push(item);
+    });
+
+    const categoriesHtml = Object.entries(categorizedItems).map(([category, categoryItems]) => {
+      const categoryTotal = categoryItems.reduce((sum, item) => {
+        const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+        return sum + (priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0));
+      }, 0);
+
+      return `
+        <div class="category-section">
+          <h2 class="category-title">${category}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 30%;">Name</th>
+                <th style="width: 15%;">UPC</th>
+                <th style="width: 35%;">Remarks</th>
+                <th style="width: 20%; text-align: right;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${categoryItems.map(item => {
+                const descParts = item.description?.split(' | ') || [];
+                const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
+                const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+                const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
+                
+                return `
+                  <tr>
+                    <td class="font-medium">${item.item_name}</td>
+                    <td class="mono">${upc || '-'}</td>
+                    <td>${item.favorite_remarks || '-'}</td>
+                    <td class="text-right">${price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                `;
+              }).join('')}
+              <tr class="subtotal">
+                <td colspan="3"><strong>Subtotal (${categoryItems.length} items)</strong></td>
+                <td class="text-right"><strong>${categoryTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
+
+    const grandTotal = filteredItems.reduce((sum, item) => {
+      const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+      return sum + (priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0));
+    }, 0);
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Favorites List - ${format(new Date(), 'MMMM d, yyyy')}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .header h1 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+            .header p { font-size: 12px; color: #666; }
+            .category-section { margin-bottom: 25px; page-break-inside: avoid; }
+            .category-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; padding: 5px; background: #f0f0f0; border-left: 4px solid #e11d48; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 10px; }
+            th { background: #e5e5e5; font-weight: bold; }
+            .text-right { text-align: right; }
+            .mono { font-family: monospace; font-size: 9px; color: #666; }
+            .font-medium { font-weight: 500; }
+            .subtotal { background: #f9f9f9; }
+            .grand-total { margin-top: 20px; padding: 15px; background: #e11d48; color: #fff; }
+            .grand-total h3 { font-size: 14px; margin-bottom: 5px; }
+            .grand-total p { font-size: 12px; }
+            @media print { 
+              body { padding: 10px; }
+              .category-section { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>❤️ FAVORITES LIST</h1>
+            <p>Generated on ${format(new Date(), 'MMMM d, yyyy h:mm a')}</p>
+          </div>
+          ${categoriesHtml}
+          <div class="grand-total">
+            <h3>GRAND TOTAL</h3>
+            <p>Total Items: ${filteredItems.length} | Total Value: ₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
 
   // Fetch favorite items
   const { data: items = [], isLoading } = useQuery({
@@ -105,10 +223,18 @@ const Favorites = () => {
       {/* Header */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl flex items-center gap-2">
-            <Heart className="h-5 w-5 text-red-500 fill-red-500" />
-            Favorites ({items.length})
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+              Favorites ({items.length})
+            </CardTitle>
+            {filteredItems.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Save PDF
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="relative w-full sm:w-[300px]">
