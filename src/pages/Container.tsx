@@ -644,9 +644,9 @@ const Container = () => {
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[240px]">
                         <Select 
-                          value={item.status || 'Pending'} 
+                          value={item.status || 'ON PROCESS WAREHOUSE'} 
                           onValueChange={(value) => {
                             updateMutation.mutate({
                               id: item.id,
@@ -655,17 +655,17 @@ const Container = () => {
                           }}
                           disabled={!canEdit}
                         >
-                          <SelectTrigger className="w-[220px] h-8 bg-background text-xs">
-                            <SelectValue placeholder="Select status" className="text-xs" />
+                          <SelectTrigger className="w-full h-8 bg-background text-xs">
+                            <SelectValue placeholder="Select status" />
                           </SelectTrigger>
-                          <SelectContent className="bg-background z-50 min-w-[220px]">
+                          <SelectContent className="bg-background z-50">
                             {STATUS_OPTIONS.map(status => (
                               <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
                             <Eye className="h-4 w-4" />
