@@ -986,7 +986,7 @@ const CollectionItems = () => {
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+            <div className="relative sm:w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search items..."
@@ -996,7 +996,7 @@ const CollectionItems = () => {
               />
             </div>
             <Select value={selectedYear} onValueChange={handleYearChange}>
-              <SelectTrigger className="w-full sm:w-[130px]">
+              <SelectTrigger className="w-full sm:w-[100px]">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
@@ -1008,11 +1008,11 @@ const CollectionItems = () => {
               </SelectContent>
             </Select>
             <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-              <SelectTrigger className="w-full sm:w-[130px]">
+              <SelectTrigger className="w-full sm:w-[100px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 {CATEGORY_OPTIONS.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
