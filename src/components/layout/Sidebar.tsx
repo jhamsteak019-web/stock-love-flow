@@ -158,6 +158,29 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               </button>
             </div>
 
+            {/* Sign Out - Top */}
+            <div className={cn("border-b border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={signOut}
+                    className={cn(
+                      "flex w-full items-center rounded-lg text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive",
+                      isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
+                    )}
+                  >
+                    <LogOut className="h-5 w-5 flex-shrink-0" />
+                    {!isCollapsed && "Sign Out"}
+                  </button>
+                </TooltipTrigger>
+                {isCollapsed && (
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                    Sign Out
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+
             {/* Navigation */}
             <nav className={cn("flex-1 space-y-1", isCollapsed ? "p-2" : "p-4")}>
               {filteredNavItems.map((item) => {
@@ -197,33 +220,14 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               })}
             </nav>
 
-            {/* User info & Logout */}
+            {/* User info */}
             <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
               {!isCollapsed && (
-                <div className="mb-3 rounded-lg bg-sidebar-accent/50 p-3">
+                <div className="rounded-lg bg-sidebar-accent/50 p-3">
                   <p className="text-sm font-medium truncate">{user?.email}</p>
                   <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</p>
                 </div>
               )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={signOut}
-                    className={cn(
-                      "flex w-full items-center rounded-lg text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive",
-                      isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
-                    )}
-                  >
-                    <LogOut className="h-5 w-5 flex-shrink-0" />
-                    {!isCollapsed && "Sign Out"}
-                  </button>
-                </TooltipTrigger>
-                {isCollapsed && (
-                  <TooltipContent side="right" className="bg-popover text-popover-foreground">
-                    Sign Out
-                  </TooltipContent>
-                )}
-              </Tooltip>
             </div>
           </div>
         </aside>
