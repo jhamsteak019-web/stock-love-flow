@@ -21,6 +21,7 @@ const roleRestrictedRoutes: Record<string, string[]> = {
   viewer: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container'],
   teamleader: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
   staff: ['/import', '/users', '/inventory', '/container'],
+  uploader: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container'],
 };
 
 export const DashboardLayout = () => {
