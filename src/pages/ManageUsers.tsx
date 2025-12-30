@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck, Key } from 'lucide-react';
+import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck, Key, UserCog } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -217,7 +217,7 @@ const ManageUsers = () => {
                     <TableCell>
                       {currentUser?.id === user.id ? (
                         <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="gap-1">
-                          {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : user.role === 'viewer' ? <Eye className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
+                          {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : user.role === 'viewer' ? <Eye className="h-3 w-3" /> : user.role === 'teamleader' ? <UserCog className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
                           {user.role}
                         </Badge>
                       ) : user.role === 'pending' ? (
@@ -261,6 +261,12 @@ const ManageUsers = () => {
                               <div className="flex items-center gap-2">
                                 <Eye className="h-3 w-3" />
                                 Viewer
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="teamleader">
+                              <div className="flex items-center gap-2">
+                                <UserCog className="h-3 w-3" />
+                                Team Leader
                               </div>
                             </SelectItem>
                           </SelectContent>
@@ -387,6 +393,7 @@ const ManageUsers = () => {
           <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
             <li><strong>Pending</strong> - New accounts waiting for admin approval. Click "Approve" to grant access.</li>
             <li><strong>Admin</strong> - Full access to all features including user management, inventory, and reports.</li>
+            <li><strong>Team Leader</strong> - Extended staff access with team management capabilities.</li>
             <li><strong>Staff</strong> - Limited access to inventory operations and deliveries.</li>
             <li><strong>Viewer</strong> - Can only view deliveries and upload photos.</li>
             <li>You cannot change your own role or delete your own account.</li>
