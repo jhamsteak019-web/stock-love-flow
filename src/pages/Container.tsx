@@ -10,9 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
+import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import ExcelJS from 'exceljs';
 
@@ -42,6 +45,8 @@ const Container = () => {
   const [editingItem, setEditingItem] = useState<ContainerItem | null>(null);
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
   const [uploadingReceivePhotoId, setUploadingReceivePhotoId] = useState<string | null>(null);
+  const [datePickerContainerId, setDatePickerContainerId] = useState<string | null>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     date: '',
@@ -167,11 +172,34 @@ const Container = () => {
         data: type === 'photo' ? { photo_url: url } : { receive_photo_url: url }
       });
       toast.success('Photo uploaded successfully');
+      
+      // If uploading to first photo column, show date picker
+      if (type === 'photo') {
+        setDatePickerContainerId(containerId);
+        setIsDatePickerOpen(true);
+      }
     } catch (error: any) {
       toast.error(`Failed to upload: ${error.message}`);
     } finally {
       setUploadingPhotoId(null);
       setUploadingReceivePhotoId(null);
+    }
+  };
+
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (!date || !datePickerContainerId) return;
+    
+    try {
+      await updateMutation.mutateAsync({
+        id: datePickerContainerId,
+        data: { date: format(date, 'yyyy-MM-dd') }
+      });
+      toast.success('Date Out Factory updated');
+    } catch (error: any) {
+      toast.error(`Failed to update date: ${error.message}`);
+    } finally {
+      setIsDatePickerOpen(false);
+      setDatePickerContainerId(null);
     }
   };
 
@@ -719,6 +747,37 @@ const Container = () => {
             </Button>
             <Button onClick={handleSubmitEdit} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date Picker Dialog after Photo Upload */}
+      <Dialog open={isDatePickerOpen} onOpenChange={(open) => {
+        setIsDatePickerOpen(open);
+        if (!open) setDatePickerContainerId(null);
+      }}>
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Set Date Out Factory
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="single"
+              selected={undefined}
+              onSelect={handleDateSelect}
+              className={cn("p-3 pointer-events-auto rounded-md border")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsDatePickerOpen(false);
+              setDatePickerContainerId(null);
+            }}>
+              Skip
             </Button>
           </DialogFooter>
         </DialogContent>
