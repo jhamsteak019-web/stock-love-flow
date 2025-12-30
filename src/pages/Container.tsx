@@ -28,8 +28,11 @@ interface ContainerItem {
   receive_photo_url: string | null;
   category: string | null;
   notes: string | null;
+  status: string | null;
   created_at: string;
 }
+
+const STATUS_OPTIONS = ['Pending', 'In Transit', 'Arrived', 'Delivered', 'Completed'];
 
 const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM'];
 
@@ -539,6 +542,7 @@ const Container = () => {
                     <TableHead>Upload Photo</TableHead>
                     <TableHead>Category Manual</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -640,6 +644,27 @@ const Container = () => {
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
+                      <TableCell>
+                        <Select 
+                          value={item.status || 'Pending'} 
+                          onValueChange={(value) => {
+                            updateMutation.mutate({
+                              id: item.id,
+                              data: { status: value }
+                            });
+                          }}
+                          disabled={!canEdit}
+                        >
+                          <SelectTrigger className="w-[130px] h-8 bg-background">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background z-50">
+                            {STATUS_OPTIONS.map(status => (
+                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>

@@ -116,6 +116,7 @@ export type Database = {
           out_factory: string | null
           photo_url: string | null
           receive_photo_url: string | null
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -129,6 +130,7 @@ export type Database = {
           out_factory?: string | null
           photo_url?: string | null
           receive_photo_url?: string | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -142,6 +144,7 @@ export type Database = {
           out_factory?: string | null
           photo_url?: string | null
           receive_photo_url?: string | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
