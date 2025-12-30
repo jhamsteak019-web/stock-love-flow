@@ -283,8 +283,7 @@ const Container = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Out Factory</TableHead>
+                    <TableHead>Date Out Factory</TableHead>
                     <TableHead>Photo</TableHead>
                     <TableHead>Date Receive Warehouse</TableHead>
                     <TableHead>Delivery Days</TableHead>
@@ -297,9 +296,6 @@ const Container = () => {
                 <TableBody>
                   {filteredContainers.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(item.date), 'MMM dd, yyyy')}
-                      </TableCell>
                       <TableCell>{item.out_factory || ''}</TableCell>
                       <TableCell>
                         <label className="cursor-pointer relative group">
