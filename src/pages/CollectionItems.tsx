@@ -40,7 +40,7 @@ interface PreviewItem {
   photo_url: string | null;
 }
 
-const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM'];
+const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
 
 const CollectionItems = () => {
   const { user, userRole } = useAuth();
