@@ -13,6 +13,7 @@ const pageTitles: Record<string, string> = {
   '/users': 'Manage Users',
   '/notes': 'Reminder',
   '/collections': 'Collection Items',
+  '/container': 'Container',
 };
 
 // Role-based route restrictions
