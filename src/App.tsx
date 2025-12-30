@@ -18,6 +18,7 @@ import SummaryReport from "./pages/SummaryReport";
 import Notes from "./pages/Notes";
 import CollectionItems from "./pages/CollectionItems";
 import Favorites from "./pages/Favorites";
+import Container from "./pages/Container";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/notes" element={<Notes />} />
               <Route path="/collections" element={<CollectionItems />} />
               <Route path="/favorites" element={<Favorites />} />
+              <Route path="/container" element={<Container />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

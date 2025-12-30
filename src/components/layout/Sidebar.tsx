@@ -15,7 +15,8 @@ import {
   Archive,
   StickyNote,
   FolderHeart,
-  Heart
+  Heart,
+  Container
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -98,6 +99,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/favorites', 
       icon: Heart, 
       label: 'Favorites',
+      roles: ['admin', 'staff']
+    },
+    { 
+      to: '/container', 
+      icon: Container, 
+      label: 'Container',
       roles: ['admin', 'staff']
     },
   ];
