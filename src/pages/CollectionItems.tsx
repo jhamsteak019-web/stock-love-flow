@@ -53,6 +53,7 @@ const CollectionItems = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   
   const canExport = userRole !== 'uploader';
+  const canFavorite = userRole !== 'staff' && userRole !== 'uploader';
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -1365,16 +1366,18 @@ const CollectionItems = () => {
                           <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleFavoriteClick(item)}
-                                disabled={toggleFavoriteMutation.isPending}
-                                className="h-8 w-8"
-                                title={item.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-                              >
-                                <Heart className={`h-4 w-4 ${item.is_favorite ? 'text-red-500 fill-red-500' : 'text-muted-foreground'}`} />
-                              </Button>
+                              {canFavorite && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleFavoriteClick(item)}
+                                  disabled={toggleFavoriteMutation.isPending}
+                                  className="h-8 w-8"
+                                  title={item.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                                >
+                                  <Heart className={`h-4 w-4 ${item.is_favorite ? 'text-red-500 fill-red-500' : 'text-muted-foreground'}`} />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
