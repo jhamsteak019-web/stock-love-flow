@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 
 interface ContainerItem {
   id: string;
@@ -228,6 +230,81 @@ const Container = () => {
     );
   });
 
+  // Export to Excel
+  const handleExportExcel = () => {
+    const data = filteredContainers.map(item => ({
+      'Date Out Factory': format(new Date(item.date), 'MMM dd, yyyy'),
+      'Date Receive Warehouse': item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '',
+      'Delivery Days': item.date && item.date_receive_factory ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date)) : '',
+      'Category Manual': item.category || '',
+      'Notes': item.notes || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Containers');
+    XLSX.writeFile(wb, `containers_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Exported to Excel successfully');
+  };
+
+  // Export to PDF
+  const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    
+    doc.setFontSize(16);
+    doc.text('Container Report', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 22);
+
+    const headers = ['Date Out Factory', 'Date Receive Warehouse', 'Delivery Days', 'Category Manual', 'Notes'];
+    const colWidths = [40, 45, 30, 35, 80];
+    let y = 32;
+
+    // Header
+    doc.setFillColor(59, 130, 246);
+    doc.rect(14, y - 5, 267, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    let x = 14;
+    headers.forEach((header, i) => {
+      doc.text(header, x + 2, y);
+      x += colWidths[i];
+    });
+
+    // Data rows
+    doc.setTextColor(0, 0, 0);
+    y += 8;
+    filteredContainers.forEach((item, index) => {
+      if (y > 190) {
+        doc.addPage();
+        y = 20;
+      }
+
+      if (index % 2 === 0) {
+        doc.setFillColor(245, 245, 245);
+        doc.rect(14, y - 5, 267, 8, 'F');
+      }
+
+      x = 14;
+      const row = [
+        format(new Date(item.date), 'MMM dd, yyyy'),
+        item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '-',
+        item.date && item.date_receive_factory ? String(differenceInDays(new Date(item.date_receive_factory), new Date(item.date))) : '-',
+        item.category || '-',
+        (item.notes || '-').substring(0, 50)
+      ];
+
+      row.forEach((cell, i) => {
+        doc.text(cell, x + 2, y);
+        x += colWidths[i];
+      });
+      y += 8;
+    });
+
+    doc.save(`containers_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('Exported to PDF successfully');
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <Card>
@@ -237,6 +314,14 @@ const Container = () => {
             Container ({filteredContainers.length})
           </CardTitle>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+              <FileText className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
