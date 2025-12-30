@@ -100,6 +100,7 @@ const History = () => {
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
   const isViewer = userRole === 'viewer';
+  const canExport = userRole !== 'uploader';
 
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
@@ -337,7 +338,7 @@ const History = () => {
           </TabsList>
           
           <div className="flex items-center gap-2">
-            {activeTab === 'active' && !isViewer && (
+            {activeTab === 'active' && !isViewer && canExport && (
               <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
                 <FileDown className="h-4 w-4 mr-2" />
                 Save PDF

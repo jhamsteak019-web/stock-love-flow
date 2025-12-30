@@ -61,6 +61,8 @@ const Notes = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const isAdmin = userRole === 'admin';
+  const canExport = userRole !== 'uploader';
+  const canEdit = userRole === 'admin' || userRole === 'staff';
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -472,15 +474,19 @@ const Notes = () => {
             </div>
           )}
           
-          <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isExporting || filteredNotes.length === 0}>
-            {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-            Save PDF
-          </Button>
+          {canExport && (
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isExporting || filteredNotes.length === 0}>
+              {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+              Save PDF
+            </Button>
+          )}
           
-          <Button onClick={openCreateDialog} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Reminder
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreateDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Reminder
+            </Button>
+          )}
         </div>
       </div>
 

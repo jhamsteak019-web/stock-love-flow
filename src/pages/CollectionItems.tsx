@@ -52,6 +52,7 @@ const CollectionItems = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   
+  const canExport = userRole !== 'uploader';
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -942,44 +943,49 @@ const CollectionItems = () => {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-          />
-          <Button 
-            variant="outline" 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Import Excel
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleExport}
-            disabled={filteredItems.length === 0}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Excel
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleExportPDF}
-            disabled={filteredItems.length === 0}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Export PDF
-          </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
+          {canExport && (
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Import Excel
               </Button>
-            </DialogTrigger>
+              <Button 
+                variant="outline" 
+                onClick={handleExport}
+                disabled={filteredItems.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportPDF}
+                disabled={filteredItems.length === 0}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
+            </>
+          )}
+          {(userRole === 'admin' || userRole === 'staff') && (
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add Collection Item</DialogTitle>
@@ -1094,6 +1100,7 @@ const CollectionItems = () => {
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 

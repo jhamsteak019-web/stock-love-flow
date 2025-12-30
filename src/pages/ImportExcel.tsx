@@ -76,9 +76,11 @@ interface ImportBatch {
 }
 
 const ImportExcel = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const canImport = userRole !== 'uploader';
   
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<{ success: number; failed: number; formatType: string; items: ParsedItem[] } | null>(null);
@@ -544,21 +546,27 @@ const ImportExcel = () => {
           <p className="text-xs mt-1 text-muted-foreground">Remarks will be auto-generated. Allocation Bill is set manually when releasing stock.</p>
         </div>
         
-        <input 
-          ref={fileInputRef} 
-          type="file" 
-          accept=".xlsx,.xls,.csv" 
-          onChange={handleFileUpload} 
-          className="hidden" 
-          id="file-upload" 
-          disabled={importing}
-        />
-        <Button asChild size="lg" className="gap-2" disabled={importing}>
-          <label htmlFor="file-upload" className="cursor-pointer">
-            <Upload className="h-4 w-4" />
-            {importing ? 'Importing...' : 'Choose File & Import'}
-          </label>
-        </Button>
+        {canImport ? (
+          <>
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              accept=".xlsx,.xls,.csv" 
+              onChange={handleFileUpload} 
+              className="hidden" 
+              id="file-upload" 
+              disabled={importing}
+            />
+            <Button asChild size="lg" className="gap-2" disabled={importing}>
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <Upload className="h-4 w-4" />
+                {importing ? 'Importing...' : 'Choose File & Import'}
+              </label>
+            </Button>
+          </>
+        ) : (
+          <p className="text-muted-foreground text-sm">View only mode - You cannot import files</p>
+        )}
       </div>
 
       {/* Results Section */}
@@ -727,16 +735,20 @@ const ImportExcel = () => {
                     <TableCell>{batch.items.length}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
-                        <Button variant="default" size="sm" onClick={() => handleAddToInventoryClick(batch)} className="gap-1">
-                          <PackagePlus className="h-4 w-4" />
-                          Add to Inventory
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handlePrint(batch)}>
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => removeFromBucket(batch.batch_id)} className="text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canImport && (
+                          <>
+                            <Button variant="default" size="sm" onClick={() => handleAddToInventoryClick(batch)} className="gap-1">
+                              <PackagePlus className="h-4 w-4" />
+                              Add to Inventory
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handlePrint(batch)}>
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => removeFromBucket(batch.batch_id)} className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
