@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getRoleDisplayName } from '@/lib/roleUtils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -145,7 +146,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 </div>
                 <div>
                   <h1 className="text-sm font-bold tracking-tight">MONITORING DELIVERY</h1>
-                  <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole} Panel</p>
+                  <p className="text-xs text-sidebar-foreground/60">{getRoleDisplayName(userRole)} Panel</p>
                 </div>
               </div>
               <button
@@ -228,7 +229,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               {!isCollapsed && (
                 <div className="rounded-lg bg-sidebar-accent/50 p-3">
                   <p className="text-sm font-medium truncate">{user?.email}</p>
-                  <p className="text-xs text-sidebar-foreground/60 capitalize">{userRole}</p>
+                  <p className="text-xs text-sidebar-foreground/60">{getRoleDisplayName(userRole)}</p>
                 </div>
               )}
             </div>
