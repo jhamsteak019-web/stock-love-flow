@@ -739,14 +739,14 @@ const CollectionItems = () => {
     }
   };
 
-  // Export to PDF with professional table format
+  // Export to PDF with professional table format and images
   const handleExportPDF = async () => {
     if (filteredItems.length === 0) {
       toast.error('No items to export');
       return;
     }
 
-    toast.info('Preparing PDF...');
+    toast.info('Preparing PDF with images...');
 
     const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -764,10 +764,18 @@ const CollectionItems = () => {
 
     // Table configuration
     const headers = ['Image', 'Item Name', 'UPC', 'Description', 'Category', 'Price'];
-    const colWidths = [20, 55, 35, 95, 35, 30]; // Total: 270
-    const rowHeight = 8;
+    const colWidths = [25, 55, 35, 90, 35, 30]; // Total: 270, increased image column
+    const rowHeight = 18; // Taller rows for images
     const headerHeight = 10;
     let y = 28;
+
+    // Pre-fetch all images
+    const imageCache: { [key: string]: string | null } = {};
+    for (const item of filteredItems) {
+      if (item.photo_url && !imageCache[item.photo_url]) {
+        imageCache[item.photo_url] = await fetchImageAsBase64(item.photo_url);
+      }
+    }
 
     // Function to draw table header
     const drawHeader = (startY: number) => {
@@ -834,31 +842,44 @@ const CollectionItems = () => {
       doc.setTextColor(0, 0, 0);
       let x = margin;
 
-      // Image column - show "Yes" or "-"
-      doc.text(item.photo_url ? 'Yes' : '-', x + 2, y + 5.5);
+      // Image column - add actual image
+      if (item.photo_url && imageCache[item.photo_url]) {
+        try {
+          const imgData = imageCache[item.photo_url]!;
+          const imgWidth = 16;
+          const imgHeight = 14;
+          const imgX = x + 2;
+          const imgY = y + (rowHeight - imgHeight) / 2;
+          doc.addImage(imgData, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+        } catch (error) {
+          doc.text('-', x + 8, y + (rowHeight / 2) + 2);
+        }
+      } else {
+        doc.text('-', x + 8, y + (rowHeight / 2) + 2);
+      }
       x += colWidths[0];
 
       // Item Name - truncate and make it a link color
       doc.setTextColor(0, 102, 204); // Blue link color
-      doc.text((item.item_name || '-').substring(0, 35), x + 2, y + 5.5);
+      doc.text((item.item_name || '-').substring(0, 35), x + 2, y + (rowHeight / 2) + 2);
       doc.setTextColor(0, 0, 0);
       x += colWidths[1];
 
       // UPC
-      doc.text((upc || '-').substring(0, 20), x + 2, y + 5.5);
+      doc.text((upc || '-').substring(0, 20), x + 2, y + (rowHeight / 2) + 2);
       x += colWidths[2];
 
       // Description
-      doc.text((description || '-').substring(0, 60), x + 2, y + 5.5);
+      doc.text((description || '-').substring(0, 55), x + 2, y + (rowHeight / 2) + 2);
       x += colWidths[3];
 
       // Category
-      doc.text(item.category || '-', x + 2, y + 5.5);
+      doc.text(item.category || '-', x + 2, y + (rowHeight / 2) + 2);
       x += colWidths[4];
 
       // Price - right align
       const priceText = price.toString();
-      doc.text(priceText, x + colWidths[5] - 5, y + 5.5, { align: 'right' });
+      doc.text(priceText, x + colWidths[5] - 5, y + (rowHeight / 2) + 2, { align: 'right' });
 
       // Draw vertical lines for columns
       doc.setDrawColor(200, 200, 200);
@@ -877,7 +898,7 @@ const CollectionItems = () => {
 
     const date = new Date().toISOString().split('T')[0];
     doc.save(`collection_items_${date}.pdf`);
-    toast.success('Exported to PDF successfully');
+    toast.success('Exported to PDF with images successfully');
   };
 
   const isAdmin = userRole === 'admin';
