@@ -198,10 +198,6 @@ const Container = () => {
   };
 
   const handleSubmitAdd = () => {
-    if (!formData.date) {
-      toast.error('Date is required');
-      return;
-    }
     addMutation.mutate(formData);
   };
 
@@ -649,16 +645,11 @@ const Container = () => {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="Enter category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -707,16 +698,11 @@ const Container = () => {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="Enter category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
