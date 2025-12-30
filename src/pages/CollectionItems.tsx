@@ -30,6 +30,7 @@ interface CollectionItem {
   notes: string | null;
   created_at: string;
   is_favorite: boolean;
+  favorite_remarks: string | null;
 }
 
 interface PreviewItem {
@@ -67,6 +68,9 @@ const CollectionItems = () => {
   });
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [upcSearching, setUpcSearching] = useState(false);
+  const [isFavoriteDialogOpen, setIsFavoriteDialogOpen] = useState(false);
+  const [favoriteItem, setFavoriteItem] = useState<CollectionItem | null>(null);
+  const [favoriteRemarks, setFavoriteRemarks] = useState('');
 
   // Search for item by UPC and auto-fill fields
   const handleUpcSearch = async (upc: string) => {
@@ -251,10 +255,13 @@ const CollectionItems = () => {
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
-    mutationFn: async ({ id, isFavorite }: { id: string; isFavorite: boolean }) => {
+    mutationFn: async ({ id, isFavorite, remarks }: { id: string; isFavorite: boolean; remarks?: string }) => {
       const { error } = await supabase
         .from('collection_items')
-        .update({ is_favorite: !isFavorite })
+        .update({ 
+          is_favorite: !isFavorite,
+          favorite_remarks: !isFavorite ? remarks : null
+        })
         .eq('id', id);
       if (error) throw error;
     },
@@ -262,11 +269,38 @@ const CollectionItems = () => {
       queryClient.invalidateQueries({ queryKey: ['collection-items'] });
       queryClient.invalidateQueries({ queryKey: ['favorite-items'] });
       toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
+      setIsFavoriteDialogOpen(false);
+      setFavoriteItem(null);
+      setFavoriteRemarks('');
     },
     onError: (error: any) => {
       toast.error(`Failed to update: ${error.message}`);
     }
   });
+
+  // Handle favorite click
+  const handleFavoriteClick = (item: CollectionItem) => {
+    if (item.is_favorite) {
+      // If already favorite, remove directly
+      toggleFavoriteMutation.mutate({ id: item.id, isFavorite: true });
+    } else {
+      // If not favorite, show dialog for remarks
+      setFavoriteItem(item);
+      setFavoriteRemarks('');
+      setIsFavoriteDialogOpen(true);
+    }
+  };
+
+  // Submit favorite with remarks
+  const handleSubmitFavorite = () => {
+    if (favoriteItem) {
+      toggleFavoriteMutation.mutate({ 
+        id: favoriteItem.id, 
+        isFavorite: false, 
+        remarks: favoriteRemarks.trim() || undefined 
+      });
+    }
+  };
 
   // Delete item
   const deleteItemMutation = useMutation({
@@ -1137,7 +1171,7 @@ const CollectionItems = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => toggleFavoriteMutation.mutate({ id: item.id, isFavorite: item.is_favorite })}
+                                onClick={() => handleFavoriteClick(item)}
                                 disabled={toggleFavoriteMutation.isPending}
                                 className="h-8 w-8"
                                 title={item.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
@@ -1308,6 +1342,54 @@ const CollectionItems = () => {
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Favorite Remarks Dialog */}
+      <Dialog open={isFavoriteDialogOpen} onOpenChange={setIsFavoriteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500" />
+              Add to Favorites
+            </DialogTitle>
+            <DialogDescription>
+              Add remarks for why this item is a favorite (optional)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Item</Label>
+              <p className="text-sm font-medium">{favoriteItem?.item_name}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="favorite-remarks">Remarks</Label>
+              <textarea
+                id="favorite-remarks"
+                value={favoriteRemarks}
+                onChange={(e) => setFavoriteRemarks(e.target.value)}
+                placeholder="Enter your remarks here..."
+                className="w-full min-h-[100px] p-3 border rounded-md bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsFavoriteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitFavorite}
+              disabled={toggleFavoriteMutation.isPending}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {toggleFavoriteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Heart className="h-4 w-4 mr-2 fill-white" />
+              )}
+              Add to Favorites
             </Button>
           </DialogFooter>
         </DialogContent>
