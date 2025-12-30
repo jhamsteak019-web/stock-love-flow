@@ -37,6 +37,7 @@ export const PhotoUploadCell = ({ batchId, photoUrl, photoStatus, currentAllocat
   const { userRole } = useAuth();
   
   const canChangeStatus = userRole === 'admin' || userRole === 'staff';
+  const canUploadPhoto = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'viewer';
 
   const handleStatusSelect = (newStatus: string) => {
     if (newStatus === 'approved') {
