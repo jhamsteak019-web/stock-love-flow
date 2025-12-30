@@ -71,6 +71,7 @@ const Deliveries = () => {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   
   const isViewer = userRole === 'viewer';
+  const canExport = userRole !== 'uploader';
 
   const getColumnWidth = (key: ColumnKey) => {
     const col = columns.find(c => c.key === key);
@@ -288,7 +289,7 @@ const Deliveries = () => {
               )}
             </div>
           )}
-          {!isViewer && (
+          {!isViewer && canExport && (
             <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
               <FileDown className="h-4 w-4 mr-2" />
               Save PDF

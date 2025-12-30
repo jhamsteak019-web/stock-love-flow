@@ -32,6 +32,8 @@ const Favorites = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+  
+  const canExport = userRole !== 'uploader';
 
   // PDF Export function
   const handleExportPDF = () => {
@@ -228,7 +230,7 @@ const Favorites = () => {
               <Heart className="h-5 w-5 text-red-500 fill-red-500" />
               Favorites ({items.length})
             </CardTitle>
-            {filteredItems.length > 0 && (
+            {filteredItems.length > 0 && canExport && (
               <Button variant="outline" size="sm" onClick={handleExportPDF}>
                 <FileDown className="h-4 w-4 mr-2" />
                 Save PDF

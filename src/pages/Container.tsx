@@ -63,6 +63,7 @@ const Container = () => {
 
   const canEdit = userRole === 'admin' || userRole === 'staff';
   const canDelete = userRole === 'admin';
+  const canExport = userRole !== 'uploader';
 
   // Fetch containers
   const { data: containers = [], isLoading, refetch } = useQuery({
@@ -481,14 +482,18 @@ const Container = () => {
             Container ({filteredContainers.length})
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportPDF}>
-              <FileText className="h-4 w-4 mr-2" />
-              PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExportExcel}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Excel
-            </Button>
+            {canExport && (
+              <>
+                <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
