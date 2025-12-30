@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface ContainerItem {
   id: string;
@@ -230,25 +230,113 @@ const Container = () => {
     );
   });
 
-  // Export to Excel
-  const handleExportExcel = () => {
-    const data = filteredContainers.map(item => ({
-      'Date Out Factory': format(new Date(item.date), 'MMM dd, yyyy'),
-      'Date Receive Warehouse': item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '',
-      'Delivery Days': item.date && item.date_receive_factory ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date)) : '',
-      'Category Manual': item.category || '',
-      'Notes': item.notes || ''
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Containers');
-    XLSX.writeFile(wb, `containers_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    toast.success('Exported to Excel successfully');
+  // Helper to fetch image as base64
+  const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
   };
 
-  // Export to PDF
-  const handleExportPDF = () => {
+  // Export to Excel with images
+  const handleExportExcel = async () => {
+    toast.info('Preparing Excel with images...');
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Containers');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'Date Out Factory', key: 'date_out', width: 18 },
+      { header: 'Photo', key: 'photo', width: 15 },
+      { header: 'Date Receive Warehouse', key: 'date_receive', width: 22 },
+      { header: 'Delivery Days', key: 'delivery_days', width: 14 },
+      { header: 'Receive Photo', key: 'receive_photo', width: 15 },
+      { header: 'Category Manual', key: 'category', width: 16 },
+      { header: 'Notes', key: 'notes', width: 30 }
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF3B82F6' }
+    };
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+    // Add data rows
+    for (let i = 0; i < filteredContainers.length; i++) {
+      const item = filteredContainers[i];
+      const rowIndex = i + 2;
+
+      worksheet.addRow({
+        date_out: format(new Date(item.date), 'MMM dd, yyyy'),
+        photo: '',
+        date_receive: item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '-',
+        delivery_days: item.date && item.date_receive_factory ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date)) : '-',
+        receive_photo: '',
+        category: item.category || '-',
+        notes: item.notes || '-'
+      });
+
+      worksheet.getRow(rowIndex).height = 60;
+
+      // Add photo if exists
+      if (item.photo_url) {
+        const base64 = await fetchImageAsBase64(item.photo_url);
+        if (base64) {
+          const imageId = workbook.addImage({
+            base64: base64.split(',')[1],
+            extension: 'png'
+          });
+          worksheet.addImage(imageId, {
+            tl: { col: 1, row: rowIndex - 1 },
+            ext: { width: 70, height: 70 }
+          });
+        }
+      }
+
+      // Add receive photo if exists
+      if (item.receive_photo_url) {
+        const base64 = await fetchImageAsBase64(item.receive_photo_url);
+        if (base64) {
+          const imageId = workbook.addImage({
+            base64: base64.split(',')[1],
+            extension: 'png'
+          });
+          worksheet.addImage(imageId, {
+            tl: { col: 4, row: rowIndex - 1 },
+            ext: { width: 70, height: 70 }
+          });
+        }
+      }
+    }
+
+    // Download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `containers_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported to Excel with images successfully');
+  };
+
+  // Export to PDF with images
+  const handleExportPDF = async () => {
+    toast.info('Preparing PDF with images...');
+    
     const doc = new jsPDF({ orientation: 'landscape' });
     
     doc.setFontSize(16);
@@ -256,15 +344,16 @@ const Container = () => {
     doc.setFontSize(10);
     doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 22);
 
-    const headers = ['Date Out Factory', 'Date Receive Warehouse', 'Delivery Days', 'Category Manual', 'Notes'];
-    const colWidths = [40, 45, 30, 35, 80];
+    const headers = ['Date Out', 'Photo', 'Date Receive', 'Days', 'Receive Photo', 'Category', 'Notes'];
+    const colWidths = [30, 25, 35, 20, 25, 25, 80];
+    const rowHeight = 25;
     let y = 32;
 
     // Header
     doc.setFillColor(59, 130, 246);
-    doc.rect(14, y - 5, 267, 8, 'F');
+    doc.rect(14, y - 5, 275, 8, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     let x = 14;
     headers.forEach((header, i) => {
       doc.text(header, x + 2, y);
@@ -273,36 +362,62 @@ const Container = () => {
 
     // Data rows
     doc.setTextColor(0, 0, 0);
-    y += 8;
-    filteredContainers.forEach((item, index) => {
-      if (y > 190) {
+    y += 10;
+
+    for (const item of filteredContainers) {
+      if (y > 180) {
         doc.addPage();
         y = 20;
       }
 
-      if (index % 2 === 0) {
-        doc.setFillColor(245, 245, 245);
-        doc.rect(14, y - 5, 267, 8, 'F');
-      }
-
       x = 14;
-      const row = [
-        format(new Date(item.date), 'MMM dd, yyyy'),
-        item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '-',
-        item.date && item.date_receive_factory ? String(differenceInDays(new Date(item.date_receive_factory), new Date(item.date))) : '-',
-        item.category || '-',
-        (item.notes || '-').substring(0, 50)
-      ];
+      
+      // Date Out Factory
+      doc.text(format(new Date(item.date), 'MMM dd, yyyy'), x + 2, y + 10);
+      x += colWidths[0];
 
-      row.forEach((cell, i) => {
-        doc.text(cell, x + 2, y);
-        x += colWidths[i];
-      });
-      y += 8;
-    });
+      // Photo
+      if (item.photo_url) {
+        try {
+          const base64 = await fetchImageAsBase64(item.photo_url);
+          if (base64) {
+            doc.addImage(base64, 'PNG', x + 2, y, 20, 20);
+          }
+        } catch {}
+      }
+      x += colWidths[1];
+
+      // Date Receive
+      doc.text(item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '-', x + 2, y + 10);
+      x += colWidths[2];
+
+      // Delivery Days
+      doc.text(item.date && item.date_receive_factory ? String(differenceInDays(new Date(item.date_receive_factory), new Date(item.date))) : '-', x + 2, y + 10);
+      x += colWidths[3];
+
+      // Receive Photo
+      if (item.receive_photo_url) {
+        try {
+          const base64 = await fetchImageAsBase64(item.receive_photo_url);
+          if (base64) {
+            doc.addImage(base64, 'PNG', x + 2, y, 20, 20);
+          }
+        } catch {}
+      }
+      x += colWidths[4];
+
+      // Category
+      doc.text(item.category || '-', x + 2, y + 10);
+      x += colWidths[5];
+
+      // Notes
+      doc.text((item.notes || '-').substring(0, 40), x + 2, y + 10);
+
+      y += rowHeight;
+    }
 
     doc.save(`containers_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-    toast.success('Exported to PDF successfully');
+    toast.success('Exported to PDF with images successfully');
   };
 
   return (
