@@ -32,7 +32,7 @@ interface ContainerItem {
   created_at: string;
 }
 
-const STATUS_OPTIONS = ['Pending', 'In Transit', 'Arrived', 'Delivered', 'Completed'];
+const STATUS_OPTIONS = ['ON PROCESS WAREHOUSE', 'FOR DISTRIBUTION ON WAREHOUSE', 'FOR DELIVERY ON STORE'];
 
 const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM'];
 
@@ -655,12 +655,12 @@ const Container = () => {
                           }}
                           disabled={!canEdit}
                         >
-                          <SelectTrigger className="w-[130px] h-8 bg-background">
-                            <SelectValue placeholder="Select status" />
+                          <SelectTrigger className="w-[220px] h-8 bg-background text-xs">
+                            <SelectValue placeholder="Select status" className="text-xs" />
                           </SelectTrigger>
-                          <SelectContent className="bg-background z-50">
+                          <SelectContent className="bg-background z-50 min-w-[220px]">
                             {STATUS_OPTIONS.map(status => (
-                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                              <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
