@@ -556,9 +556,12 @@ const CollectionItems = () => {
       result = result.filter(item => item.category === selectedCategory);
     }
 
-    // Filter by category 2 (second dropdown)
+    // Filter by category 2 (second dropdown) - extract positions 5-6 from item name (e.g., "2025MCLSH..." → "CL")
     if (selectedCategory2 !== 'all') {
-      result = result.filter(item => item.category === selectedCategory2);
+      result = result.filter(item => {
+        const code = item.item_name.substring(5, 7).toUpperCase();
+        return code === selectedCategory2;
+      });
     }
 
     // Apply search filter
