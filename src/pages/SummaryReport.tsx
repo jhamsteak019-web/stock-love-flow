@@ -475,6 +475,7 @@ const SummaryReport = () => {
               <th>Bill No</th>
               <th>Date Out</th>
               <th>Date Received</th>
+              <th>Delivery Days</th>
               <th>Courier</th>
               <th>Waybill No</th>
               <th>Category</th>
@@ -485,11 +486,16 @@ const SummaryReport = () => {
             </tr>
           </thead>
           <tbody>
-            ${branch.items.map(item => `
+            ${branch.items.map(item => {
+              const deliveryDays = item.set_date && item.date_delivered 
+                ? differenceInDays(new Date(item.date_delivered), new Date(item.set_date))
+                : null;
+              return `
               <tr>
                 <td>${item.allocation_bill || '-'}</td>
                 <td>${item.set_date ? format(new Date(item.set_date), 'yyyy-MM-dd') : '-'}</td>
                 <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
+                <td style="color: ${deliveryDays !== null ? (deliveryDays <= 3 ? '#16a34a' : deliveryDays <= 7 ? '#d97706' : '#dc2626') : '#666'}; font-weight: ${deliveryDays !== null ? 'bold' : 'normal'};">${deliveryDays !== null ? `${deliveryDays} day(s)` : '-'}</td>
                 <td>${item.courier || '-'}</td>
                 <td>${item.waybill_no || '-'}</td>
                 <td>${item.category || '-'}</td>
@@ -498,9 +504,9 @@ const SummaryReport = () => {
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
               </tr>
-            `).join('')}
+            `}).join('')}
             <tr class="subtotal">
-              <td colspan="8"><strong>Subtotal</strong></td>
+              <td colspan="9"><strong>Subtotal</strong></td>
               <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
               <td class="text-center"><strong>${branch.totalQty}</strong></td>
             </tr>
@@ -609,6 +615,7 @@ const SummaryReport = () => {
                   <th>Bill No</th>
                   <th>Date Out</th>
                   <th>Date Received</th>
+                  <th>Delivery Days</th>
                   <th>Courier</th>
                   <th>Waybill No</th>
                   <th>Category</th>
@@ -619,11 +626,16 @@ const SummaryReport = () => {
                 </tr>
               </thead>
               <tbody>
-                ${branch.items.map(item => `
+                ${branch.items.map(item => {
+                  const deliveryDays = item.set_date && item.date_delivered 
+                    ? differenceInDays(new Date(item.date_delivered), new Date(item.set_date))
+                    : null;
+                  return `
                   <tr>
                     <td>${item.allocation_bill || '-'}</td>
                     <td>${item.set_date ? format(new Date(item.set_date), 'yyyy-MM-dd') : '-'}</td>
                     <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
+                    <td style="color: ${deliveryDays !== null ? (deliveryDays <= 3 ? '#16a34a' : deliveryDays <= 7 ? '#d97706' : '#dc2626') : '#666'}; font-weight: ${deliveryDays !== null ? 'bold' : 'normal'};">${deliveryDays !== null ? `${deliveryDays} day(s)` : '-'}</td>
                     <td>${item.courier || '-'}</td>
                     <td>${item.waybill_no || '-'}</td>
                     <td>${item.category || '-'}</td>
@@ -632,9 +644,9 @@ const SummaryReport = () => {
                     <td class="text-center">${item.boxes}</td>
                     <td class="text-center">${item.qty}</td>
                   </tr>
-                `).join('')}
+                `}).join('')}
                 <tr class="subtotal">
-                  <td colspan="8"><strong>Total</strong></td>
+                  <td colspan="9"><strong>Total</strong></td>
                   <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
                   <td class="text-center"><strong>${branch.totalQty}</strong></td>
                 </tr>
