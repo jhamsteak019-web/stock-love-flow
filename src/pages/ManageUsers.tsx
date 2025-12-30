@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck } from 'lucide-react';
+import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck, Key } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useUsers, UserWithRole } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPresence } from '@/hooks/useUserPresence';
 import { UserRole } from '@/types/inventory';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const ManageUsers = () => {
   const { users, loading, updateProfile, updateUserRole, deleteUser } = useUsers();
@@ -21,6 +24,13 @@ const ManageUsers = () => {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ full_name: '', email: '' });
   const [, forceUpdate] = useState(0);
+  
+  // Password change state
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<UserWithRole | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Force re-render every minute to update online time
   useEffect(() => {
@@ -62,6 +72,55 @@ const ManageUsers = () => {
     await deleteUser(userId);
   };
 
+  const openPasswordDialog = (user: UserWithRole) => {
+    setSelectedUserForPassword(user);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordDialogOpen(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedUserForPassword) return;
+    
+    if (newPassword.length < 6) {
+      toast({ title: 'Error', description: 'Password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Error', description: 'Passwords do not match', variant: 'destructive' });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('update-user-password', {
+        body: { userId: selectedUserForPassword.id, newPassword },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({ title: 'Success', description: `Password updated for ${selectedUserForPassword.full_name || selectedUserForPassword.email}` });
+      setPasswordDialogOpen(false);
+      setSelectedUserForPassword(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to change password', variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -100,7 +159,7 @@ const ManageUsers = () => {
               <TableHead className="w-[130px]">Role</TableHead>
               <TableHead className="w-[120px]">Online Duration</TableHead>
               <TableHead className="w-[120px]">Joined</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -233,8 +292,16 @@ const ManageUsers = () => {
                         </div>
                       ) : (
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => startEditing(user)}>
+                          <Button variant="ghost" size="icon" onClick={() => startEditing(user)} title="Edit user">
                             <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => openPasswordDialog(user)}
+                            title="Change password"
+                          >
+                            <Key className="h-4 w-4" />
                           </Button>
                           {currentUser?.id !== user.id && (
                             <Button 
@@ -242,6 +309,7 @@ const ManageUsers = () => {
                               size="icon" 
                               onClick={() => handleDeleteUser(user.id)}
                               className="text-destructive hover:text-destructive"
+                              title="Delete user"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -257,6 +325,60 @@ const ManageUsers = () => {
         </Table>
       </div>
 
+      {/* Password Change Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Change Password
+            </DialogTitle>
+            <DialogDescription>
+              Change password for {selectedUserForPassword?.full_name || selectedUserForPassword?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+            {newPassword && confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-sm text-destructive">Passwords do not match</p>
+            )}
+            {newPassword && newPassword.length < 6 && (
+              <p className="text-sm text-destructive">Password must be at least 6 characters</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleChangePassword} 
+              disabled={changingPassword || newPassword.length < 6 || newPassword !== confirmPassword}
+            >
+              {changingPassword ? 'Changing...' : 'Change Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Notes Section */}
       <Alert className="bg-muted/50">
         <Info className="h-4 w-4" />
@@ -269,6 +391,7 @@ const ManageUsers = () => {
             <li><strong>Viewer</strong> - Can only view deliveries and upload photos.</li>
             <li>You cannot change your own role or delete your own account.</li>
             <li>Online status updates in real-time. Green dot indicates the user is currently active.</li>
+            <li>Click the key icon to change a user's password.</li>
             <li>Deleting a user will permanently remove all their data. This action cannot be undone.</li>
           </ul>
         </AlertDescription>
