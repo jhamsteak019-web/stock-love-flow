@@ -79,12 +79,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       roles: ['admin']
     },
     { 
-      to: '/users', 
-      icon: Users, 
-      label: 'Manage Users',
-      roles: ['admin']
-    },
-    { 
       to: '/notes', 
       icon: StickyNote, 
       label: 'Reminder',
@@ -106,6 +100,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/container', 
       icon: Container, 
       label: 'Container',
+      roles: ['admin']
+    },
+    { 
+      to: '/users', 
+      icon: Users, 
+      label: 'Manage Users',
       roles: ['admin']
     },
   ];
