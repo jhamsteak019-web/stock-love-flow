@@ -13,11 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar, Heart } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar, Heart, FileText } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
+import jsPDF from 'jspdf';
 
 interface CollectionItem {
   id: string;
@@ -722,6 +723,111 @@ const CollectionItems = () => {
     toast.success(`Exported ${filteredItems.length} items with images to ${filename}`);
   };
 
+  // Helper to fetch image as base64
+  const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  // Export to PDF with images
+  const handleExportPDF = async () => {
+    if (filteredItems.length === 0) {
+      toast.error('No items to export');
+      return;
+    }
+
+    toast.info('Preparing PDF with images...');
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+    
+    doc.setFontSize(16);
+    doc.text('Collection Items Report', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()} | Total: ${filteredItems.length} items`, 14, 22);
+
+    const headers = ['Image', 'Name', 'UPC', 'Description', 'Category', 'Price'];
+    const colWidths = [25, 50, 30, 80, 25, 25];
+    const rowHeight = 25;
+    let y = 32;
+
+    // Header
+    doc.setFillColor(59, 130, 246);
+    doc.rect(14, y - 5, 270, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    let x = 14;
+    headers.forEach((header, i) => {
+      doc.text(header, x + 2, y);
+      x += colWidths[i];
+    });
+
+    // Data rows
+    doc.setTextColor(0, 0, 0);
+    y += 10;
+
+    for (const item of filteredItems) {
+      if (y > 180) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const descParts = item.description?.split(' | ') || [];
+      const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
+      const description = upc ? descParts.slice(1).join(' | ') : item.description;
+      const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
+      const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
+
+      x = 14;
+
+      // Image
+      if (item.photo_url) {
+        try {
+          const base64 = await fetchImageAsBase64(item.photo_url);
+          if (base64) {
+            doc.addImage(base64, 'PNG', x + 2, y, 20, 20);
+          }
+        } catch {}
+      }
+      x += colWidths[0];
+
+      // Name (truncate if too long)
+      doc.setFontSize(7);
+      doc.text((item.item_name || '-').substring(0, 30), x + 2, y + 10);
+      x += colWidths[1];
+
+      // UPC
+      doc.text((upc || '-').substring(0, 18), x + 2, y + 10);
+      x += colWidths[2];
+
+      // Description (truncate)
+      doc.text((description || '-').substring(0, 50), x + 2, y + 10);
+      x += colWidths[3];
+
+      // Category
+      doc.text(item.category || '-', x + 2, y + 10);
+      x += colWidths[4];
+
+      // Price
+      doc.text(price.toString(), x + 2, y + 10);
+
+      y += rowHeight;
+    }
+
+    const date = new Date().toISOString().split('T')[0];
+    doc.save(`collection_items_${date}.pdf`);
+    toast.success('Exported to PDF with images successfully');
+  };
+
   const isAdmin = userRole === 'admin';
 
   return (
@@ -785,6 +891,14 @@ const CollectionItems = () => {
           >
             <Download className="h-4 w-4 mr-2" />
             Export Excel
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleExportPDF}
+            disabled={filteredItems.length === 0}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
