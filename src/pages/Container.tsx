@@ -301,22 +301,32 @@ const Container = () => {
                       </TableCell>
                       <TableCell>{item.out_factory || '-'}</TableCell>
                       <TableCell>
-                        {item.photo_url ? (
-                          <img 
-                            src={item.photo_url} 
-                            alt="Container" 
-                            className="h-12 w-12 object-cover rounded cursor-pointer hover:opacity-80"
-                            onClick={() => window.open(item.photo_url!, '_blank')}
+                        <label className="cursor-pointer relative group">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
+                            disabled={uploadingPhotoId === item.id || !canEdit}
                           />
-                        ) : canEdit ? (
-                          <label className="cursor-pointer">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
-                              disabled={uploadingPhotoId === item.id}
-                            />
+                          {item.photo_url ? (
+                            <div className="relative">
+                              <img 
+                                src={item.photo_url} 
+                                alt="Container" 
+                                className="h-12 w-12 object-cover rounded hover:opacity-80"
+                              />
+                              {canEdit && (
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center transition-opacity">
+                                  {uploadingPhotoId === item.id ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                                  ) : (
+                                    <Camera className="h-4 w-4 text-white" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : canEdit ? (
                             <div className="h-12 w-12 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
                               {uploadingPhotoId === item.id ? (
                                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -324,10 +334,10 @@ const Container = () => {
                                 <Camera className="h-4 w-4 text-muted-foreground" />
                               )}
                             </div>
-                          </label>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </label>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {item.date_receive_factory 
@@ -336,22 +346,32 @@ const Container = () => {
                         }
                       </TableCell>
                       <TableCell>
-                        {item.receive_photo_url ? (
-                          <img 
-                            src={item.receive_photo_url} 
-                            alt="Receive" 
-                            className="h-12 w-12 object-cover rounded cursor-pointer hover:opacity-80"
-                            onClick={() => window.open(item.receive_photo_url!, '_blank')}
+                        <label className="cursor-pointer relative group">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
+                            disabled={uploadingReceivePhotoId === item.id || !canEdit}
                           />
-                        ) : canEdit ? (
-                          <label className="cursor-pointer">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
-                              disabled={uploadingReceivePhotoId === item.id}
-                            />
+                          {item.receive_photo_url ? (
+                            <div className="relative">
+                              <img 
+                                src={item.receive_photo_url} 
+                                alt="Receive" 
+                                className="h-12 w-12 object-cover rounded hover:opacity-80"
+                              />
+                              {canEdit && (
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center transition-opacity">
+                                  {uploadingReceivePhotoId === item.id ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                                  ) : (
+                                    <Camera className="h-4 w-4 text-white" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : canEdit ? (
                             <div className="h-12 w-12 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
                               {uploadingReceivePhotoId === item.id ? (
                                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -359,10 +379,10 @@ const Container = () => {
                                 <Camera className="h-4 w-4 text-muted-foreground" />
                               )}
                             </div>
-                          </label>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </label>
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
