@@ -71,25 +71,25 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'teamleader']
+      roles: ['admin', 'staff', 'teamleader', 'uploader']
     },
     { 
       to: '/import', 
       icon: Archive, 
       label: 'Bucket',
-      roles: ['admin']
+      roles: ['admin', 'uploader']
     },
     { 
       to: '/notes', 
       icon: StickyNote, 
       label: 'Reminder',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'uploader']
     },
     { 
       to: '/collections', 
       icon: FolderHeart, 
       label: 'Collection Items',
-      roles: ['admin', 'staff', 'teamleader']
+      roles: ['admin', 'staff', 'teamleader', 'uploader']
     },
     { 
       to: '/favorites', 
@@ -101,7 +101,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/container', 
       icon: Container, 
       label: 'Container',
-      roles: ['admin']
+      roles: ['admin', 'uploader']
     },
     { 
       to: '/users', 
