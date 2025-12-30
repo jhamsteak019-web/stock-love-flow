@@ -22,6 +22,7 @@ interface CollectionItem {
   notes: string | null;
   created_at: string;
   is_favorite: boolean;
+  favorite_remarks: string | null;
 }
 
 const Favorites = () => {
@@ -152,7 +153,7 @@ const Favorites = () => {
                       <TableHead className="w-[70px]">Photo</TableHead>
                       <TableHead className="min-w-[150px]">Name</TableHead>
                       <TableHead className="w-[120px]">UPC</TableHead>
-                      <TableHead className="min-w-[180px]">Description</TableHead>
+                      <TableHead className="min-w-[150px]">Remarks</TableHead>
                       <TableHead className="w-[100px]">Category</TableHead>
                       <TableHead className="w-[100px] text-right">Price</TableHead>
                       <TableHead className="w-[80px]">Actions</TableHead>
@@ -178,7 +179,9 @@ const Favorites = () => {
                           </TableCell>
                           <TableCell className="font-medium">{item.item_name}</TableCell>
                           <TableCell className="font-mono text-sm text-muted-foreground">{upc || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate text-muted-foreground">{description || '-'}</TableCell>
+                          <TableCell className="max-w-[200px] text-muted-foreground">
+                            {item.favorite_remarks || <span className="italic text-muted-foreground/50">No remarks</span>}
+                          </TableCell>
                           <TableCell>
                             {item.category ? (
                               <Badge variant="secondary" className="text-xs">{item.category}</Badge>
