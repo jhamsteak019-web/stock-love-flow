@@ -300,7 +300,7 @@ const Container = () => {
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(item.date), 'MMM dd, yyyy')}
                       </TableCell>
-                      <TableCell>{item.out_factory || '-'}</TableCell>
+                      <TableCell>{item.out_factory || ''}</TableCell>
                       <TableCell>
                         <label className="cursor-pointer relative group">
                           <input
