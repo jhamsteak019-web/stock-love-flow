@@ -150,10 +150,10 @@ const CollectionItems = () => {
     }
   });
 
-  // Get available years from items
+  // Get available years from item names (year prefix at start of name, e.g., "2025MCLSH...")
   const availableYears = [...new Set(items.map(item => {
-    const year = item.created_at ? new Date(item.created_at).getFullYear().toString() : '';
-    return year;
+    const yearMatch = item.item_name.match(/^(\d{4})/);
+    return yearMatch ? yearMatch[1] : '';
   }).filter(Boolean))].sort((a, b) => parseInt(b) - parseInt(a));
 
   // Add single item
@@ -490,12 +490,9 @@ const CollectionItems = () => {
   const filteredItems = (() => {
     let result = items;
 
-    // Filter by year
+    // Filter by year prefix in item name (e.g., "2025MCLSH..." starts with "2025")
     if (selectedYear !== 'all') {
-      result = result.filter(item => {
-        const itemYear = item.created_at ? new Date(item.created_at).getFullYear().toString() : '';
-        return itemYear === selectedYear;
-      });
+      result = result.filter(item => item.item_name.startsWith(selectedYear));
     }
 
     // Filter by category
