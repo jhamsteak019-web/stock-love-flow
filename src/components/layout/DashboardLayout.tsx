@@ -15,8 +15,12 @@ const pageTitles: Record<string, string> = {
   '/collections': 'Collection Items',
 };
 
-// Routes restricted from viewers - they can only access /deliveries, /dashboard, /history, /summary
-const viewerRestrictedRoutes = ['/release', '/import', '/users', '/notes', '/inventory'];
+// Role-based route restrictions
+const roleRestrictedRoutes: Record<string, string[]> = {
+  viewer: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container'],
+  teamleader: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
+  staff: ['/import', '/users', '/inventory', '/container'],
+};
 
 export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -63,9 +67,10 @@ export const DashboardLayout = () => {
     );
   }
 
-  // Redirect viewers to deliveries if they try to access restricted routes
-  if (userRole === 'viewer' && viewerRestrictedRoutes.includes(location.pathname)) {
-    return <Navigate to="/deliveries" replace />;
+  // Redirect users to dashboard if they try to access restricted routes based on their role
+  const restrictedRoutes = roleRestrictedRoutes[userRole || ''] || [];
+  if (restrictedRoutes.includes(location.pathname)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   const title = pageTitles[location.pathname] || 'MONITORING DELIVERY';

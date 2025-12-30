@@ -46,7 +46,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff', 'viewer', 'teamleader']
     },
     { 
       to: '/release', 
@@ -58,19 +58,19 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/deliveries', 
       icon: Truck, 
       label: 'Deliveries',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff', 'viewer', 'teamleader']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff', 'viewer', 'teamleader']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'viewer']
+      roles: ['admin', 'staff', 'teamleader']
     },
     { 
       to: '/import', 
@@ -94,19 +94,25 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/collections', 
       icon: FolderHeart, 
       label: 'Collection Items',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'teamleader']
     },
     { 
       to: '/favorites', 
       icon: Heart, 
       label: 'Favorites',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'viewer', 'teamleader']
     },
     { 
       to: '/container', 
       icon: Container, 
       label: 'Container',
-      roles: ['admin', 'staff']
+      roles: ['admin']
+    },
+    { 
+      to: '/inventory', 
+      icon: Package, 
+      label: 'Inventory',
+      roles: ['admin']
     },
   ];
 
