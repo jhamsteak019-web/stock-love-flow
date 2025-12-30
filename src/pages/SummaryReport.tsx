@@ -23,9 +23,12 @@ const SummaryReport = () => {
   
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
+
+  const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
   
   const isViewer = userRole === 'viewer';
 
@@ -40,7 +43,7 @@ const SummaryReport = () => {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [releases, currentYear]);
 
-  // Filter releases by selected year and month
+  // Filter releases by selected year, month, and category
   const filteredReleases = useMemo(() => {
     return releases.filter(release => {
       // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
@@ -48,9 +51,15 @@ const SummaryReport = () => {
       const releaseDate = new Date(dateToUse);
       const releaseYear = releaseDate.getFullYear().toString();
       const releaseMonth = releaseDate.getMonth().toString();
-      return releaseYear === selectedYear && releaseMonth === selectedMonth;
+      const matchesDate = releaseYear === selectedYear && releaseMonth === selectedMonth;
+      
+      // Category filter
+      const matchesCategory = selectedCategory === 'all' || 
+        (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
+      
+      return matchesDate && matchesCategory;
     });
-  }, [releases, selectedYear, selectedMonth]);
+  }, [releases, selectedYear, selectedMonth, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -716,6 +725,17 @@ const SummaryReport = () => {
             <SelectContent>
               {availableYears.map(year => (
                 <SelectItem key={year} value={year}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {CATEGORY_OPTIONS.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
             </SelectContent>
           </Select>
