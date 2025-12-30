@@ -47,6 +47,8 @@ const Container = () => {
   const [uploadingReceivePhotoId, setUploadingReceivePhotoId] = useState<string | null>(null);
   const [datePickerContainerId, setDatePickerContainerId] = useState<string | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [receiveDatePickerContainerId, setReceiveDatePickerContainerId] = useState<string | null>(null);
+  const [isReceiveDatePickerOpen, setIsReceiveDatePickerOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     date: '',
@@ -173,10 +175,16 @@ const Container = () => {
       });
       toast.success('Photo uploaded successfully');
       
-      // If uploading to first photo column, show date picker
+      // If uploading to first photo column, show date picker for Date Out Factory
       if (type === 'photo') {
         setDatePickerContainerId(containerId);
         setIsDatePickerOpen(true);
+      }
+      
+      // If uploading to receive photo column, show date picker for Date Receive Warehouse
+      if (type === 'receive') {
+        setReceiveDatePickerContainerId(containerId);
+        setIsReceiveDatePickerOpen(true);
       }
     } catch (error: any) {
       toast.error(`Failed to upload: ${error.message}`);
@@ -200,6 +208,23 @@ const Container = () => {
     } finally {
       setIsDatePickerOpen(false);
       setDatePickerContainerId(null);
+    }
+  };
+
+  const handleReceiveDateSelect = async (date: Date | undefined) => {
+    if (!date || !receiveDatePickerContainerId) return;
+    
+    try {
+      await updateMutation.mutateAsync({
+        id: receiveDatePickerContainerId,
+        data: { date_receive_factory: format(date, 'yyyy-MM-dd') }
+      });
+      toast.success('Date Receive Warehouse updated');
+    } catch (error: any) {
+      toast.error(`Failed to update date: ${error.message}`);
+    } finally {
+      setIsReceiveDatePickerOpen(false);
+      setReceiveDatePickerContainerId(null);
     }
   };
 
@@ -776,6 +801,37 @@ const Container = () => {
             <Button variant="outline" onClick={() => {
               setIsDatePickerOpen(false);
               setDatePickerContainerId(null);
+            }}>
+              Skip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receive Date Picker Dialog after Receive Photo Upload */}
+      <Dialog open={isReceiveDatePickerOpen} onOpenChange={(open) => {
+        setIsReceiveDatePickerOpen(open);
+        if (!open) setReceiveDatePickerContainerId(null);
+      }}>
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Set Date Receive Warehouse
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="single"
+              selected={undefined}
+              onSelect={handleReceiveDateSelect}
+              className={cn("p-3 pointer-events-auto rounded-md border")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsReceiveDatePickerOpen(false);
+              setReceiveDatePickerContainerId(null);
             }}>
               Skip
             </Button>
