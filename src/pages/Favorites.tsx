@@ -34,7 +34,7 @@ const Favorites = () => {
   const itemsPerPage = 50;
   
   const canExport = userRole !== 'uploader';
-  const canFavorite = userRole !== 'staff' && userRole !== 'uploader';
+  const canFavorite = userRole === 'admin';
 
   // PDF Export function
   const handleExportPDF = () => {

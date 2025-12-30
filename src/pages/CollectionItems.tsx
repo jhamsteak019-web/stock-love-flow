@@ -53,7 +53,7 @@ const CollectionItems = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   
   const canExport = userRole !== 'uploader';
-  const canFavorite = userRole !== 'staff' && userRole !== 'uploader';
+  const canFavorite = userRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
