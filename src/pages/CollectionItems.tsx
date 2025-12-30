@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar, Heart } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
@@ -29,6 +29,7 @@ interface CollectionItem {
   status: string | null;
   notes: string | null;
   created_at: string;
+  is_favorite: boolean;
 }
 
 interface PreviewItem {
@@ -247,6 +248,25 @@ const CollectionItems = () => {
       notes: `Price: ${editForm.price}`
     });
   };
+
+  // Toggle favorite mutation
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async ({ id, isFavorite }: { id: string; isFavorite: boolean }) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({ is_favorite: !isFavorite })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { isFavorite }) => {
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-items'] });
+      toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update: ${error.message}`);
+    }
+  });
 
   // Delete item
   const deleteItemMutation = useMutation({
@@ -1114,6 +1134,16 @@ const CollectionItems = () => {
                           <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => toggleFavoriteMutation.mutate({ id: item.id, isFavorite: item.is_favorite })}
+                                disabled={toggleFavoriteMutation.isPending}
+                                className="h-8 w-8"
+                                title={item.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                              >
+                                <Heart className={`h-4 w-4 ${item.is_favorite ? 'text-red-500 fill-red-500' : 'text-muted-foreground'}`} />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"

@@ -14,7 +14,8 @@ import {
   BarChart3,
   Archive,
   StickyNote,
-  FolderHeart
+  FolderHeart,
+  Heart
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -91,6 +92,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/collections', 
       icon: FolderHeart, 
       label: 'Collection Items',
+      roles: ['admin', 'staff']
+    },
+    { 
+      to: '/favorites', 
+      icon: Heart, 
+      label: 'Favorites',
       roles: ['admin', 'staff']
     },
   ];
