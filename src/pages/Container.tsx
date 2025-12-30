@@ -426,7 +426,7 @@ const Container = () => {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date *</Label>
+                <Label>Date Out Factory *</Label>
                 <Input
                   type="date"
                   value={formData.date}
@@ -434,21 +434,13 @@ const Container = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Date Receive Factory</Label>
+                <Label>Date Receive Warehouse</Label>
                 <Input
                   type="date"
                   value={formData.date_receive_factory}
                   onChange={(e) => setFormData({ ...formData, date_receive_factory: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Out Factory</Label>
-              <Input
-                placeholder="Enter out factory"
-                value={formData.out_factory}
-                onChange={(e) => setFormData({ ...formData, out_factory: e.target.value })}
-              />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -492,7 +484,7 @@ const Container = () => {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date *</Label>
+                <Label>Date Out Factory *</Label>
                 <Input
                   type="date"
                   value={formData.date}
@@ -500,21 +492,13 @@ const Container = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Date Receive Factory</Label>
+                <Label>Date Receive Warehouse</Label>
                 <Input
                   type="date"
                   value={formData.date_receive_factory}
                   onChange={(e) => setFormData({ ...formData, date_receive_factory: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Out Factory</Label>
-              <Input
-                placeholder="Enter out factory"
-                value={formData.out_factory}
-                onChange={(e) => setFormData({ ...formData, out_factory: e.target.value })}
-              />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
