@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -181,44 +182,46 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               </Tooltip>
             </div>
 
-            {/* Navigation */}
-            <nav className={cn("flex-1 space-y-1", isCollapsed ? "p-2" : "p-4")}>
-              {filteredNavItems.map((item) => {
-                const isActive = location.pathname === item.to;
-                const navLink = (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                      isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-                      isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                    )}
-                  >
-                    {item.icon && <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />}
-                    {!isCollapsed && item.label}
-                  </NavLink>
-                );
-
-                if (isCollapsed) {
-                  return (
-                    <Tooltip key={item.to}>
-                      <TooltipTrigger asChild>
-                        {navLink}
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="bg-popover text-popover-foreground">
-                        {item.label}
-                      </TooltipContent>
-                    </Tooltip>
+            {/* Navigation with ScrollArea */}
+            <ScrollArea className="flex-1">
+              <nav className={cn("space-y-1", isCollapsed ? "p-2" : "p-4")}>
+                {filteredNavItems.map((item) => {
+                  const isActive = location.pathname === item.to;
+                  const navLink = (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={onClose}
+                      className={cn(
+                        "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
+                        isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      )}
+                    >
+                      {item.icon && <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />}
+                      {!isCollapsed && item.label}
+                    </NavLink>
                   );
-                }
 
-                return navLink;
-              })}
-            </nav>
+                  if (isCollapsed) {
+                    return (
+                      <Tooltip key={item.to}>
+                        <TooltipTrigger asChild>
+                          {navLink}
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+
+                  return navLink;
+                })}
+              </nav>
+            </ScrollArea>
 
             {/* User info */}
             <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
