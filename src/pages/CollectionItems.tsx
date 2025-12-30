@@ -979,129 +979,6 @@ const CollectionItems = () => {
               </Button>
             </>
           )}
-          {(userRole === 'admin' || userRole === 'staff') && (
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Item
-                </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add Collection Item</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="upc">Search by UPC</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="upc"
-                      value={newItem.upc}
-                      onChange={(e) => setNewItem({ ...newItem, upc: e.target.value })}
-                      placeholder="Enter UPC to search..."
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleUpcSearch(newItem.upc);
-                        }
-                      }}
-                    />
-                    <Button 
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleUpcSearch(newItem.upc)}
-                      disabled={upcSearching || !newItem.upc.trim()}
-                    >
-                      {upcSearching ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Search className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Press Enter or click search to auto-fill Name, Size & Category
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="item_name">Name *</Label>
-                  <Input
-                    id="item_name"
-                    value={newItem.item_name}
-                    onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })}
-                    placeholder="e.g. 2025MCEHB5500001-01"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    value={newItem.description}
-                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                    placeholder="e.g. MCEHB5500001FB4C"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={newItem.category}
-                    onValueChange={(value) => setNewItem({ ...newItem, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORY_OPTIONS.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="price">Price</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={newItem.price}
-                    onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) || 0 })}
-                    placeholder="e.g. 3000.00"
-                  />
-                </div>
-                <div>
-                  <Label>Photo</Label>
-                  <input
-                    type="file"
-                    ref={photoInputRef}
-                    onChange={(e) => setSelectedPhoto(e.target.files?.[0] || null)}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => photoInputRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {selectedPhoto ? selectedPhoto.name : 'Upload Photo'}
-                  </Button>
-                </div>
-                <Button 
-                  onClick={handleAddItem} 
-                  className="w-full"
-                  disabled={addItemMutation.isPending}
-                >
-                  {addItemMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  Add Item
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          )}
         </div>
       </div>
 
@@ -1157,35 +1034,26 @@ const CollectionItems = () => {
                         <TableCell className="font-medium">{item.item_name}</TableCell>
                         <TableCell className="font-mono text-sm">{item.upc || '-'}</TableCell>
                         <TableCell className="max-w-[150px] truncate">{item.description || '-'}</TableCell>
-                        <TableCell>
-                          {item.category ? (
-                            <Badge variant="outline">{item.category}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>{item.category || '-'}</TableCell>
+                        <TableCell>{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                {previewItems.length > 50 && (
-                  <div className="p-3 text-center text-sm text-muted-foreground border-t bg-muted/30">
-                    Showing first 50 of {previewItems.length.toLocaleString()} items...
-                  </div>
-                )}
               </ScrollArea>
 
-              <DialogFooter>
+              {previewItems.length > 50 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Showing first 50 of {previewItems.length.toLocaleString()} items
+                </p>
+              )}
+
+              <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={handleCloseImportDialog}>
                   Cancel
                 </Button>
                 <Button onClick={handleConfirmImport} disabled={isImporting}>
-                  {isImporting ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4 mr-2" />
-                  )}
+                  {isImporting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Import {previewItems.length.toLocaleString()} Items
                 </Button>
               </DialogFooter>
@@ -1196,32 +1064,31 @@ const CollectionItems = () => {
           {importStatus === 'importing' && (
             <div className="py-8 space-y-4">
               <div className="flex items-center justify-center">
-                <div className="relative">
-                  <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold">{importProgress}%</span>
-                  </div>
-                </div>
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
               </div>
               <p className="text-center text-muted-foreground">
-                Importing items... ({importedCount} of {previewItems.length})
+                Importing items... ({importedCount.toLocaleString()} / {previewItems.length.toLocaleString()})
               </p>
-              <Progress value={importProgress} className="h-3 transition-all duration-300" />
+              <Progress value={(importedCount / previewItems.length) * 100} className="h-2" />
             </div>
           )}
 
           {/* Done State */}
           {importStatus === 'done' && (
-            <div className="py-8 space-y-4 animate-in zoom-in-50 duration-500">
+            <div className="py-8 space-y-4">
               <div className="flex items-center justify-center">
                 <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
                   <CheckCircle2 className="h-10 w-10 text-green-600" />
                 </div>
               </div>
               <p className="text-center text-lg font-medium text-green-600">
-                Successfully imported {importedCount} items!
+                Successfully imported {importedCount.toLocaleString()} items!
               </p>
-              <Progress value={100} className="h-3 bg-green-100" />
+              <DialogFooter className="justify-center">
+                <Button onClick={handleCloseImportDialog}>
+                  Done
+                </Button>
+              </DialogFooter>
             </div>
           )}
 
