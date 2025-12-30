@@ -402,8 +402,7 @@ const ManageUsers = () => {
             <li><strong>Admin</strong> - Full access to all features including user management, inventory, and reports.</li>
             <li><strong>Team Leader</strong> - Extended staff access with team management capabilities.</li>
             <li><strong>Staff</strong> - Limited access to inventory operations and deliveries.</li>
-            <li><strong>OIC</strong> - Can only view deliveries and upload photos.</li>
-            <li><strong>Uploader</strong> - View-only access with photo upload permissions.</li>
+            <li><strong>Uploader</strong> - Can view all pages but cannot edit anything, only upload photos.</li>
             <li>You cannot change your own role or delete your own account.</li>
             <li>Online status updates in real-time. Green dot indicates the user is currently active.</li>
             <li>Click the key icon to change a user's password.</li>
