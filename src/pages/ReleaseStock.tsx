@@ -348,17 +348,39 @@ const ReleaseStock = () => {
         };
       }).filter(item => item.sheetNo || item.deliverTo);
 
-      if (parsed.length === 0) {
-        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE).', variant: 'destructive' });
+      // Filter out items that already exist as allocation bills in releases
+      const existingBills = new Set(
+        releases
+          .filter(r => r.allocation_bill)
+          .map(r => r.allocation_bill!.toLowerCase().trim())
+      );
+      
+      const filteredParsed = parsed.filter(item => {
+        if (!item.sheetNo) return true; // Keep items without sheetNo
+        return !existingBills.has(item.sheetNo.toLowerCase().trim());
+      });
+      
+      const skippedCount = parsed.length - filteredParsed.length;
+
+      if (filteredParsed.length === 0) {
+        if (skippedCount > 0) {
+          toast({ title: 'All Items Already Released', description: `${skippedCount} item(s) already exist in deliveries and were skipped.`, variant: 'default' });
+        } else {
+          toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE).', variant: 'destructive' });
+        }
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
 
       // Append new items to existing ones instead of replacing
-      setParsedItems(prev => [...prev, ...parsed]);
+      setParsedItems(prev => [...prev, ...filteredParsed]);
       setShowImportPreview(true);
-      toast({ title: 'File Parsed', description: `${parsed.length} items added. Total: ${parsedItems.length + parsed.length} items.` });
+      
+      const message = skippedCount > 0 
+        ? `${filteredParsed.length} items added (${skippedCount} already released and skipped). Total: ${parsedItems.length + filteredParsed.length} items.`
+        : `${filteredParsed.length} items added. Total: ${parsedItems.length + filteredParsed.length} items.`;
+      toast({ title: 'File Parsed', description: message });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
