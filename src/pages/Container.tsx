@@ -543,7 +543,7 @@ const Container = () => {
                     <TableHead>Category Manual</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -665,8 +665,8 @@ const Container = () => {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
                             <Eye className="h-4 w-4" />
                           </Button>
