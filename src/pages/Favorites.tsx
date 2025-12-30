@@ -34,6 +34,7 @@ const Favorites = () => {
   const itemsPerPage = 50;
   
   const canExport = userRole !== 'uploader';
+  const canFavorite = userRole !== 'staff' && userRole !== 'uploader';
 
   // PDF Export function
   const handleExportPDF = () => {
@@ -319,16 +320,20 @@ const Favorites = () => {
                           </TableCell>
                           <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeFavoriteMutation.mutate(item.id)}
-                              disabled={removeFavoriteMutation.isPending}
-                              className="h-8 w-8"
-                              title="Remove from favorites"
-                            >
+                            {canFavorite ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeFavoriteMutation.mutate(item.id)}
+                                disabled={removeFavoriteMutation.isPending}
+                                className="h-8 w-8"
+                                title="Remove from favorites"
+                              >
+                                <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                              </Button>
+                            ) : (
                               <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                            </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
