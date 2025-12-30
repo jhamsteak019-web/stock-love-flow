@@ -54,6 +54,7 @@ const CollectionItems = () => {
   
   const canExport = userRole !== 'uploader';
   const canFavorite = userRole === 'admin';
+  const canEdit = userRole === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -979,6 +980,120 @@ const CollectionItems = () => {
               </Button>
             </>
           )}
+          {isAdmin && (
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Collection Item</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="upc">Search by UPC</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="upc"
+                        value={newItem.upc}
+                        onChange={(e) => setNewItem({ ...newItem, upc: e.target.value })}
+                        placeholder="Enter UPC to search..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleUpcSearch(newItem.upc);
+                          }
+                        }}
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => handleUpcSearch(newItem.upc)}
+                        disabled={upcSearching}
+                      >
+                        {upcSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="item_name">Item Name *</Label>
+                    <Input
+                      id="item_name"
+                      value={newItem.item_name}
+                      onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })}
+                      placeholder="Enter item name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="description">Description</Label>
+                    <Input
+                      id="description"
+                      value={newItem.description}
+                      onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                      placeholder="Enter description"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="category">Category</Label>
+                      <Select value={newItem.category} onValueChange={(value) => setNewItem({ ...newItem, category: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORY_OPTIONS.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="price">Price</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={newItem.price}
+                        onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Photo</Label>
+                    <input
+                      type="file"
+                      ref={photoInputRef}
+                      onChange={(e) => setSelectedPhoto(e.target.files?.[0] || null)}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => photoInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {selectedPhoto ? selectedPhoto.name : 'Upload Photo'}
+                    </Button>
+                  </div>
+                  <Button 
+                    onClick={handleAddItem} 
+                    className="w-full"
+                    disabled={addItemMutation.isPending}
+                  >
+                    {addItemMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : null}
+                    Add Item
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -1245,14 +1360,16 @@ const CollectionItems = () => {
                                   <Heart className={`h-4 w-4 ${item.is_favorite ? 'text-red-500 fill-red-500' : 'text-muted-foreground'}`} />
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditItem(item)}
-                                className="h-8 w-8"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditItem(item)}
+                                  className="h-8 w-8"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
                               {isAdmin && (
                                 <Button
                                   variant="ghost"
