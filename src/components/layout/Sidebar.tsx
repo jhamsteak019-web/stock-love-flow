@@ -108,12 +108,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Container',
       roles: ['admin']
     },
-    { 
-      to: '/inventory', 
-      icon: Package, 
-      label: 'Inventory',
-      roles: ['admin']
-    },
   ];
 
   const filteredNavItems = navItems.filter(item => 
