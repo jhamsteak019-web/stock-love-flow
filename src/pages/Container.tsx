@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, Image, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
 
 interface ContainerItem {
   id: string;
@@ -286,9 +286,10 @@ const Container = () => {
                     <TableHead>Date</TableHead>
                     <TableHead>Out Factory</TableHead>
                     <TableHead>Photo</TableHead>
-                    <TableHead>Date Receive</TableHead>
-                    <TableHead>Receive Photo</TableHead>
-                    <TableHead>Category</TableHead>
+                    <TableHead>Date Receive Warehouse</TableHead>
+                    <TableHead>Delivery Days</TableHead>
+                    <TableHead>Upload Photo</TableHead>
+                    <TableHead>Category Manual</TableHead>
                     <TableHead>Notes</TableHead>
                     {canEdit && <TableHead>Actions</TableHead>}
                   </TableRow>
@@ -342,6 +343,12 @@ const Container = () => {
                       <TableCell className="whitespace-nowrap">
                         {item.date_receive_factory 
                           ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy')
+                          : '-'
+                        }
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {item.date && item.date_receive_factory 
+                          ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date))
                           : '-'
                         }
                       </TableCell>
