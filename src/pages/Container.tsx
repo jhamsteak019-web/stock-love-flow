@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 
 interface ContainerItem {
@@ -290,7 +290,7 @@ const Container = () => {
                     <TableHead>Upload Photo</TableHead>
                     <TableHead>Category Manual</TableHead>
                     <TableHead>Notes</TableHead>
-                    {canEdit && <TableHead>Actions</TableHead>}
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -391,25 +391,28 @@ const Container = () => {
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          <div className="flex items-center gap-1">
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {canEdit && (
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            {canDelete && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => deleteMutation.mutate(item.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
+                          )}
+                          {canDelete && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => deleteMutation.mutate(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
