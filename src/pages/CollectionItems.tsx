@@ -40,7 +40,8 @@ interface PreviewItem {
   photo_url: string | null;
 }
 
-const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
+const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM'];
+const CATEGORY_OPTIONS_2 = ['CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
 
 const CollectionItems = () => {
   const { user, userRole } = useAuth();
@@ -117,6 +118,7 @@ const CollectionItems = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory2, setSelectedCategory2] = useState<string>('all');
   const itemsPerPage = 50;
 
   // Fetch collection items - fetch all items by paginating through results
@@ -495,9 +497,14 @@ const CollectionItems = () => {
       result = result.filter(item => item.item_name.startsWith(selectedYear));
     }
 
-    // Filter by category
+    // Filter by category (first dropdown)
     if (selectedCategory !== 'all') {
       result = result.filter(item => item.category === selectedCategory);
+    }
+
+    // Filter by category 2 (second dropdown)
+    if (selectedCategory2 !== 'all') {
+      result = result.filter(item => item.category === selectedCategory2);
     }
 
     // Apply search filter
@@ -554,6 +561,11 @@ const CollectionItems = () => {
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategory2Change = (value: string) => {
+    setSelectedCategory2(value);
     setCurrentPage(1);
   };
 
@@ -1014,6 +1026,17 @@ const CollectionItems = () => {
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 {CATEGORY_OPTIONS.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedCategory2} onValueChange={handleCategory2Change}>
+              <SelectTrigger className="w-full sm:w-[100px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {CATEGORY_OPTIONS_2.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
