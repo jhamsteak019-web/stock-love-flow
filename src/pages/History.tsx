@@ -459,12 +459,12 @@ const History = () => {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "justify-start text-left font-normal",
+                      "h-8 px-3 text-left font-normal",
                       !startDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
+                    <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                    {startDate ? format(startDate, "MMM d") : "Start date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -484,12 +484,12 @@ const History = () => {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "justify-start text-left font-normal",
+                      "h-8 px-3 text-left font-normal",
                       !endDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+                    <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                    {endDate ? format(endDate, "MMM d") : "End date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
