@@ -104,6 +104,48 @@ export type Database = {
         }
         Relationships: []
       }
+      containers: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          date_receive_factory: string | null
+          id: string
+          notes: string | null
+          out_factory: string | null
+          photo_url: string | null
+          receive_photo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          date_receive_factory?: string | null
+          id?: string
+          notes?: string | null
+          out_factory?: string | null
+          photo_url?: string | null
+          receive_photo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          date_receive_factory?: string | null
+          id?: string
+          notes?: string | null
+          out_factory?: string | null
+          photo_url?: string | null
+          receive_photo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       imported_items: {
         Row: {
           batch_id: string
