@@ -739,93 +739,145 @@ const CollectionItems = () => {
     }
   };
 
-  // Export to PDF with images
+  // Export to PDF with professional table format
   const handleExportPDF = async () => {
     if (filteredItems.length === 0) {
       toast.error('No items to export');
       return;
     }
 
-    toast.info('Preparing PDF with images...');
+    toast.info('Preparing PDF...');
 
     const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    const tableWidth = pageWidth - (margin * 2);
     
-    doc.setFontSize(16);
-    doc.text('Collection Items Report', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleDateString()} | Total: ${filteredItems.length} items`, 14, 22);
+    // Title
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Collection Items Report', margin, 15);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${new Date().toLocaleDateString()} | Total: ${filteredItems.length} items`, margin, 22);
 
-    const headers = ['Image', 'Name', 'UPC', 'Description', 'Category', 'Price'];
-    const colWidths = [25, 50, 30, 80, 25, 25];
-    const rowHeight = 25;
-    let y = 32;
+    // Table configuration
+    const headers = ['Image', 'Item Name', 'UPC', 'Description', 'Category', 'Price'];
+    const colWidths = [20, 55, 35, 95, 35, 30]; // Total: 270
+    const rowHeight = 8;
+    const headerHeight = 10;
+    let y = 28;
 
-    // Header
-    doc.setFillColor(59, 130, 246);
-    doc.rect(14, y - 5, 270, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    let x = 14;
-    headers.forEach((header, i) => {
-      doc.text(header, x + 2, y);
-      x += colWidths[i];
-    });
+    // Function to draw table header
+    const drawHeader = (startY: number) => {
+      // Header background - dark gray
+      doc.setFillColor(80, 80, 80);
+      doc.rect(margin, startY, tableWidth, headerHeight, 'F');
+      
+      // Header text
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      
+      let x = margin;
+      headers.forEach((header, i) => {
+        doc.text(header, x + 2, startY + 7);
+        x += colWidths[i];
+      });
+      
+      // Header border
+      doc.setDrawColor(60, 60, 60);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, startY, tableWidth, headerHeight, 'S');
+      
+      return startY + headerHeight;
+    };
+
+    // Draw initial header
+    y = drawHeader(y);
 
     // Data rows
-    doc.setTextColor(0, 0, 0);
-    y += 10;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
 
-    for (const item of filteredItems) {
-      if (y > 180) {
+    for (let i = 0; i < filteredItems.length; i++) {
+      const item = filteredItems[i];
+      
+      // Check if we need a new page
+      if (y + rowHeight > pageHeight - 15) {
         doc.addPage();
-        y = 20;
+        y = 15;
+        y = drawHeader(y);
       }
 
+      // Alternating row colors
+      if (i % 2 === 0) {
+        doc.setFillColor(255, 248, 240); // Light orange/peach
+      } else {
+        doc.setFillColor(255, 255, 255); // White
+      }
+      doc.rect(margin, y, tableWidth, rowHeight, 'F');
+
+      // Row border
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.2);
+      doc.rect(margin, y, tableWidth, rowHeight, 'S');
+
+      // Parse item data
       const descParts = item.description?.split(' | ') || [];
       const upc = descParts[0]?.startsWith('UPC: ') ? descParts[0].replace('UPC: ', '') : '';
       const description = upc ? descParts.slice(1).join(' | ') : item.description;
       const priceMatch = item.notes?.match(/Price: ([\d.]+)/);
       const price = priceMatch ? parseFloat(priceMatch[1]) : (item.quantity || 0);
 
-      x = 14;
+      doc.setTextColor(0, 0, 0);
+      let x = margin;
 
-      // Image
-      if (item.photo_url) {
-        try {
-          const base64 = await fetchImageAsBase64(item.photo_url);
-          if (base64) {
-            doc.addImage(base64, 'PNG', x + 2, y, 20, 20);
-          }
-        } catch {}
-      }
+      // Image column - show "Yes" or "-"
+      doc.text(item.photo_url ? 'Yes' : '-', x + 2, y + 5.5);
       x += colWidths[0];
 
-      // Name (truncate if too long)
-      doc.setFontSize(7);
-      doc.text((item.item_name || '-').substring(0, 30), x + 2, y + 10);
+      // Item Name - truncate and make it a link color
+      doc.setTextColor(0, 102, 204); // Blue link color
+      doc.text((item.item_name || '-').substring(0, 35), x + 2, y + 5.5);
+      doc.setTextColor(0, 0, 0);
       x += colWidths[1];
 
       // UPC
-      doc.text((upc || '-').substring(0, 18), x + 2, y + 10);
+      doc.text((upc || '-').substring(0, 20), x + 2, y + 5.5);
       x += colWidths[2];
 
-      // Description (truncate)
-      doc.text((description || '-').substring(0, 50), x + 2, y + 10);
+      // Description
+      doc.text((description || '-').substring(0, 60), x + 2, y + 5.5);
       x += colWidths[3];
 
       // Category
-      doc.text(item.category || '-', x + 2, y + 10);
+      doc.text(item.category || '-', x + 2, y + 5.5);
       x += colWidths[4];
 
-      // Price
-      doc.text(price.toString(), x + 2, y + 10);
+      // Price - right align
+      const priceText = price.toString();
+      doc.text(priceText, x + colWidths[5] - 5, y + 5.5, { align: 'right' });
+
+      // Draw vertical lines for columns
+      doc.setDrawColor(200, 200, 200);
+      let lineX = margin;
+      colWidths.forEach((width) => {
+        lineX += width;
+        doc.line(lineX, y, lineX, y + rowHeight);
+      });
 
       y += rowHeight;
     }
 
+    // Draw outer border
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.5);
+
     const date = new Date().toISOString().split('T')[0];
     doc.save(`collection_items_${date}.pdf`);
-    toast.success('Exported to PDF with images successfully');
+    toast.success('Exported to PDF successfully');
   };
 
   const isAdmin = userRole === 'admin';
