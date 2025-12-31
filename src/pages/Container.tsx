@@ -52,6 +52,7 @@ const Container = () => {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [receiveDatePickerContainerId, setReceiveDatePickerContainerId] = useState<string | null>(null);
   const [isReceiveDatePickerOpen, setIsReceiveDatePickerOpen] = useState(false);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     date: '',
@@ -558,43 +559,42 @@ const Container = () => {
                         {format(new Date(item.date), 'MMM dd, yyyy')}
                       </TableCell>
                       <TableCell>
-                        <label className="cursor-pointer relative group">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
-                            disabled={uploadingPhotoId === item.id || !canEdit}
-                          />
-                          {item.photo_url ? (
-                            <div className="relative">
+                        <div className="flex items-center gap-2">
+                          {item.photo_url && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewPhotoUrl(item.photo_url)}
+                              className="focus:outline-none"
+                            >
                               <img 
                                 src={item.photo_url} 
                                 alt="Container" 
-                                className="h-12 w-12 object-cover rounded hover:opacity-80"
+                                className="h-12 w-12 object-cover rounded cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary transition-all"
                               />
-                              {canEdit && (
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center transition-opacity">
-                                  {uploadingPhotoId === item.id ? (
-                                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
-                                  ) : (
-                                    <Camera className="h-4 w-4 text-white" />
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ) : canEdit ? (
-                            <div className="h-12 w-12 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
-                              {uploadingPhotoId === item.id ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Camera className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </div>
-                          ) : (
+                            </button>
+                          )}
+                          {canEdit && (
+                            <label className="cursor-pointer relative group">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
+                                disabled={uploadingPhotoId === item.id}
+                              />
+                              <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
+                                {uploadingPhotoId === item.id ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Camera className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </label>
+                          )}
+                          {!item.photo_url && !canEdit && (
                             <span className="text-muted-foreground">-</span>
                           )}
-                        </label>
+                        </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {item.date_receive_factory 
@@ -609,43 +609,42 @@ const Container = () => {
                         }
                       </TableCell>
                       <TableCell>
-                        <label className="cursor-pointer relative group">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
-                            disabled={uploadingReceivePhotoId === item.id || !canEdit}
-                          />
-                          {item.receive_photo_url ? (
-                            <div className="relative">
+                        <div className="flex items-center gap-2">
+                          {item.receive_photo_url && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewPhotoUrl(item.receive_photo_url)}
+                              className="focus:outline-none"
+                            >
                               <img 
                                 src={item.receive_photo_url} 
                                 alt="Receive" 
-                                className="h-12 w-12 object-cover rounded hover:opacity-80"
+                                className="h-12 w-12 object-cover rounded cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary transition-all"
                               />
-                              {canEdit && (
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center transition-opacity">
-                                  {uploadingReceivePhotoId === item.id ? (
-                                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
-                                  ) : (
-                                    <Camera className="h-4 w-4 text-white" />
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          ) : canEdit ? (
-                            <div className="h-12 w-12 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
-                              {uploadingReceivePhotoId === item.id ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Camera className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </div>
-                          ) : (
+                            </button>
+                          )}
+                          {canEdit && (
+                            <label className="cursor-pointer relative group">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
+                                disabled={uploadingReceivePhotoId === item.id}
+                              />
+                              <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
+                                {uploadingReceivePhotoId === item.id ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Camera className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </label>
+                          )}
+                          {!item.receive_photo_url && !canEdit && (
                             <span className="text-muted-foreground">-</span>
                           )}
-                        </label>
+                        </div>
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.notes || '-'}</TableCell>
@@ -864,6 +863,29 @@ const Container = () => {
               setReceiveDatePickerContainerId(null);
             }}>
               Skip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!previewPhotoUrl} onOpenChange={() => setPreviewPhotoUrl(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Photo Preview</DialogTitle>
+          </DialogHeader>
+          {previewPhotoUrl && (
+            <div className="flex justify-center">
+              <img 
+                src={previewPhotoUrl} 
+                alt="Preview" 
+                className="max-h-[70vh] object-contain rounded-lg"
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewPhotoUrl(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
