@@ -193,6 +193,15 @@ const Container = () => {
         data: type === 'photo' ? { photo_url: url } : { receive_photo_url: url }
       });
       toast.success('Photo uploaded successfully');
+      
+      // Show calendar popup after photo upload
+      if (type === 'photo') {
+        setDatePickerContainerId(containerId);
+        setIsDatePickerOpen(true);
+      } else {
+        setReceiveDatePickerContainerId(containerId);
+        setIsReceiveDatePickerOpen(true);
+      }
     } catch (error: any) {
       toast.error(`Failed to upload: ${error.message}`);
     } finally {
@@ -800,17 +809,17 @@ const Container = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>Container Name</Label>
               <Input
-                placeholder="Enter category"
+                placeholder="Enter container name"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Container Name</Label>
+              <Label>Remarks</Label>
               <Textarea
-                placeholder="Enter container name/details"
+                placeholder="Enter remarks"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
@@ -853,17 +862,17 @@ const Container = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>Container Name</Label>
               <Input
-                placeholder="Enter category"
+                placeholder="Enter container name"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Container Name</Label>
+              <Label>Remarks</Label>
               <Textarea
-                placeholder="Enter container name/details"
+                placeholder="Enter remarks"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />

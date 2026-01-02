@@ -38,6 +38,8 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const HISTORY_STORAGE_KEY = 'history_filter';
+
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
@@ -88,11 +90,30 @@ const History = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
-  // Month/Year filter state
-  const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
+  // Get saved filter from localStorage or use current date
+  const getSavedHistoryFilter = () => {
+    try {
+      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          month: typeof parsed.month === 'number' ? parsed.month : new Date().getMonth(),
+          year: typeof parsed.year === 'number' ? parsed.year : new Date().getFullYear()
+        };
+      }
+    } catch {}
+    return { month: new Date().getMonth(), year: new Date().getFullYear() };
+  };
+
+  const savedHistoryFilter = getSavedHistoryFilter();
+  const [selectedMonth, setSelectedMonth] = useState<number>(savedHistoryFilter.month);
+  const [selectedYear, setSelectedYear] = useState<number>(savedHistoryFilter.year);
   const [activeTab, setActiveTab] = useState('active');
+  
+  // Persist filter to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify({ month: selectedMonth, year: selectedYear }));
+  }, [selectedMonth, selectedYear]);
   const [deletedReleases, setDeletedReleases] = useState<StockRelease[]>([]);
   const [loadingDeleted, setLoadingDeleted] = useState(false);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
