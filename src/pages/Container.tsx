@@ -978,27 +978,6 @@ const Container = () => {
                 <div className="w-full h-px bg-border mt-2" />
               </div>
 
-              {/* Header Info Section */}
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <p className="text-sm">
-                    <span className="font-semibold text-foreground">Container:</span>{' '}
-                    <span className="text-foreground">{viewingItem.notes || '-'}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-semibold text-foreground">Category:</span>{' '}
-                    <span className="text-foreground">{viewingItem.category || '-'}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-semibold text-foreground">Remarks:</span>{' '}
-                    <span className="text-foreground">{viewingItem.remarks || '-'}</span>
-                  </p>
-                </div>
-                <div className="text-right space-y-1">
-                  <p className="text-lg font-bold text-primary">{viewingItem.notes || 'CONTAINER'}</p>
-                  <p className="text-sm text-muted-foreground">{format(new Date(viewingItem.date), 'yyyy-MM-dd')}</p>
-                </div>
-              </div>
 
               {/* Details Table */}
               <div className="border rounded-lg overflow-hidden">
