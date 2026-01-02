@@ -783,7 +783,7 @@ const Container = () => {
                         </div>
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
-                      <TableCell>{item.remarks || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] break-words whitespace-normal">{item.remarks || '-'}</TableCell>
                       <TableCell className="min-w-[240px]">
                         <Select 
                           value={item.status || 'ON PROCESS WAREHOUSE'} 
@@ -999,7 +999,7 @@ const Container = () => {
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium text-muted-foreground">Remarks</TableCell>
-                      <TableCell>{viewingItem.remarks || '-'}</TableCell>
+                      <TableCell className="break-words whitespace-normal max-w-[300px]">{viewingItem.remarks || '-'}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium text-muted-foreground">Status</TableCell>
