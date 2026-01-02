@@ -626,7 +626,8 @@ const Container = () => {
                     <TableHead>Date Receive Warehouse</TableHead>
                     <TableHead>Delivery Days</TableHead>
                     <TableHead>Upload Photo</TableHead>
-                    <TableHead>Category Manual</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Remarks</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -737,6 +738,7 @@ const Container = () => {
                         </div>
                       </TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
+                      <TableCell>{item.remarks || '-'}</TableCell>
                       <TableCell className="min-w-[240px]">
                         <Select 
                           value={item.status || 'ON PROCESS WAREHOUSE'} 
