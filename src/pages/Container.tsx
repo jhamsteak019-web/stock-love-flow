@@ -415,7 +415,14 @@ const Container = () => {
         doc.text(`Date Receive: ${item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy') : '-'}`, 18, y + 26);
         doc.text(`Delivery Days: ${item.date && item.date_receive_factory ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date)) : '-'}`, 18, y + 34);
         doc.text(`Category: ${item.category || '-'}`, 18, y + 42);
-        doc.text(`Status: ${item.status || '-'}`, 18, y + 50);
+        // Status with blue pill/badge style
+        const statusText = item.status || '-';
+        doc.setFillColor(219, 234, 254); // bg-blue-100
+        doc.setDrawColor(59, 130, 246); // border-blue-500
+        const statusWidth = doc.getTextWidth(statusText) + 6;
+        doc.roundedRect(18, y + 45, statusWidth, 7, 2, 2, 'FD');
+        doc.setTextColor(37, 99, 235); // text-blue-600
+        doc.text(statusText, 21, y + 50);
 
         // Photos
         let photoX = 120;
@@ -484,7 +491,15 @@ const Container = () => {
         doc.text(item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yy') : '-', 100, y + 4);
         doc.text(item.date && item.date_receive_factory ? String(differenceInDays(new Date(item.date_receive_factory), new Date(item.date))) : '-', 135, y + 4);
         doc.text((item.category || '-').substring(0, 6), 150, y + 4);
-        doc.text((item.status || '-').substring(0, 15), 175, y + 4);
+        // Status with blue pill/badge style
+        const statusText = (item.status || '-').substring(0, 15);
+        doc.setFillColor(219, 234, 254); // bg-blue-100
+        doc.setDrawColor(59, 130, 246); // border-blue-500
+        const statusWidth = doc.getTextWidth(statusText) + 4;
+        doc.roundedRect(175, y - 1, statusWidth, 6, 1.5, 1.5, 'FD');
+        doc.setTextColor(37, 99, 235); // text-blue-600
+        doc.text(statusText, 177, y + 4);
+        doc.setTextColor(0, 0, 0); // reset to black
 
         doc.setDrawColor(200, 200, 200);
         doc.line(14, y + 6, 196, y + 6);
