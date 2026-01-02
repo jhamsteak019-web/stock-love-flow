@@ -1019,10 +1019,6 @@ const Container = () => {
                       <TableCell>{viewingItem.category || '-'}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-medium text-muted-foreground">Remarks</TableCell>
-                      <TableCell>{viewingItem.remarks || '-'}</TableCell>
-                    </TableRow>
-                    <TableRow>
                       <TableCell className="font-medium text-muted-foreground">Status</TableCell>
                       <TableCell>
                         <span className={cn(
