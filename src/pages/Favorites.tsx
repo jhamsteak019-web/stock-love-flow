@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Heart, Loader2, ChevronLeft, ChevronRight, FileDown, Calendar } from 'lucide-react';
+import { Search, Heart, Loader2, ChevronLeft, ChevronRight, FileDown, Calendar, Trash2, RotateCcw } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -27,6 +29,7 @@ interface CollectionItem {
   created_at: string;
   is_favorite: boolean;
   favorite_remarks: string | null;
+  deleted_at: string | null;
 }
 
 const Favorites = () => {
@@ -34,6 +37,7 @@ const Favorites = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('active');
   const itemsPerPage = 50;
   
   const currentYear = new Date().getFullYear();
@@ -43,7 +47,6 @@ const Favorites = () => {
   
   const canExport = userRole !== 'uploader';
   const canFavorite = userRole === 'admin';
-
   // Get available years from items
   const availableYears = useMemo(() => {
     const years = new Set<string>();
@@ -172,7 +175,7 @@ const Favorites = () => {
     }, 250);
   };
 
-  // Fetch favorite items
+  // Fetch active favorite items
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['favorite-items'],
     queryFn: async () => {
@@ -186,6 +189,7 @@ const Favorites = () => {
           .from('collection_items')
           .select('*')
           .eq('is_favorite', true)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .range(page * pageSize, (page + 1) * pageSize - 1);
         
@@ -201,6 +205,80 @@ const Favorites = () => {
       }
 
       return allItems;
+    }
+  });
+
+  // Fetch deleted favorite items
+  const { data: deletedItems = [], isLoading: isLoadingDeleted } = useQuery({
+    queryKey: ['favorite-items-deleted'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('collection_items')
+        .select('*')
+        .eq('is_favorite', true)
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as CollectionItem[];
+    }
+  });
+
+  // Soft delete mutation
+  const softDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorite-items'] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-items-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      toast.success('Moved to recently deleted');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete: ${error.message}`);
+    }
+  });
+
+  // Restore mutation
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({ deleted_at: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorite-items'] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-items-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      toast.success('Item restored');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to restore: ${error.message}`);
+    }
+  });
+
+  // Permanent delete mutation
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorite-items-deleted'] });
+      toast.success('Permanently deleted');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete: ${error.message}`);
     }
   });
 
@@ -242,34 +320,48 @@ const Favorites = () => {
 
   return (
     <div className="space-y-6">
-      {/* Month/Year Filter */}
-      <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-popover z-50">
-            {MONTHS.map((month, index) => (
-              <SelectItem key={index} value={index.toString()}>
-                {month}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-popover z-50">
-            {availableYears.map(year => (
-              <SelectItem key={year} value={year}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Tabs for Active / Recently Deleted */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="active" className="flex items-center gap-2">
+            <Heart className="h-4 w-4" />
+            Active ({items.length})
+          </TabsTrigger>
+          <TabsTrigger value="deleted" className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Recently Deleted ({deletedItems.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-6">
+          {/* Month/Year Filter */}
+          <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {MONTHS.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
       {/* Header */}
       <Card>
@@ -368,20 +460,34 @@ const Favorites = () => {
                           </TableCell>
                           <TableCell className="font-medium text-right">{price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>
-                            {canFavorite ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeFavoriteMutation.mutate(item.id)}
-                                disabled={removeFavoriteMutation.isPending}
-                                className="h-8 w-8"
-                                title="Remove from favorites"
-                              >
+                            <div className="flex items-center gap-1">
+                              {canFavorite ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeFavoriteMutation.mutate(item.id)}
+                                  disabled={removeFavoriteMutation.isPending}
+                                  className="h-8 w-8"
+                                  title="Remove from favorites"
+                                >
+                                  <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                                </Button>
+                              ) : (
                                 <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                              </Button>
-                            ) : (
-                              <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                            )}
+                              )}
+                              {canFavorite && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => softDeleteMutation.mutate(item.id)}
+                                  disabled={softDeleteMutation.isPending}
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  title="Move to recently deleted"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -434,6 +540,114 @@ const Favorites = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Recently Deleted Tab */}
+        <TabsContent value="deleted" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-muted-foreground" />
+                Recently Deleted Favorites ({deletedItems.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDeleted ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : deletedItems.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trash2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No deleted favorites</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[70px]">Photo</TableHead>
+                        <TableHead className="min-w-[150px]">Name</TableHead>
+                        <TableHead className="w-[100px]">Category</TableHead>
+                        <TableHead className="w-[150px]">Deleted At</TableHead>
+                        <TableHead className="w-[120px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deletedItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="p-2">
+                            <CollectionPhotoCell
+                              itemId={item.id}
+                              photoUrl={item.photo_url}
+                              itemName={item.item_name}
+                              onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['favorite-items-deleted'] })}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{item.item_name}</TableCell>
+                          <TableCell>
+                            {item.category ? (
+                              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {item.deleted_at && format(new Date(item.deleted_at), 'MMM d, yyyy h:mm a')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => restoreMutation.mutate(item.id)}
+                                disabled={restoreMutation.isPending}
+                                className="h-8 w-8 text-green-600 hover:text-green-700"
+                                title="Restore"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    title="Delete permanently"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Permanently Delete?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete "{item.item_name}". This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => permanentDeleteMutation.mutate(item.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete Permanently
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

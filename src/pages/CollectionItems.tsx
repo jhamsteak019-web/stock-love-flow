@@ -13,12 +13,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar, Heart, FileText } from 'lucide-react';
+import { Upload, Plus, Trash2, Search, Image, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Eye, Pencil, ChevronLeft, ChevronRight, Download, Calendar, Heart, FileText, RotateCcw } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
+import { format } from 'date-fns';
 
 interface CollectionItem {
   id: string;
@@ -32,6 +34,7 @@ interface CollectionItem {
   created_at: string;
   is_favorite: boolean;
   favorite_remarks: string | null;
+  deleted_at: string | null;
 }
 
 interface PreviewItem {
@@ -128,9 +131,10 @@ const CollectionItems = () => {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedCategory2, setSelectedCategory2] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState('active');
   const itemsPerPage = 50;
 
-  // Fetch collection items - fetch all items by paginating through results
+  // Fetch active collection items
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['collection-items'],
     queryFn: async () => {
@@ -143,6 +147,7 @@ const CollectionItems = () => {
         const { data, error } = await supabase
           .from('collection_items')
           .select('*')
+          .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .range(page * pageSize, (page + 1) * pageSize - 1);
         
@@ -158,6 +163,79 @@ const CollectionItems = () => {
       }
 
       return allItems;
+    }
+  });
+
+  // Fetch deleted collection items
+  const { data: deletedItems = [], isLoading: isLoadingDeleted } = useQuery({
+    queryKey: ['collection-items-deleted'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('collection_items')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as CollectionItem[];
+    }
+  });
+
+  // Soft delete mutation
+  const softDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      queryClient.invalidateQueries({ queryKey: ['collection-items-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-items'] });
+      toast.success('Moved to recently deleted');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete: ${error.message}`);
+    }
+  });
+
+  // Restore mutation
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({ deleted_at: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      queryClient.invalidateQueries({ queryKey: ['collection-items-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-items'] });
+      toast.success('Item restored');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to restore: ${error.message}`);
+    }
+  });
+
+  // Permanent delete mutation
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection-items-deleted'] });
+      toast.success('Permanently deleted');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete: ${error.message}`);
     }
   });
 
@@ -908,6 +986,19 @@ const CollectionItems = () => {
 
   return (
     <div className="space-y-6">
+      {/* Tabs for Active / Recently Deleted */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="active" className="flex items-center gap-2">
+            Active ({items.length})
+          </TabsTrigger>
+          <TabsTrigger value="deleted" className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Recently Deleted ({deletedItems.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Collection Items</h1>
@@ -1374,9 +1465,10 @@ const CollectionItems = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => deleteItemMutation.mutate(item.id)}
-                                  disabled={deleteItemMutation.isPending}
+                                  onClick={() => softDeleteMutation.mutate(item.id)}
+                                  disabled={softDeleteMutation.isPending}
                                   className="h-8 w-8"
+                                  title="Move to recently deleted"
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -1447,6 +1539,114 @@ const CollectionItems = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Recently Deleted Tab */}
+        <TabsContent value="deleted" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-muted-foreground" />
+                Recently Deleted Items ({deletedItems.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDeleted ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : deletedItems.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trash2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No deleted items</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[70px]">Photo</TableHead>
+                        <TableHead className="min-w-[150px]">Name</TableHead>
+                        <TableHead className="w-[100px]">Category</TableHead>
+                        <TableHead className="w-[150px]">Deleted At</TableHead>
+                        <TableHead className="w-[120px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deletedItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="p-2">
+                            <CollectionPhotoCell
+                              itemId={item.id}
+                              photoUrl={item.photo_url}
+                              itemName={item.item_name}
+                              onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['collection-items-deleted'] })}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{item.item_name}</TableCell>
+                          <TableCell>
+                            {item.category ? (
+                              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {item.deleted_at && format(new Date(item.deleted_at), 'MMM d, yyyy h:mm a')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => restoreMutation.mutate(item.id)}
+                                disabled={restoreMutation.isPending}
+                                className="h-8 w-8 text-green-600 hover:text-green-700"
+                                title="Restore"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    title="Delete permanently"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Permanently Delete?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete "{item.item_name}". This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => permanentDeleteMutation.mutate(item.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete Permanently
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Item Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
