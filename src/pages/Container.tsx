@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon, ZoomIn, ZoomOut, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon, ZoomIn, ZoomOut, X, Calendar as CalendarLucide } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -558,7 +558,7 @@ const Container = () => {
           <div className="flex items-center gap-2">
             {/* Month/Year Filter */}
             <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CalendarLucide className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
                 <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
                   <SelectValue placeholder="Month" />
