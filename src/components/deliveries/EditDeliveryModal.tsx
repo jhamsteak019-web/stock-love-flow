@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DeliveryStatus } from '@/types/inventory';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { format, differenceInDays, parseISO } from 'date-fns';
 
 interface GroupedRelease {
   batch_id: string;
@@ -46,6 +47,7 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus>(group.delivery_status);
   const [totalBoxes, setTotalBoxes] = useState(group.totalBoxes);
   const [totalQty, setTotalQty] = useState(group.totalQty);
+  const [setDate, setSetDate] = useState(group.set_date || '');
 
   const handleSave = async () => {
     setLoading(true);
@@ -74,6 +76,7 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
             delivery_status: deliveryStatus,
             boxes_released: boxes,
             total_qty: qty,
+            set_date: setDate || null,
           })
           .eq('id', releaseId);
 
@@ -192,6 +195,21 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
                 <SelectItem value="delivered">Delivered</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="setDate">Set Date (for Delivery Days calculation)</Label>
+            <Input
+              id="setDate"
+              type="date"
+              value={setDate ? format(new Date(setDate), 'yyyy-MM-dd') : ''}
+              onChange={(e) => setSetDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
+            />
+            {setDate && group.date_delivered && (
+              <p className="text-sm text-muted-foreground">
+                Delivery Days: {differenceInDays(new Date(group.date_delivered), new Date(setDate))} days
+              </p>
+            )}
           </div>
 
         </div>
