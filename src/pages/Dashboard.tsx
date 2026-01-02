@@ -144,8 +144,7 @@ const Dashboard = () => {
     });
 
     return Object.values(storeData)
-      .sort((a, b) => b.boxes - a.boxes)
-      .slice(0, 10);
+      .sort((a, b) => b.boxes - a.boxes);
   }, [filteredReleases]);
 
   const storeCompletionRates = useMemo(() => {
@@ -179,8 +178,7 @@ const Dashboard = () => {
         ...data,
         percentage: data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0
       }))
-      .sort((a, b) => b.totalBoxes - a.totalBoxes)
-      .slice(0, 10);
+      .sort((a, b) => b.totalBoxes - a.totalBoxes);
   }, [filteredReleases]);
 
   const branchDeliveryStatus = useMemo(() => {
@@ -254,15 +252,13 @@ const Dashboard = () => {
         stores: Object.entries(stores)
           .map(([store, data]) => ({ store, ...data }))
           .sort((a, b) => b.boxes - a.boxes)
-          .slice(0, 3)
       }))
       .filter(cat => cat.stores.length > 0)
       .sort((a, b) => {
         const totalA = a.stores.reduce((sum, s) => sum + s.boxes, 0);
         const totalB = b.stores.reduce((sum, s) => sum + s.boxes, 0);
         return totalB - totalA;
-      })
-      .slice(0, 6);
+      });
   }, [filteredReleases]);
 
   const monthlyDeliveryStatus = useMemo(() => {
@@ -679,7 +675,7 @@ const Dashboard = () => {
             {topStoresByCategory.length === 0 ? (
               <p className="text-sm text-muted-foreground">No category data available</p>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 max-h-[600px] overflow-y-auto">
                 {topStoresByCategory.map((cat, catIndex) => (
                   <div key={cat.category} className="rounded-lg border border-border bg-muted/20 p-4">
                     <div className="flex items-center gap-2 mb-3">
@@ -688,8 +684,11 @@ const Dashboard = () => {
                         style={{ backgroundColor: COLORS[catIndex % COLORS.length] }}
                       />
                       <h4 className="font-semibold text-foreground">{cat.category}</h4>
+                      <Badge variant="secondary" className="text-xs ml-auto">
+                        {cat.stores.reduce((sum, s) => sum + s.boxes, 0).toLocaleString()} boxes
+                      </Badge>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
                       {cat.stores.map((store, index) => (
                         <div key={store.store} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
@@ -700,7 +699,6 @@ const Dashboard = () => {
                           </div>
                           <div className="text-right text-xs text-muted-foreground">
                             <span className="font-semibold text-foreground">{store.boxes.toLocaleString()}</span> boxes
-                            <span className="ml-2">{store.qty.toLocaleString()} qty</span>
                           </div>
                         </div>
                       ))}
