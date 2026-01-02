@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon, ZoomIn, ZoomOut, X, Calendar as CalendarLucide } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon, ZoomIn, ZoomOut, X, Calendar as CalendarLucide, RotateCcw, AlertTriangle } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -30,6 +31,7 @@ interface ContainerItem {
   remarks: string | null;
   status: string | null;
   created_at: string;
+  deleted_at: string | null;
 }
 
 const STATUS_OPTIONS = ['ON PROCESS WAREHOUSE', 'FOR DISTRIBUTION ON WAREHOUSE', 'FOR DELIVERY ON STORE'];
@@ -48,6 +50,7 @@ const Container = () => {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
+  const [activeTab, setActiveTab] = useState('active');
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -77,14 +80,30 @@ const Container = () => {
   const canDelete = userRole === 'admin';
   const canExport = userRole !== 'uploader';
 
-  // Fetch containers
+  // Fetch active containers
   const { data: containers = [], isLoading, refetch } = useQuery({
     queryKey: ['containers'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('containers')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as ContainerItem[];
+    }
+  });
+
+  // Fetch deleted containers
+  const { data: deletedContainers = [], refetch: refetchDeleted } = useQuery({
+    queryKey: ['containers-deleted'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('containers')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
       
       if (error) throw error;
       return data as ContainerItem[];
@@ -144,8 +163,46 @@ const Container = () => {
     }
   });
 
-  // Delete container
-  const deleteMutation = useMutation({
+  // Soft delete container
+  const softDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('containers')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+      queryClient.invalidateQueries({ queryKey: ['containers-deleted'] });
+      toast.success('Container moved to Recently Deleted');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete: ${error.message}`);
+    }
+  });
+
+  // Restore container
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('containers')
+        .update({ deleted_at: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+      queryClient.invalidateQueries({ queryKey: ['containers-deleted'] });
+      toast.success('Container restored successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to restore: ${error.message}`);
+    }
+  });
+
+  // Permanent delete
+  const permanentDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('containers')
@@ -154,8 +211,8 @@ const Container = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containers'] });
-      toast.success('Container deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['containers-deleted'] });
+      toast.success('Container permanently deleted');
     },
     onError: (error: any) => {
       toast.error(`Failed to delete: ${error.message}`);
@@ -450,11 +507,11 @@ const Container = () => {
         doc.text(`Category: ${item.category || '-'}`, 18, y + 42);
         // Status with blue pill/badge style
         const statusText = item.status || '-';
-        doc.setFillColor(219, 234, 254); // bg-blue-100
-        doc.setDrawColor(59, 130, 246); // border-blue-500
+        doc.setFillColor(219, 234, 254);
+        doc.setDrawColor(59, 130, 246);
         const statusWidth = doc.getTextWidth(statusText) + 6;
         doc.roundedRect(18, y + 45, statusWidth, 7, 2, 2, 'FD');
-        doc.setTextColor(37, 99, 235); // text-blue-600
+        doc.setTextColor(37, 99, 235);
         doc.text(statusText, 21, y + 50);
 
         // Photos
@@ -524,15 +581,14 @@ const Container = () => {
         doc.text(item.date_receive_factory ? format(new Date(item.date_receive_factory), 'MMM dd, yy') : '-', 100, y + 4);
         doc.text(item.date && item.date_receive_factory ? String(differenceInDays(new Date(item.date_receive_factory), new Date(item.date))) : '-', 135, y + 4);
         doc.text((item.category || '-').substring(0, 6), 150, y + 4);
-        // Status with blue pill/badge style
         const statusText = (item.status || '-').substring(0, 15);
-        doc.setFillColor(219, 234, 254); // bg-blue-100
-        doc.setDrawColor(59, 130, 246); // border-blue-500
+        doc.setFillColor(219, 234, 254);
+        doc.setDrawColor(59, 130, 246);
         const statusWidth = doc.getTextWidth(statusText) + 4;
         doc.roundedRect(175, y - 1, statusWidth, 6, 1.5, 1.5, 'FD');
-        doc.setTextColor(37, 99, 235); // text-blue-600
+        doc.setTextColor(37, 99, 235);
         doc.text(statusText, 177, y + 4);
-        doc.setTextColor(0, 0, 0); // reset to black
+        doc.setTextColor(0, 0, 0);
 
         doc.setDrawColor(200, 200, 200);
         doc.line(14, y + 6, 196, y + 6);
@@ -549,293 +605,376 @@ const Container = () => {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <ContainerIcon className="h-5 w-5" />
-            Container ({filteredContainers.length})
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {/* Month/Year Filter */}
-            <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
-              <CalendarLucide className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
-                <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  {MONTHS.map((month, index) => (
-                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
-                <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  {[2024, 2025, 2026].map((year) => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {canExport && (
-              <>
-                <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  PDF
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportExcel}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Excel
-                </Button>
-              </>
-            )}
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            {canEdit && (
-              <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Search */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search container name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="active">Container ({containers.length})</TabsTrigger>
+          <TabsTrigger value="deleted" className="text-destructive">
+            Recently Deleted ({deletedContainers.length})
+          </TabsTrigger>
+        </TabsList>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredContainers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <ContainerIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No containers for {MONTHS[selectedMonth]} {selectedYear}</h3>
-              <p className="text-muted-foreground mb-4">Get started by adding your first container.</p>
-              {canEdit && (
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Container
+        <TabsContent value="active">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="flex items-center gap-2">
+                <ContainerIcon className="h-5 w-5" />
+                Container ({filteredContainers.length})
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {/* Month/Year Filter */}
+                <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+                  <CalendarLucide className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+                    <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {MONTHS.map((month, index) => (
+                        <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+                    <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {[2024, 2025, 2026].map((year) => (
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {canExport && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Excel
+                    </Button>
+                  </>
+                )}
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/50 scrollbar-track-muted" style={{ scrollbarWidth: 'auto', scrollbarColor: 'hsl(var(--primary) / 0.5) hsl(var(--muted))' }}>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Container</TableHead>
-                    <TableHead>Date Out Factory</TableHead>
-                    <TableHead>Photo</TableHead>
-                    <TableHead>Date Receive Warehouse</TableHead>
-                    <TableHead>Delivery Days</TableHead>
-                    <TableHead>Upload Photo</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Remarks</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContainers.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium max-w-[200px]">
-                        <span className="truncate block" title={item.notes || ''}>
-                          {item.notes || '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(item.date), 'MMM dd, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-center">
-                          {item.photo_url ? (
-                            <div className="relative inline-block group">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPreviewPhotoUrl(item.photo_url);
-                                  setZoomLevel(1);
-                                }}
-                                className="focus:outline-none"
-                              >
-                                <img 
-                                  src={item.photo_url} 
-                                  alt="Container" 
-                                  className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
-                                />
-                              </button>
-                              {canEdit && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeletePhoto(item.id, 'photo');
-                                  }}
-                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
-                                >
-                                  <X className="h-3 w-3 text-white" />
-                                </button>
+                {canEdit && (
+                  <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Search */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search container name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredContainers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <ContainerIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No containers for {MONTHS[selectedMonth]} {selectedYear}</h3>
+                  <p className="text-muted-foreground mb-4">Get started by adding your first container.</p>
+                  {canEdit && (
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Container
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/50 scrollbar-track-muted">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Container</TableHead>
+                        <TableHead>Date Out Factory</TableHead>
+                        <TableHead>Photo</TableHead>
+                        <TableHead>Date Receive Warehouse</TableHead>
+                        <TableHead>Delivery Days</TableHead>
+                        <TableHead>Upload Photo</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Remarks</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredContainers.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium max-w-[200px]">
+                            <span className="truncate block" title={item.notes || ''}>
+                              {item.notes || '-'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {format(new Date(item.date), 'MMM dd, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center">
+                              {item.photo_url ? (
+                                <div className="relative inline-block group">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPreviewPhotoUrl(item.photo_url);
+                                      setZoomLevel(1);
+                                    }}
+                                    className="focus:outline-none"
+                                  >
+                                    <img 
+                                      src={item.photo_url} 
+                                      alt="Container" 
+                                      className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                    />
+                                  </button>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePhoto(item.id, 'photo');
+                                      }}
+                                      className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                    >
+                                      <X className="h-3 w-3 text-white" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : canEdit ? (
+                                <label className="cursor-pointer inline-block">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
+                                    disabled={uploadingPhotoId === item.id}
+                                  />
+                                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
+                                    {uploadingPhotoId === item.id ? (
+                                      <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    ) : (
+                                      <Camera className="h-5 w-5 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </label>
+                              ) : (
+                                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                                  <Camera className="h-5 w-5 text-muted-foreground" />
+                                </div>
                               )}
                             </div>
-                          ) : canEdit ? (
-                            <label className="cursor-pointer inline-block">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
-                                disabled={uploadingPhotoId === item.id}
-                              />
-                              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
-                                {uploadingPhotoId === item.id ? (
-                                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                                ) : (
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {item.date_receive_factory 
+                              ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy')
+                              : '-'
+                            }
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.date && item.date_receive_factory 
+                              ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date))
+                              : '-'
+                            }
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-center">
+                              {item.receive_photo_url ? (
+                                <div className="relative inline-block group">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPreviewPhotoUrl(item.receive_photo_url);
+                                      setZoomLevel(1);
+                                    }}
+                                    className="focus:outline-none"
+                                  >
+                                    <img 
+                                      src={item.receive_photo_url} 
+                                      alt="Receive" 
+                                      className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                    />
+                                  </button>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePhoto(item.id, 'receive');
+                                      }}
+                                      className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                    >
+                                      <X className="h-3 w-3 text-white" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : canEdit ? (
+                                <label className="cursor-pointer inline-block">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
+                                    disabled={uploadingReceivePhotoId === item.id}
+                                  />
+                                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
+                                    {uploadingReceivePhotoId === item.id ? (
+                                      <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    ) : (
+                                      <Camera className="h-5 w-5 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </label>
+                              ) : (
+                                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
                                   <Camera className="h-5 w-5 text-muted-foreground" />
-                                )}
-                              </div>
-                            </label>
-                          ) : (
-                            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                              <Camera className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {item.date_receive_factory 
-                          ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy')
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.date && item.date_receive_factory 
-                          ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date))
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-center">
-                          {item.receive_photo_url ? (
-                            <div className="relative inline-block group">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPreviewPhotoUrl(item.receive_photo_url);
-                                  setZoomLevel(1);
-                                }}
-                                className="focus:outline-none"
-                              >
-                                <img 
-                                  src={item.receive_photo_url} 
-                                  alt="Receive" 
-                                  className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
-                                />
-                              </button>
-                              {canEdit && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeletePhoto(item.id, 'receive');
-                                  }}
-                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
-                                >
-                                  <X className="h-3 w-3 text-white" />
-                                </button>
+                                </div>
                               )}
                             </div>
-                          ) : canEdit ? (
-                            <label className="cursor-pointer inline-block">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
-                                disabled={uploadingReceivePhotoId === item.id}
-                              />
-                              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
-                                {uploadingReceivePhotoId === item.id ? (
-                                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                                ) : (
-                                  <Camera className="h-5 w-5 text-muted-foreground" />
-                                )}
-                              </div>
-                            </label>
-                          ) : (
-                            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                              <Camera className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.category || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] break-words whitespace-normal">{item.remarks || '-'}</TableCell>
-                      <TableCell className="min-w-[240px]">
-                        <Select 
-                          value={item.status || 'ON PROCESS WAREHOUSE'} 
-                          onValueChange={(value) => {
-                            updateMutation.mutate({
-                              id: item.id,
-                              data: { status: value }
-                            });
-                          }}
-                          disabled={!canEdit}
-                        >
-                          <SelectTrigger className="w-full h-8 bg-background text-xs">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background z-50">
-                            {STATUS_OPTIONS.map(status => (
-                              <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleView(item)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEdit && (
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => deleteMutation.mutate(item.id)}
+                          </TableCell>
+                          <TableCell>{item.category || '-'}</TableCell>
+                          <TableCell className="max-w-[200px] break-words whitespace-normal">{item.remarks || '-'}</TableCell>
+                          <TableCell className="min-w-[240px]">
+                            <Select 
+                              value={item.status || 'ON PROCESS WAREHOUSE'} 
+                              onValueChange={(value) => {
+                                updateMutation.mutate({
+                                  id: item.id,
+                                  data: { status: value }
+                                });
+                              }}
+                              disabled={!canEdit}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                              <SelectTrigger className="w-full h-8 bg-background text-xs">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background z-50">
+                                {STATUS_OPTIONS.map(status => (
+                                  <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleView(item)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {canEdit && (
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => softDeleteMutation.mutate(item.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="deleted">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Recently Deleted ({deletedContainers.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {deletedContainers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Trash2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No deleted containers</h3>
+                  <p className="text-muted-foreground">Deleted containers will appear here.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Container</TableHead>
+                        <TableHead>Date Out Factory</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Deleted At</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deletedContainers.map((item) => (
+                        <TableRow key={item.id} className="opacity-70">
+                          <TableCell className="font-medium">{item.notes || '-'}</TableCell>
+                          <TableCell>{format(new Date(item.date), 'MMM dd, yyyy')}</TableCell>
+                          <TableCell>{item.category || '-'}</TableCell>
+                          <TableCell>{item.deleted_at ? format(new Date(item.deleted_at), 'MMM dd, yyyy HH:mm') : '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => restoreMutation.mutate(item.id)}
+                                className="text-primary"
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Restore
+                              </Button>
+                              {canDelete && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    if (confirm('Are you sure you want to permanently delete this container? This action cannot be undone.')) {
+                                      permanentDeleteMutation.mutate(item.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -979,7 +1118,6 @@ const Container = () => {
                 <div className="w-full h-px bg-border mt-2" />
               </div>
 
-
               {/* Details Table */}
               <div className="border rounded-lg overflow-hidden">
                 <Table>
@@ -1052,8 +1190,6 @@ const Container = () => {
                   </div>
                 </div>
               </div>
-
-
 
               {/* Signature Section */}
               <div className="border-t pt-6 mt-6">
