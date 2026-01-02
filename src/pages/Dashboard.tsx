@@ -57,13 +57,11 @@ const Dashboard = () => {
   
   const canExportPDF = userRole === 'admin' || userRole === 'staff';
 
-  // Filter releases by selected month and year - use date_delivered if available, otherwise date_released
+  // Filter releases by selected month and year - use set_date (Date Out) if available for proper month categorization
   const filteredReleases = useMemo(() => {
     return releases.filter(release => {
-      // Use date_delivered for delivered items, otherwise use date_released
-      const dateToUse = release.delivery_status === 'delivered' && release.date_delivered 
-        ? release.date_delivered 
-        : release.date_released;
+      // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
+      const dateToUse = release.set_date || release.date_released;
       const releaseDate = new Date(dateToUse);
       return releaseDate.getMonth() === selectedMonth && releaseDate.getFullYear() === selectedYear;
     });
