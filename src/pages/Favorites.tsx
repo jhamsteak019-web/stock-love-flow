@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Heart, Loader2, ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
+import { Search, Heart, Loader2, ChevronLeft, ChevronRight, FileDown, Calendar } from 'lucide-react';
 import { CollectionPhotoCell } from '@/components/collection/CollectionPhotoCell';
 import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 interface CollectionItem {
   id: string;
@@ -33,8 +36,24 @@ const Favorites = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
   
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
+  
   const canExport = userRole !== 'uploader';
   const canFavorite = userRole === 'admin';
+
+  // Get available years from items
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    years.add(currentYear.toString());
+    // Add years from 2020 to current year
+    for (let y = 2020; y <= currentYear; y++) {
+      years.add(y.toString());
+    }
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [currentYear]);
 
   // PDF Export function
   const handleExportPDF = () => {
@@ -223,6 +242,35 @@ const Favorites = () => {
 
   return (
     <div className="space-y-6">
+      {/* Month/Year Filter */}
+      <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-popover z-50">
+            {MONTHS.map((month, index) => (
+              <SelectItem key={index} value={index.toString()}>
+                {month}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-popover z-50">
+            {availableYears.map(year => (
+              <SelectItem key={year} value={year}>
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Header */}
       <Card>
         <CardHeader className="pb-4">
