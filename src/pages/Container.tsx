@@ -213,6 +213,23 @@ const Container = () => {
     }
   };
 
+  const handleDeletePhoto = async (containerId: string, type: 'photo' | 'receive') => {
+    try {
+      const updateField = type === 'photo' ? 'photo_url' : 'receive_photo_url';
+      const { error } = await supabase
+        .from('containers')
+        .update({ [updateField]: null })
+        .eq('id', containerId);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+      toast.success('Photo removed successfully');
+    } catch (error: any) {
+      toast.error(`Failed to remove photo: ${error.message}`);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       date: '',
@@ -646,20 +663,34 @@ const Container = () => {
                       <TableCell>
                         <div className="text-center">
                           {item.photo_url ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPreviewPhotoUrl(item.photo_url);
-                                setZoomLevel(1);
-                              }}
-                              className="focus:outline-none inline-block"
-                            >
-                              <img 
-                                src={item.photo_url} 
-                                alt="Container" 
-                                className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md mx-auto"
-                              />
-                            </button>
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPreviewPhotoUrl(item.photo_url);
+                                  setZoomLevel(1);
+                                }}
+                                className="focus:outline-none"
+                              >
+                                <img 
+                                  src={item.photo_url} 
+                                  alt="Container" 
+                                  className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                />
+                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePhoto(item.id, 'photo');
+                                  }}
+                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm"
+                                >
+                                  <X className="h-3 w-3 text-white" />
+                                </button>
+                              )}
+                            </div>
                           ) : canEdit ? (
                             <label className="cursor-pointer inline-block">
                               <input
@@ -699,20 +730,34 @@ const Container = () => {
                       <TableCell>
                         <div className="text-center">
                           {item.receive_photo_url ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPreviewPhotoUrl(item.receive_photo_url);
-                                setZoomLevel(1);
-                              }}
-                              className="focus:outline-none inline-block"
-                            >
-                              <img 
-                                src={item.receive_photo_url} 
-                                alt="Receive" 
-                                className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md mx-auto"
-                              />
-                            </button>
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPreviewPhotoUrl(item.receive_photo_url);
+                                  setZoomLevel(1);
+                                }}
+                                className="focus:outline-none"
+                              >
+                                <img 
+                                  src={item.receive_photo_url} 
+                                  alt="Receive" 
+                                  className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                />
+                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePhoto(item.id, 'receive');
+                                  }}
+                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm"
+                                >
+                                  <X className="h-3 w-3 text-white" />
+                                </button>
+                              )}
+                            </div>
                           ) : canEdit ? (
                             <label className="cursor-pointer inline-block">
                               <input
