@@ -1099,13 +1099,18 @@ const Container = () => {
             </DialogTitle>
           </DialogHeader>
           {previewPhotoUrl && (
-            <div className="flex justify-center overflow-auto max-h-[70vh]">
-              <img 
-                src={previewPhotoUrl} 
-                alt="Preview" 
-                className="rounded-lg transition-transform duration-200"
-                style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
-              />
+            <div className="overflow-auto max-h-[70vh] w-full">
+              <div 
+                className="min-w-max flex justify-center"
+                style={{ width: zoomLevel > 1 ? `${zoomLevel * 100}%` : '100%' }}
+              >
+                <img 
+                  src={previewPhotoUrl} 
+                  alt="Preview" 
+                  className="rounded-lg transition-transform duration-200"
+                  style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
+                />
+              </div>
             </div>
           )}
           <DialogFooter>
