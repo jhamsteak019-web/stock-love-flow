@@ -1073,64 +1073,7 @@ const Container = () => {
                 </div>
               </div>
 
-              {/* Photos Section */}
-              <div className="flex gap-8 justify-center">
-                {/* Out Factory Photo */}
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-foreground mb-2">Photo</p>
-                  <div className="relative inline-block">
-                    {viewingItem.photo_url ? (
-                      <>
-                        <button
-                          onClick={() => {
-                            setPreviewPhotoUrl(viewingItem.photo_url);
-                            setZoomLevel(1);
-                          }}
-                          className="block"
-                        >
-                          <img 
-                            src={viewingItem.photo_url} 
-                            alt="Out Factory" 
-                            className="h-16 w-16 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
-                          />
-                        </button>
-                      </>
-                    ) : (
-                      <div className="h-16 w-16 rounded-xl bg-muted flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Receive Photo */}
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-foreground mb-2">Upload Photo</p>
-                  <div className="relative inline-block">
-                    {viewingItem.receive_photo_url ? (
-                      <>
-                        <button
-                          onClick={() => {
-                            setPreviewPhotoUrl(viewingItem.receive_photo_url);
-                            setZoomLevel(1);
-                          }}
-                          className="block"
-                        >
-                          <img 
-                            src={viewingItem.receive_photo_url} 
-                            alt="Receive Warehouse" 
-                            className="h-16 w-16 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
-                          />
-                        </button>
-                      </>
-                    ) : (
-                      <div className="h-16 w-16 rounded-xl bg-muted flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* Signature Section */}
               <div className="border-t pt-6 mt-6">
