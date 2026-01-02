@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { 
   LayoutDashboard, 
   Package, 
@@ -35,6 +36,15 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const isAdmin = userRole === 'admin';
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  // Update date/time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleToggleCollapse = () => {
     setIsAnimating(true);
@@ -223,6 +233,34 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 })}
               </nav>
             </ScrollArea>
+
+            {/* Date & Time */}
+            <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={cn(
+                    "rounded-lg bg-primary text-primary-foreground",
+                    isCollapsed ? "p-2 flex justify-center" : "px-3 py-2"
+                  )}>
+                    {isCollapsed ? (
+                      <span className="text-xs font-medium">{format(currentDateTime, 'HH:mm')}</span>
+                    ) : (
+                      <p className="text-sm font-medium">Date & Time</p>
+                    )}
+                    {!isCollapsed && (
+                      <p className="text-xs text-primary-foreground/80">
+                        {format(currentDateTime, 'MMMM dd, yyyy hh:mm:ss a')}
+                      </p>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                {isCollapsed && (
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                    {format(currentDateTime, 'MMMM dd, yyyy hh:mm:ss a')}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
 
             {/* User info */}
             <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
