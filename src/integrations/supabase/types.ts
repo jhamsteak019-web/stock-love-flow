@@ -37,6 +37,7 @@ export type Database = {
           category: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           description: string | null
           favorite_remarks: string | null
           id: string
@@ -52,6 +53,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           favorite_remarks?: string | null
           id?: string
@@ -67,6 +69,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           favorite_remarks?: string | null
           id?: string
@@ -111,6 +114,7 @@ export type Database = {
           created_by: string | null
           date: string
           date_receive_factory: string | null
+          deleted_at: string | null
           id: string
           notes: string | null
           out_factory: string | null
@@ -126,6 +130,7 @@ export type Database = {
           created_by?: string | null
           date?: string
           date_receive_factory?: string | null
+          deleted_at?: string | null
           id?: string
           notes?: string | null
           out_factory?: string | null
@@ -141,6 +146,7 @@ export type Database = {
           created_by?: string | null
           date?: string
           date_receive_factory?: string | null
+          deleted_at?: string | null
           id?: string
           notes?: string | null
           out_factory?: string | null
@@ -301,6 +307,7 @@ export type Database = {
           concern: string
           content: string
           created_at: string
+          deleted_at: string | null
           id: string
           is_public: boolean
           status: string
@@ -313,6 +320,7 @@ export type Database = {
           concern?: string
           content?: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_public?: boolean
           status?: string
@@ -325,6 +333,7 @@ export type Database = {
           concern?: string
           content?: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_public?: boolean
           status?: string
