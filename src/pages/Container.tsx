@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -915,72 +915,124 @@ const Container = () => {
 
       {/* View Dialog - Allocation Bill Style */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-primary">
-              <ContainerIcon className="h-5 w-5" />
-              Container Details
-            </DialogTitle>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b pb-4">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-foreground">
+                <ContainerIcon className="h-5 w-5" />
+                Container Information
+              </DialogTitle>
+            </div>
+            <DialogDescription className="sr-only">Container details and information</DialogDescription>
           </DialogHeader>
           {viewingItem && (
-            <div className="space-y-6 py-4">
-              {/* Header Section */}
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <h3 className="font-semibold text-lg text-foreground mb-2">
-                  {viewingItem.notes || 'Unnamed Container'}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "px-2 py-1 rounded text-xs font-medium",
-                    viewingItem.status === 'FOR DELIVERY ON STORE' ? 'bg-green-100 text-green-700' :
-                    viewingItem.status === 'FOR DISTRIBUTION ON WAREHOUSE' ? 'bg-blue-100 text-blue-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  )}>
-                    {viewingItem.status || 'ON PROCESS WAREHOUSE'}
-                  </span>
-                  {viewingItem.category && (
-                    <span className="px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium">
-                      {viewingItem.category}
-                    </span>
-                  )}
+            <div className="space-y-6 py-4" id="container-view-content">
+              {/* Title */}
+              <div className="text-center border-b pb-4">
+                <h2 className="text-xl font-bold tracking-wide text-foreground">CONTAINER INFORMATION</h2>
+                <div className="w-full h-px bg-border mt-2" />
+              </div>
+
+              {/* Header Info Section */}
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    <span className="font-semibold text-foreground">Container:</span>{' '}
+                    <span className="text-foreground">{viewingItem.notes || '-'}</span>
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold text-foreground">Category:</span>{' '}
+                    <span className="text-foreground">{viewingItem.category || '-'}</span>
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-semibold text-foreground">Remarks:</span>{' '}
+                    <span className="text-foreground">{viewingItem.remarks || '-'}</span>
+                  </p>
+                </div>
+                <div className="text-right space-y-1">
+                  <p className="text-lg font-bold text-primary">{viewingItem.notes || 'CONTAINER'}</p>
+                  <p className="text-sm text-muted-foreground">{format(new Date(viewingItem.date), 'yyyy-MM-dd')}</p>
                 </div>
               </div>
 
-              {/* Details Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="border rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Date Out Factory</p>
-                  <p className="font-semibold">{format(new Date(viewingItem.date), 'MMMM dd, yyyy')}</p>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Date Receive Warehouse</p>
-                  <p className="font-semibold">
-                    {viewingItem.date_receive_factory 
-                      ? format(new Date(viewingItem.date_receive_factory), 'MMMM dd, yyyy')
-                      : 'Not received yet'
-                    }
-                  </p>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Delivery Days</p>
-                  <p className="font-semibold text-2xl text-primary">
-                    {viewingItem.date && viewingItem.date_receive_factory 
-                      ? `${differenceInDays(new Date(viewingItem.date_receive_factory), new Date(viewingItem.date))} days`
-                      : '-'
-                    }
-                  </p>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground mb-1">Category</p>
-                  <p className="font-semibold">{viewingItem.category || '-'}</p>
+              {/* Details Table */}
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold text-foreground">Field</TableHead>
+                      <TableHead className="font-semibold text-foreground">Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Container Name</TableCell>
+                      <TableCell className="text-primary font-medium">{viewingItem.notes || '-'}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Category</TableCell>
+                      <TableCell>{viewingItem.category || '-'}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Remarks</TableCell>
+                      <TableCell>{viewingItem.remarks || '-'}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Status</TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "px-2 py-1 rounded text-xs font-medium",
+                          viewingItem.status === 'FOR DELIVERY ON STORE' ? 'bg-green-100 text-green-700' :
+                          viewingItem.status === 'FOR DISTRIBUTION ON WAREHOUSE' ? 'bg-blue-100 text-blue-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        )}>
+                          {viewingItem.status || 'ON PROCESS WAREHOUSE'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Footer Info Section */}
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm">
+                      <span className="font-semibold text-foreground">Date Out Factory:</span>{' '}
+                      <span className="text-foreground">{format(new Date(viewingItem.date), 'yyyy-MM-dd')}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm">
+                      <span className="font-semibold text-foreground">Date Received:</span>{' '}
+                      <span className="text-foreground">
+                        {viewingItem.date_receive_factory 
+                          ? format(new Date(viewingItem.date_receive_factory), 'yyyy-MM-dd')
+                          : '-'
+                        }
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm">
+                      <span className="font-semibold text-foreground">Delivery Days:</span>{' '}
+                      <span className="text-primary font-bold">
+                        {viewingItem.date && viewingItem.date_receive_factory 
+                          ? `${differenceInDays(new Date(viewingItem.date_receive_factory), new Date(viewingItem.date))} days`
+                          : '-'
+                        }
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
               {/* Photos Section */}
               {(viewingItem.photo_url || viewingItem.receive_photo_url) && (
                 <div className="border rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground mb-3">Photos</p>
-                  <div className="flex gap-4">
+                  <p className="text-sm font-semibold text-foreground mb-3">Photos</p>
+                  <div className="flex gap-6">
                     {viewingItem.photo_url && (
                       <div className="text-center">
                         <button
@@ -996,7 +1048,7 @@ const Container = () => {
                             className="h-24 w-24 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                           />
                         </button>
-                        <p className="text-xs text-muted-foreground mt-1">Out Factory</p>
+                        <p className="text-xs text-muted-foreground mt-2">Out Factory</p>
                       </div>
                     )}
                     {viewingItem.receive_photo_url && (
@@ -1014,15 +1066,33 @@ const Container = () => {
                             className="h-24 w-24 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                           />
                         </button>
-                        <p className="text-xs text-muted-foreground mt-1">Receive Warehouse</p>
+                        <p className="text-xs text-muted-foreground mt-2">Receive Warehouse</p>
                       </div>
                     )}
                   </div>
                 </div>
               )}
+
+              {/* Signature Section */}
+              <div className="border-t pt-6 mt-6">
+                <div className="grid grid-cols-3 gap-8 text-center">
+                  <div>
+                    <div className="border-b border-muted-foreground/30 mb-2 h-8" />
+                    <p className="text-sm text-muted-foreground italic">Checked By</p>
+                  </div>
+                  <div>
+                    <div className="border-b border-muted-foreground/30 mb-2 h-8" />
+                    <p className="text-sm text-muted-foreground italic">Delivered By</p>
+                  </div>
+                  <div>
+                    <div className="border-b border-muted-foreground/30 mb-2 h-8" />
+                    <p className="text-sm text-muted-foreground italic">Received By</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
               Close
             </Button>
