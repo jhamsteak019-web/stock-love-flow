@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useTransition, useRef } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck, Eye, FileDown } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck, Eye, FileDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast as sonnerToast } from 'sonner';
@@ -38,6 +40,7 @@ interface Note {
   status: NoteStatus;
   user_id: string;
   is_public: boolean;
+  deleted_at: string | null;
   profiles?: {
     full_name: string | null;
     email: string;
@@ -77,6 +80,8 @@ const Notes = () => {
   const [selectedStatusDate, setSelectedStatusDate] = useState<Date | undefined>(undefined);
   const [isExporting, setIsExporting] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState('active');
+  const [deletedNotes, setDeletedNotes] = useState<Note[]>([]);
 
   // Month/Year filter state
   const currentDate = new Date();
@@ -88,13 +93,29 @@ const Notes = () => {
 
   const fetchNotes = async () => {
     try {
+      // Fetch active notes
       const { data, error } = await supabase
         .from('notes')
         .select('*, profiles(full_name, email)')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setNotes((data || []).map(note => ({
+        ...note,
+        status: note.status as NoteStatus,
+        profiles: note.profiles as { full_name: string | null; email: string } | undefined
+      })));
+
+      // Fetch deleted notes
+      const { data: deleted, error: deletedError } = await supabase
+        .from('notes')
+        .select('*, profiles(full_name, email)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (deletedError) throw deletedError;
+      setDeletedNotes((deleted || []).map(note => ({
         ...note,
         status: note.status as NoteStatus,
         profiles: note.profiles as { full_name: string | null; email: string } | undefined
@@ -324,8 +345,51 @@ const Notes = () => {
     }
   };
 
+  // Soft delete (move to recently deleted)
+  const handleSoftDelete = async (noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      const deletedNote = notes.find(note => note.id === noteId);
+      if (deletedNote) {
+        setNotes(notes.filter(note => note.id !== noteId));
+        setDeletedNotes([{ ...deletedNote, deleted_at: new Date().toISOString() }, ...deletedNotes]);
+      }
+      toast({ title: 'Success', description: 'Moved to recently deleted' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  // Restore from recently deleted
+  const handleRestore = async (noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ deleted_at: null })
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      const restoredNote = deletedNotes.find(note => note.id === noteId);
+      if (restoredNote) {
+        setDeletedNotes(deletedNotes.filter(note => note.id !== noteId));
+        setNotes([{ ...restoredNote, deleted_at: null }, ...notes]);
+      }
+      toast({ title: 'Success', description: 'Reminder restored' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  // Permanent delete
   const handleDelete = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return;
+    if (!confirm('Are you sure you want to permanently delete this note?')) return;
 
     try {
       const { error } = await supabase
@@ -335,8 +399,8 @@ const Notes = () => {
 
       if (error) throw error;
 
-      setNotes(notes.filter(note => note.id !== noteId));
-      toast({ title: 'Success', description: 'Reminder deleted' });
+      setDeletedNotes(deletedNotes.filter(note => note.id !== noteId));
+      toast({ title: 'Success', description: 'Permanently deleted' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -418,6 +482,19 @@ const Notes = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Tabs for Active / Recently Deleted */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="active" className="flex items-center gap-2">
+            Active ({notes.length})
+          </TabsTrigger>
+          <TabsTrigger value="deleted" className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Recently Deleted ({deletedNotes.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
         <div className="relative max-w-md flex-1">
@@ -602,7 +679,8 @@ const Notes = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive transition-transform hover:scale-110"
-                          onClick={() => handleDelete(note.id)}
+                          onClick={() => handleSoftDelete(note.id)}
+                          title="Move to recently deleted"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -644,6 +722,90 @@ const Notes = () => {
           </div>
         </div>
       )}
+        </TabsContent>
+
+        {/* Recently Deleted Tab */}
+        <TabsContent value="deleted" className="space-y-6">
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Title</TableHead>
+                  <TableHead className="w-[150px]">Concern</TableHead>
+                  <TableHead>Remarks</TableHead>
+                  <TableHead className="w-[150px]">Deleted At</TableHead>
+                  <TableHead className="w-[120px] text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deletedNotes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12">
+                      <Trash2 className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                      <p className="text-muted-foreground">No deleted reminders</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  deletedNotes.map((note) => (
+                    <TableRow key={note.id} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">{note.title || 'Untitled'}</TableCell>
+                      <TableCell className="text-muted-foreground">{note.concern || '-'}</TableCell>
+                      <TableCell className="max-w-[250px] truncate text-muted-foreground">
+                        {note.content || 'No content'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {note.deleted_at && format(new Date(note.deleted_at), 'MMM d, yyyy h:mm a')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-green-600 hover:text-green-700"
+                            onClick={() => handleRestore(note.id)}
+                            title="Restore"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                title="Delete permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Permanently Delete?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete "{note.title || 'Untitled'}". This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(note.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete Permanently
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Create/Edit Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
