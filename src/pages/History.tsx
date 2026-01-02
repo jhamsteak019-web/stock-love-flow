@@ -208,21 +208,21 @@ const History = () => {
   // Filter grouped releases based on search query, date range, month/year, and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
-      // Month/Year filter
-      const releaseDate = new Date(group.date_released);
-      if (releaseDate.getMonth() !== selectedMonth || releaseDate.getFullYear() !== selectedYear) {
+      // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
+      const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
+      if (dateToFilter.getMonth() !== selectedMonth || dateToFilter.getFullYear() !== selectedYear) {
         return false;
       }
 
       // Date range filter
       if (startDate || endDate) {
         if (startDate && endDate) {
-          if (!isWithinInterval(releaseDate, { start: startOfDay(startDate), end: endOfDay(endDate) })) {
+          if (!isWithinInterval(dateToFilter, { start: startOfDay(startDate), end: endOfDay(endDate) })) {
             return false;
           }
-        } else if (startDate && releaseDate < startOfDay(startDate)) {
+        } else if (startDate && dateToFilter < startOfDay(startDate)) {
           return false;
-        } else if (endDate && releaseDate > endOfDay(endDate)) {
+        } else if (endDate && dateToFilter > endOfDay(endDate)) {
           return false;
         }
       }
