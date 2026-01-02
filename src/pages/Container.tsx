@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon, ZoomIn, ZoomOut, X, Calendar } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Container as ContainerIcon, Camera, RefreshCw, Eye, FileSpreadsheet, FileText, CalendarIcon, ZoomIn, ZoomOut, X } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -1116,6 +1117,90 @@ const Container = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setPreviewPhotoUrl(null); setZoomLevel(1); }}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date Out Factory Picker Dialog */}
+      <Dialog open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Set Date Out Factory
+            </DialogTitle>
+            <DialogDescription>
+              Select the date when the container left the factory
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="single"
+              selected={datePickerContainerId ? new Date() : undefined}
+              onSelect={async (date) => {
+                if (date && datePickerContainerId) {
+                  try {
+                    await updateMutation.mutateAsync({
+                      id: datePickerContainerId,
+                      data: { date: format(date, 'yyyy-MM-dd') }
+                    });
+                    toast.success('Date Out Factory updated');
+                    setIsDatePickerOpen(false);
+                    setDatePickerContainerId(null);
+                  } catch (error: any) {
+                    toast.error(`Failed to update date: ${error.message}`);
+                  }
+                }
+              }}
+              className={cn("rounded-md border pointer-events-auto")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsDatePickerOpen(false); setDatePickerContainerId(null); }}>
+              Skip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date Receive Warehouse Picker Dialog */}
+      <Dialog open={isReceiveDatePickerOpen} onOpenChange={setIsReceiveDatePickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Set Date Receive Warehouse
+            </DialogTitle>
+            <DialogDescription>
+              Select the date when the container was received at the warehouse
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Calendar
+              mode="single"
+              selected={receiveDatePickerContainerId ? new Date() : undefined}
+              onSelect={async (date) => {
+                if (date && receiveDatePickerContainerId) {
+                  try {
+                    await updateMutation.mutateAsync({
+                      id: receiveDatePickerContainerId,
+                      data: { date_receive_factory: format(date, 'yyyy-MM-dd') }
+                    });
+                    toast.success('Date Receive Warehouse updated');
+                    setIsReceiveDatePickerOpen(false);
+                    setReceiveDatePickerContainerId(null);
+                  } catch (error: any) {
+                    toast.error(`Failed to update date: ${error.message}`);
+                  }
+                }
+              }}
+              className={cn("rounded-md border pointer-events-auto")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsReceiveDatePickerOpen(false); setReceiveDatePickerContainerId(null); }}>
+              Skip
             </Button>
           </DialogFooter>
         </DialogContent>
