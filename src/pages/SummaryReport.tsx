@@ -706,33 +706,33 @@ const SummaryReport = () => {
             <p className="text-muted-foreground">Delivery statistics by branch and category</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 bg-card border rounded-lg p-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="Select Month" />
+            <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+              <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover z-50">
               {MONTHS.map((month, index) => (
                 <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-28">
-              <SelectValue placeholder="Select Year" />
+            <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+              <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover z-50">
               {availableYears.map(year => (
                 <SelectItem key={year} value={year}>{year}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-[120px] border-0 shadow-none focus:ring-0 h-8">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover z-50">
               <SelectItem value="all">All Categories</SelectItem>
               {CATEGORY_OPTIONS.map(cat => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
