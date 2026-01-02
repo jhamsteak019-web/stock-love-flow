@@ -663,7 +663,7 @@ const Container = () => {
                       <TableCell>
                         <div className="text-center">
                           {item.photo_url ? (
-                            <div className="relative inline-block">
+                            <div className="relative inline-block group">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -685,7 +685,7 @@ const Container = () => {
                                     e.stopPropagation();
                                     handleDeletePhoto(item.id, 'photo');
                                   }}
-                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm"
+                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
                                 >
                                   <X className="h-3 w-3 text-white" />
                                 </button>
@@ -730,7 +730,7 @@ const Container = () => {
                       <TableCell>
                         <div className="text-center">
                           {item.receive_photo_url ? (
-                            <div className="relative inline-block">
+                            <div className="relative inline-block group">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -752,7 +752,7 @@ const Container = () => {
                                     e.stopPropagation();
                                     handleDeletePhoto(item.id, 'receive');
                                   }}
-                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm"
+                                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
                                 >
                                   <X className="h-3 w-3 text-white" />
                                 </button>
