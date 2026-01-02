@@ -48,6 +48,16 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
   const [totalBoxes, setTotalBoxes] = useState(group.totalBoxes);
   const [totalQty, setTotalQty] = useState(group.totalQty);
   const [setDate, setSetDate] = useState(group.set_date || '');
+  const [dateDelivered, setDateDelivered] = useState(group.date_delivered || '');
+
+  // Calculate delivery days from editable state values
+  const calculateDeliveryDays = () => {
+    if (setDate && dateDelivered) {
+      const days = differenceInDays(new Date(dateDelivered), new Date(setDate));
+      return days;
+    }
+    return null;
+  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -77,6 +87,7 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
             boxes_released: boxes,
             total_qty: qty,
             set_date: setDate || null,
+            date_delivered: dateDelivered || null,
           })
           .eq('id', releaseId);
 
@@ -197,20 +208,33 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
             </Select>
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="setDate">Set Date (for Delivery Days calculation)</Label>
-            <Input
-              id="setDate"
-              type="date"
-              value={setDate ? format(new Date(setDate), 'yyyy-MM-dd') : ''}
-              onChange={(e) => setSetDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
-            />
-            {setDate && group.date_delivered && (
-              <p className="text-sm text-muted-foreground">
-                Delivery Days: {differenceInDays(new Date(group.date_delivered), new Date(setDate))} days
-              </p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="setDate">Set Date</Label>
+              <Input
+                id="setDate"
+                type="date"
+                value={setDate ? format(new Date(setDate), 'yyyy-MM-dd') : ''}
+                onChange={(e) => setSetDate(e.target.value ? new Date(e.target.value).toISOString() : '')}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="dateDelivered">Date Delivered</Label>
+              <Input
+                id="dateDelivered"
+                type="date"
+                value={dateDelivered ? format(new Date(dateDelivered), 'yyyy-MM-dd') : ''}
+                onChange={(e) => setDateDelivered(e.target.value ? new Date(e.target.value).toISOString() : '')}
+              />
+            </div>
           </div>
+
+          {calculateDeliveryDays() !== null && (
+            <p className="text-sm text-muted-foreground">
+              Delivery Days: {calculateDeliveryDays()} days
+            </p>
+          )}
 
         </div>
 
