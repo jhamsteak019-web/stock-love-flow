@@ -116,6 +116,7 @@ export type Database = {
           out_factory: string | null
           photo_url: string | null
           receive_photo_url: string | null
+          remarks: string | null
           status: string | null
           updated_at: string
         }
@@ -130,6 +131,7 @@ export type Database = {
           out_factory?: string | null
           photo_url?: string | null
           receive_photo_url?: string | null
+          remarks?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -144,6 +146,7 @@ export type Database = {
           out_factory?: string | null
           photo_url?: string | null
           receive_photo_url?: string | null
+          remarks?: string | null
           status?: string | null
           updated_at?: string
         }

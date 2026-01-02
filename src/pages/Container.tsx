@@ -26,6 +26,7 @@ interface ContainerItem {
   receive_photo_url: string | null;
   category: string | null;
   notes: string | null;
+  remarks: string | null;
   status: string | null;
   created_at: string;
 }
@@ -67,7 +68,8 @@ const Container = () => {
     out_factory: '',
     date_receive_factory: '',
     category: '',
-    notes: ''
+    notes: '',
+    remarks: ''
   });
 
   const canEdit = userRole === 'admin' || userRole === 'staff';
@@ -105,6 +107,7 @@ const Container = () => {
           date_receive_factory: data.date_receive_factory || null,
           category: data.category || null,
           notes: data.notes || null,
+          remarks: data.remarks || null,
           created_by: user?.id
         });
       if (error) throw error;
@@ -216,7 +219,8 @@ const Container = () => {
       out_factory: '',
       date_receive_factory: '',
       category: '',
-      notes: ''
+      notes: '',
+      remarks: ''
     });
   };
 
@@ -227,7 +231,8 @@ const Container = () => {
       out_factory: item.out_factory || '',
       date_receive_factory: item.date_receive_factory || '',
       category: item.category || '',
-      notes: item.notes || ''
+      notes: item.notes || '',
+      remarks: item.remarks || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -250,7 +255,8 @@ const Container = () => {
         out_factory: formData.out_factory || null,
         date_receive_factory: formData.date_receive_factory || null,
         category: formData.category || null,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        remarks: formData.remarks || null
       }
     });
   };
@@ -809,19 +815,27 @@ const Container = () => {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Category</Label>
+              <Input
+                placeholder="Enter category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Container Name</Label>
               <Input
                 placeholder="Enter container name"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Remarks</Label>
               <Textarea
                 placeholder="Enter remarks"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
               />
             </div>
           </div>
@@ -862,19 +876,27 @@ const Container = () => {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Category</Label>
+              <Input
+                placeholder="Enter category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Container Name</Label>
               <Input
                 placeholder="Enter container name"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Remarks</Label>
               <Textarea
                 placeholder="Enter remarks"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
               />
             </div>
           </div>
