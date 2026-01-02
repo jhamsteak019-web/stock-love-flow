@@ -951,20 +951,20 @@ const ReleaseStock = () => {
           {/* 8. Set Date */}
           <div className="space-y-2">
             <Label>Set Date (Date Out Warehouse)</Label>
-            <Popover>
+            <Popover modal={true}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start text-left font-normal">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {setDate ? format(setDate, 'MMM d, yyyy') : 'Select date'}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-50" align="start">
                 <Calendar
                   mode="single"
                   selected={setDate}
                   onSelect={setSetDate}
                   initialFocus
-                  className={cn("p-3 pointer-events-auto")}
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
