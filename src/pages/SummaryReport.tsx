@@ -6,11 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -20,6 +23,10 @@ const SummaryReport = () => {
   const { userRole } = useAuth();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
+  
+  // Date range state
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
   
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
@@ -43,15 +50,24 @@ const SummaryReport = () => {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [releases, currentYear]);
 
-  // Filter releases by selected year, month, and category
+  // Filter releases by date range and category
   const filteredReleases = useMemo(() => {
     return releases.filter(release => {
       // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
       const dateToUse = release.set_date || release.date_released;
       const releaseDate = new Date(dateToUse);
-      const releaseYear = releaseDate.getFullYear().toString();
-      const releaseMonth = releaseDate.getMonth().toString();
-      const matchesDate = releaseYear === selectedYear && releaseMonth === selectedMonth;
+      
+      // Date range filter
+      let matchesDate = true;
+      if (startDate) {
+        matchesDate = matchesDate && releaseDate >= startDate;
+      }
+      if (endDate) {
+        // Include the entire end date day
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        matchesDate = matchesDate && releaseDate <= endOfDay;
+      }
       
       // Category filter
       const matchesCategory = selectedCategory === 'all' || 
@@ -59,7 +75,7 @@ const SummaryReport = () => {
       
       return matchesDate && matchesCategory;
     });
-  }, [releases, selectedYear, selectedMonth, selectedCategory]);
+  }, [releases, startDate, endDate, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -707,38 +723,52 @@ const SummaryReport = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 bg-card border rounded-lg p-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              {MONTHS.map((month, index) => (
-                <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              {availableYears.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[120px] border-0 shadow-none focus:ring-0 h-8">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORY_OPTIONS.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "justify-start text-left font-normal h-8 px-3 gap-2",
+                  !startDate && "text-muted-foreground"
+                )}
+              >
+                <Calendar className="h-4 w-4" />
+                {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-popover z-50" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={startDate}
+                onSelect={setStartDate}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "justify-start text-left font-normal h-8 px-3 gap-2",
+                  !endDate && "text-muted-foreground"
+                )}
+              >
+                <Calendar className="h-4 w-4" />
+                {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-popover z-50" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
