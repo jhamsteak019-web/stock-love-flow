@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -23,16 +23,37 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const STORAGE_KEY = 'dashboard_filter';
+
 const Dashboard = () => {
   const { releases, loading, getStats } = useInventory();
   const { userRole } = useAuth();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
-  // Month/Year filter state
-  const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
-  const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
+  // Get saved filter from localStorage or use current date
+  const getSavedFilter = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          month: typeof parsed.month === 'number' ? parsed.month : new Date().getMonth(),
+          year: typeof parsed.year === 'number' ? parsed.year : new Date().getFullYear()
+        };
+      }
+    } catch {}
+    return { month: new Date().getMonth(), year: new Date().getFullYear() };
+  };
+
+  const savedFilter = getSavedFilter();
+  const [selectedMonth, setSelectedMonth] = useState<number>(savedFilter.month);
+  const [selectedYear, setSelectedYear] = useState<number>(savedFilter.year);
+  
+  // Persist filter to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ month: selectedMonth, year: selectedYear }));
+  }, [selectedMonth, selectedYear]);
   
   const canExportPDF = userRole === 'admin' || userRole === 'staff';
 
