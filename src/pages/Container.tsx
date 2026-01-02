@@ -644,25 +644,24 @@ const Container = () => {
                         {format(new Date(item.date), 'MMM dd, yyyy')}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {item.photo_url && (
+                        <div className="text-center">
+                          {item.photo_url ? (
                             <button
                               type="button"
                               onClick={() => {
                                 setPreviewPhotoUrl(item.photo_url);
                                 setZoomLevel(1);
                               }}
-                              className="focus:outline-none"
+                              className="focus:outline-none inline-block"
                             >
                               <img 
                                 src={item.photo_url} 
                                 alt="Container" 
-                                className="h-12 w-12 object-cover rounded cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary transition-all"
+                                className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md mx-auto"
                               />
                             </button>
-                          )}
-                          {canEdit && (
-                            <label className="cursor-pointer relative group">
+                          ) : canEdit ? (
+                            <label className="cursor-pointer inline-block">
                               <input
                                 type="file"
                                 accept="image/*"
@@ -670,17 +669,18 @@ const Container = () => {
                                 onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
                                 disabled={uploadingPhotoId === item.id}
                               />
-                              <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
+                              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
                                 {uploadingPhotoId === item.id ? (
-                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
                                 ) : (
-                                  <Camera className="h-4 w-4 text-muted-foreground" />
+                                  <Camera className="h-5 w-5 text-muted-foreground" />
                                 )}
                               </div>
                             </label>
-                          )}
-                          {!item.photo_url && !canEdit && (
-                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                              <Camera className="h-5 w-5 text-muted-foreground" />
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -697,25 +697,24 @@ const Container = () => {
                         }
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {item.receive_photo_url && (
+                        <div className="text-center">
+                          {item.receive_photo_url ? (
                             <button
                               type="button"
                               onClick={() => {
                                 setPreviewPhotoUrl(item.receive_photo_url);
                                 setZoomLevel(1);
                               }}
-                              className="focus:outline-none"
+                              className="focus:outline-none inline-block"
                             >
                               <img 
                                 src={item.receive_photo_url} 
                                 alt="Receive" 
-                                className="h-12 w-12 object-cover rounded cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary transition-all"
+                                className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md mx-auto"
                               />
                             </button>
-                          )}
-                          {canEdit && (
-                            <label className="cursor-pointer relative group">
+                          ) : canEdit ? (
+                            <label className="cursor-pointer inline-block">
                               <input
                                 type="file"
                                 accept="image/*"
@@ -723,17 +722,18 @@ const Container = () => {
                                 onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
                                 disabled={uploadingReceivePhotoId === item.id}
                               />
-                              <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center hover:border-primary">
+                              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
                                 {uploadingReceivePhotoId === item.id ? (
-                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
                                 ) : (
-                                  <Camera className="h-4 w-4 text-muted-foreground" />
+                                  <Camera className="h-5 w-5 text-muted-foreground" />
                                 )}
                               </div>
                             </label>
-                          )}
-                          {!item.receive_photo_url && !canEdit && (
-                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                              <Camera className="h-5 w-5 text-muted-foreground" />
+                            </div>
                           )}
                         </div>
                       </TableCell>
