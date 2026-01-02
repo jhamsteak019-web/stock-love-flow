@@ -616,7 +616,7 @@ const Container = () => {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-primary/50 scrollbar-track-muted" style={{ scrollbarWidth: 'auto', scrollbarColor: 'hsl(var(--primary) / 0.5) hsl(var(--muted))' }}>
               <Table>
                 <TableHeader>
                   <TableRow>
