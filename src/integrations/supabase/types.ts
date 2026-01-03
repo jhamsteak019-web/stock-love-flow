@@ -411,6 +411,42 @@ export type Database = {
         }
         Relationships: []
       }
+      repeat_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          destination: string
+          id: string
+          item_name: string
+          notes: string | null
+          quantity: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          destination?: string
+          id?: string
+          item_name: string
+          notes?: string | null
+          quantity?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          destination?: string
+          id?: string
+          item_name?: string
+          notes?: string | null
+          quantity?: number
+          status?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           branch_name: string

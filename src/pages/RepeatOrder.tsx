@@ -49,13 +49,13 @@ const RepeatOrder = () => {
     queryKey: ['repeat-orders', 'active'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('repeat_orders')
+        .from('repeat_orders' as any)
         .select('*')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as RepeatOrderItem[];
+      return (data || []) as unknown as RepeatOrderItem[];
     },
   });
 
@@ -64,13 +64,13 @@ const RepeatOrder = () => {
     queryKey: ['repeat-orders', 'deleted'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('repeat_orders')
+        .from('repeat_orders' as any)
         .select('*')
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
       
       if (error) throw error;
-      return data as RepeatOrderItem[];
+      return (data || []) as unknown as RepeatOrderItem[];
     },
   });
 
@@ -78,7 +78,7 @@ const RepeatOrder = () => {
   const addMutation = useMutation({
     mutationFn: async (newOrder: Omit<RepeatOrderItem, 'id' | 'created_at' | 'created_by' | 'deleted_at' | 'status'>) => {
       const { data, error } = await supabase
-        .from('repeat_orders')
+        .from('repeat_orders' as any)
         .insert({
           ...newOrder,
           created_by: user?.id,
@@ -105,7 +105,7 @@ const RepeatOrder = () => {
   const softDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('repeat_orders')
+        .from('repeat_orders' as any)
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
       
@@ -124,7 +124,7 @@ const RepeatOrder = () => {
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('repeat_orders')
+        .from('repeat_orders' as any)
         .update({ deleted_at: null })
         .eq('id', id);
       
@@ -143,7 +143,7 @@ const RepeatOrder = () => {
   const permanentDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('repeat_orders')
+        .from('repeat_orders' as any)
         .delete()
         .eq('id', id);
       
