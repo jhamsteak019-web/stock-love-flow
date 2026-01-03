@@ -422,6 +422,7 @@ export type Database = {
           date_out_warehouse: string | null
           deleted_at: string | null
           id: string
+          photo_url: string | null
           status: string
         }
         Insert: {
@@ -434,6 +435,7 @@ export type Database = {
           date_out_warehouse?: string | null
           deleted_at?: string | null
           id?: string
+          photo_url?: string | null
           status?: string
         }
         Update: {
@@ -446,6 +448,7 @@ export type Database = {
           date_out_warehouse?: string | null
           deleted_at?: string | null
           id?: string
+          photo_url?: string | null
           status?: string
         }
         Relationships: []

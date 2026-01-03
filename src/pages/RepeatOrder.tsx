@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2, Pencil } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2, Pencil, Upload, Image, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -27,6 +27,7 @@ interface RepeatOrderItem {
   date_give_warehouse: string | null;
   date_out_warehouse: string | null;
   status: string;
+  photo_url: string | null;
   created_at: string;
   created_by: string | null;
   deleted_at: string | null;
@@ -66,6 +67,8 @@ const RepeatOrder = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; orderId: string } | null>(null);
   
   // Filters
   const currentDate = new Date();
@@ -155,7 +158,7 @@ const RepeatOrder = () => {
 
   // Add mutation
   const addMutation = useMutation({
-    mutationFn: async (newOrder: Omit<RepeatOrderItem, 'id' | 'created_at' | 'created_by' | 'deleted_at'>) => {
+    mutationFn: async (newOrder: { branch_store: string; category: string; date_give_store: string; date_give_warehouse: string; date_out_warehouse: string; status: string }) => {
       const { data, error } = await supabase
         .from('repeat_orders' as any)
         .insert({
@@ -290,6 +293,68 @@ const RepeatOrder = () => {
       toast.error('Failed to clear orders: ' + error.message);
     },
   });
+
+  // Photo upload handler
+  const handlePhotoUpload = async (orderId: string, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    setUploadingPhotoId(orderId);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${orderId}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('repeat-order-photos')
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('repeat-order-photos')
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from('repeat_orders' as any)
+        .update({ photo_url: publicUrl })
+        .eq('id', orderId);
+      
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      toast.success('Photo uploaded successfully');
+    } catch (error: any) {
+      toast.error('Failed to upload photo: ' + error.message);
+    } finally {
+      setUploadingPhotoId(null);
+    }
+  };
+
+  // Photo delete handler
+  const handlePhotoDelete = async (orderId: string, photoUrl: string) => {
+    try {
+      const fileName = photoUrl.split('/').pop();
+      if (fileName) {
+        await supabase.storage.from('repeat-order-photos').remove([fileName]);
+      }
+
+      const { error } = await supabase
+        .from('repeat_orders' as any)
+        .update({ photo_url: null })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      toast.success('Photo removed');
+      setPhotoPreview(null);
+    } catch (error: any) {
+      toast.error('Failed to remove photo: ' + error.message);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -813,7 +878,51 @@ const RepeatOrder = () => {
                           )}
                           {isColumnVisible('photo') && (
                             <TableCell style={{ width: getColumnWidth('photo') }}>
-                              <span className="text-muted-foreground text-sm">-</span>
+                              {order.photo_url ? (
+                                <div className="relative group">
+                                  <img
+                                    src={order.photo_url}
+                                    alt="Order photo"
+                                    className="h-10 w-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => setPhotoPreview({ url: order.photo_url!, orderId: order.id })}
+                                  />
+                                  {canEdit && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePhotoDelete(order.id, order.photo_url!);
+                                      }}
+                                      className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : canEdit ? (
+                                <label className="cursor-pointer">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handlePhotoUpload(order.id, file);
+                                    }}
+                                    disabled={uploadingPhotoId === order.id}
+                                  />
+                                  {uploadingPhotoId === order.id ? (
+                                    <div className="h-10 w-10 flex items-center justify-center">
+                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                    </div>
+                                  ) : (
+                                    <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
+                                      <Upload className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </label>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
                             </TableCell>
                           )}
                           {canEdit && isColumnVisible('action') && (
@@ -1000,6 +1109,34 @@ const RepeatOrder = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Photo Preview</DialogTitle>
+          </DialogHeader>
+          {photoPreview && (
+            <div className="flex flex-col items-center gap-4">
+              <img
+                src={photoPreview.url}
+                alt="Order photo"
+                className="max-h-[60vh] object-contain rounded-lg"
+              />
+              {canEdit && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handlePhotoDelete(photoPreview.orderId, photoPreview.url)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Remove Photo
+                </Button>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
