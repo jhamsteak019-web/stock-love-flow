@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,9 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface RepeatOrderItem {
   id: string;
@@ -29,6 +33,19 @@ interface RepeatOrderItem {
 }
 
 const STATUS_OPTIONS = ['pending', 'in_progress', 'completed', 'cancelled'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const COLUMN_OPTIONS = [
+  { key: 'branch_store', label: 'Branch/Store' },
+  { key: 'category', label: 'Category' },
+  { key: 'date_give_store', label: 'Date Give Store' },
+  { key: 'date_give_warehouse', label: 'Date Give Warehouse' },
+  { key: 'status', label: 'Status' },
+  { key: 'date_out_warehouse', label: 'Date Out Warehouse' },
+];
 
 const RepeatOrder = () => {
   const { user, userRole } = useAuth();
@@ -36,6 +53,17 @@ const RepeatOrder = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('active');
+  
+  // Filters
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  
+  // Column visibility
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    COLUMN_OPTIONS.map(col => col.key)
+  );
   
   const [formData, setFormData] = useState({
     branch_store: '',
@@ -49,6 +77,11 @@ const RepeatOrder = () => {
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
   const canEdit = isAdmin || isStaff;
+
+  // Generate year options (current year and 5 years back)
+  const yearOptions = Array.from({ length: 6 }, (_, i) => 
+    (currentDate.getFullYear() - i).toString()
+  );
 
   // Fetch active repeat orders
   const { data: activeOrders = [], isLoading: isLoadingActive } = useQuery({
@@ -168,6 +201,28 @@ const RepeatOrder = () => {
     },
   });
 
+  // Clear all mutation
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      const ids = filteredActiveOrders.map(order => order.id);
+      if (ids.length === 0) return;
+      
+      const { error } = await supabase
+        .from('repeat_orders' as any)
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      toast.success('All filtered orders moved to Recently Deleted');
+    },
+    onError: (error) => {
+      toast.error('Failed to clear orders: ' + error.message);
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       branch_store: '',
@@ -188,11 +243,37 @@ const RepeatOrder = () => {
     addMutation.mutate(formData);
   };
 
-  const filteredActiveOrders = activeOrders.filter(order =>
-    (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
+  const toggleColumn = (columnKey: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
 
+  const isColumnVisible = (key: string) => visibleColumns.includes(key);
+
+  // Filter orders by month, year, status, and search term
+  const filterOrders = (orders: RepeatOrderItem[]) => {
+    return orders.filter(order => {
+      // Search filter
+      const matchesSearch = 
+        (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      
+      // Status filter
+      const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+      
+      // Date filter (based on created_at)
+      const orderDate = new Date(order.created_at);
+      const matchesMonth = orderDate.getMonth().toString() === selectedMonth;
+      const matchesYear = orderDate.getFullYear().toString() === selectedYear;
+      
+      return matchesSearch && matchesStatus && matchesMonth && matchesYear;
+    });
+  };
+
+  const filteredActiveOrders = filterOrders(activeOrders);
   const filteredDeletedOrders = deletedOrders.filter(order =>
     (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -222,24 +303,51 @@ const RepeatOrder = () => {
     }
   };
 
+  const handleSavePDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(16);
+    doc.text('Repeat Orders Report', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 28);
+
+    const tableColumns = COLUMN_OPTIONS
+      .filter(col => isColumnVisible(col.key))
+      .map(col => col.label);
+
+    const tableRows = filteredActiveOrders.map(order => {
+      const row: string[] = [];
+      if (isColumnVisible('branch_store')) row.push(order.branch_store || '-');
+      if (isColumnVisible('category')) row.push(order.category || '-');
+      if (isColumnVisible('date_give_store')) row.push(formatDate(order.date_give_store));
+      if (isColumnVisible('date_give_warehouse')) row.push(formatDate(order.date_give_warehouse));
+      if (isColumnVisible('status')) row.push(order.status.replace('_', ' '));
+      if (isColumnVisible('date_out_warehouse')) row.push(formatDate(order.date_out_warehouse));
+      return row;
+    });
+
+    (doc as any).autoTable({
+      head: [tableColumns],
+      body: tableRows,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`repeat-orders-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
+    toast.success('PDF saved successfully');
+  };
+
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCcw className="h-5 w-5" />
-            Repeat Orders
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search orders..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 w-[200px]"
-              />
-            </div>
+        <CardHeader className="flex flex-col gap-4">
+          <div className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCcw className="h-5 w-5" />
+              Repeat Orders
+            </CardTitle>
             {canEdit && (
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
@@ -330,12 +438,118 @@ const RepeatOrder = () => {
               </Dialog>
             )}
           </div>
+
+          {/* Filters Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((month, index) => (
+                    <SelectItem key={month} value={index.toString()}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Column Settings
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56" align="end">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Toggle Columns</h4>
+                  {COLUMN_OPTIONS.map((column) => (
+                    <div key={column.key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={column.key}
+                        checked={isColumnVisible(column.key)}
+                        onCheckedChange={() => toggleColumn(column.key)}
+                      />
+                      <label
+                        htmlFor={column.key}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {column.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="flex-1" />
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSavePDF}>
+                <FileText className="h-4 w-4 mr-2" />
+                Save PDF
+              </Button>
+              {isAdmin && (
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => clearAllMutation.mutate()}
+                  disabled={clearAllMutation.isPending || filteredActiveOrders.length === 0}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear All
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search orders..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="active">
-                Active ({activeOrders.length})
+                Active ({filteredActiveOrders.length})
               </TabsTrigger>
               <TabsTrigger value="deleted">
                 Recently Deleted ({deletedOrders.length})
@@ -356,28 +570,30 @@ const RepeatOrder = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[150px]">Branch/Store</TableHead>
-                        <TableHead className="min-w-[120px]">Category</TableHead>
-                        <TableHead className="min-w-[130px]">Date Give Store</TableHead>
-                        <TableHead className="min-w-[150px]">Date Give Warehouse</TableHead>
-                        <TableHead className="min-w-[100px]">Status</TableHead>
-                        <TableHead className="min-w-[150px]">Date Out Warehouse</TableHead>
+                        {isColumnVisible('branch_store') && <TableHead className="min-w-[150px]">Branch/Store</TableHead>}
+                        {isColumnVisible('category') && <TableHead className="min-w-[120px]">Category</TableHead>}
+                        {isColumnVisible('date_give_store') && <TableHead className="min-w-[130px]">Date Give Store</TableHead>}
+                        {isColumnVisible('date_give_warehouse') && <TableHead className="min-w-[150px]">Date Give Warehouse</TableHead>}
+                        {isColumnVisible('status') && <TableHead className="min-w-[100px]">Status</TableHead>}
+                        {isColumnVisible('date_out_warehouse') && <TableHead className="min-w-[150px]">Date Out Warehouse</TableHead>}
                         {canEdit && <TableHead className="min-w-[80px] text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredActiveOrders.map((order) => (
                         <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.branch_store || '-'}</TableCell>
-                          <TableCell>{order.category || '-'}</TableCell>
-                          <TableCell>{formatDate(order.date_give_store)}</TableCell>
-                          <TableCell>{formatDate(order.date_give_warehouse)}</TableCell>
-                          <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
-                              {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                            </span>
-                          </TableCell>
-                          <TableCell>{formatDate(order.date_out_warehouse)}</TableCell>
+                          {isColumnVisible('branch_store') && <TableCell className="font-medium">{order.branch_store || '-'}</TableCell>}
+                          {isColumnVisible('category') && <TableCell>{order.category || '-'}</TableCell>}
+                          {isColumnVisible('date_give_store') && <TableCell>{formatDate(order.date_give_store)}</TableCell>}
+                          {isColumnVisible('date_give_warehouse') && <TableCell>{formatDate(order.date_give_warehouse)}</TableCell>}
+                          {isColumnVisible('status') && (
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
+                                {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </span>
+                            </TableCell>
+                          )}
+                          {isColumnVisible('date_out_warehouse') && <TableCell>{formatDate(order.date_out_warehouse)}</TableCell>}
                           {canEdit && (
                             <TableCell className="text-right">
                               <Button
