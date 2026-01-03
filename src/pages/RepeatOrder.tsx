@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,12 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -32,19 +32,26 @@ interface RepeatOrderItem {
   deleted_at: string | null;
 }
 
+interface ColumnConfig {
+  key: string;
+  label: string;
+  visible: boolean;
+  width: number;
+}
+
 const STATUS_OPTIONS = ['pending', 'in_progress', 'completed', 'cancelled'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const COLUMN_OPTIONS = [
-  { key: 'branch_store', label: 'Branch/Store' },
-  { key: 'category', label: 'Category' },
-  { key: 'date_give_store', label: 'Date Give Store' },
-  { key: 'date_give_warehouse', label: 'Date Give Warehouse' },
-  { key: 'status', label: 'Status' },
-  { key: 'date_out_warehouse', label: 'Date Out Warehouse' },
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+  { key: 'branch_store', label: 'Branch/Store', visible: true, width: 150 },
+  { key: 'category', label: 'Category', visible: true, width: 120 },
+  { key: 'date_give_store', label: 'Date Give Store', visible: true, width: 130 },
+  { key: 'date_give_warehouse', label: 'Date Give Warehouse', visible: true, width: 150 },
+  { key: 'status', label: 'Status', visible: true, width: 120 },
+  { key: 'date_out_warehouse', label: 'Date Out Warehouse', visible: true, width: 150 },
 ];
 
 const RepeatOrder = () => {
@@ -53,6 +60,8 @@ const RepeatOrder = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('active');
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
   
   // Filters
   const currentDate = new Date();
@@ -60,10 +69,8 @@ const RepeatOrder = () => {
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
   const [selectedStatus, setSelectedStatus] = useState('all');
   
-  // Column visibility
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    COLUMN_OPTIONS.map(col => col.key)
-  );
+  // Column settings
+  const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   
   const [formData, setFormData] = useState({
     branch_store: '',
@@ -78,7 +85,7 @@ const RepeatOrder = () => {
   const isStaff = userRole === 'staff';
   const canEdit = isAdmin || isStaff;
 
-  // Generate year options (current year and 5 years back)
+  // Generate year options
   const yearOptions = Array.from({ length: 6 }, (_, i) => 
     (currentDate.getFullYear() - i).toString()
   );
@@ -110,6 +117,26 @@ const RepeatOrder = () => {
       
       if (error) throw error;
       return (data || []) as unknown as RepeatOrderItem[];
+    },
+  });
+
+  // Update mutation for inline editing
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: string; value: string | null }) => {
+      const { error } = await supabase
+        .from('repeat_orders' as any)
+        .update({ [field]: value || null })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      toast.success('Updated successfully');
+      setEditingCell(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update: ' + error.message);
     },
   });
 
@@ -243,28 +270,42 @@ const RepeatOrder = () => {
     addMutation.mutate(formData);
   };
 
-  const toggleColumn = (columnKey: string) => {
-    setVisibleColumns(prev => 
-      prev.includes(columnKey) 
-        ? prev.filter(k => k !== columnKey)
-        : [...prev, columnKey]
-    );
+  const handleColumnWidthChange = (key: string, value: number[]) => {
+    setColumns(prev => prev.map(col => 
+      col.key === key ? { ...col, width: value[0] } : col
+    ));
   };
 
-  const isColumnVisible = (key: string) => visibleColumns.includes(key);
+  const isColumnVisible = (key: string) => columns.find(col => col.key === key)?.visible ?? true;
+  const getColumnWidth = (key: string) => columns.find(col => col.key === key)?.width ?? 150;
 
-  // Filter orders by month, year, status, and search term
+  const startEditing = (id: string, field: string, currentValue: string | null) => {
+    if (!canEdit) return;
+    setEditingCell({ id, field });
+    setEditValue(currentValue || '');
+  };
+
+  const handleSaveEdit = (id: string, field: string) => {
+    updateMutation.mutate({ id, field, value: editValue });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, id: string, field: string) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit(id, field);
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
+  };
+
+  // Filter orders
   const filterOrders = (orders: RepeatOrderItem[]) => {
     return orders.filter(order => {
-      // Search filter
       const matchesSearch = 
         (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       
-      // Status filter
       const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
       
-      // Date filter (based on created_at)
       const orderDate = new Date(order.created_at);
       const matchesMonth = orderDate.getMonth().toString() === selectedMonth;
       const matchesYear = orderDate.getFullYear().toString() === selectedYear;
@@ -312,18 +353,22 @@ const RepeatOrder = () => {
     doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
     doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 28);
 
-    const tableColumns = COLUMN_OPTIONS
-      .filter(col => isColumnVisible(col.key))
+    const tableColumns = columns
+      .filter(col => col.visible)
       .map(col => col.label);
 
     const tableRows = filteredActiveOrders.map(order => {
       const row: string[] = [];
-      if (isColumnVisible('branch_store')) row.push(order.branch_store || '-');
-      if (isColumnVisible('category')) row.push(order.category || '-');
-      if (isColumnVisible('date_give_store')) row.push(formatDate(order.date_give_store));
-      if (isColumnVisible('date_give_warehouse')) row.push(formatDate(order.date_give_warehouse));
-      if (isColumnVisible('status')) row.push(order.status.replace('_', ' '));
-      if (isColumnVisible('date_out_warehouse')) row.push(formatDate(order.date_out_warehouse));
+      columns.filter(col => col.visible).forEach(col => {
+        switch (col.key) {
+          case 'branch_store': row.push(order.branch_store || '-'); break;
+          case 'category': row.push(order.category || '-'); break;
+          case 'date_give_store': row.push(formatDate(order.date_give_store)); break;
+          case 'date_give_warehouse': row.push(formatDate(order.date_give_warehouse)); break;
+          case 'status': row.push(order.status.replace('_', ' ')); break;
+          case 'date_out_warehouse': row.push(formatDate(order.date_out_warehouse)); break;
+        }
+      });
       return row;
     });
 
@@ -337,6 +382,83 @@ const RepeatOrder = () => {
 
     doc.save(`repeat-orders-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
     toast.success('PDF saved successfully');
+  };
+
+  const renderEditableCell = (order: RepeatOrderItem, field: string, value: string | null, isDate: boolean = false) => {
+    const isEditing = editingCell?.id === order.id && editingCell?.field === field;
+    
+    if (!canEdit) {
+      return isDate ? formatDate(value) : (value || '-');
+    }
+
+    if (isEditing) {
+      return (
+        <Input
+          type={isDate ? 'date' : 'text'}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={() => handleSaveEdit(order.id, field)}
+          onKeyDown={(e) => handleKeyDown(e, order.id, field)}
+          autoFocus
+          className="h-8 w-full min-w-[100px]"
+        />
+      );
+    }
+
+    return (
+      <div
+        onClick={() => startEditing(order.id, field, value)}
+        className="cursor-pointer hover:bg-muted/50 px-2 py-1 rounded min-h-[28px] flex items-center"
+      >
+        {isDate ? formatDate(value) : (value || '-')}
+      </div>
+    );
+  };
+
+  const renderStatusCell = (order: RepeatOrderItem) => {
+    const isEditing = editingCell?.id === order.id && editingCell?.field === 'status';
+    
+    if (!canEdit) {
+      return (
+        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
+          {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+        </span>
+      );
+    }
+
+    if (isEditing) {
+      return (
+        <Select
+          value={editValue}
+          onValueChange={(value) => {
+            setEditValue(value);
+            updateMutation.mutate({ id: order.id, field: 'status', value });
+          }}
+        >
+          <SelectTrigger className="h-8 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((status) => (
+              <SelectItem key={status} value={status}>
+                {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    return (
+      <div
+        onClick={() => startEditing(order.id, 'status', order.status)}
+        className="cursor-pointer"
+      >
+        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
+          {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -484,34 +606,43 @@ const RepeatOrder = () => {
               </SelectContent>
             </Select>
 
-            <Popover>
-              <PopoverTrigger asChild>
+            <Sheet>
+              <SheetTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Settings2 className="h-4 w-4 mr-2" />
                   Column Settings
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56" align="end">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Toggle Columns</h4>
-                  {COLUMN_OPTIONS.map((column) => (
-                    <div key={column.key} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={column.key}
-                        checked={isColumnVisible(column.key)}
-                        onCheckedChange={() => toggleColumn(column.key)}
-                      />
-                      <label
-                        htmlFor={column.key}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {column.label}
-                      </label>
+              </SheetTrigger>
+              <SheetContent className="w-[320px]">
+                <SheetHeader>
+                  <SheetTitle>Column Settings</SheetTitle>
+                  <p className="text-sm text-muted-foreground">Customize table columns</p>
+                </SheetHeader>
+                <div className="mt-6 space-y-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-4">COLUMN WIDTHS</h4>
+                    <div className="space-y-6">
+                      {columns.map((column) => (
+                        <div key={column.key} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{column.label}</span>
+                            <span className="text-xs text-muted-foreground">{column.width}px</span>
+                          </div>
+                          <Slider
+                            value={[column.width]}
+                            onValueChange={(value) => handleColumnWidthChange(column.key, value)}
+                            min={80}
+                            max={300}
+                            step={5}
+                            className="w-full"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </PopoverContent>
-            </Popover>
+              </SheetContent>
+            </Sheet>
 
             <div className="flex-1" />
 
@@ -570,30 +701,48 @@ const RepeatOrder = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        {isColumnVisible('branch_store') && <TableHead className="min-w-[150px]">Branch/Store</TableHead>}
-                        {isColumnVisible('category') && <TableHead className="min-w-[120px]">Category</TableHead>}
-                        {isColumnVisible('date_give_store') && <TableHead className="min-w-[130px]">Date Give Store</TableHead>}
-                        {isColumnVisible('date_give_warehouse') && <TableHead className="min-w-[150px]">Date Give Warehouse</TableHead>}
-                        {isColumnVisible('status') && <TableHead className="min-w-[100px]">Status</TableHead>}
-                        {isColumnVisible('date_out_warehouse') && <TableHead className="min-w-[150px]">Date Out Warehouse</TableHead>}
-                        {canEdit && <TableHead className="min-w-[80px] text-right">Actions</TableHead>}
+                        {isColumnVisible('branch_store') && <TableHead style={{ width: getColumnWidth('branch_store'), minWidth: getColumnWidth('branch_store') }}>Branch/Store</TableHead>}
+                        {isColumnVisible('category') && <TableHead style={{ width: getColumnWidth('category'), minWidth: getColumnWidth('category') }}>Category</TableHead>}
+                        {isColumnVisible('date_give_store') && <TableHead style={{ width: getColumnWidth('date_give_store'), minWidth: getColumnWidth('date_give_store') }}>Date Give Store</TableHead>}
+                        {isColumnVisible('date_give_warehouse') && <TableHead style={{ width: getColumnWidth('date_give_warehouse'), minWidth: getColumnWidth('date_give_warehouse') }}>Date Give Warehouse</TableHead>}
+                        {isColumnVisible('status') && <TableHead style={{ width: getColumnWidth('status'), minWidth: getColumnWidth('status') }}>Status</TableHead>}
+                        {isColumnVisible('date_out_warehouse') && <TableHead style={{ width: getColumnWidth('date_out_warehouse'), minWidth: getColumnWidth('date_out_warehouse') }}>Date Out Warehouse</TableHead>}
+                        {canEdit && <TableHead className="w-[80px] text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredActiveOrders.map((order) => (
                         <TableRow key={order.id}>
-                          {isColumnVisible('branch_store') && <TableCell className="font-medium">{order.branch_store || '-'}</TableCell>}
-                          {isColumnVisible('category') && <TableCell>{order.category || '-'}</TableCell>}
-                          {isColumnVisible('date_give_store') && <TableCell>{formatDate(order.date_give_store)}</TableCell>}
-                          {isColumnVisible('date_give_warehouse') && <TableCell>{formatDate(order.date_give_warehouse)}</TableCell>}
-                          {isColumnVisible('status') && (
-                            <TableCell>
-                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
-                                {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                              </span>
+                          {isColumnVisible('branch_store') && (
+                            <TableCell style={{ width: getColumnWidth('branch_store') }}>
+                              {renderEditableCell(order, 'branch_store', order.branch_store)}
                             </TableCell>
                           )}
-                          {isColumnVisible('date_out_warehouse') && <TableCell>{formatDate(order.date_out_warehouse)}</TableCell>}
+                          {isColumnVisible('category') && (
+                            <TableCell style={{ width: getColumnWidth('category') }}>
+                              {renderEditableCell(order, 'category', order.category)}
+                            </TableCell>
+                          )}
+                          {isColumnVisible('date_give_store') && (
+                            <TableCell style={{ width: getColumnWidth('date_give_store') }}>
+                              {renderEditableCell(order, 'date_give_store', order.date_give_store, true)}
+                            </TableCell>
+                          )}
+                          {isColumnVisible('date_give_warehouse') && (
+                            <TableCell style={{ width: getColumnWidth('date_give_warehouse') }}>
+                              {renderEditableCell(order, 'date_give_warehouse', order.date_give_warehouse, true)}
+                            </TableCell>
+                          )}
+                          {isColumnVisible('status') && (
+                            <TableCell style={{ width: getColumnWidth('status') }}>
+                              {renderStatusCell(order)}
+                            </TableCell>
+                          )}
+                          {isColumnVisible('date_out_warehouse') && (
+                            <TableCell style={{ width: getColumnWidth('date_out_warehouse') }}>
+                              {renderEditableCell(order, 'date_out_warehouse', order.date_out_warehouse, true)}
+                            </TableCell>
+                          )}
                           {canEdit && (
                             <TableCell className="text-right">
                               <Button
