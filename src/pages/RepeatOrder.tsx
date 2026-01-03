@@ -48,6 +48,8 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const MAX_PHOTOS = 7;
+
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'branch_store', label: 'Branch/Store', visible: true, width: 150 },
   { key: 'category', label: 'Category', visible: true, width: 120 },
@@ -55,9 +57,20 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'date_give_warehouse', label: 'Date Give Warehouse', visible: true, width: 160 },
   { key: 'status', label: 'Status', visible: true, width: 120 },
   { key: 'date_out_warehouse', label: 'Date Out Warehouse', visible: true, width: 160 },
-  { key: 'photo', label: 'Photo', visible: true, width: 100 },
+  { key: 'photo', label: 'Photo', visible: true, width: 280 },
   { key: 'action', label: 'Action', visible: true, width: 100 },
 ];
+
+// Helper to parse photo URLs from photo_url field (JSON array or single URL)
+const parsePhotoUrls = (photoUrl: string | null): string[] => {
+  if (!photoUrl) return [];
+  try {
+    const parsed = JSON.parse(photoUrl);
+    return Array.isArray(parsed) ? parsed : [photoUrl];
+  } catch {
+    return photoUrl ? [photoUrl] : [];
+  }
+};
 
 const RepeatOrder = () => {
   const { user, userRole } = useAuth();
@@ -297,10 +310,15 @@ const RepeatOrder = () => {
     },
   });
 
-  // Photo upload handler
-  const handlePhotoUpload = async (orderId: string, file: File) => {
+  // Photo upload handler - supports multiple photos
+  const handlePhotoUpload = async (orderId: string, file: File, existingPhotos: string[]) => {
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file');
+      return;
+    }
+
+    if (existingPhotos.length >= MAX_PHOTOS) {
+      toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
       return;
     }
 
@@ -320,18 +338,22 @@ const RepeatOrder = () => {
         .from('repeat-order-photos')
         .getPublicUrl(fileName);
 
+      const updatedPhotos = [...existingPhotos, publicUrl];
+      
       const { error: updateError } = await supabase
         .from('repeat_orders' as any)
-        .update({ photo_url: publicUrl })
+        .update({ photo_url: JSON.stringify(updatedPhotos) })
         .eq('id', orderId);
       
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
-      toast.success('Photo uploaded successfully');
+      toast.success(`Photo ${updatedPhotos.length}/${MAX_PHOTOS} uploaded`);
       
-      // Open date out warehouse calendar popup after successful upload
-      setDateOutWarehousePopover({ orderId, isOpen: true });
+      // Open date out warehouse calendar popup after first photo upload
+      if (existingPhotos.length === 0) {
+        setDateOutWarehousePopover({ orderId, isOpen: true });
+      }
     } catch (error: any) {
       toast.error('Failed to upload photo: ' + error.message);
     } finally {
@@ -361,17 +383,19 @@ const RepeatOrder = () => {
     }
   };
 
-  // Photo delete handler
-  const handlePhotoDelete = async (orderId: string, photoUrl: string) => {
+  // Delete single photo from array
+  const handlePhotoDelete = async (orderId: string, photoUrl: string, allPhotos: string[]) => {
     try {
       const fileName = photoUrl.split('/').pop();
       if (fileName) {
         await supabase.storage.from('repeat-order-photos').remove([fileName]);
       }
 
+      const updatedPhotos = allPhotos.filter(url => url !== photoUrl);
+      
       const { error } = await supabase
         .from('repeat_orders' as any)
-        .update({ photo_url: null })
+        .update({ photo_url: updatedPhotos.length > 0 ? JSON.stringify(updatedPhotos) : null })
         .eq('id', orderId);
       
       if (error) throw error;
@@ -906,80 +930,92 @@ const RepeatOrder = () => {
                           )}
                           {isColumnVisible('photo') && (
                             <TableCell style={{ width: getColumnWidth('photo') }}>
-                              {order.photo_url ? (
-                                <div className="relative group">
-                                  <img
-                                    src={order.photo_url}
-                                    alt="Order photo"
-                                    className="h-10 w-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => setPhotoPreview({ url: order.photo_url!, orderId: order.id })}
-                                  />
-                                  {canEdit && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handlePhotoDelete(order.id, order.photo_url!);
-                                      }}
-                                      className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              ) : canEdit ? (
-                                <Popover 
-                                  open={dateOutWarehousePopover?.orderId === order.id && dateOutWarehousePopover?.isOpen}
-                                  onOpenChange={(open) => {
-                                    if (!open) setDateOutWarehousePopover(null);
-                                  }}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <label className="cursor-pointer">
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) handlePhotoUpload(order.id, file);
+                              {(() => {
+                                const photos = parsePhotoUrls(order.photo_url);
+                                return (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {photos.map((url, idx) => (
+                                      <div key={idx} className="relative group">
+                                        <img
+                                          src={url}
+                                          alt={`Photo ${idx + 1}`}
+                                          className="h-8 w-8 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                          onClick={() => setPhotoPreview({ url, orderId: order.id })}
+                                        />
+                                        {canEdit && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handlePhotoDelete(order.id, url, photos);
+                                            }}
+                                            className="absolute -top-1 -right-1 h-3 w-3 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                          >
+                                            <X className="h-2 w-2" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                    {canEdit && photos.length < MAX_PHOTOS && (
+                                      <Popover 
+                                        open={dateOutWarehousePopover?.orderId === order.id && dateOutWarehousePopover?.isOpen}
+                                        onOpenChange={(open) => {
+                                          if (!open) setDateOutWarehousePopover(null);
                                         }}
-                                        disabled={uploadingPhotoId === order.id}
-                                      />
-                                      {uploadingPhotoId === order.id ? (
-                                        <div className="h-10 w-10 flex items-center justify-center">
-                                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                        </div>
-                                      ) : (
-                                        <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
-                                          <Upload className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                      )}
-                                    </label>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <div className="p-3 border-b">
-                                      <p className="text-sm font-medium">Select Date Out Warehouse</p>
-                                    </div>
-                                    <Calendar
-                                      mode="single"
-                                      selected={order.date_out_warehouse ? new Date(order.date_out_warehouse) : undefined}
-                                      onSelect={(date) => handleDateOutWarehouseSelect(order.id, date)}
-                                      initialFocus
-                                    />
-                                    <div className="p-3 border-t flex justify-end">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm"
-                                        onClick={() => setDateOutWarehousePopover(null)}
                                       >
-                                        Skip
-                                      </Button>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">-</span>
-                              )}
+                                        <PopoverTrigger asChild>
+                                          <label className="cursor-pointer">
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handlePhotoUpload(order.id, file, photos);
+                                              }}
+                                              disabled={uploadingPhotoId === order.id}
+                                            />
+                                            {uploadingPhotoId === order.id ? (
+                                              <div className="h-8 w-8 flex items-center justify-center">
+                                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                              </div>
+                                            ) : (
+                                              <div className="h-8 w-8 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
+                                                <Plus className="h-3 w-3 text-muted-foreground" />
+                                              </div>
+                                            )}
+                                          </label>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                          <div className="p-3 border-b">
+                                            <p className="text-sm font-medium">Select Date Out Warehouse</p>
+                                          </div>
+                                          <Calendar
+                                            mode="single"
+                                            selected={order.date_out_warehouse ? new Date(order.date_out_warehouse) : undefined}
+                                            onSelect={(date) => handleDateOutWarehouseSelect(order.id, date)}
+                                            initialFocus
+                                          />
+                                          <div className="p-3 border-t flex justify-end">
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm"
+                                              onClick={() => setDateOutWarehousePopover(null)}
+                                            >
+                                              Skip
+                                            </Button>
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    )}
+                                    {!canEdit && photos.length === 0 && (
+                                      <span className="text-muted-foreground text-sm">-</span>
+                                    )}
+                                    {photos.length > 0 && (
+                                      <span className="text-xs text-muted-foreground ml-1">{photos.length}/{MAX_PHOTOS}</span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                           )}
                           {canEdit && isColumnVisible('action') && (
@@ -1186,7 +1222,13 @@ const RepeatOrder = () => {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handlePhotoDelete(photoPreview.orderId, photoPreview.url)}
+                  onClick={() => {
+                    const order = activeOrders.find(o => o.id === photoPreview.orderId);
+                    if (order) {
+                      const photos = parsePhotoUrls(order.photo_url);
+                      handlePhotoDelete(photoPreview.orderId, photoPreview.url, photos);
+                    }
+                  }}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Remove Photo
