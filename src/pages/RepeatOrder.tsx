@@ -48,10 +48,12 @@ const MONTHS = [
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'branch_store', label: 'Branch/Store', visible: true, width: 150 },
   { key: 'category', label: 'Category', visible: true, width: 120 },
-  { key: 'date_give_store', label: 'Date Give Store', visible: true, width: 130 },
-  { key: 'date_give_warehouse', label: 'Date Give Warehouse', visible: true, width: 150 },
+  { key: 'date_give_store', label: 'Date Give Store', visible: true, width: 140 },
+  { key: 'date_give_warehouse', label: 'Date Give Warehouse', visible: true, width: 160 },
   { key: 'status', label: 'Status', visible: true, width: 120 },
-  { key: 'date_out_warehouse', label: 'Date Out Warehouse', visible: true, width: 150 },
+  { key: 'date_out_warehouse', label: 'Date Out Warehouse', visible: true, width: 160 },
+  { key: 'photo', label: 'Photo', visible: true, width: 100 },
+  { key: 'action', label: 'Action', visible: true, width: 100 },
 ];
 
 const RepeatOrder = () => {
@@ -772,8 +774,8 @@ const RepeatOrder = () => {
                         {isColumnVisible('date_give_warehouse') && <TableHead style={{ width: getColumnWidth('date_give_warehouse'), minWidth: getColumnWidth('date_give_warehouse') }}>Date Give Warehouse</TableHead>}
                         {isColumnVisible('status') && <TableHead style={{ width: getColumnWidth('status'), minWidth: getColumnWidth('status') }}>Status</TableHead>}
                         {isColumnVisible('date_out_warehouse') && <TableHead style={{ width: getColumnWidth('date_out_warehouse'), minWidth: getColumnWidth('date_out_warehouse') }}>Date Out Warehouse</TableHead>}
-                        {isColumnVisible('date_out_warehouse') && <TableHead style={{ width: getColumnWidth('date_out_warehouse'), minWidth: getColumnWidth('date_out_warehouse') }}>Date Out Warehouse</TableHead>}
-                        {canEdit && <TableHead className="w-[120px] text-right">Actions</TableHead>}
+                        {isColumnVisible('photo') && <TableHead style={{ width: getColumnWidth('photo'), minWidth: getColumnWidth('photo') }}>Photo</TableHead>}
+                        {canEdit && isColumnVisible('action') && <TableHead style={{ width: getColumnWidth('action'), minWidth: getColumnWidth('action') }}>Action</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -809,25 +811,32 @@ const RepeatOrder = () => {
                               {renderEditableCell(order, 'date_out_warehouse', order.date_out_warehouse, true)}
                             </TableCell>
                           )}
-                          {canEdit && (
-                            <TableCell className="text-right space-x-1">
-                              {isAdmin && (
+                          {isColumnVisible('photo') && (
+                            <TableCell style={{ width: getColumnWidth('photo') }}>
+                              <span className="text-muted-foreground text-sm">-</span>
+                            </TableCell>
+                          )}
+                          {canEdit && isColumnVisible('action') && (
+                            <TableCell style={{ width: getColumnWidth('action') }}>
+                              <div className="flex items-center gap-1">
+                                {isAdmin && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openEditDialog(order)}
+                                  >
+                                    <Pencil className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => openEditDialog(order)}
+                                  onClick={() => softDeleteMutation.mutate(order.id)}
+                                  disabled={softDeleteMutation.isPending}
                                 >
-                                  <Pencil className="h-4 w-4 text-blue-600" />
+                                  <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => softDeleteMutation.mutate(order.id)}
-                                disabled={softDeleteMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              </div>
                             </TableCell>
                           )}
                         </TableRow>
