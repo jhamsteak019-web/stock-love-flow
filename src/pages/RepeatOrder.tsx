@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
@@ -84,6 +84,7 @@ const RepeatOrder = () => {
   const [editValue, setEditValue] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<{ url: string; orderId: string } | null>(null);
+  const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [dateOutWarehousePopover, setDateOutWarehousePopover] = useState<{ orderId: string; isOpen: boolean } | null>(null);
   
   // Filters
@@ -1172,33 +1173,71 @@ const RepeatOrder = () => {
       </Dialog>
 
       {/* Photo Preview Dialog */}
-      <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={!!photoPreview} onOpenChange={() => { setPhotoPreview(null); setPhotoZoomLevel(1); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Photo Preview</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Photo Preview</span>
+              <div className="flex items-center gap-2 mr-6">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPhotoZoomLevel(prev => Math.max(0.5, prev - 0.25))}
+                  disabled={photoZoomLevel <= 0.5}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[60px] text-center">
+                  {Math.round(photoZoomLevel * 100)}%
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPhotoZoomLevel(prev => Math.min(3, prev + 0.25))}
+                  disabled={photoZoomLevel >= 3}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
+            </DialogTitle>
           </DialogHeader>
           {photoPreview && (
-            <div className="flex flex-col items-center gap-4">
-              <img
-                src={photoPreview.url}
-                alt="Order photo"
-                className="max-h-[60vh] object-contain rounded-lg"
-              />
-              {canEdit && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    const order = activeOrders.find(o => o.id === photoPreview.orderId);
-                    if (order) {
-                      const photos = parsePhotoUrls(order.photo_url);
-                      handlePhotoDelete(photoPreview.orderId, photoPreview.url, photos);
-                    }
-                  }}
+            <div className="flex flex-col gap-4">
+              <ScrollArea className="max-h-[60vh] w-full border rounded-lg">
+                <div 
+                  className="min-w-max p-4" 
+                  style={{ width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%' }}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remove Photo
-                </Button>
+                  <img
+                    src={photoPreview.url}
+                    alt="Order photo"
+                    className="rounded-lg transition-transform duration-200 origin-top-left"
+                    style={{ 
+                      transform: `scale(${photoZoomLevel})`,
+                      transformOrigin: 'top left'
+                    }}
+                  />
+                </div>
+                <ScrollBar orientation="horizontal" />
+                <ScrollBar orientation="vertical" />
+              </ScrollArea>
+              {canEdit && (
+                <div className="flex justify-center">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      const order = activeOrders.find(o => o.id === photoPreview.orderId);
+                      if (order) {
+                        const photos = parsePhotoUrls(order.photo_url);
+                        handlePhotoDelete(photoPreview.orderId, photoPreview.url, photos);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove Photo
+                  </Button>
+                </div>
               )}
             </div>
           )}
