@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
@@ -48,7 +48,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const MAX_PHOTOS = 7;
+const MAX_PHOTOS = 10;
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'branch_store', label: 'Branch/Store', visible: true, width: 150 },
@@ -83,7 +83,7 @@ const RepeatOrder = () => {
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<{ url: string; orderId: string } | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; orderId: string; allPhotos: string[]; currentIndex: number } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [dateOutWarehousePopover, setDateOutWarehousePopover] = useState<{ orderId: string; isOpen: boolean } | null>(null);
   
@@ -936,7 +936,7 @@ const RepeatOrder = () => {
                                           src={url}
                                           alt={`Photo ${idx + 1}`}
                                           className="h-8 w-8 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                                          onClick={() => setPhotoPreview({ url, orderId: order.id })}
+                                          onClick={() => setPhotoPreview({ url, orderId: order.id, allPhotos: photos, currentIndex: idx })}
                                         />
                                         {canEdit && (
                                           <button
@@ -1177,7 +1177,14 @@ const RepeatOrder = () => {
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>Photo Preview</span>
+              <span>
+                Photo Preview
+                {photoPreview && photoPreview.allPhotos.length > 1 && (
+                  <span className="text-muted-foreground ml-2">
+                    ({photoPreview.currentIndex + 1}/{photoPreview.allPhotos.length})
+                  </span>
+                )}
+              </span>
               <div className="flex items-center gap-2 mr-6">
                 <Button
                   variant="outline"
@@ -1203,24 +1210,101 @@ const RepeatOrder = () => {
           </DialogHeader>
           {photoPreview && (
             <div className="flex flex-col gap-4">
-              <ScrollArea className="max-h-[60vh] w-full border rounded-lg">
-                <div 
-                  className="min-w-max p-4" 
-                  style={{ width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%' }}
-                >
-                  <img
-                    src={photoPreview.url}
-                    alt="Order photo"
-                    className="rounded-lg transition-transform duration-200 origin-top-left"
-                    style={{ 
-                      transform: `scale(${photoZoomLevel})`,
-                      transformOrigin: 'top left'
+              <div className="relative">
+                {/* Left Navigation Arrow */}
+                {photoPreview.allPhotos.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm"
+                    onClick={() => {
+                      const newIndex = photoPreview.currentIndex > 0 
+                        ? photoPreview.currentIndex - 1 
+                        : photoPreview.allPhotos.length - 1;
+                      setPhotoPreview({
+                        ...photoPreview,
+                        url: photoPreview.allPhotos[newIndex],
+                        currentIndex: newIndex
+                      });
+                      setPhotoZoomLevel(1);
                     }}
-                  />
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                )}
+
+                <ScrollArea className="max-h-[60vh] w-full border rounded-lg">
+                  <div 
+                    className="min-w-max p-4" 
+                    style={{ width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%' }}
+                  >
+                    <img
+                      src={photoPreview.url}
+                      alt="Order photo"
+                      className="rounded-lg transition-transform duration-200 origin-top-left"
+                      style={{ 
+                        transform: `scale(${photoZoomLevel})`,
+                        transformOrigin: 'top left'
+                      }}
+                    />
+                  </div>
+                  <ScrollBar orientation="horizontal" />
+                  <ScrollBar orientation="vertical" />
+                </ScrollArea>
+
+                {/* Right Navigation Arrow */}
+                {photoPreview.allPhotos.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm"
+                    onClick={() => {
+                      const newIndex = photoPreview.currentIndex < photoPreview.allPhotos.length - 1 
+                        ? photoPreview.currentIndex + 1 
+                        : 0;
+                      setPhotoPreview({
+                        ...photoPreview,
+                        url: photoPreview.allPhotos[newIndex],
+                        currentIndex: newIndex
+                      });
+                      setPhotoZoomLevel(1);
+                    }}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Thumbnail Strip */}
+              {photoPreview.allPhotos.length > 1 && (
+                <div className="flex gap-2 justify-center overflow-x-auto pb-2">
+                  {photoPreview.allPhotos.map((photo, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setPhotoPreview({
+                          ...photoPreview,
+                          url: photo,
+                          currentIndex: idx
+                        });
+                        setPhotoZoomLevel(1);
+                      }}
+                      className={`h-12 w-12 rounded overflow-hidden border-2 flex-shrink-0 transition-all ${
+                        idx === photoPreview.currentIndex
+                          ? 'border-primary ring-2 ring-primary/50'
+                          : 'border-muted hover:border-primary/50'
+                      }`}
+                    >
+                      <img
+                        src={photo}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ))}
                 </div>
-                <ScrollBar orientation="horizontal" />
-                <ScrollBar orientation="vertical" />
-              </ScrollArea>
+              )}
+
               {canEdit && (
                 <div className="flex justify-center">
                   <Button
