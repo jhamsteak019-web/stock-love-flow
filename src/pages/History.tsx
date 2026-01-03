@@ -560,9 +560,7 @@ const History = () => {
                       {isColumnVisible('waybill') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>{group.waybill_no || '-'}</TableCell>}
                       {isColumnVisible('remarks') && (
                         <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>
-                          {isViewer ? (
-                            <span className="text-sm">{group.notes || '-'}</span>
-                          ) : (
+                          {isAdmin ? (
                             <Input
                               placeholder="Enter remarks"
                               defaultValue={group.notes || ''}
@@ -573,6 +571,8 @@ const History = () => {
                                 }
                               }}
                             />
+                          ) : (
+                            <span className="text-sm">{group.notes || '-'}</span>
                           )}
                         </TableCell>
                       )}
