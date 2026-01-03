@@ -13,7 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2, Pencil, Upload, Image, X } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -69,6 +71,7 @@ const RepeatOrder = () => {
   const [editValue, setEditValue] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<{ url: string; orderId: string } | null>(null);
+  const [dateOutWarehousePopover, setDateOutWarehousePopover] = useState<{ orderId: string; isOpen: boolean } | null>(null);
   
   // Filters
   const currentDate = new Date();
@@ -326,10 +329,35 @@ const RepeatOrder = () => {
 
       queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
       toast.success('Photo uploaded successfully');
+      
+      // Open date out warehouse calendar popup after successful upload
+      setDateOutWarehousePopover({ orderId, isOpen: true });
     } catch (error: any) {
       toast.error('Failed to upload photo: ' + error.message);
     } finally {
       setUploadingPhotoId(null);
+    }
+  };
+
+  // Handle date out warehouse selection from calendar
+  const handleDateOutWarehouseSelect = async (orderId: string, date: Date | undefined) => {
+    if (!date) return;
+    
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    
+    try {
+      const { error } = await supabase
+        .from('repeat_orders' as any)
+        .update({ date_out_warehouse: formattedDate })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      toast.success('Date Out Warehouse updated');
+      setDateOutWarehousePopover(null);
+    } catch (error: any) {
+      toast.error('Failed to update date: ' + error.message);
     }
   };
 
@@ -695,8 +723,8 @@ const RepeatOrder = () => {
 
           {/* Filters Row */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue />
@@ -899,27 +927,56 @@ const RepeatOrder = () => {
                                   )}
                                 </div>
                               ) : canEdit ? (
-                                <label className="cursor-pointer">
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handlePhotoUpload(order.id, file);
-                                    }}
-                                    disabled={uploadingPhotoId === order.id}
-                                  />
-                                  {uploadingPhotoId === order.id ? (
-                                    <div className="h-10 w-10 flex items-center justify-center">
-                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                <Popover 
+                                  open={dateOutWarehousePopover?.orderId === order.id && dateOutWarehousePopover?.isOpen}
+                                  onOpenChange={(open) => {
+                                    if (!open) setDateOutWarehousePopover(null);
+                                  }}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <label className="cursor-pointer">
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handlePhotoUpload(order.id, file);
+                                        }}
+                                        disabled={uploadingPhotoId === order.id}
+                                      />
+                                      {uploadingPhotoId === order.id ? (
+                                        <div className="h-10 w-10 flex items-center justify-center">
+                                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                        </div>
+                                      ) : (
+                                        <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
+                                          <Upload className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                      )}
+                                    </label>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <div className="p-3 border-b">
+                                      <p className="text-sm font-medium">Select Date Out Warehouse</p>
                                     </div>
-                                  ) : (
-                                    <div className="h-10 w-10 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
-                                      <Upload className="h-4 w-4 text-muted-foreground" />
+                                    <Calendar
+                                      mode="single"
+                                      selected={order.date_out_warehouse ? new Date(order.date_out_warehouse) : undefined}
+                                      onSelect={(date) => handleDateOutWarehouseSelect(order.id, date)}
+                                      initialFocus
+                                    />
+                                    <div className="p-3 border-t flex justify-end">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => setDateOutWarehousePopover(null)}
+                                      >
+                                        Skip
+                                      </Button>
                                     </div>
-                                  )}
-                                </label>
+                                  </PopoverContent>
+                                </Popover>
                               ) : (
                                 <span className="text-muted-foreground text-sm">-</span>
                               )}
