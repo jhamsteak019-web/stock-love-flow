@@ -19,6 +19,7 @@ import Notes from "./pages/Notes";
 import CollectionItems from "./pages/CollectionItems";
 import Favorites from "./pages/Favorites";
 import Container from "./pages/Container";
+import RepeatOrder from "./pages/RepeatOrder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/collections" element={<CollectionItems />} />
               <Route path="/favorites" element={<Favorites />} />
               <Route path="/container" element={<Container />} />
+              <Route path="/repeat-order" element={<RepeatOrder />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
