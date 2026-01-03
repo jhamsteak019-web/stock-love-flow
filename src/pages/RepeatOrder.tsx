@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2 } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar, FileText, Settings2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -58,6 +58,8 @@ const RepeatOrder = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<RepeatOrderItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('active');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -73,6 +75,15 @@ const RepeatOrder = () => {
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   
   const [formData, setFormData] = useState({
+    branch_store: '',
+    category: '',
+    date_give_store: '',
+    date_give_warehouse: '',
+    date_out_warehouse: '',
+    status: 'pending',
+  });
+
+  const [editFormData, setEditFormData] = useState({
     branch_store: '',
     category: '',
     date_give_store: '',
@@ -168,6 +179,34 @@ const RepeatOrder = () => {
     },
     onError: (error) => {
       toast.error('Failed to add repeat order: ' + error.message);
+    },
+  });
+
+  // Edit mutation
+  const editMutation = useMutation({
+    mutationFn: async (order: { id: string; branch_store: string; category: string; date_give_store: string; date_give_warehouse: string; date_out_warehouse: string; status: string }) => {
+      const { error } = await supabase
+        .from('repeat_orders' as any)
+        .update({
+          branch_store: order.branch_store || null,
+          category: order.category || null,
+          date_give_store: order.date_give_store || null,
+          date_give_warehouse: order.date_give_warehouse || null,
+          date_out_warehouse: order.date_out_warehouse || null,
+          status: order.status,
+        })
+        .eq('id', order.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      toast.success('Order updated successfully');
+      setIsEditDialogOpen(false);
+      setEditingOrder(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update order: ' + error.message);
     },
   });
 
@@ -268,6 +307,32 @@ const RepeatOrder = () => {
       return;
     }
     addMutation.mutate(formData);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+    if (!editFormData.branch_store.trim()) {
+      toast.error('Branch/Store is required');
+      return;
+    }
+    editMutation.mutate({
+      id: editingOrder.id,
+      ...editFormData,
+    });
+  };
+
+  const openEditDialog = (order: RepeatOrderItem) => {
+    setEditingOrder(order);
+    setEditFormData({
+      branch_store: order.branch_store || '',
+      category: order.category || '',
+      date_give_store: order.date_give_store || '',
+      date_give_warehouse: order.date_give_warehouse || '',
+      date_out_warehouse: order.date_out_warehouse || '',
+      status: order.status,
+    });
+    setIsEditDialogOpen(true);
   };
 
   const handleColumnWidthChange = (key: string, value: number[]) => {
@@ -707,7 +772,8 @@ const RepeatOrder = () => {
                         {isColumnVisible('date_give_warehouse') && <TableHead style={{ width: getColumnWidth('date_give_warehouse'), minWidth: getColumnWidth('date_give_warehouse') }}>Date Give Warehouse</TableHead>}
                         {isColumnVisible('status') && <TableHead style={{ width: getColumnWidth('status'), minWidth: getColumnWidth('status') }}>Status</TableHead>}
                         {isColumnVisible('date_out_warehouse') && <TableHead style={{ width: getColumnWidth('date_out_warehouse'), minWidth: getColumnWidth('date_out_warehouse') }}>Date Out Warehouse</TableHead>}
-                        {canEdit && <TableHead className="w-[80px] text-right">Actions</TableHead>}
+                        {isColumnVisible('date_out_warehouse') && <TableHead style={{ width: getColumnWidth('date_out_warehouse'), minWidth: getColumnWidth('date_out_warehouse') }}>Date Out Warehouse</TableHead>}
+                        {canEdit && <TableHead className="w-[120px] text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -744,7 +810,16 @@ const RepeatOrder = () => {
                             </TableCell>
                           )}
                           {canEdit && (
-                            <TableCell className="text-right">
+                            <TableCell className="text-right space-x-1">
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditDialog(order)}
+                                >
+                                  <Pencil className="h-4 w-4 text-blue-600" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -835,6 +910,89 @@ const RepeatOrder = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Repeat Order</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_branch_store">Branch/Store *</Label>
+              <Input
+                id="edit_branch_store"
+                value={editFormData.branch_store}
+                onChange={(e) => setEditFormData({ ...editFormData, branch_store: e.target.value })}
+                placeholder="Enter branch/store"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_category">Category</Label>
+              <Input
+                id="edit_category"
+                value={editFormData.category}
+                onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                placeholder="Enter category"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_date_give_store">Date Give Store</Label>
+              <Input
+                id="edit_date_give_store"
+                type="date"
+                value={editFormData.date_give_store}
+                onChange={(e) => setEditFormData({ ...editFormData, date_give_store: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_date_give_warehouse">Date Give Warehouse</Label>
+              <Input
+                id="edit_date_give_warehouse"
+                type="date"
+                value={editFormData.date_give_warehouse}
+                onChange={(e) => setEditFormData({ ...editFormData, date_give_warehouse: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_date_out_warehouse">Date Out Warehouse</Label>
+              <Input
+                id="edit_date_out_warehouse"
+                type="date"
+                value={editFormData.date_out_warehouse}
+                onChange={(e) => setEditFormData({ ...editFormData, date_out_warehouse: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_status">Status</Label>
+              <Select
+                value={editFormData.status}
+                onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editMutation.isPending}>
+                {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
