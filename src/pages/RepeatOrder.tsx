@@ -349,11 +349,6 @@ const RepeatOrder = () => {
 
       queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
       toast.success(`Photo ${updatedPhotos.length}/${MAX_PHOTOS} uploaded`);
-      
-      // Open date out warehouse calendar popup after first photo upload
-      if (existingPhotos.length === 0) {
-        setDateOutWarehousePopover({ orderId, isOpen: true });
-      }
     } catch (error: any) {
       toast.error('Failed to upload photo: ' + error.message);
     } finally {
@@ -956,56 +951,27 @@ const RepeatOrder = () => {
                                       </div>
                                     ))}
                                     {canEdit && photos.length < MAX_PHOTOS && (
-                                      <Popover 
-                                        open={dateOutWarehousePopover?.orderId === order.id && dateOutWarehousePopover?.isOpen}
-                                        onOpenChange={(open) => {
-                                          if (!open) setDateOutWarehousePopover(null);
-                                        }}
-                                      >
-                                        <PopoverTrigger asChild>
-                                          <label className="cursor-pointer">
-                                            <input
-                                              type="file"
-                                              accept="image/*"
-                                              className="hidden"
-                                              onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) handlePhotoUpload(order.id, file, photos);
-                                              }}
-                                              disabled={uploadingPhotoId === order.id}
-                                            />
-                                            {uploadingPhotoId === order.id ? (
-                                              <div className="h-8 w-8 flex items-center justify-center">
-                                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                              </div>
-                                            ) : (
-                                              <div className="h-8 w-8 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
-                                                <Plus className="h-3 w-3 text-muted-foreground" />
-                                              </div>
-                                            )}
-                                          </label>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                          <div className="p-3 border-b">
-                                            <p className="text-sm font-medium">Select Date Out Warehouse</p>
+                                      <label className="cursor-pointer">
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handlePhotoUpload(order.id, file, photos);
+                                          }}
+                                          disabled={uploadingPhotoId === order.id}
+                                        />
+                                        {uploadingPhotoId === order.id ? (
+                                          <div className="h-8 w-8 flex items-center justify-center">
+                                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                                           </div>
-                                          <Calendar
-                                            mode="single"
-                                            selected={order.date_out_warehouse ? new Date(order.date_out_warehouse) : undefined}
-                                            onSelect={(date) => handleDateOutWarehouseSelect(order.id, date)}
-                                            initialFocus
-                                          />
-                                          <div className="p-3 border-t flex justify-end">
-                                            <Button 
-                                              variant="ghost" 
-                                              size="sm"
-                                              onClick={() => setDateOutWarehousePopover(null)}
-                                            >
-                                              Skip
-                                            </Button>
+                                        ) : (
+                                          <div className="h-8 w-8 border-2 border-dashed border-muted-foreground/50 rounded flex items-center justify-center hover:border-primary hover:bg-muted/50 transition-colors">
+                                            <Plus className="h-3 w-3 text-muted-foreground" />
                                           </div>
-                                        </PopoverContent>
-                                      </Popover>
+                                        )}
+                                      </label>
                                     )}
                                     {!canEdit && photos.length === 0 && (
                                       <span className="text-muted-foreground text-sm">-</span>
