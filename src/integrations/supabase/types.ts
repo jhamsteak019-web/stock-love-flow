@@ -413,36 +413,39 @@ export type Database = {
       }
       repeat_orders: {
         Row: {
+          branch_store: string | null
+          category: string | null
           created_at: string
           created_by: string | null
+          date_give_store: string | null
+          date_give_warehouse: string | null
+          date_out_warehouse: string | null
           deleted_at: string | null
-          destination: string
           id: string
-          item_name: string
-          notes: string | null
-          quantity: number
           status: string
         }
         Insert: {
+          branch_store?: string | null
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          date_give_store?: string | null
+          date_give_warehouse?: string | null
+          date_out_warehouse?: string | null
           deleted_at?: string | null
-          destination?: string
           id?: string
-          item_name: string
-          notes?: string | null
-          quantity?: number
           status?: string
         }
         Update: {
+          branch_store?: string | null
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          date_give_store?: string | null
+          date_give_warehouse?: string | null
+          date_out_warehouse?: string | null
           deleted_at?: string | null
-          destination?: string
           id?: string
-          item_name?: string
-          notes?: string | null
-          quantity?: number
           status?: string
         }
         Relationships: []

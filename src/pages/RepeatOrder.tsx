@@ -5,26 +5,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Plus, Trash2, RotateCcw, Search, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 interface RepeatOrderItem {
   id: string;
-  item_name: string;
-  quantity: number;
-  destination: string;
-  notes: string | null;
+  branch_store: string | null;
+  category: string | null;
+  date_give_store: string | null;
+  date_give_warehouse: string | null;
+  date_out_warehouse: string | null;
   status: string;
   created_at: string;
   created_by: string | null;
   deleted_at: string | null;
 }
+
+const STATUS_OPTIONS = ['pending', 'in_progress', 'completed', 'cancelled'];
 
 const RepeatOrder = () => {
   const { user, userRole } = useAuth();
@@ -34,10 +38,12 @@ const RepeatOrder = () => {
   const [activeTab, setActiveTab] = useState('active');
   
   const [formData, setFormData] = useState({
-    item_name: '',
-    quantity: 1,
-    destination: '',
-    notes: '',
+    branch_store: '',
+    category: '',
+    date_give_store: '',
+    date_give_warehouse: '',
+    date_out_warehouse: '',
+    status: 'pending',
   });
 
   const isAdmin = userRole === 'admin';
@@ -45,7 +51,7 @@ const RepeatOrder = () => {
   const canEdit = isAdmin || isStaff;
 
   // Fetch active repeat orders
-  const { data: activeOrders = [], isLoading: isLoadingActive, refetch: refetchActive } = useQuery({
+  const { data: activeOrders = [], isLoading: isLoadingActive } = useQuery({
     queryKey: ['repeat-orders', 'active'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,7 +66,7 @@ const RepeatOrder = () => {
   });
 
   // Fetch deleted repeat orders
-  const { data: deletedOrders = [], isLoading: isLoadingDeleted, refetch: refetchDeleted } = useQuery({
+  const { data: deletedOrders = [], isLoading: isLoadingDeleted } = useQuery({
     queryKey: ['repeat-orders', 'deleted'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -76,13 +82,17 @@ const RepeatOrder = () => {
 
   // Add mutation
   const addMutation = useMutation({
-    mutationFn: async (newOrder: Omit<RepeatOrderItem, 'id' | 'created_at' | 'created_by' | 'deleted_at' | 'status'>) => {
+    mutationFn: async (newOrder: Omit<RepeatOrderItem, 'id' | 'created_at' | 'created_by' | 'deleted_at'>) => {
       const { data, error } = await supabase
         .from('repeat_orders' as any)
         .insert({
-          ...newOrder,
+          branch_store: newOrder.branch_store || null,
+          category: newOrder.category || null,
+          date_give_store: newOrder.date_give_store || null,
+          date_give_warehouse: newOrder.date_give_warehouse || null,
+          date_out_warehouse: newOrder.date_out_warehouse || null,
+          status: newOrder.status,
           created_by: user?.id,
-          status: 'pending',
         })
         .select()
         .single();
@@ -160,33 +170,57 @@ const RepeatOrder = () => {
 
   const resetForm = () => {
     setFormData({
-      item_name: '',
-      quantity: 1,
-      destination: '',
-      notes: '',
+      branch_store: '',
+      category: '',
+      date_give_store: '',
+      date_give_warehouse: '',
+      date_out_warehouse: '',
+      status: 'pending',
     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.item_name.trim()) {
-      toast.error('Item name is required');
+    if (!formData.branch_store.trim()) {
+      toast.error('Branch/Store is required');
       return;
     }
     addMutation.mutate(formData);
   };
 
   const filteredActiveOrders = activeOrders.filter(order =>
-    order.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.destination.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   const filteredDeletedOrders = deletedOrders.filter(order =>
-    order.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.destination.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   const isLoading = isLoadingActive || isLoadingDeleted;
+
+  const formatDate = (date: string | null) => {
+    if (!date) return '-';
+    try {
+      return format(new Date(date), 'MMM dd, yyyy');
+    } catch {
+      return '-';
+    }
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'cancelled':
+        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      default:
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -214,49 +248,74 @@ const RepeatOrder = () => {
                     Add Order
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Add New Repeat Order</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="item_name">Item Name *</Label>
+                      <Label htmlFor="branch_store">Branch/Store *</Label>
                       <Input
-                        id="item_name"
-                        value={formData.item_name}
-                        onChange={(e) => setFormData({ ...formData, item_name: e.target.value })}
-                        placeholder="Enter item name"
+                        id="branch_store"
+                        value={formData.branch_store}
+                        onChange={(e) => setFormData({ ...formData, branch_store: e.target.value })}
+                        placeholder="Enter branch/store"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="quantity">Quantity</Label>
+                      <Label htmlFor="category">Category</Label>
                       <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        value={formData.quantity}
-                        onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                        id="category"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        placeholder="Enter category"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="destination">Destination</Label>
+                      <Label htmlFor="date_give_store">Date Give Store</Label>
                       <Input
-                        id="destination"
-                        value={formData.destination}
-                        onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                        placeholder="Enter destination"
+                        id="date_give_store"
+                        type="date"
+                        value={formData.date_give_store}
+                        onChange={(e) => setFormData({ ...formData, date_give_store: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="notes">Notes</Label>
-                      <Textarea
-                        id="notes"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        placeholder="Enter notes"
-                        rows={3}
+                      <Label htmlFor="date_give_warehouse">Date Give Warehouse</Label>
+                      <Input
+                        id="date_give_warehouse"
+                        type="date"
+                        value={formData.date_give_warehouse}
+                        onChange={(e) => setFormData({ ...formData, date_give_warehouse: e.target.value })}
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="date_out_warehouse">Date Out Warehouse</Label>
+                      <Input
+                        id="date_out_warehouse"
+                        type="date"
+                        value={formData.date_out_warehouse}
+                        onChange={(e) => setFormData({ ...formData, date_out_warehouse: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => setFormData({ ...formData, status: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -293,38 +352,32 @@ const RepeatOrder = () => {
                   No repeat orders found
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <ScrollArea className="w-full whitespace-nowrap rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item Name</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Destination</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead>Created</TableHead>
-                        {canEdit && <TableHead className="text-right">Actions</TableHead>}
+                        <TableHead className="min-w-[150px]">Branch/Store</TableHead>
+                        <TableHead className="min-w-[120px]">Category</TableHead>
+                        <TableHead className="min-w-[130px]">Date Give Store</TableHead>
+                        <TableHead className="min-w-[150px]">Date Give Warehouse</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[150px]">Date Out Warehouse</TableHead>
+                        {canEdit && <TableHead className="min-w-[80px] text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredActiveOrders.map((order) => (
                         <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.item_name}</TableCell>
-                          <TableCell>{order.quantity}</TableCell>
-                          <TableCell>{order.destination || '-'}</TableCell>
+                          <TableCell className="font-medium">{order.branch_store || '-'}</TableCell>
+                          <TableCell>{order.category || '-'}</TableCell>
+                          <TableCell>{formatDate(order.date_give_store)}</TableCell>
+                          <TableCell>{formatDate(order.date_give_warehouse)}</TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                              order.status === 'completed' 
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : order.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
-                            }`}>
-                              {order.status}
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
+                              {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                             </span>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{order.notes || '-'}</TableCell>
-                          <TableCell>{format(new Date(order.created_at), 'MMM dd, yyyy')}</TableCell>
+                          <TableCell>{formatDate(order.date_out_warehouse)}</TableCell>
                           {canEdit && (
                             <TableCell className="text-right">
                               <Button
@@ -341,7 +394,8 @@ const RepeatOrder = () => {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
               )}
             </TabsContent>
 
@@ -355,31 +409,33 @@ const RepeatOrder = () => {
                   No deleted orders found
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <ScrollArea className="w-full whitespace-nowrap rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item Name</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Destination</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead>Deleted At</TableHead>
-                        {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                        <TableHead className="min-w-[150px]">Branch/Store</TableHead>
+                        <TableHead className="min-w-[120px]">Category</TableHead>
+                        <TableHead className="min-w-[130px]">Date Give Store</TableHead>
+                        <TableHead className="min-w-[150px]">Date Give Warehouse</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[150px]">Date Out Warehouse</TableHead>
+                        <TableHead className="min-w-[130px]">Deleted At</TableHead>
+                        {isAdmin && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredDeletedOrders.map((order) => (
                         <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.item_name}</TableCell>
-                          <TableCell>{order.quantity}</TableCell>
-                          <TableCell>{order.destination || '-'}</TableCell>
+                          <TableCell className="font-medium">{order.branch_store || '-'}</TableCell>
+                          <TableCell>{order.category || '-'}</TableCell>
+                          <TableCell>{formatDate(order.date_give_store)}</TableCell>
+                          <TableCell>{formatDate(order.date_give_warehouse)}</TableCell>
                           <TableCell>
                             <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
-                              {order.status}
+                              {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                             </span>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{order.notes || '-'}</TableCell>
+                          <TableCell>{formatDate(order.date_out_warehouse)}</TableCell>
                           <TableCell>
                             {order.deleted_at ? format(new Date(order.deleted_at), 'MMM dd, yyyy HH:mm') : '-'}
                           </TableCell>
@@ -407,7 +463,8 @@ const RepeatOrder = () => {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
               )}
             </TabsContent>
           </Tabs>
