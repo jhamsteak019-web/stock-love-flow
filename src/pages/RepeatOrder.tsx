@@ -118,6 +118,7 @@ const RepeatOrder = () => {
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
   const canAdd = isAdmin || isStaff;
+  const canUploadPhoto = isAdmin || isStaff;
   const canEdit = isAdmin;
 
   // Debounce search for smooth typing
@@ -898,7 +899,7 @@ const RepeatOrder = () => {
                                         )}
                                       </div>
                                     ))}
-                                    {canEdit && photos.length < MAX_PHOTOS && (
+                                    {canUploadPhoto && photos.length < MAX_PHOTOS && (
                                       <label className="cursor-pointer">
                                         <input
                                           type="file"
@@ -921,7 +922,7 @@ const RepeatOrder = () => {
                                         )}
                                       </label>
                                     )}
-                                    {!canEdit && photos.length === 0 && (
+                                    {!canUploadPhoto && photos.length === 0 && (
                                       <span className="text-muted-foreground text-sm">-</span>
                                     )}
                                     {photos.length > 0 && (
