@@ -565,79 +565,18 @@ const RepeatOrder = () => {
   };
 
   const renderEditableCell = (order: RepeatOrderItem, field: string, value: string | null, isDate: boolean = false) => {
-    const isEditing = editingCell?.id === order.id && editingCell?.field === field;
-    
-    if (!canEdit) {
-      return isDate ? formatDate(value) : (value || '-');
-    }
-
-    if (isEditing) {
-      return (
-        <Input
-          type={isDate ? 'date' : 'text'}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => handleSaveEdit(order.id, field)}
-          onKeyDown={(e) => handleKeyDown(e, order.id, field)}
-          autoFocus
-          className="h-8 w-full min-w-[100px]"
-        />
-      );
-    }
-
     return (
-      <div
-        onClick={() => startEditing(order.id, field, value)}
-        className="cursor-pointer hover:bg-muted/50 px-2 py-1 rounded min-h-[28px] flex items-center"
-      >
+      <div className="px-2 py-1 min-h-[28px] flex items-center">
         {isDate ? formatDate(value) : (value || '-')}
       </div>
     );
   };
 
   const renderStatusCell = (order: RepeatOrderItem) => {
-    const isEditing = editingCell?.id === order.id && editingCell?.field === 'status';
-    
-    if (!canEdit) {
-      return (
-        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
-          {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-        </span>
-      );
-    }
-
-    if (isEditing) {
-      return (
-        <Select
-          value={editValue}
-          onValueChange={(value) => {
-            setEditValue(value);
-            updateMutation.mutate({ id: order.id, field: 'status', value });
-          }}
-        >
-          <SelectTrigger className="h-8 w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
-
     return (
-      <div
-        onClick={() => startEditing(order.id, 'status', order.status)}
-        className="cursor-pointer"
-      >
-        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
-          {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-        </span>
-      </div>
+      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
+        {order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+      </span>
     );
   };
 
