@@ -115,8 +115,7 @@ const RepeatOrder = () => {
   });
 
   const isAdmin = userRole === 'admin';
-  const isStaff = userRole === 'staff';
-  const canEdit = isAdmin || isStaff;
+  const canEdit = isAdmin;
 
   // Generate year options
   const yearOptions = Array.from({ length: 6 }, (_, i) => 
