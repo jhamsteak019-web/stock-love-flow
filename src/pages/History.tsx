@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -86,6 +87,7 @@ const History = () => {
   const [clearing, setClearing] = useState(false);
   const [clearingDeleted, setClearingDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -233,8 +235,8 @@ const History = () => {
       }
       
       // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+      if (debouncedSearchQuery.trim()) {
+        const query = debouncedSearchQuery.toLowerCase();
         if (group.destination.toLowerCase().includes(query)) return true;
         if (group.courier?.toLowerCase().includes(query)) return true;
         if (group.delivery_status.toLowerCase().includes(query)) return true;
@@ -252,7 +254,7 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, searchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear]);
+  }, [groupedReleases, debouncedSearchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear]);
 
   const clearFilters = () => {
     setStartDate(undefined);

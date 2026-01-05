@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +54,7 @@ const Container = () => {
   const [activeTab, setActiveTab] = useState('active');
   
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -336,15 +338,15 @@ const Container = () => {
     });
   };
 
-  // Filter containers by search
-  const filteredContainers = filteredByDate.filter(item => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
+  // Filter containers by search with memoization
+  const filteredContainers = useMemo(() => {
+    if (!debouncedSearchTerm) return filteredByDate;
+    const search = debouncedSearchTerm.toLowerCase();
+    return filteredByDate.filter(item =>
       item.notes?.toLowerCase().includes(search) ||
       item.category?.toLowerCase().includes(search)
     );
-  });
+  }, [filteredByDate, debouncedSearchTerm]);
 
   // Helper to fetch image as base64
   const fetchImageAsBase64 = async (url: string): Promise<string | null> => {

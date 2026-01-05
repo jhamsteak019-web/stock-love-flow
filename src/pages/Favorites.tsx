@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +37,7 @@ const Favorites = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('active');
   const itemsPerPage = 50;
@@ -301,16 +303,16 @@ const Favorites = () => {
     }
   });
 
-  // Filter items by search
-  const filteredItems = items.filter(item => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
+  // Filter items by search with memoization
+  const filteredItems = useMemo(() => {
+    if (!debouncedSearchTerm) return items;
+    const search = debouncedSearchTerm.toLowerCase();
+    return items.filter(item => 
       item.item_name.toLowerCase().includes(search) ||
       item.description?.toLowerCase().includes(search) ||
       item.category?.toLowerCase().includes(search)
     );
-  });
+  }, [items, debouncedSearchTerm]);
 
   // Pagination
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);

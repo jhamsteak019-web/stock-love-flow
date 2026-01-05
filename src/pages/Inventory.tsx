@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Search, Plus, Edit2, Trash2, Package, Upload, Boxes } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -170,13 +171,19 @@ const Inventory = () => {
     }
   }, [user, addItem, toast, findColumnValue, findNumericValue]);
 
-  const filteredItems = items.filter(item => {
-    return (
-      item.item_name.toLowerCase().includes(search.toLowerCase()) ||
-      item.item_code.toLowerCase().includes(search.toLowerCase()) ||
-      (item.supplier?.toLowerCase().includes(search.toLowerCase()) ?? false)
-    );
-  });
+  // Debounce search for smooth typing
+  const debouncedSearch = useDebounce(search, 300);
+
+  const filteredItems = useMemo(() => {
+    const searchLower = debouncedSearch.toLowerCase();
+    return items.filter(item => {
+      return (
+        item.item_name.toLowerCase().includes(searchLower) ||
+        item.item_code.toLowerCase().includes(searchLower) ||
+        (item.supplier?.toLowerCase().includes(searchLower) ?? false)
+      );
+    });
+  }, [items, debouncedSearch]);
 
   const resetForm = () => {
     setFormData({

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +117,9 @@ const RepeatOrder = () => {
 
   const isAdmin = userRole === 'admin';
   const canEdit = isAdmin;
+
+  // Debounce search for smooth typing
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Generate year options
   const yearOptions = Array.from({ length: 6 }, (_, i) => 
@@ -449,14 +453,14 @@ const RepeatOrder = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleColumnWidthChange = (key: string, value: number[]) => {
+  const handleColumnWidthChange = useCallback((key: string, value: number[]) => {
     setColumns(prev => prev.map(col => 
       col.key === key ? { ...col, width: value[0] } : col
     ));
-  };
+  }, []);
 
-  const isColumnVisible = (key: string) => columns.find(col => col.key === key)?.visible ?? true;
-  const getColumnWidth = (key: string) => columns.find(col => col.key === key)?.width ?? 150;
+  const isColumnVisible = useCallback((key: string) => columns.find(col => col.key === key)?.visible ?? true, [columns]);
+  const getColumnWidth = useCallback((key: string) => columns.find(col => col.key === key)?.width ?? 150, [columns]);
 
   const startEditing = (id: string, field: string, currentValue: string | null) => {
     if (!canEdit) return;
@@ -476,12 +480,13 @@ const RepeatOrder = () => {
     }
   };
 
-  // Filter orders
-  const filterOrders = (orders: RepeatOrderItem[]) => {
-    return orders.filter(order => {
+  // Memoized filter function for performance
+  const filteredActiveOrders = useMemo(() => {
+    return activeOrders.filter(order => {
+      const searchLower = debouncedSearchTerm.toLowerCase();
       const matchesSearch = 
-        (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        (order.branch_store?.toLowerCase() || '').includes(searchLower) ||
+        (order.category?.toLowerCase() || '').includes(searchLower);
       
       const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
       
@@ -491,13 +496,15 @@ const RepeatOrder = () => {
       
       return matchesSearch && matchesStatus && matchesMonth && matchesYear;
     });
-  };
+  }, [activeOrders, debouncedSearchTerm, selectedStatus, selectedMonth, selectedYear]);
 
-  const filteredActiveOrders = filterOrders(activeOrders);
-  const filteredDeletedOrders = deletedOrders.filter(order =>
-    (order.branch_store?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (order.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
+  const filteredDeletedOrders = useMemo(() => {
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    return deletedOrders.filter(order =>
+      (order.branch_store?.toLowerCase() || '').includes(searchLower) ||
+      (order.category?.toLowerCase() || '').includes(searchLower)
+    );
+  }, [deletedOrders, debouncedSearchTerm]);
 
   const isLoading = isLoadingActive || isLoadingDeleted;
 
