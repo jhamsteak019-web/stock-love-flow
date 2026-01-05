@@ -116,6 +116,8 @@ const RepeatOrder = () => {
   });
 
   const isAdmin = userRole === 'admin';
+  const isStaff = userRole === 'staff';
+  const canAdd = isAdmin || isStaff;
   const canEdit = isAdmin;
 
   // Debounce search for smooth typing
@@ -595,7 +597,7 @@ const RepeatOrder = () => {
               <RefreshCcw className="h-5 w-5" />
               Repeat Orders
             </CardTitle>
-            {canEdit && (
+            {canAdd && (
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
                   <Button>
