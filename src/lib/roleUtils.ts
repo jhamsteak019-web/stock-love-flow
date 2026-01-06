@@ -4,7 +4,8 @@ import { UserRole } from '@/types/inventory';
 export const roleDisplayNames: Record<string, string> = {
   admin: 'Admin',
   staff: 'Staff',
-  viewer: 'OIC',
+  viewer: 'Viewer',
+  oic: 'OIC',
   teamleader: 'Team Leader',
   uploader: 'Uploader',
   pending: 'Pending',
