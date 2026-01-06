@@ -117,6 +117,8 @@ const RepeatOrder = () => {
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
+  const isTeamleader = userRole === 'teamleader';
+  const canView = isAdmin || isStaff || isTeamleader;
   const canAdd = isAdmin || isStaff;
   const canUploadPhoto = isAdmin || isStaff;
   const canEdit = isAdmin;
