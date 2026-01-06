@@ -20,7 +20,8 @@ const pageTitles: Record<string, string> = {
 // Role-based route restrictions
 const roleRestrictedRoutes: Record<string, string[]> = {
   viewer: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container', '/repeat-order'],
-  teamleader: ['/release', '/import', '/users', '/notes', '/inventory', '/container', '/repeat-order'],
+  teamleader: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
+  oic: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
   staff: ['/import', '/users', '/inventory', '/container'],
   uploader: ['/users'], // Can view everything except user management
 };
