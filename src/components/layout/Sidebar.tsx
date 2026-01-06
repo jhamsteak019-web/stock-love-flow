@@ -118,7 +118,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/repeat-order', 
       icon: RefreshCcw, 
       label: 'Repeat Order',
-      roles: ['admin', 'staff', 'uploader']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     { 
       to: '/users', 
