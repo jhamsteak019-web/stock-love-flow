@@ -58,7 +58,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/release', 
@@ -70,19 +70,19 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/deliveries', 
       icon: Truck, 
       label: 'Deliveries',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'teamleader', 'uploader']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/import', 
@@ -100,13 +100,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/collections', 
       icon: FolderHeart, 
       label: 'Collection Items',
-      roles: ['admin', 'staff', 'teamleader', 'uploader']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/favorites', 
       icon: Heart, 
       label: 'Favorites',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/container', 
