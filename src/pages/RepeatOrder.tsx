@@ -1184,12 +1184,12 @@ const RepeatOrder = () => {
                   </Button>
                 )}
 
-                <ScrollArea className="max-h-[50vh] w-full border rounded-lg">
+                <ScrollArea className="h-[50vh] w-full border rounded-lg">
                   <div 
                     className="p-4" 
                     style={{ 
                       width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%',
-                      minHeight: photoZoomLevel > 1 ? `${photoZoomLevel * 45}vh` : 'auto'
+                      height: photoZoomLevel > 1 ? `${photoZoomLevel * 50}vh` : 'auto'
                     }}
                   >
                     <img
