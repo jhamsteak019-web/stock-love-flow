@@ -1186,17 +1186,16 @@ const RepeatOrder = () => {
 
                 <ScrollArea className="max-h-[50vh] w-full border rounded-lg">
                   <div 
-                    className="flex items-center justify-center p-4" 
-                    style={{ minWidth: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : 'auto' }}
+                    className="p-4" 
+                    style={{ 
+                      width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%',
+                      minHeight: photoZoomLevel > 1 ? `${photoZoomLevel * 45}vh` : 'auto'
+                    }}
                   >
                     <img
                       src={photoPreview.url}
                       alt="Order photo"
-                      className="rounded-lg transition-transform duration-200 max-w-full max-h-[45vh] object-contain"
-                      style={{ 
-                        transform: `scale(${photoZoomLevel})`,
-                        transformOrigin: 'center center'
-                      }}
+                      className="rounded-lg transition-all duration-200 w-full h-auto"
                     />
                   </div>
                   <ScrollBar orientation="horizontal" />
