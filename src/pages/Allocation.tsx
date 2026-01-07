@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Plus, FileSpreadsheet, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { FileSpreadsheet, Save, Upload, X, Image as ImageIcon, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -33,195 +34,230 @@ interface AllocationData {
   stores: StoreRow[];
 }
 
+type ImportStatus = 'idle' | 'reading' | 'parsing' | 'processing' | 'done';
+
 const Allocation = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<AllocationData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState<ImportStatus>('idle');
+  const [importProgress, setImportProgress] = useState(0);
+  const [importMessage, setImportMessage] = useState('');
+  const [showTable, setShowTable] = useState(false);
+
+  const parseExcelData = useCallback((worksheet: XLSX.WorkSheet, range: XLSX.Range) => {
+    const products: ProductColumn[] = [];
+    const stores: StoreRow[] = [];
+    
+    // Find header rows
+    let qtyRow = -1;
+    let collRow = -1;
+    let dateRow = -1;
+    let categoryRow = -1;
+    let priceRow = -1;
+    let orderedQtyRow = -1;
+    let totalBoxesRow = -1;
+    let colorRow = -1;
+    let dataStartRow = -1;
+    
+    // Scan for header rows
+    for (let r = range.s.r; r <= Math.min(range.e.r, 20); r++) {
+      const cellA = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
+      const cellValue = cellA?.v?.toString().toUpperCase().trim() || '';
+      
+      if (cellValue === 'QTY') qtyRow = r;
+      if (cellValue === 'COLL') collRow = r;
+      if (cellValue.includes('DATE') || /^\d{1,2}-[A-Za-z]{3}$/.test(cellA?.v?.toString() || '')) {
+        if (dateRow === -1) dateRow = r;
+      }
+      if (cellValue === 'PRICE') priceRow = r;
+      if (cellValue === 'ORDERED QTY') orderedQtyRow = r;
+      if (cellValue === 'TOTAL BOXES') totalBoxesRow = r;
+      if (cellValue === 'COLOR') colorRow = r;
+    }
+    
+    if (colorRow !== -1) {
+      dataStartRow = colorRow + 1;
+    }
+    
+    // Find category row
+    if (priceRow !== -1) {
+      for (let r = priceRow - 1; r >= 0; r--) {
+        const cellA = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
+        const cellValue = cellA?.v?.toString().toUpperCase().trim() || '';
+        if (cellValue !== '' && cellValue !== 'QTY' && cellValue !== 'COLL') {
+          continue;
+        }
+        for (let c = 1; c <= range.e.c; c++) {
+          const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
+          const val = cell?.v?.toString().trim() || '';
+          if (val && (val.match(/^R\d/) || val === 'NEW' || val.includes('INCMPLTE'))) {
+            categoryRow = r;
+            break;
+          }
+        }
+        if (categoryRow !== -1) break;
+      }
+    }
+    
+    // Parse products from columns
+    const startCol = 1;
+    
+    for (let c = startCol; c <= range.e.c; c++) {
+      const qtyCell = qtyRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: qtyRow, c })] : null;
+      const collCell = collRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: collRow, c })] : null;
+      const priceCell = priceRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: priceRow, c })] : null;
+      const colorCell = colorRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: colorRow, c })] : null;
+      const categoryCell = categoryRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: categoryRow, c })] : null;
+      const orderedQtyCell = orderedQtyRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: orderedQtyRow, c })] : null;
+      const totalBoxesCell = totalBoxesRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: totalBoxesRow, c })] : null;
+      
+      let dateValue = '';
+      if (dateRow !== -1) {
+        const dateCell = worksheet[XLSX.utils.encode_cell({ r: dateRow, c })];
+        dateValue = dateCell?.v?.toString() || '';
+      } else {
+        for (let r = 0; r <= 5; r++) {
+          const cell = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
+          const val = cell?.v?.toString() || '';
+          if (/^\d{1,2}-[A-Za-z]{3}$/.test(val)) {
+            dateValue = val;
+            break;
+          }
+        }
+      }
+      
+      products.push({
+        qty: parseInt(qtyCell?.v?.toString() || '0') || 0,
+        coll: collCell?.v?.toString() || '',
+        date: dateValue,
+        category: categoryCell?.v?.toString() || '',
+        price: priceCell?.v?.toString() || '',
+        orderedQty: parseInt(orderedQtyCell?.v?.toString() || '0') || undefined,
+        totalBoxes: parseInt(totalBoxesCell?.v?.toString() || '0') || undefined,
+        color: colorCell?.v?.toString() || '',
+      });
+    }
+    
+    // Parse store rows
+    if (dataStartRow !== -1) {
+      for (let r = dataStartRow; r <= range.e.r; r++) {
+        const storeCell = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
+        const storeName = storeCell?.v?.toString() || '';
+        
+        if (!storeName && r === dataStartRow) continue;
+        
+        const allocations: (number | string)[] = [];
+        for (let c = startCol; c <= range.e.c; c++) {
+          const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
+          const val = cell?.v;
+          if (typeof val === 'number') {
+            allocations.push(val);
+          } else if (val !== undefined && val !== null) {
+            allocations.push(val.toString());
+          } else {
+            allocations.push('');
+          }
+        }
+        
+        const upperName = storeName.toUpperCase();
+        let isHeader = false;
+        let isSubtotal = false;
+        let highlight: 'yellow' | 'green' | 'blue' | 'red' | undefined;
+        
+        if (upperName === 'SM' || upperName === 'METRO' || upperName === 'RDS') {
+          isHeader = true;
+          if (upperName === 'SM') highlight = 'blue';
+          if (upperName === 'METRO') highlight = 'yellow';
+        }
+        
+        if (storeName.startsWith('SM ') || storeName.startsWith('SM-')) {
+          highlight = 'blue';
+        } else if (storeName.startsWith('Metro ')) {
+          if (storeName.includes('Colon')) highlight = 'green';
+          else if (storeName.includes('Ayala Cebu')) highlight = 'blue';
+          else if (storeName.includes('Market')) highlight = 'yellow';
+        }
+        
+        if (!storeName && allocations.some(a => typeof a === 'number' && a > 0)) {
+          isSubtotal = true;
+        }
+        
+        stores.push({
+          name: storeName,
+          isHeader,
+          isSubtotal,
+          highlight,
+          allocations,
+        });
+      }
+    }
+    
+    return { products, stores };
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsLoading(true);
+    setShowTable(false);
+    setImportStatus('reading');
+    setImportProgress(0);
+    setImportMessage('Reading file...');
     
     try {
+      // Step 1: Read file
+      await new Promise(resolve => setTimeout(resolve, 100));
+      setImportProgress(20);
+      
       const buffer = await file.arrayBuffer();
+      
+      // Step 2: Parse workbook
+      setImportStatus('parsing');
+      setImportProgress(40);
+      setImportMessage('Parsing Excel data...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      
-      // Get range
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
       
-      // Parse the worksheet maintaining exact structure
-      const products: ProductColumn[] = [];
-      const stores: StoreRow[] = [];
+      // Step 3: Process data
+      setImportStatus('processing');
+      setImportProgress(70);
+      setImportMessage('Processing allocations...');
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Find header rows
-      let qtyRow = -1;
-      let collRow = -1;
-      let dateRow = -1;
-      let categoryRow = -1;
-      let priceRow = -1;
-      let orderedQtyRow = -1;
-      let totalBoxesRow = -1;
-      let colorRow = -1;
-      let dataStartRow = -1;
+      const parsedData = parseExcelData(worksheet, range);
       
-      // Scan for header rows
-      for (let r = range.s.r; r <= Math.min(range.e.r, 20); r++) {
-        const cellA = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-        const cellValue = cellA?.v?.toString().toUpperCase().trim() || '';
-        
-        if (cellValue === 'QTY') qtyRow = r;
-        if (cellValue === 'COLL') collRow = r;
-        if (cellValue.includes('DATE') || /^\d{1,2}-[A-Za-z]{3}$/.test(cellA?.v?.toString() || '')) {
-          if (dateRow === -1) dateRow = r;
-        }
-        if (cellValue === 'PRICE') priceRow = r;
-        if (cellValue === 'ORDERED QTY') orderedQtyRow = r;
-        if (cellValue === 'TOTAL BOXES') totalBoxesRow = r;
-        if (cellValue === 'COLOR') colorRow = r;
-      }
+      // Step 4: Complete
+      setImportProgress(100);
+      setImportStatus('done');
+      setImportMessage('Import complete!');
       
-      // Find where data rows start (after COLOR row)
-      if (colorRow !== -1) {
-        dataStartRow = colorRow + 1;
-      }
+      setData(parsedData);
       
-      // Find category row (between date/photo and price)
-      if (priceRow !== -1) {
-        for (let r = priceRow - 1; r >= 0; r--) {
-          const cellA = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-          const cellValue = cellA?.v?.toString().toUpperCase().trim() || '';
-          if (cellValue !== '' && cellValue !== 'QTY' && cellValue !== 'COLL') {
-            continue;
-          }
-          // Check if this row has category-like values (R2, R6, NEW, etc.)
-          for (let c = 1; c <= range.e.c; c++) {
-            const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
-            const val = cell?.v?.toString().trim() || '';
-            if (val && (val.match(/^R\d/) || val === 'NEW' || val.includes('INCMPLTE'))) {
-              categoryRow = r;
-              break;
-            }
-          }
-          if (categoryRow !== -1) break;
-        }
-      }
+      // Show success briefly then display table
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setShowTable(true);
       
-      // Parse products from columns
-      const startCol = 1; // Data starts from column B
-      
-      for (let c = startCol; c <= range.e.c; c++) {
-        const qtyCell = qtyRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: qtyRow, c })] : null;
-        const collCell = collRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: collRow, c })] : null;
-        const priceCell = priceRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: priceRow, c })] : null;
-        const colorCell = colorRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: colorRow, c })] : null;
-        const categoryCell = categoryRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: categoryRow, c })] : null;
-        const orderedQtyCell = orderedQtyRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: orderedQtyRow, c })] : null;
-        const totalBoxesCell = totalBoxesRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: totalBoxesRow, c })] : null;
-        
-        // Find date - could be in a specific row or first column
-        let dateValue = '';
-        if (dateRow !== -1) {
-          const dateCell = worksheet[XLSX.utils.encode_cell({ r: dateRow, c })];
-          dateValue = dateCell?.v?.toString() || '';
-        } else {
-          // Check first few rows for date pattern
-          for (let r = 0; r <= 5; r++) {
-            const cell = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-            const val = cell?.v?.toString() || '';
-            if (/^\d{1,2}-[A-Za-z]{3}$/.test(val)) {
-              dateValue = val;
-              break;
-            }
-          }
-        }
-        
-        products.push({
-          qty: parseInt(qtyCell?.v?.toString() || '0') || 0,
-          coll: collCell?.v?.toString() || '',
-          date: dateValue,
-          category: categoryCell?.v?.toString() || '',
-          price: priceCell?.v?.toString() || '',
-          orderedQty: parseInt(orderedQtyCell?.v?.toString() || '0') || undefined,
-          totalBoxes: parseInt(totalBoxesCell?.v?.toString() || '0') || undefined,
-          color: colorCell?.v?.toString() || '',
-        });
-      }
-      
-      // Parse store rows
-      if (dataStartRow !== -1) {
-        for (let r = dataStartRow; r <= range.e.r; r++) {
-          const storeCell = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-          const storeName = storeCell?.v?.toString() || '';
-          
-          if (!storeName && r === dataStartRow) continue;
-          
-          // Get allocations for this row
-          const allocations: (number | string)[] = [];
-          for (let c = startCol; c <= range.e.c; c++) {
-            const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
-            const val = cell?.v;
-            if (typeof val === 'number') {
-              allocations.push(val);
-            } else if (val !== undefined && val !== null) {
-              allocations.push(val.toString());
-            } else {
-              allocations.push('');
-            }
-          }
-          
-          // Determine row type and highlight
-          const upperName = storeName.toUpperCase();
-          let isHeader = false;
-          let isSubtotal = false;
-          let highlight: 'yellow' | 'green' | 'blue' | 'red' | undefined;
-          
-          // Check for section headers
-          if (upperName === 'SM' || upperName === 'METRO' || upperName === 'RDS') {
-            isHeader = true;
-            if (upperName === 'SM') highlight = 'blue';
-            if (upperName === 'METRO') highlight = 'yellow';
-          }
-          
-          // Check for highlighted stores based on naming patterns
-          if (storeName.startsWith('SM ') || storeName.startsWith('SM-')) {
-            highlight = 'blue';
-          } else if (storeName.startsWith('Metro ')) {
-            // Some metro stores have different highlights
-            if (storeName.includes('Colon')) highlight = 'green';
-            else if (storeName.includes('Ayala Cebu')) highlight = 'blue';
-            else if (storeName.includes('Market')) highlight = 'yellow';
-          }
-          
-          // Check if it's a subtotal row (all numbers, no store name or specific pattern)
-          if (!storeName && allocations.some(a => typeof a === 'number' && a > 0)) {
-            isSubtotal = true;
-          }
-          
-          stores.push({
-            name: storeName,
-            isHeader,
-            isSubtotal,
-            highlight,
-            allocations,
-          });
-        }
-      }
-      
-      setData({ products, stores });
-      toast.success(`Imported ${stores.length} stores with ${products.length} product columns`);
+      toast.success(`Imported ${parsedData.stores.length} stores with ${parsedData.products.length} columns`);
     } catch (error) {
       console.error('Import error:', error);
       toast.error('Failed to import Excel file');
+      setImportStatus('idle');
     } finally {
-      setIsLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  const handleClear = () => {
+    setData(null);
+    setShowTable(false);
+    setImportStatus('idle');
+    setImportProgress(0);
   };
 
   const handleAllocationChange = (storeIndex: number, colIndex: number, value: string) => {
@@ -257,33 +293,7 @@ const Allocation = () => {
     }, 0);
   };
 
-  // Group products by collection code for header spanning
-  const getCollectionSpans = () => {
-    if (!data) return [];
-    const spans: { coll: string; start: number; count: number }[] = [];
-    let currentColl = '';
-    let start = 0;
-    let count = 0;
-    
-    data.products.forEach((product, idx) => {
-      if (product.coll && product.coll !== currentColl) {
-        if (currentColl) {
-          spans.push({ coll: currentColl, start, count });
-        }
-        currentColl = product.coll;
-        start = idx;
-        count = 1;
-      } else {
-        count++;
-      }
-    });
-    
-    if (currentColl) {
-      spans.push({ coll: currentColl, start, count });
-    }
-    
-    return spans;
-  };
+  const isLoading = importStatus !== 'idle' && importStatus !== 'done';
 
   return (
     <div className="space-y-4">
@@ -307,10 +317,14 @@ const Allocation = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
             {isLoading ? 'Importing...' : 'Import Excel'}
           </Button>
-          {data && (
+          {data && showTable && (
             <>
               <Button variant="outline" size="sm">
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -319,7 +333,7 @@ const Allocation = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setData(null)}
+                onClick={handleClear}
               >
                 <X className="h-4 w-4 mr-2" />
                 Clear
@@ -333,8 +347,42 @@ const Allocation = () => {
         </div>
       </div>
 
+      {/* Import Progress */}
+      {isLoading && (
+        <Card className="animate-in fade-in duration-200">
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                </div>
+              </div>
+              <div className="text-center space-y-2 w-full max-w-md">
+                <p className="font-medium">{importMessage}</p>
+                <Progress value={importProgress} className="h-2" />
+                <p className="text-sm text-muted-foreground">{importProgress}%</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Import Complete */}
+      {importStatus === 'done' && !showTable && (
+        <Card className="animate-in fade-in duration-200">
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center animate-in zoom-in duration-300">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="font-medium text-green-600">Import complete!</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* No data state */}
-      {!data && (
+      {!data && importStatus === 'idle' && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <FileSpreadsheet className="h-16 w-16 text-muted-foreground mb-4" />
@@ -351,8 +399,8 @@ const Allocation = () => {
       )}
 
       {/* Allocation Table */}
-      {data && data.products.length > 0 && (
-        <Card>
+      {data && data.products.length > 0 && showTable && (
+        <Card className="animate-in fade-in slide-in-from-bottom-4 duration-300">
           <CardContent className="p-0">
             <ScrollArea className="w-full h-[calc(100vh-200px)]">
               <div className="min-w-max">
