@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 interface ProductColumn {
-  qty: number;
+  qty: number | string;
   coll: string;
   date: string;
   photoUrl?: string;
@@ -32,6 +32,7 @@ interface StoreRow {
 interface AllocationData {
   products: ProductColumn[];
   stores: StoreRow[];
+  headers: string[];
 }
 
 type ImportStatus = 'idle' | 'reading' | 'parsing' | 'processing' | 'done';
@@ -45,111 +46,124 @@ const Allocation = () => {
   const [showTable, setShowTable] = useState(false);
 
   const parseExcelData = useCallback((worksheet: XLSX.WorkSheet, range: XLSX.Range) => {
+    console.log('Parsing Excel - Range:', range);
+    
+    // Read all data as a 2D array first
+    const rawData: (string | number | undefined)[][] = [];
+    
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      const row: (string | number | undefined)[] = [];
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
+        row.push(cell?.v);
+      }
+      rawData.push(row);
+    }
+    
+    console.log('Raw data rows:', rawData.length);
+    console.log('First 10 rows:', rawData.slice(0, 10));
+    
+    // Find key rows by scanning first column
+    let qtyRowIdx = -1;
+    let collRowIdx = -1;
+    let priceRowIdx = -1;
+    let colorRowIdx = -1;
+    let dataStartRowIdx = -1;
+    
+    // Scan first column for keywords
+    rawData.forEach((row, idx) => {
+      const firstCell = row[0]?.toString().toUpperCase().trim() || '';
+      if (firstCell === 'QTY') qtyRowIdx = idx;
+      if (firstCell === 'COLL') collRowIdx = idx;
+      if (firstCell === 'PRICE') priceRowIdx = idx;
+      if (firstCell === 'COLOR') colorRowIdx = idx;
+    });
+    
+    console.log('Found rows - QTY:', qtyRowIdx, 'COLL:', collRowIdx, 'PRICE:', priceRowIdx, 'COLOR:', colorRowIdx);
+    
+    // If COLOR row found, data starts after it
+    if (colorRowIdx !== -1) {
+      dataStartRowIdx = colorRowIdx + 1;
+    } else if (priceRowIdx !== -1) {
+      // Try to find where store names start
+      for (let i = priceRowIdx + 1; i < rawData.length; i++) {
+        const firstCell = rawData[i][0]?.toString().trim() || '';
+        if (firstCell && !['QTY', 'COLL', 'PRICE', 'COLOR', 'ORDERED QTY', 'TOTAL BOXES'].includes(firstCell.toUpperCase())) {
+          dataStartRowIdx = i;
+          break;
+        }
+      }
+    }
+    
+    // If still not found, try to detect by looking for store-like names
+    if (dataStartRowIdx === -1) {
+      for (let i = 0; i < rawData.length; i++) {
+        const firstCell = rawData[i][0]?.toString().trim() || '';
+        if (firstCell.includes('SM ') || firstCell.includes('Metro ') || firstCell.includes('RDS ') || 
+            firstCell.includes('Market') || firstCell === 'SM' || firstCell === 'METRO') {
+          dataStartRowIdx = i;
+          break;
+        }
+      }
+    }
+    
+    console.log('Data starts at row:', dataStartRowIdx);
+    
+    // Build headers array (first column labels)
+    const headers: string[] = [];
+    for (let i = 0; i < dataStartRowIdx; i++) {
+      headers.push(rawData[i][0]?.toString() || '');
+    }
+    
+    // Parse product columns (from column 1 onwards)
     const products: ProductColumn[] = [];
-    const stores: StoreRow[] = [];
+    const numCols = rawData[0]?.length || 0;
     
-    // Find header rows
-    let qtyRow = -1;
-    let collRow = -1;
-    let dateRow = -1;
-    let categoryRow = -1;
-    let priceRow = -1;
-    let orderedQtyRow = -1;
-    let totalBoxesRow = -1;
-    let colorRow = -1;
-    let dataStartRow = -1;
-    
-    // Scan for header rows
-    for (let r = range.s.r; r <= Math.min(range.e.r, 20); r++) {
-      const cellA = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-      const cellValue = cellA?.v?.toString().toUpperCase().trim() || '';
+    for (let c = 1; c < numCols; c++) {
+      const product: ProductColumn = {
+        qty: qtyRowIdx !== -1 ? (rawData[qtyRowIdx][c] ?? '') : '',
+        coll: collRowIdx !== -1 ? (rawData[collRowIdx][c]?.toString() ?? '') : '',
+        date: '',
+        category: '',
+        price: priceRowIdx !== -1 ? (rawData[priceRowIdx][c]?.toString() ?? '') : '',
+        color: colorRowIdx !== -1 ? (rawData[colorRowIdx][c]?.toString() ?? '') : '',
+      };
       
-      if (cellValue === 'QTY') qtyRow = r;
-      if (cellValue === 'COLL') collRow = r;
-      if (cellValue.includes('DATE') || /^\d{1,2}-[A-Za-z]{3}$/.test(cellA?.v?.toString() || '')) {
-        if (dateRow === -1) dateRow = r;
-      }
-      if (cellValue === 'PRICE') priceRow = r;
-      if (cellValue === 'ORDERED QTY') orderedQtyRow = r;
-      if (cellValue === 'TOTAL BOXES') totalBoxesRow = r;
-      if (cellValue === 'COLOR') colorRow = r;
-    }
-    
-    if (colorRow !== -1) {
-      dataStartRow = colorRow + 1;
-    }
-    
-    // Find category row
-    if (priceRow !== -1) {
-      for (let r = priceRow - 1; r >= 0; r--) {
-        const cellA = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-        const cellValue = cellA?.v?.toString().toUpperCase().trim() || '';
-        if (cellValue !== '' && cellValue !== 'QTY' && cellValue !== 'COLL') {
-          continue;
-        }
-        for (let c = 1; c <= range.e.c; c++) {
-          const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
-          const val = cell?.v?.toString().trim() || '';
-          if (val && (val.match(/^R\d/) || val === 'NEW' || val.includes('INCMPLTE'))) {
-            categoryRow = r;
-            break;
-          }
-        }
-        if (categoryRow !== -1) break;
-      }
-    }
-    
-    // Parse products from columns
-    const startCol = 1;
-    
-    for (let c = startCol; c <= range.e.c; c++) {
-      const qtyCell = qtyRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: qtyRow, c })] : null;
-      const collCell = collRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: collRow, c })] : null;
-      const priceCell = priceRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: priceRow, c })] : null;
-      const colorCell = colorRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: colorRow, c })] : null;
-      const categoryCell = categoryRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: categoryRow, c })] : null;
-      const orderedQtyCell = orderedQtyRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: orderedQtyRow, c })] : null;
-      const totalBoxesCell = totalBoxesRow !== -1 ? worksheet[XLSX.utils.encode_cell({ r: totalBoxesRow, c })] : null;
-      
-      let dateValue = '';
-      if (dateRow !== -1) {
-        const dateCell = worksheet[XLSX.utils.encode_cell({ r: dateRow, c })];
-        dateValue = dateCell?.v?.toString() || '';
-      } else {
-        for (let r = 0; r <= 5; r++) {
-          const cell = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-          const val = cell?.v?.toString() || '';
-          if (/^\d{1,2}-[A-Za-z]{3}$/.test(val)) {
-            dateValue = val;
-            break;
-          }
+      // Try to find date (usually a row with date format in first column)
+      for (let r = 0; r < dataStartRowIdx; r++) {
+        const firstCell = rawData[r][0]?.toString() || '';
+        if (/^\d{1,2}-[A-Za-z]{3}/.test(firstCell)) {
+          product.date = firstCell;
+          break;
         }
       }
       
-      products.push({
-        qty: parseInt(qtyCell?.v?.toString() || '0') || 0,
-        coll: collCell?.v?.toString() || '',
-        date: dateValue,
-        category: categoryCell?.v?.toString() || '',
-        price: priceCell?.v?.toString() || '',
-        orderedQty: parseInt(orderedQtyCell?.v?.toString() || '0') || undefined,
-        totalBoxes: parseInt(totalBoxesCell?.v?.toString() || '0') || undefined,
-        color: colorCell?.v?.toString() || '',
-      });
+      // Find category row (between date and price, contains R2, R6, NEW, etc.)
+      for (let r = 0; r < dataStartRowIdx; r++) {
+        const cellVal = rawData[r][c]?.toString().trim() || '';
+        if (cellVal.match(/^R\d/) || cellVal === 'NEW' || cellVal.includes('INCMPLTE')) {
+          product.category = cellVal;
+          break;
+        }
+      }
+      
+      products.push(product);
     }
+    
+    console.log('Parsed products:', products.length, products.slice(0, 3));
     
     // Parse store rows
-    if (dataStartRow !== -1) {
-      for (let r = dataStartRow; r <= range.e.r; r++) {
-        const storeCell = worksheet[XLSX.utils.encode_cell({ r, c: 0 })];
-        const storeName = storeCell?.v?.toString() || '';
+    const stores: StoreRow[] = [];
+    
+    if (dataStartRowIdx !== -1) {
+      for (let r = dataStartRowIdx; r < rawData.length; r++) {
+        const row = rawData[r];
+        const storeName = row[0]?.toString().trim() || '';
         
-        if (!storeName && r === dataStartRow) continue;
-        
+        // Get allocations
         const allocations: (number | string)[] = [];
-        for (let c = startCol; c <= range.e.c; c++) {
-          const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
-          const val = cell?.v;
+        for (let c = 1; c < numCols; c++) {
+          const val = row[c];
           if (typeof val === 'number') {
             allocations.push(val);
           } else if (val !== undefined && val !== null) {
@@ -159,17 +173,20 @@ const Allocation = () => {
           }
         }
         
+        // Determine highlight and type
         const upperName = storeName.toUpperCase();
         let isHeader = false;
         let isSubtotal = false;
         let highlight: 'yellow' | 'green' | 'blue' | 'red' | undefined;
         
+        // Section headers
         if (upperName === 'SM' || upperName === 'METRO' || upperName === 'RDS') {
           isHeader = true;
           if (upperName === 'SM') highlight = 'blue';
           if (upperName === 'METRO') highlight = 'yellow';
         }
         
+        // Store highlighting
         if (storeName.startsWith('SM ') || storeName.startsWith('SM-')) {
           highlight = 'blue';
         } else if (storeName.startsWith('Metro ')) {
@@ -178,6 +195,7 @@ const Allocation = () => {
           else if (storeName.includes('Market')) highlight = 'yellow';
         }
         
+        // Subtotal detection
         if (!storeName && allocations.some(a => typeof a === 'number' && a > 0)) {
           isSubtotal = true;
         }
@@ -192,7 +210,9 @@ const Allocation = () => {
       }
     }
     
-    return { products, stores };
+    console.log('Parsed stores:', stores.length, stores.slice(0, 3));
+    
+    return { products, stores, headers };
   }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,7 +226,7 @@ const Allocation = () => {
     
     try {
       // Step 1: Read file
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
       setImportProgress(20);
       
       const buffer = await file.arrayBuffer();
@@ -215,20 +235,31 @@ const Allocation = () => {
       setImportStatus('parsing');
       setImportProgress(40);
       setImportMessage('Parsing Excel data...');
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
       
+      console.log('Workbook loaded, sheet:', sheetName);
+      console.log('Range:', worksheet['!ref']);
+      
       // Step 3: Process data
       setImportStatus('processing');
       setImportProgress(70);
       setImportMessage('Processing allocations...');
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       const parsedData = parseExcelData(worksheet, range);
+      
+      // Validate parsed data
+      if (parsedData.products.length === 0 || parsedData.stores.length === 0) {
+        console.warn('No data parsed - products:', parsedData.products.length, 'stores:', parsedData.stores.length);
+        toast.error('Could not parse Excel file. Please check the format.');
+        setImportStatus('idle');
+        return;
+      }
       
       // Step 4: Complete
       setImportProgress(100);
@@ -238,7 +269,7 @@ const Allocation = () => {
       setData(parsedData);
       
       // Show success briefly then display table
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       setShowTable(true);
       
       toast.success(`Imported ${parsedData.stores.length} stores with ${parsedData.products.length} columns`);
@@ -414,7 +445,7 @@ const Allocation = () => {
                           key={`qty-${idx}`}
                           className={cn(
                             "border p-1.5 text-center font-medium min-w-[50px]",
-                            product.qty > 0 ? "bg-red-50 text-red-700" : "bg-muted/50"
+                            product.qty ? "bg-red-50 text-red-700" : "bg-muted/50"
                           )}
                         >
                           {product.qty || ''}
@@ -488,36 +519,6 @@ const Allocation = () => {
                         </th>
                       ))}
                     </tr>
-
-                    {/* Ordered QTY Row (if exists) */}
-                    {data.products.some(p => p.orderedQty) && (
-                      <tr className="border-b">
-                        <th className="border p-1.5 bg-muted/50 text-left font-medium sticky left-0 z-30">ORDERED QTY</th>
-                        {data.products.map((product, idx) => (
-                          <th 
-                            key={`oqty-${idx}`}
-                            className="border p-1.5 bg-muted/50 text-center font-medium"
-                          >
-                            {product.orderedQty || ''}
-                          </th>
-                        ))}
-                      </tr>
-                    )}
-
-                    {/* Total Boxes Row (if exists) */}
-                    {data.products.some(p => p.totalBoxes) && (
-                      <tr className="border-b">
-                        <th className="border p-1.5 bg-muted/50 text-left font-medium sticky left-0 z-30">TOTAL BOXES</th>
-                        {data.products.map((product, idx) => (
-                          <th 
-                            key={`tbox-${idx}`}
-                            className="border p-1.5 bg-muted/50 text-center font-medium"
-                          >
-                            {product.totalBoxes || ''}
-                          </th>
-                        ))}
-                      </tr>
-                    )}
 
                     {/* Color Row */}
                     <tr className="border-b">
