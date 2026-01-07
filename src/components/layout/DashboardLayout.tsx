@@ -15,11 +15,12 @@ const pageTitles: Record<string, string> = {
   '/collections': 'Collection Items',
   '/container': 'Container',
   '/repeat-order': 'Repeat Order',
+  '/allocation': 'Allocation',
 };
 
 // Role-based route restrictions
 const roleRestrictedRoutes: Record<string, string[]> = {
-  viewer: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container', '/repeat-order'],
+  viewer: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container', '/repeat-order', '/allocation'],
   teamleader: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
   oic: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
   staff: ['/import', '/users', '/inventory', '/container'],

@@ -18,7 +18,8 @@ import {
   FolderHeart,
   Heart,
   Container,
-  RefreshCcw
+  RefreshCcw,
+  LayoutList
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -118,6 +119,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/repeat-order', 
       icon: RefreshCcw, 
       label: 'Repeat Order',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    },
+    { 
+      to: '/allocation', 
+      icon: LayoutList, 
+      label: 'Allocation',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     { 
