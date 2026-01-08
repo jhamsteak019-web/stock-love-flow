@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,6 +11,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -31,6 +33,49 @@ const SummaryReport = () => {
   const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
   
   const isViewer = userRole === 'viewer';
+  const canExport = userRole !== 'uploader';
+
+  // Export to PDF function
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(16);
+    doc.text('Summary Report', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
+    doc.text(`Category: ${selectedCategory === 'all' ? 'All Categories' : selectedCategory}`, 14, 28);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 34);
+
+    // Stats summary
+    doc.setFontSize(12);
+    doc.text('Overview', 14, 44);
+    doc.setFontSize(9);
+    doc.text(`Total Boxes: ${totalStats.totalBoxes.toLocaleString()}`, 14, 51);
+    doc.text(`Total Qty: ${totalStats.totalQty.toLocaleString()}`, 60, 51);
+    doc.text(`Delivered: ${totalStats.deliveredCount}`, 110, 51);
+    doc.text(`Pending: ${totalStats.pendingCount}`, 150, 51);
+
+    // Branch Report Table
+    const branchColumns = ['Branch', 'Total', 'Delivered', 'Pending', 'Boxes', 'Qty'];
+    const branchRows = branchReport.map(b => [
+      b.branch,
+      b.totalDeliveries.toString(),
+      b.deliveredCount.toString(),
+      (b.pendingCount + b.inTransitCount + b.outForDeliveryCount).toString(),
+      b.totalBoxes.toString(),
+      b.totalQty.toString()
+    ]);
+
+    (doc as any).autoTable({
+      head: [branchColumns],
+      body: branchRows,
+      startY: 58,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
+  };
 
   // Get available years from releases
   const availableYears = useMemo(() => {
@@ -706,39 +751,47 @@ const SummaryReport = () => {
             <p className="text-muted-foreground">Delivery statistics by branch and category</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-card border rounded-lg p-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              {MONTHS.map((month, index) => (
-                <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              {availableYears.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[120px] border-0 shadow-none focus:ring-0 h-8">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50">
-              <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORY_OPTIONS.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-2">
+          {canExport && (
+            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Save PDF
+            </Button>
+          )}
+          <div className="flex items-center gap-2 bg-card border rounded-lg p-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {MONTHS.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[120px] border-0 shadow-none focus:ring-0 h-8">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All Categories</SelectItem>
+                {CATEGORY_OPTIONS.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
