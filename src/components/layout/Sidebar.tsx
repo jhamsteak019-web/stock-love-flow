@@ -121,12 +121,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Repeat Order',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
-    { 
-      to: '/allocation', 
-      icon: LayoutList, 
-      label: 'Allocation',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
-    },
+    // { 
+    //   to: '/allocation', 
+    //   icon: LayoutList, 
+    //   label: 'Allocation',
+    //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    // },
     { 
       to: '/users', 
       icon: Users, 
