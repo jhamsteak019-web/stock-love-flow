@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ import EditDeliveryModal from '@/components/deliveries/EditDeliveryModal';
 import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { exportToExcel } from '@/lib/excelExport';
+import { toast as sonnerToast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -342,6 +344,52 @@ const History = () => {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const excelData = filteredReleases.map(group => ({
+        allocation: group.allocation_bill || group.batch_id.slice(0, 8),
+        destination: group.destination,
+        category: group.category || '-',
+        totalBoxes: group.totalBoxes,
+        totalQty: group.totalQty,
+        dateOut: group.set_date ? format(new Date(group.set_date), 'MMM dd, yyyy') : '-',
+        dateReceived: group.date_delivered ? format(new Date(group.date_delivered), 'MMM dd, yyyy') : '-',
+        deliveryDays: group.set_date && group.date_delivered
+          ? differenceInDays(new Date(group.date_delivered), new Date(group.set_date)) + ' days'
+          : '-',
+        courier: group.courier || '-',
+        waybill: group.waybill_no || '-',
+        remarks: group.notes || '-',
+      }));
+
+      await exportToExcel({
+        title: 'Transaction History',
+        subtitle: `${MONTHS[selectedMonth]} ${selectedYear}`,
+        filename: `transaction-history-${MONTHS[selectedMonth]}-${selectedYear}`,
+        columns: [
+          { header: 'Allocation', key: 'allocation', width: 22 },
+          { header: 'Destination', key: 'destination', width: 18 },
+          { header: 'Category', key: 'category', width: 12 },
+          { header: 'Total Boxes', key: 'totalBoxes', width: 14 },
+          { header: 'Total Qty', key: 'totalQty', width: 14 },
+          { header: 'Date Out', key: 'dateOut', width: 15 },
+          { header: 'Date Received', key: 'dateReceived', width: 15 },
+          { header: 'Delivery Days', key: 'deliveryDays', width: 14 },
+          { header: 'Courier', key: 'courier', width: 12 },
+          { header: 'Waybill No.', key: 'waybill', width: 15 },
+          { header: 'Remarks', key: 'remarks', width: 22 },
+        ],
+        data: excelData,
+        showTotals: true,
+        totalColumns: ['totalBoxes', 'totalQty'],
+      });
+      sonnerToast.success('Excel exported successfully!');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      sonnerToast.error('Failed to export Excel');
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
@@ -361,6 +409,12 @@ const History = () => {
           </TabsList>
           
           <div className="flex items-center gap-2">
+            {activeTab === 'active' && !isViewer && canExport && (
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Save Excel
+              </Button>
+            )}
             {activeTab === 'active' && !isViewer && canExport && (
               <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
                 <FileDown className="h-4 w-4 mr-2" />

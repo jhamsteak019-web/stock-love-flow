@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { exportToExcel } from '@/lib/excelExport';
+import { toast } from 'sonner';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -75,6 +77,42 @@ const SummaryReport = () => {
     });
 
     doc.save(`summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
+    toast.success('PDF exported successfully!');
+  };
+
+  // Export to Excel function
+  const handleExportExcel = async () => {
+    try {
+      const excelData = branchReport.map(b => ({
+        branch: b.branch,
+        totalDeliveries: b.totalDeliveries,
+        delivered: b.deliveredCount,
+        pending: b.pendingCount + b.inTransitCount + b.outForDeliveryCount,
+        totalBoxes: b.totalBoxes,
+        totalQty: b.totalQty,
+      }));
+
+      await exportToExcel({
+        title: 'Summary Report',
+        subtitle: `${MONTHS[parseInt(selectedMonth)]} ${selectedYear} - ${selectedCategory === 'all' ? 'All Categories' : selectedCategory}`,
+        filename: `summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}`,
+        columns: [
+          { header: 'Branch', key: 'branch', width: 25 },
+          { header: 'Total Deliveries', key: 'totalDeliveries', width: 18 },
+          { header: 'Delivered', key: 'delivered', width: 14 },
+          { header: 'Pending', key: 'pending', width: 14 },
+          { header: 'Total Boxes', key: 'totalBoxes', width: 14 },
+          { header: 'Total Qty', key: 'totalQty', width: 14 },
+        ],
+        data: excelData,
+        showTotals: true,
+        totalColumns: ['totalDeliveries', 'delivered', 'pending', 'totalBoxes', 'totalQty'],
+      });
+      toast.success('Excel exported successfully!');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error('Failed to export Excel');
+    }
   };
 
   // Get available years from releases
@@ -752,6 +790,12 @@ const SummaryReport = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {canExport && (
+            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Save Excel
+            </Button>
+          )}
           {canExport && (
             <Button variant="outline" size="sm" onClick={handleExportPDF}>
               <FileDown className="h-4 w-4 mr-2" />

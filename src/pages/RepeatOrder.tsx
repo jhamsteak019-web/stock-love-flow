@@ -14,13 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Search, RefreshCcw, Calendar as CalendarIcon, FileText, Settings2, Pencil, Upload, Image, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { exportToExcel } from '@/lib/excelExport';
 
 interface RepeatOrderItem {
   id: string;
@@ -576,6 +577,37 @@ const RepeatOrder = () => {
     toast.success('PDF saved successfully');
   };
 
+  const handleSaveExcel = async () => {
+    try {
+      const excelData = filteredActiveOrders.map(order => ({
+        branch_store: order.branch_store || '-',
+        category: order.category || '-',
+        date_give_store: formatDate(order.date_give_store),
+        date_give_warehouse: formatDate(order.date_give_warehouse),
+        status: order.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        date_out_warehouse: formatDate(order.date_out_warehouse),
+      }));
+
+      await exportToExcel({
+        title: 'Repeat Orders Report',
+        subtitle: `${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`,
+        filename: `repeat-orders-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}`,
+        columns: [
+          { header: 'Branch/Store', key: 'branch_store', width: 25 },
+          { header: 'Category', key: 'category', width: 15 },
+          { header: 'Date Give Store', key: 'date_give_store', width: 18 },
+          { header: 'Date Give Warehouse', key: 'date_give_warehouse', width: 22 },
+          { header: 'Status', key: 'status', width: 15 },
+          { header: 'Date Out Warehouse', key: 'date_out_warehouse', width: 22 },
+        ],
+        data: excelData,
+      });
+      toast.success('Excel saved successfully');
+    } catch (error) {
+      toast.error('Failed to export Excel');
+    }
+  };
+
   const renderEditableCell = (order: RepeatOrderItem, field: string, value: string | null, isDate: boolean = false) => {
     return (
       <div className="px-2 py-1 min-h-[28px] flex items-center">
@@ -778,6 +810,10 @@ const RepeatOrder = () => {
             <div className="flex-1" />
 
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSaveExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Save Excel
+              </Button>
               <Button variant="outline" size="sm" onClick={handleSavePDF}>
                 <FileText className="h-4 w-4 mr-2" />
                 Save PDF
