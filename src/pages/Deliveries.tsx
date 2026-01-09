@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useTransition } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
+import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,9 @@ import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
+import { exportToExcel } from '@/lib/excelExport';
+import { toast as sonnerToast } from 'sonner';
+import { format as formatDateFn } from 'date-fns';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -254,6 +257,46 @@ const Deliveries = () => {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const excelData = pendingGroups.map(group => ({
+        allocation: group.allocation_bill || group.batch_id.slice(0, 8),
+        destination: group.destination,
+        category: group.category || '-',
+        totalBoxes: group.totalBoxes,
+        totalQty: group.totalQty,
+        dateOut: group.set_date ? formatDateFn(new Date(group.set_date), 'MMM dd, yyyy') : '-',
+        status: group.delivery_status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        waybill: group.waybill_no || '-',
+        remarks: group.notes || '-',
+      }));
+
+      await exportToExcel({
+        title: 'Deliveries Report',
+        subtitle: `Generated on ${formatDateFn(new Date(), 'MMMM dd, yyyy')}`,
+        filename: `deliveries-${formatDateFn(new Date(), 'yyyy-MM-dd')}`,
+        columns: [
+          { header: 'Allocation', key: 'allocation', width: 22 },
+          { header: 'Destination', key: 'destination', width: 18 },
+          { header: 'Category', key: 'category', width: 12 },
+          { header: 'Total Boxes', key: 'totalBoxes', width: 14 },
+          { header: 'Total Qty', key: 'totalQty', width: 14 },
+          { header: 'Date Out', key: 'dateOut', width: 15 },
+          { header: 'Status', key: 'status', width: 15 },
+          { header: 'Waybill No.', key: 'waybill', width: 15 },
+          { header: 'Remarks', key: 'remarks', width: 22 },
+        ],
+        data: excelData,
+        showTotals: true,
+        totalColumns: ['totalBoxes', 'totalQty'],
+      });
+      sonnerToast.success('Excel exported successfully!');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      sonnerToast.error('Failed to export Excel');
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
@@ -288,6 +331,12 @@ const Deliveries = () => {
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               )}
             </div>
+          )}
+          {!isViewer && canExport && (
+            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Save Excel
+            </Button>
           )}
           {!isViewer && canExport && (
             <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useTransition, useRef } from 'react';
-import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck, Eye, FileDown, RotateCcw } from 'lucide-react';
+import { StickyNote, Plus, Trash2, Edit2, Save, X, Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Hourglass, FileCheck, Eye, FileDown, RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast as sonnerToast } from 'sonner';
+import { exportToExcel } from '@/lib/excelExport';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -214,6 +215,45 @@ const Notes = () => {
     } catch (error) {
       console.error('PDF export error:', error);
       sonnerToast.error('Failed to export PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    sonnerToast.info('Generating Excel...');
+    
+    try {
+      const excelData = filteredNotes.map(note => ({
+        title: note.title || 'Untitled',
+        concern: note.concern || '-',
+        content: note.content || 'No content',
+        created_by: note.profiles?.full_name || note.profiles?.email?.split('@')[0] || 'Unknown',
+        status: STATUS_OPTIONS.find(s => s.value === note.status)?.label || note.status,
+        created_at: format(new Date(note.created_at), 'MMM dd, yyyy'),
+        updated_at: format(new Date(note.updated_at), 'MMM dd, yyyy'),
+      }));
+
+      await exportToExcel({
+        title: 'Reminders Report',
+        subtitle: `${MONTHS[selectedMonth]} ${selectedYear}`,
+        filename: `reminders-${MONTHS[selectedMonth]}-${selectedYear}`,
+        columns: [
+          { header: 'Title', key: 'title', width: 25 },
+          { header: 'Concern', key: 'concern', width: 20 },
+          { header: 'Remarks', key: 'content', width: 40 },
+          { header: 'Created By', key: 'created_by', width: 18 },
+          { header: 'Status', key: 'status', width: 18 },
+          { header: 'Date Created', key: 'created_at', width: 15 },
+          { header: 'Last Updated', key: 'updated_at', width: 15 },
+        ],
+        data: excelData,
+      });
+      sonnerToast.success('Excel exported successfully!');
+    } catch (error) {
+      console.error('Excel export error:', error);
+      sonnerToast.error('Failed to export Excel');
     } finally {
       setIsExporting(false);
     }
@@ -551,6 +591,12 @@ const Notes = () => {
             </div>
           )}
           
+          {canExport && (
+            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={isExporting || filteredNotes.length === 0}>
+              {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
+              Save Excel
+            </Button>
+          )}
           {canExport && (
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isExporting || filteredNotes.length === 0}>
               {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
