@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useInventory } from '@/hooks/useInventory';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -64,6 +65,7 @@ const Deliveries = () => {
   const { releases, loading, updateDeliveryStatus, fetchReleases } = useInventory();
   const { toast } = useToast();
   const { userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,11 +93,16 @@ const Deliveries = () => {
   // Debounced search for smooth performance
   const debouncedSearch = useDebounce(searchQuery, 350);
 
-  // Group releases by batch_id
+  // Group releases by batch_id, filtered by branch
   const groupedReleases = useMemo(() => {
+    // First filter by branch
+    const branchFiltered = selectedBranch 
+      ? releases.filter(r => r.branch_id === selectedBranch.id)
+      : releases;
+    
     const groups: Record<string, GroupedRelease> = {};
     
-    releases.forEach(release => {
+    branchFiltered.forEach(release => {
       const batchKey = release.batch_id || release.id;
       
       if (!groups[batchKey]) {
@@ -133,7 +140,7 @@ const Deliveries = () => {
       const dateB = b.set_date ? new Date(b.set_date).getTime() : new Date(b.date_released).getTime();
       return dateA - dateB; // Ascending order - earliest dates first
     });
-  }, [releases]);
+  }, [releases, selectedBranch]);
 
   // Filtered results using debounced search - case-insensitive and partial match
   const pendingGroups = useMemo(() => {

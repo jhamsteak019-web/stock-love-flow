@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
@@ -58,6 +59,7 @@ interface ReleaseItem {
 const ReleaseStock = () => {
   const { items, releases, releaseStockBatch, loading } = useInventory();
   const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
@@ -188,7 +190,8 @@ const ReleaseStock = () => {
         category || undefined,
         waybillNo || undefined,
         setDate?.toISOString() || undefined,
-        qtyItems || boxes
+        qtyItems || boxes,
+        selectedBranch?.id || undefined
       );
       toast({ title: 'Success', description: 'Stock released successfully' });
       
@@ -424,7 +427,8 @@ const ReleaseStock = () => {
           item.category || undefined,
           firstItem.waybillNo || undefined, // Use first item's waybill for all
           firstItem.setDate || undefined, // Use first item's set date for all
-          item.qtyItem || item.qtyBoxes
+          item.qtyItem || item.qtyBoxes,
+          selectedBranch?.id || undefined
         );
       }
 

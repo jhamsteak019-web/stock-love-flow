@@ -213,7 +213,8 @@ export const useInventory = () => {
     category?: string,
     waybillNo?: string,
     setDate?: string,
-    totalQty?: number
+    totalQty?: number,
+    branchId?: string
   ) => {
     const batchId = crypto.randomUUID();
     
@@ -230,6 +231,7 @@ export const useInventory = () => {
       waybill_no: waybillNo || null,
       set_date: setDate || null,
       total_qty: totalQty || null,
+      branch_id: branchId || null,
     }));
 
     const { data, error } = await supabase

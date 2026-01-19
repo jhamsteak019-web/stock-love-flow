@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BranchProvider } from "@/contexts/BranchContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PresenceTracker } from "@/components/PresenceTracker";
 import AuthPage from "./pages/AuthPage";
@@ -32,27 +33,29 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route element={<><PresenceTracker /><DashboardLayout /></>}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/release" element={<ReleaseStock />} />
-              <Route path="/deliveries" element={<Deliveries />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/summary" element={<SummaryReport />} />
-              <Route path="/import" element={<ImportExcel />} />
-              <Route path="/users" element={<ManageUsers />} />
-              <Route path="/notes" element={<Notes />} />
-              <Route path="/collections" element={<CollectionItems />} />
-              <Route path="/favorites" element={<Favorites />} />
-              <Route path="/container" element={<Container />} />
-              <Route path="/repeat-order" element={<RepeatOrder />} />
-              <Route path="/allocation" element={<Allocation />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <BranchProvider>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route element={<><PresenceTracker /><DashboardLayout /></>}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/release" element={<ReleaseStock />} />
+                <Route path="/deliveries" element={<Deliveries />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/summary" element={<SummaryReport />} />
+                <Route path="/import" element={<ImportExcel />} />
+                <Route path="/users" element={<ManageUsers />} />
+                <Route path="/notes" element={<Notes />} />
+                <Route path="/collections" element={<CollectionItems />} />
+                <Route path="/favorites" element={<Favorites />} />
+                <Route path="/container" element={<Container />} />
+                <Route path="/repeat-order" element={<RepeatOrder />} />
+                <Route path="/allocation" element={<Allocation />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BranchProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

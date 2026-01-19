@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar, FileDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,7 @@ const STORAGE_KEY = 'dashboard_filter';
 const Dashboard = () => {
   const { releases, loading, getStats } = useInventory();
   const { userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   
@@ -57,15 +59,19 @@ const Dashboard = () => {
   
   const canExportPDF = userRole === 'admin' || userRole === 'staff';
 
-  // Filter releases by selected month and year - use set_date (Date Out) if available for proper month categorization
+  // Filter releases by selected month, year, AND branch
   const filteredReleases = useMemo(() => {
     return releases.filter(release => {
+      // Filter by branch
+      if (selectedBranch && release.branch_id !== selectedBranch.id) {
+        return false;
+      }
       // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
       const dateToUse = release.set_date || release.date_released;
       const releaseDate = new Date(dateToUse);
       return releaseDate.getMonth() === selectedMonth && releaseDate.getFullYear() === selectedYear;
     });
-  }, [releases, selectedMonth, selectedYear]);
+  }, [releases, selectedMonth, selectedYear, selectedBranch]);
 
   // Use filtered releases for stats
   const stats = useMemo(() => {
