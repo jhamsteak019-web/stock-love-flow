@@ -103,12 +103,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     //   label: 'Collection Items',
     //   roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
     // },
-    { 
-      to: '/favorites', 
-      icon: Heart, 
-      label: 'Favorites',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
-    },
+    // { 
+    //   to: '/favorites', 
+    //   icon: Heart, 
+    //   label: 'Favorites',
+    //   roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
+    // },
     { 
       to: '/container', 
       icon: Container, 
