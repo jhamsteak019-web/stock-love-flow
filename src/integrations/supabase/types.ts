@@ -711,6 +711,50 @@ export type Database = {
         }
         Relationships: []
       }
+      tasks: {
+        Row: {
+          branch_id: string | null
+          color: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          task_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          color?: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          task_date: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          color?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          task_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
