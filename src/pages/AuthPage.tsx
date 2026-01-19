@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { User, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Building2 } from 'lucide-react';
+import { User, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,20 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import authBackground from '@/assets/auth-background.png';
-import { supabase } from '@/integrations/supabase/client';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-
-interface Branch {
-  id: string;
-  name: string;
-  code: string;
-}
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -39,37 +25,12 @@ const AuthPage = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  // Fetch branches on mount
-  useEffect(() => {
-    const fetchBranches = async () => {
-      const { data, error } = await supabase
-        .from('branches')
-        .select('id, name, code')
-        .eq('is_active', true)
-        .order('name');
-      
-      if (!error && data) {
-        setBranches(data);
-        // Pre-select from localStorage or first branch
-        const savedBranchId = localStorage.getItem('selectedBranchId');
-        if (savedBranchId && data.find(b => b.id === savedBranchId)) {
-          setSelectedBranchId(savedBranchId);
-        } else if (data.length > 0) {
-          setSelectedBranchId(data[0].id);
-        }
-      }
-    };
-    fetchBranches();
-  }, []);
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
@@ -103,20 +64,11 @@ const AuthPage = () => {
     setAuthError(null);
     
     if (!validateForm()) return;
-
-    // Validate branch selection
-    if (!selectedBranchId) {
-      setAuthError('Please select a branch before logging in.');
-      return;
-    }
     
     setLoading(true);
 
     try {
       if (isLogin) {
-        // Save selected branch to localStorage before login
-        localStorage.setItem('selectedBranchId', selectedBranchId);
-        
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
@@ -199,33 +151,6 @@ const AuthPage = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Branch Selector - Only show on login */}
-          {isLogin && branches.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Select Branch
-              </Label>
-              <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
-                <SelectTrigger className="h-11 bg-muted/50 border-border/50 focus:border-primary">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Select a branch" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        {branch.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           {!isLogin && (
             <div className="space-y-1.5">
               <Label htmlFor="fullName" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
