@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useTransition } from 'react';
-import { Truck, Eye, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Truck, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -88,7 +88,7 @@ const Deliveries = () => {
     return col?.visible ?? true;
   };
 
-  const visibleColumnCount = columns.filter(c => c.visible).length + 1 + (isAdmin ? 1 : 0); // +1 for View, +1 for Edit if admin
+  const visibleColumnCount = columns.filter(c => c.visible).length + (isAdmin ? 1 : 0); // +1 for Edit if admin
   
   // Debounced search for smooth performance
   const debouncedSearch = useDebounce(searchQuery, 350);
@@ -367,7 +367,6 @@ const Deliveries = () => {
               {isColumnVisible('status') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('status') }}>Status</TableHead>}
               {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
               {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
-              <TableHead className="w-[80px]">View</TableHead>
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
             </TableRow>
           </TableHeader>
@@ -467,11 +466,6 @@ const Deliveries = () => {
                       )}
                     </TableCell>
                   )}
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
                   {isAdmin && (
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingBatch(group); }} className="transition-transform hover:scale-110">
