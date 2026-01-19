@@ -85,24 +85,24 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Summary Report',
       roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
     },
-    { 
-      to: '/import', 
-      icon: Archive, 
-      label: 'Bucket',
-      roles: ['admin', 'uploader']
-    },
+    // { 
+    //   to: '/import', 
+    //   icon: Archive, 
+    //   label: 'Bucket',
+    //   roles: ['admin', 'uploader']
+    // },
     { 
       to: '/notes', 
       icon: StickyNote, 
       label: 'Reminder',
       roles: ['admin', 'staff', 'uploader']
     },
-    { 
-      to: '/collections', 
-      icon: FolderHeart, 
-      label: 'Collection Items',
-      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
-    },
+    // { 
+    //   to: '/collections', 
+    //   icon: FolderHeart, 
+    //   label: 'Collection Items',
+    //   roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
+    // },
     { 
       to: '/favorites', 
       icon: Heart, 
