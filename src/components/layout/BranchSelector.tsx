@@ -1,5 +1,6 @@
 import { ChevronDown, Building2 } from 'lucide-react';
 import { useBranch } from '@/contexts/BranchContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,8 @@ import { cn } from '@/lib/utils';
 
 export const BranchSelector = () => {
   const { branches, selectedBranch, setSelectedBranch, loading } = useBranch();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
 
   if (loading) {
     return (
@@ -22,6 +25,19 @@ export const BranchSelector = () => {
     return null;
   }
 
+  // Non-admins see a read-only badge showing their assigned branch
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border">
+        <Building2 className="h-4 w-4 text-primary" />
+        <span className="font-medium text-sm">
+          {selectedBranch?.name || 'No Branch Assigned'}
+        </span>
+      </div>
+    );
+  }
+
+  // Admins can change the branch
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
