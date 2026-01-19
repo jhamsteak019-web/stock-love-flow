@@ -8,7 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import authBackground from '@/assets/auth-background.png';
-
+import michaelaLogo from '@/assets/michaela-logo.png';
+import smLogo from '@/assets/sm-logo.png';
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -106,27 +107,66 @@ const AuthPage = () => {
 
   return (
     <div 
-      className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative overflow-hidden"
       style={{ backgroundImage: `url(${authBackground})` }}
     >
-      {/* Title - Above Card */}
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-white tracking-wide drop-shadow-lg">MONITORING DELIVERY</h1>
+      {/* Animated floating particles background effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/20 rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '3s' }} />
+        <div className="absolute top-1/3 right-1/4 w-1.5 h-1.5 bg-white/30 rounded-full animate-pulse" style={{ animationDelay: '1s', animationDuration: '2.5s' }} />
+        <div className="absolute bottom-1/3 left-1/3 w-2.5 h-2.5 bg-white/15 rounded-full animate-pulse" style={{ animationDelay: '0.5s', animationDuration: '4s' }} />
+        <div className="absolute top-1/2 right-1/3 w-1 h-1 bg-white/25 rounded-full animate-pulse" style={{ animationDelay: '1.5s', animationDuration: '3.5s' }} />
       </div>
 
-      {/* Login Card */}
-      <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 animate-fade-in">
+      {/* Partner Logos - Top corners with subtle animations */}
+      <div className="absolute top-6 left-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+        <img 
+          src={michaelaLogo} 
+          alt="Michaela Logo" 
+          className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-lg hover:scale-110 transition-transform duration-300 animate-pulse"
+          style={{ animationDuration: '4s' }}
+        />
+      </div>
+      <div className="absolute top-6 right-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+        <img 
+          src={smLogo} 
+          alt="SM Logo" 
+          className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-lg hover:scale-110 transition-transform duration-300 animate-pulse"
+          style={{ animationDuration: '3.5s' }}
+        />
+      </div>
 
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-200 to-sky-400" />
-              </div>
-            </div>
-            {/* Decorative swoosh */}
-            <div className="absolute -right-1 top-1/2 w-8 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transform -translate-y-1/2 rotate-12" />
+      {/* Title - Above Card with enhanced animation */}
+      <div className="text-center mb-6 animate-fade-in">
+        <h1 className="text-3xl md:text-4xl font-bold text-white tracking-wide drop-shadow-lg">
+          MONITORING DELIVERY
+        </h1>
+        <p className="text-white/70 text-sm mt-2 animate-pulse" style={{ animationDuration: '2s' }}>
+          Inventory Management System
+        </p>
+      </div>
+
+      {/* Login Card with enhanced animation */}
+      <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 animate-scale-in backdrop-blur-sm bg-card/95">
+
+        {/* Logo inside card - both logos with floating animation */}
+        <div className="flex justify-center items-center gap-4 mb-6">
+          <div className="relative group">
+            <img 
+              src={michaelaLogo} 
+              alt="Michaela" 
+              className="w-14 h-14 object-contain transition-all duration-500 group-hover:scale-110"
+              style={{ animation: 'float 3s ease-in-out infinite' }}
+            />
+          </div>
+          <div className="h-10 w-px bg-border/50" />
+          <div className="relative group">
+            <img 
+              src={smLogo} 
+              alt="SM" 
+              className="w-14 h-14 object-contain transition-all duration-500 group-hover:scale-110"
+              style={{ animation: 'float 3s ease-in-out infinite 0.5s' }}
+            />
           </div>
         </div>
 

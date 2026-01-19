@@ -589,3 +589,31 @@ aside {
 .toast-animate {
   animation: toast-slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* Floating animation for logos */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Subtle glow pulse */
+@keyframes glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px hsl(var(--primary) / 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px hsl(var(--primary) / 0.5));
+  }
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
