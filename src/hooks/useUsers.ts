@@ -158,6 +158,7 @@ export const useUsers = () => {
     users,
     loading,
     fetchUsers,
+    refetch: fetchUsers,
     updateProfile,
     updateUserRole,
     deleteUser,

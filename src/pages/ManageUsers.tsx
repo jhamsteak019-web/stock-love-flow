@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck, Key, UserCog } from 'lucide-react';
+import { Users, Edit2, Shield, ShieldCheck, Eye, X, Check, Trash2, Circle, Clock, Info, UserCheck, Key, UserCog, Building2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,12 +16,15 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getRoleDisplayName } from '@/lib/roleUtils';
+import { useBranch } from '@/contexts/BranchContext';
 
 const ManageUsers = () => {
-  const { users, loading, updateProfile, updateUserRole, deleteUser } = useUsers();
-  const { user: currentUser } = useAuth();
+  const { users, loading, updateProfile, updateUserRole, deleteUser, refetch } = useUsers();
+  const { user: currentUser, userRole } = useAuth();
   const { isUserOnline, getUserOnlineTime, getOnlineUsersCount } = useUserPresence();
   const { toast } = useToast();
+  const { branches } = useBranch();
+  const isAdmin = userRole === 'admin';
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ full_name: '', email: '' });
   const [, forceUpdate] = useState(0);
@@ -78,6 +81,23 @@ const ManageUsers = () => {
     setNewPassword('');
     setConfirmPassword('');
     setPasswordDialogOpen(true);
+  };
+
+  const handleBranchChange = async (userId: string, branchId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ branch_id: branchId })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast({ title: 'Success', description: 'Branch assignment updated' });
+      refetch();
+    } catch (error: any) {
+      console.error('Error updating branch:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to update branch', variant: 'destructive' });
+    }
   };
 
   const handleChangePassword = async () => {
@@ -158,7 +178,7 @@ const ManageUsers = () => {
               <TableHead className="w-[150px]">Name</TableHead>
               <TableHead className="w-[200px]">Email</TableHead>
               <TableHead className="w-[130px]">Role</TableHead>
-              <TableHead className="w-[120px]">Online Duration</TableHead>
+              <TableHead className="w-[140px]">Assigned Branch</TableHead>
               <TableHead className="w-[120px]">Joined</TableHead>
               <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
@@ -281,13 +301,32 @@ const ManageUsers = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      {online && onlineTime ? (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span className="text-sm">{onlineTime}</span>
-                        </div>
+                      {isAdmin ? (
+                        <Select
+                          value={user.branch_id || 'none'}
+                          onValueChange={(val) => handleBranchChange(user.id, val === 'none' ? null : val)}
+                        >
+                          <SelectTrigger className="w-[130px]">
+                            <SelectValue placeholder="Select branch" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              <span className="text-muted-foreground">No Branch</span>
+                            </SelectItem>
+                            {branches.map((branch) => (
+                              <SelectItem key={branch.id} value={branch.id}>
+                                <div className="flex items-center gap-2">
+                                  <Building2 className="h-3 w-3" />
+                                  {branch.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-sm">
+                          {branches.find(b => b.id === user.branch_id)?.name || '-'}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
