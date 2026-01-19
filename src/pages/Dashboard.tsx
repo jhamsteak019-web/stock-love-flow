@@ -3,6 +3,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { StatCard } from '@/components/dashboard/StatCard';
+import { TaskCalendar } from '@/components/dashboard/TaskCalendar';
 import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar, FileDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -816,6 +817,9 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Task Calendar */}
+        <TaskCalendar />
       </div>
     </div>
   );
