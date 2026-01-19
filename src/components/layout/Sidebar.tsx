@@ -19,7 +19,8 @@ import {
   Heart,
   Container,
   RefreshCcw,
-  LayoutList
+  LayoutList,
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -96,6 +97,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: StickyNote, 
       label: 'Reminder',
       roles: ['admin', 'staff', 'uploader']
+    },
+    { 
+      to: '/task-calendar', 
+      icon: CalendarDays, 
+      label: 'Task Calendar',
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     // { 
     //   to: '/collections', 

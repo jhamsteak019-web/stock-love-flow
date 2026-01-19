@@ -22,6 +22,7 @@ import Favorites from "./pages/Favorites";
 import Container from "./pages/Container";
 import RepeatOrder from "./pages/RepeatOrder";
 import Allocation from "./pages/Allocation";
+import TaskCalendar from "./pages/TaskCalendar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/container" element={<Container />} />
                 <Route path="/repeat-order" element={<RepeatOrder />} />
                 <Route path="/allocation" element={<Allocation />} />
+                <Route path="/task-calendar" element={<TaskCalendar />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
