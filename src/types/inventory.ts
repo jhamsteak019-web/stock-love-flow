@@ -66,6 +66,7 @@ export interface StockRelease {
   total_qty: number | null;
   photo_url: string | null;
   photo_status: string | null;
+  branch_id: string | null;
   created_at: string;
   updated_at: string;
   inventory_item?: InventoryItem;

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -85,6 +86,7 @@ const History = () => {
   const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, fetchReleases } = useInventory();
   const { toast } = useToast();
   const { userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearingDeleted, setClearingDeleted] = useState(false);
@@ -150,8 +152,13 @@ const History = () => {
     }
   }, [activeTab]);
 
-  // Group releases by batch_id
-  const groupReleases = (releasesList: StockRelease[]) => {
+  // Group releases by batch_id, filtered by branch
+  const groupReleases = (releasesList: StockRelease[], filterByBranch = true) => {
+    // Filter by branch if enabled
+    const filtered = filterByBranch && selectedBranch 
+      ? releasesList.filter(r => r.branch_id === selectedBranch.id)
+      : releasesList;
+    
     const groups: Record<string, GroupedRelease> = {};
     
     releasesList.forEach(release => {
@@ -206,8 +213,8 @@ const History = () => {
     });
   };
 
-  const groupedReleases = useMemo(() => groupReleases(releases), [releases]);
-  const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases), [deletedReleases]);
+  const groupedReleases = useMemo(() => groupReleases(releases, true), [releases, selectedBranch]);
+  const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases, false), [deletedReleases]);
 
   // Filter grouped releases based on search query, date range, month/year, and status
   const filteredReleases = useMemo(() => {

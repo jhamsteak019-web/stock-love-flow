@@ -2,6 +2,7 @@ import { Menu, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
+import { BranchSelector } from './BranchSelector';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -27,6 +28,7 @@ export const Header = ({ onMenuClick, title }: HeaderProps) => {
           <Menu className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground animate-fade-in">{title}</h1>
+        <BranchSelector />
       </div>
       
       <div className="flex items-center gap-2">
