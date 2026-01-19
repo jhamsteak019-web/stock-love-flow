@@ -95,7 +95,7 @@ const AuthPage = () => {
         } else {
           toast({
             title: 'Account Created!',
-            description: 'Welcome to MONITORING DELIVERY.',
+            description: 'Welcome to DELIVERY.',
           });
           navigate('/dashboard');
         }
@@ -139,7 +139,7 @@ const AuthPage = () => {
       {/* Title - Above Card with enhanced animation */}
       <div className="text-center mb-6 animate-fade-in">
         <h1 className="text-3xl md:text-4xl font-bold text-white tracking-wide drop-shadow-lg">
-          MONITORING DELIVERY
+          DELIVERY
         </h1>
         <p className="text-white/70 text-sm mt-2 animate-pulse" style={{ animationDuration: '2s' }}>
           Inventory Management System
@@ -296,7 +296,7 @@ const AuthPage = () => {
         {/* Footer */}
         <div className="mt-6 pt-4 border-t border-border/50">
           <p className="text-xs text-center text-muted-foreground">
-            © 2025 MONITORING DELIVERY. All Rights Reserved.
+            © 2025 DELIVERY. All Rights Reserved.
           </p>
         </div>
       </div>
