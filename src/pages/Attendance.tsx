@@ -29,7 +29,9 @@ import {
   Clock, 
   CalendarIcon,
   Pencil,
-  Trash2
+  Trash2,
+  Upload,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -92,6 +94,9 @@ const Attendance = () => {
     photo_url: ''
   });
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Attendance modal states
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
@@ -327,6 +332,58 @@ const Attendance = () => {
       photo_url: ''
     });
     setEditingEmployee(null);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoFile) return employeeForm.photo_url || null;
+    
+    setUploadingPhoto(true);
+    try {
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('employee-photos')
+        .upload(fileName, photoFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('employee-photos')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error: any) {
+      toast({ title: 'Error uploading photo', description: error.message, variant: 'destructive' });
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleSaveEmployee = async () => {
+    const photoUrl = await uploadPhoto();
+    const formData = { ...employeeForm, photo_url: photoUrl || '' };
+    
+    if (editingEmployee) {
+      updateEmployeeMutation.mutate({ id: editingEmployee.id, data: formData });
+    } else {
+      createEmployeeMutation.mutate(formData);
+    }
   };
 
   const resetAttendanceForm = () => {
@@ -352,6 +409,8 @@ const Attendance = () => {
       employment_status: employee.employment_status,
       photo_url: employee.photo_url || ''
     });
+    setPhotoPreview(employee.photo_url || null);
+    setPhotoFile(null);
     setIsEmployeeModalOpen(true);
   };
 
@@ -580,6 +639,49 @@ const Attendance = () => {
                       <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                      {/* Photo Upload */}
+                      <div>
+                        <Label>Photo</Label>
+                        <div className="flex items-center gap-4 mt-2">
+                          <div className="relative">
+                            <Avatar className="h-20 w-20">
+                              <AvatarImage src={photoPreview || ''} />
+                              <AvatarFallback className="text-lg">
+                                {employeeForm.full_name?.charAt(0) || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            {photoPreview && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPhotoFile(null);
+                                  setPhotoPreview(null);
+                                  setEmployeeForm({ ...employeeForm, photo_url: '' });
+                                }}
+                                className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:bg-destructive/90"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <label htmlFor="photo-upload" className="cursor-pointer">
+                              <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors">
+                                <Upload className="h-4 w-4" />
+                                <span className="text-sm">{photoPreview ? 'Change Photo' : 'Upload Photo'}</span>
+                              </div>
+                              <input
+                                id="photo-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhotoChange}
+                                className="hidden"
+                              />
+                            </label>
+                            <p className="text-xs text-muted-foreground mt-1">JPG, PNG up to 5MB</p>
+                          </div>
+                        </div>
+                      </div>
                       <div>
                         <Label>Full Name</Label>
                         <Input
@@ -623,16 +725,14 @@ const Attendance = () => {
                       </div>
                       <Button
                         className="w-full"
-                        onClick={() => {
-                          if (editingEmployee) {
-                            updateEmployeeMutation.mutate({ id: editingEmployee.id, data: employeeForm });
-                          } else {
-                            createEmployeeMutation.mutate(employeeForm);
-                          }
-                        }}
-                        disabled={!employeeForm.full_name || !employeeForm.date_hired}
+                        onClick={handleSaveEmployee}
+                        disabled={!employeeForm.full_name || !employeeForm.date_hired || uploadingPhoto}
                       >
-                        {editingEmployee ? 'Update Employee' : 'Add Employee'}
+                        {uploadingPhoto ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        ) : (
+                          editingEmployee ? 'Update Employee' : 'Add Employee'
+                        )}
                       </Button>
                     </div>
                   </DialogContent>
