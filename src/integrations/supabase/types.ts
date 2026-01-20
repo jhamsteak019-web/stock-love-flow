@@ -264,39 +264,69 @@ export type Database = {
       }
       employees: {
         Row: {
+          address: string | null
+          age: number | null
           branch_id: string | null
+          category: string | null
+          cell_no: string | null
           created_at: string
           created_by: string | null
           date_hired: string
+          date_of_birth: string | null
+          employee_id: string | null
           employment_status: string
           full_name: string
+          gender: string | null
           id: string
           is_active: boolean
+          maternity: string | null
           photo_url: string | null
+          position: string | null
+          remarks: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          age?: number | null
           branch_id?: string | null
+          category?: string | null
+          cell_no?: string | null
           created_at?: string
           created_by?: string | null
           date_hired: string
+          date_of_birth?: string | null
+          employee_id?: string | null
           employment_status?: string
           full_name: string
+          gender?: string | null
           id?: string
           is_active?: boolean
+          maternity?: string | null
           photo_url?: string | null
+          position?: string | null
+          remarks?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          age?: number | null
           branch_id?: string | null
+          category?: string | null
+          cell_no?: string | null
           created_at?: string
           created_by?: string | null
           date_hired?: string
+          date_of_birth?: string | null
+          employee_id?: string | null
           employment_status?: string
           full_name?: string
+          gender?: string | null
           id?: string
           is_active?: boolean
+          maternity?: string | null
           photo_url?: string | null
+          position?: string | null
+          remarks?: string | null
           updated_at?: string
         }
         Relationships: [
