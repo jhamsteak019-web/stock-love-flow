@@ -1,16 +1,16 @@
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, addWeeks, subWeeks } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,12 +28,12 @@ interface Task {
 }
 
 const colorOptions = [
-  { value: 'blue', label: 'Blue', bg: 'bg-blue-500', text: 'text-blue-700', light: 'bg-blue-100' },
-  { value: 'green', label: 'Green', bg: 'bg-green-500', text: 'text-green-700', light: 'bg-green-100' },
-  { value: 'orange', label: 'Orange', bg: 'bg-orange-500', text: 'text-orange-700', light: 'bg-orange-100' },
-  { value: 'purple', label: 'Purple', bg: 'bg-purple-500', text: 'text-purple-700', light: 'bg-purple-100' },
-  { value: 'red', label: 'Red', bg: 'bg-red-500', text: 'text-red-700', light: 'bg-red-100' },
-  { value: 'cyan', label: 'Cyan', bg: 'bg-cyan-500', text: 'text-cyan-700', light: 'bg-cyan-100' },
+  { value: 'blue', label: 'Blue', bg: 'bg-blue-500', text: 'text-blue-700', light: 'bg-blue-50', border: 'border-blue-500', hex: '#3b82f6' },
+  { value: 'green', label: 'Green', bg: 'bg-green-500', text: 'text-green-700', light: 'bg-green-50', border: 'border-green-500', hex: '#22c55e' },
+  { value: 'orange', label: 'Orange', bg: 'bg-orange-500', text: 'text-orange-700', light: 'bg-orange-50', border: 'border-orange-500', hex: '#f97316' },
+  { value: 'purple', label: 'Purple', bg: 'bg-purple-500', text: 'text-purple-700', light: 'bg-purple-50', border: 'border-purple-500', hex: '#a855f7' },
+  { value: 'red', label: 'Red', bg: 'bg-red-500', text: 'text-red-700', light: 'bg-red-50', border: 'border-red-500', hex: '#ef4444' },
+  { value: 'cyan', label: 'Cyan', bg: 'bg-cyan-500', text: 'text-cyan-700', light: 'bg-cyan-50', border: 'border-cyan-500', hex: '#06b6d4' },
 ];
 
 const getColorClasses = (color: string) => {
@@ -43,12 +43,15 @@ const getColorClasses = (color: string) => {
 
 const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+type ViewMode = 'month' | 'week';
+
 export function TaskCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState({ title: '', description: '', color: 'blue' });
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
   
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -141,12 +144,20 @@ export function TaskCalendar() {
     },
   });
 
+  // Calendar days for month view
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     const calendarStart = startOfWeek(monthStart);
     const calendarEnd = endOfWeek(monthEnd);
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  }, [currentDate]);
+
+  // Week days for week view
+  const weekDays = useMemo(() => {
+    const weekStart = startOfWeek(currentDate);
+    const weekEnd = endOfWeek(currentDate);
+    return eachDayOfInterval({ start: weekStart, end: weekEnd });
   }, [currentDate]);
 
   const getTasksForDay = (day: Date) => {
@@ -156,7 +167,12 @@ export function TaskCalendar() {
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  const handlePrevWeek = () => setCurrentDate(subWeeks(currentDate, 1));
+  const handleNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
   const goToToday = () => setCurrentDate(new Date());
+
+  const handlePrev = () => viewMode === 'month' ? handlePrevMonth() : handlePrevWeek();
+  const handleNext = () => viewMode === 'month' ? handleNextMonth() : handleNextWeek();
 
   const weeks = useMemo(() => {
     const result: Date[][] = [];
@@ -232,13 +248,17 @@ export function TaskCalendar() {
     return tasks.map(task => new Date(task.task_date));
   }, [tasks]);
 
+  // Get selected sidebar date
+  const [sidebarSelectedDate, setSidebarSelectedDate] = useState<Date | null>(null);
+  const selectedDayTasks = sidebarSelectedDate ? getTasksForDay(sidebarSelectedDate) : [];
+
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Left Sidebar - Mini Calendar & Summary */}
-      <div className="lg:w-80 space-y-4 flex-shrink-0">
+      <div className="lg:w-72 space-y-4 flex-shrink-0">
         {/* Mini Calendar */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-2 bg-primary/5">
+        <Card className="overflow-hidden shadow-sm">
+          <CardHeader className="pb-2 bg-muted/50">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
               {format(currentDate, 'MMMM yyyy')}
@@ -247,8 +267,13 @@ export function TaskCalendar() {
           <CardContent className="p-2">
             <Calendar
               mode="single"
-              selected={selectedDate || undefined}
-              onSelect={(date) => date && openCreateModal(date)}
+              selected={sidebarSelectedDate || undefined}
+              onSelect={(date) => {
+                if (date) {
+                  setSidebarSelectedDate(date);
+                  setCurrentDate(date);
+                }
+              }}
               month={currentDate}
               onMonthChange={setCurrentDate}
               className="pointer-events-auto"
@@ -262,23 +287,28 @@ export function TaskCalendar() {
           </CardContent>
         </Card>
 
-        {/* Task Summary */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <ListTodo className="h-4 w-4" />
-              This Month's Tasks ({currentMonthTasks.length})
+        {/* Selected Day's Tasks */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3 bg-muted/50">
+            <CardTitle className="text-sm font-medium">
+              {sidebarSelectedDate 
+                ? format(sidebarSelectedDate, 'MMMM d, yyyy')
+                : 'Select a date'}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[250px]">
-              <div className="px-4 pb-4 space-y-2">
-                {currentMonthTasks.length === 0 ? (
+            <ScrollArea className="h-[200px]">
+              <div className="p-4 space-y-2">
+                {!sidebarSelectedDate ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No tasks scheduled this month
+                    Click on a date to see tasks
+                  </p>
+                ) : selectedDayTasks.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No tasks for this day
                   </p>
                 ) : (
-                  currentMonthTasks.map((task) => {
+                  selectedDayTasks.map((task) => {
                     const colors = getColorClasses(task.color);
                     return (
                       <div
@@ -286,27 +316,16 @@ export function TaskCalendar() {
                         onClick={(e) => openEditModal(task, e)}
                         className={cn(
                           "p-3 rounded-lg cursor-pointer transition-all hover:shadow-md border-l-4",
-                          colors.light,
-                          `border-l-${task.color}-500`
+                          colors.light
                         )}
-                        style={{ borderLeftColor: `var(--${task.color}-500, ${task.color === 'blue' ? '#3b82f6' : task.color === 'green' ? '#22c55e' : task.color === 'orange' ? '#f97316' : task.color === 'purple' ? '#a855f7' : task.color === 'red' ? '#ef4444' : '#06b6d4'})` }}
+                        style={{ borderLeftColor: colors.hex }}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{task.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(task.task_date), 'MMM d, yyyy')}
-                            </p>
-                          </div>
-                          {canDelete && (
-                            <button
-                              onClick={(e) => handleDelete(task.id, e)}
-                              className="p-1 hover:bg-destructive/10 rounded transition-colors"
-                            >
-                              <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                            </button>
-                          )}
-                        </div>
+                        <p className="font-medium text-sm">{task.title}</p>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
                       </div>
                     );
                   })
@@ -318,20 +337,37 @@ export function TaskCalendar() {
       </div>
 
       {/* Main Calendar View */}
-      <Card className="flex-1 overflow-hidden">
+      <Card className="flex-1 overflow-hidden shadow-sm">
         {/* Header */}
-        <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 border-b">
+        <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 border-b bg-muted/30">
           <div className="flex items-center gap-4">
             <CardTitle className="text-xl font-bold">
-              {format(currentDate, 'MMMM yyyy')}
+              {viewMode === 'month' 
+                ? format(currentDate, 'MMMM yyyy')
+                : `Week of ${format(startOfWeek(currentDate), 'MMM d')} - ${format(endOfWeek(currentDate), 'MMM d, yyyy')}`
+              }
             </CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="month" className="text-xs px-3 h-7">
+                  <Grid3X3 className="h-3.5 w-3.5 mr-1" />
+                  Month
+                </TabsTrigger>
+                <TabsTrigger value="week" className="text-xs px-3 h-7">
+                  <LayoutList className="h-3.5 w-3.5 mr-1" />
+                  Week
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
             <div className="flex items-center border rounded-lg overflow-hidden">
-              <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="rounded-none h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={handlePrev} className="rounded-none h-8 w-8">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleNextMonth} className="rounded-none h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={handleNext} className="rounded-none h-8 w-8">
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -348,29 +384,121 @@ export function TaskCalendar() {
         </CardHeader>
 
         <CardContent className="p-0">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b bg-muted/30">
-            {dayHeaders.map((day, index) => (
-              <div 
-                key={day} 
-                className={cn(
-                  "py-3 text-center text-sm font-semibold",
-                  index === 0 && "text-red-500",
-                  index === 6 && "text-blue-500"
-                )}
-              >
-                {day}
+          {viewMode === 'month' ? (
+            <>
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 border-b bg-muted/50">
+                {dayHeaders.map((day, index) => (
+                  <div 
+                    key={day} 
+                    className={cn(
+                      "py-3 text-center text-sm font-semibold",
+                      index === 0 && "text-red-500",
+                      index === 6 && "text-blue-500"
+                    )}
+                  >
+                    {day}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Calendar Grid */}
-          <div className="divide-y divide-border">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="grid grid-cols-7 divide-x divide-border">
-                {week.map((day, dayIndex) => {
+              {/* Month Calendar Grid */}
+              <div className="divide-y divide-border">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="grid grid-cols-7 divide-x divide-border">
+                    {week.map((day, dayIndex) => {
+                      const dayTasks = getTasksForDay(day);
+                      const isCurrentMonth = isSameMonth(day, currentDate);
+                      const isTodayDate = isToday(day);
+
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          onClick={() => openCreateModal(day)}
+                          className={cn(
+                            "min-h-[100px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
+                            !isCurrentMonth && "bg-muted/20 opacity-60",
+                            isTodayDate && "bg-blue-50/50 dark:bg-blue-950/20",
+                            !canEdit && "cursor-default"
+                          )}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span
+                              className={cn(
+                                "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full transition-colors",
+                                dayIndex === 0 && "text-red-500",
+                                dayIndex === 6 && "text-blue-500",
+                                isTodayDate && "bg-primary text-primary-foreground shadow-sm"
+                              )}
+                            >
+                              {format(day, 'd')}
+                            </span>
+                          </div>
+                          <div className="space-y-0.5">
+                            {dayTasks.slice(0, 3).map((task) => {
+                              const colors = getColorClasses(task.color);
+                              return (
+                                <div
+                                  key={task.id}
+                                  className={cn(
+                                    "text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-all font-medium group/task",
+                                    colors.bg,
+                                    "text-white"
+                                  )}
+                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  onClick={(e) => openEditModal(task, e)}
+                                >
+                                  <span className="truncate">{task.title}</span>
+                                </div>
+                              );
+                            })}
+                            {dayTasks.length > 3 && (
+                              <Badge variant="secondary" className="text-[10px] py-0 h-4 px-1">
+                                +{dayTasks.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            /* Week View - Shows descriptions */
+            <>
+              {/* Day Headers for Week View */}
+              <div className="grid grid-cols-7 border-b bg-muted/50">
+                {weekDays.map((day, index) => {
+                  const isTodayDate = isToday(day);
+                  return (
+                    <div 
+                      key={day.toISOString()} 
+                      className={cn(
+                        "py-3 text-center border-r last:border-r-0",
+                        index === 0 && "text-red-500",
+                        index === 6 && "text-blue-500"
+                      )}
+                    >
+                      <div className="text-xs font-medium text-muted-foreground uppercase">
+                        {format(day, 'EEE')}
+                      </div>
+                      <div className={cn(
+                        "text-lg font-bold mt-1 w-8 h-8 flex items-center justify-center mx-auto rounded-full",
+                        isTodayDate && "bg-primary text-primary-foreground"
+                      )}>
+                        {format(day, 'd')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Week View Content - Taller cells with descriptions */}
+              <div className="grid grid-cols-7 divide-x divide-border min-h-[400px]">
+                {weekDays.map((day, dayIndex) => {
                   const dayTasks = getTasksForDay(day);
-                  const isCurrentMonth = isSameMonth(day, currentDate);
                   const isTodayDate = isToday(day);
 
                   return (
@@ -378,62 +506,60 @@ export function TaskCalendar() {
                       key={day.toISOString()}
                       onClick={() => openCreateModal(day)}
                       className={cn(
-                        "min-h-[120px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
-                        !isCurrentMonth && "bg-muted/30 opacity-50",
-                        isTodayDate && "bg-primary/5 ring-2 ring-primary/20 ring-inset",
+                        "p-2 transition-all cursor-pointer hover:bg-accent/30 group",
+                        isTodayDate && "bg-blue-50/50 dark:bg-blue-950/20",
                         !canEdit && "cursor-default"
                       )}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span
-                          className={cn(
-                            "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors",
-                            dayIndex === 0 && "text-red-500",
-                            dayIndex === 6 && "text-blue-500",
-                            isTodayDate && "bg-primary text-primary-foreground shadow-sm"
-                          )}
-                        >
-                          {format(day, 'd')}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {dayTasks.slice(0, 3).map((task) => {
-                          const colors = getColorClasses(task.color);
-                          return (
-                            <div
-                              key={task.id}
-                              className={cn(
-                                "text-xs px-2 py-1 rounded-md truncate cursor-pointer hover:opacity-80 transition-all font-medium flex items-center gap-1 group/task shadow-sm",
-                                colors.bg,
-                                "text-white"
-                              )}
-                              title={task.title}
-                              onClick={(e) => openEditModal(task, e)}
-                            >
-                              <span className="flex-1 truncate">{task.title}</span>
-                              {canDelete && (
-                                <button
-                                  onClick={(e) => handleDelete(task.id, e)}
-                                  className="opacity-0 group-hover/task:opacity-100 hover:text-red-200 transition-opacity flex-shrink-0"
+                      <ScrollArea className="h-[360px]">
+                        <div className="space-y-2 pr-2">
+                          {dayTasks.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                              Click to add task
+                            </p>
+                          ) : (
+                            dayTasks.map((task) => {
+                              const colors = getColorClasses(task.color);
+                              return (
+                                <div
+                                  key={task.id}
+                                  className={cn(
+                                    "p-2 rounded-lg cursor-pointer hover:shadow-md transition-all border-l-4 group/task",
+                                    colors.light
+                                  )}
+                                  style={{ borderLeftColor: colors.hex }}
+                                  onClick={(e) => openEditModal(task, e)}
                                 >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {dayTasks.length > 3 && (
-                          <Badge variant="secondary" className="text-xs py-0 h-5">
-                            +{dayTasks.length - 3} more
-                          </Badge>
-                        )}
-                      </div>
+                                  <div className="flex items-start justify-between gap-1">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-sm leading-tight">{task.title}</p>
+                                      {task.description && (
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
+                                          {task.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {canDelete && (
+                                      <button
+                                        onClick={(e) => handleDelete(task.id, e)}
+                                        className="opacity-0 group-hover/task:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all flex-shrink-0"
+                                      >
+                                        <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </ScrollArea>
                     </div>
                   );
                 })}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
