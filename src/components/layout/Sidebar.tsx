@@ -20,7 +20,8 @@ import {
   Container,
   RefreshCcw,
   LayoutList,
-  CalendarDays
+  CalendarDays,
+  ClipboardCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -128,6 +129,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Repeat Order',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
+    { 
+      to: '/attendance', 
+      icon: ClipboardCheck, 
+      label: 'Attendance',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    },
     // { 
     //   to: '/allocation', 
     //   icon: LayoutList, 
@@ -135,7 +142,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     // },
     { 
-      to: '/users', 
+      to: '/users',
       icon: Users, 
       label: 'Manage Users',
       roles: ['admin']

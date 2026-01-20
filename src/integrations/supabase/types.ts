@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_records: {
+        Row: {
+          attendance_date: string
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          date_of_absent: string | null
+          date_of_resume: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          reason: string | null
+          remarks: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_absent?: string | null
+          date_of_resume?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_of_absent?: string | null
+          date_of_resume?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           code: string
@@ -192,6 +255,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "containers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          date_hired: string
+          employment_status: string
+          full_name: string
+          id: string
+          is_active: boolean
+          photo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_hired: string
+          employment_status?: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          photo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_hired?: string
+          employment_status?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          photo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
