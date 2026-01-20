@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { 
   Search, 
   Download, 
@@ -26,7 +26,9 @@ import {
   Upload,
   X,
   FileText,
-  Database
+  Database,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -77,6 +79,7 @@ const Manpower = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
+  const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
 
   const [form, setForm] = useState({
     employee_id: '',
@@ -882,18 +885,51 @@ const Manpower = () => {
       </Dialog>
 
       {/* Photo Preview Dialog */}
-      <Dialog open={!!viewingPhoto} onOpenChange={() => setViewingPhoto(null)}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={!!viewingPhoto} onOpenChange={() => { setViewingPhoto(null); setPhotoZoomLevel(1); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>{viewingPhoto?.name}</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{viewingPhoto?.name}</span>
+              <div className="flex items-center gap-2 mr-6">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPhotoZoomLevel(prev => Math.max(0.5, prev - 0.25))}
+                  disabled={photoZoomLevel <= 0.5}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[60px] text-center">
+                  {Math.round(photoZoomLevel * 100)}%
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPhotoZoomLevel(prev => Math.min(3, prev + 0.25))}
+                  disabled={photoZoomLevel >= 3}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-center p-4">
-            <img
-              src={viewingPhoto?.url}
-              alt={viewingPhoto?.name}
-              className="max-w-full max-h-[60vh] object-contain rounded-lg"
-            />
-          </div>
+          <ScrollArea className="h-[60vh] w-full border rounded-lg">
+            <div 
+              className="p-4" 
+              style={{ 
+                width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%',
+                height: photoZoomLevel > 1 ? `${photoZoomLevel * 60}vh` : 'auto'
+              }}
+            >
+              <img
+                src={viewingPhoto?.url}
+                alt={viewingPhoto?.name}
+                className="rounded-lg transition-all duration-200 w-full h-auto"
+              />
+            </div>
+            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
