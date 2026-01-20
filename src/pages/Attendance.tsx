@@ -1,0 +1,869 @@
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Search, 
+  Download, 
+  Plus, 
+  UserPlus, 
+  Users, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  CalendarIcon,
+  Pencil,
+  Trash2
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import * as ExcelJS from 'exceljs';
+
+interface Employee {
+  id: string;
+  full_name: string;
+  branch_id: string | null;
+  date_hired: string;
+  employment_status: string;
+  photo_url: string | null;
+  is_active: boolean;
+  branches?: { name: string } | null;
+}
+
+interface AttendanceRecord {
+  id: string;
+  employee_id: string;
+  attendance_date: string;
+  status: string;
+  reason: string | null;
+  date_of_absent: string | null;
+  date_of_resume: string | null;
+  remarks: string | null;
+  notes: string | null;
+  branch_id: string | null;
+  employees?: Employee;
+  branches?: { name: string } | null;
+}
+
+const months = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+
+const Attendance = () => {
+  const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string>((getMonth(new Date()) + 1).toString());
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [isAllYear, setIsAllYear] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
+  // Employee modal states
+  const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState({
+    full_name: '',
+    branch_id: '',
+    date_hired: '',
+    employment_status: 'regular',
+    photo_url: ''
+  });
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+
+  // Attendance modal states
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [attendanceForm, setAttendanceForm] = useState({
+    employee_id: '',
+    attendance_date: format(new Date(), 'yyyy-MM-dd'),
+    status: 'present',
+    reason: '',
+    date_of_absent: '',
+    date_of_resume: '',
+    remarks: '',
+    notes: ''
+  });
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+
+  const isAdmin = userRole === 'admin';
+  const canEdit = userRole === 'admin' || userRole === 'staff';
+
+  // Fetch branches
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch employees
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*, branches(name)')
+        .eq('is_active', true)
+        .order('full_name');
+      if (error) throw error;
+      return data as Employee[];
+    }
+  });
+
+  // Calculate date range
+  const dateRange = useMemo(() => {
+    const year = parseInt(selectedYear);
+    const month = parseInt(selectedMonth) - 1;
+
+    if (selectedDate) {
+      return {
+        start: format(selectedDate, 'yyyy-MM-dd'),
+        end: format(selectedDate, 'yyyy-MM-dd')
+      };
+    }
+
+    if (isAllYear) {
+      return {
+        start: format(startOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd'),
+        end: format(endOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd')
+      };
+    }
+
+    const date = new Date(year, month, 1);
+    return {
+      start: format(startOfMonth(date), 'yyyy-MM-dd'),
+      end: format(endOfMonth(date), 'yyyy-MM-dd')
+    };
+  }, [selectedMonth, selectedYear, isAllYear, selectedDate]);
+
+  // Fetch attendance records
+  const { data: attendanceRecords = [], isLoading } = useQuery({
+    queryKey: ['attendance-records', dateRange, branchFilter, selectedBranch?.id],
+    queryFn: async () => {
+      let query = supabase
+        .from('attendance_records')
+        .select('*, employees(*, branches(name)), branches(name)')
+        .gte('attendance_date', dateRange.start)
+        .lte('attendance_date', dateRange.end)
+        .order('attendance_date', { ascending: false });
+
+      if (branchFilter !== 'all') {
+        query = query.eq('branch_id', branchFilter);
+      } else if (selectedBranch?.id) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as AttendanceRecord[];
+    }
+  });
+
+  // Filter records by search and status
+  const filteredRecords = useMemo(() => {
+    return attendanceRecords.filter(record => {
+      const matchesSearch = !searchQuery || 
+        record.employees?.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [attendanceRecords, searchQuery, statusFilter]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = filteredRecords.length;
+    const present = filteredRecords.filter(r => r.status === 'present').length;
+    const absent = filteredRecords.filter(r => r.status === 'absent').length;
+    const late = filteredRecords.filter(r => r.status === 'late').length;
+    return { total, present, absent, late };
+  }, [filteredRecords]);
+
+  // Employee mutations
+  const createEmployeeMutation = useMutation({
+    mutationFn: async (data: typeof employeeForm) => {
+      const { error } = await supabase.from('employees').insert({
+        ...data,
+        branch_id: data.branch_id || null,
+        created_by: user?.id
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsEmployeeModalOpen(false);
+      resetEmployeeForm();
+      toast({ title: 'Employee added successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof employeeForm }) => {
+      const { error } = await supabase.from('employees').update({
+        ...data,
+        branch_id: data.branch_id || null
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsEmployeeModalOpen(false);
+      resetEmployeeForm();
+      toast({ title: 'Employee updated successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('employees').update({ is_active: false }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({ title: 'Employee deleted successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Attendance mutations
+  const createAttendanceMutation = useMutation({
+    mutationFn: async (data: typeof attendanceForm) => {
+      const employee = employees.find(e => e.id === data.employee_id);
+      const { error } = await supabase.from('attendance_records').insert({
+        ...data,
+        branch_id: employee?.branch_id || null,
+        date_of_absent: data.date_of_absent || null,
+        date_of_resume: data.date_of_resume || null,
+        created_by: user?.id
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      setIsAttendanceModalOpen(false);
+      resetAttendanceForm();
+      toast({ title: 'Attendance record added successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const updateAttendanceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof attendanceForm }) => {
+      const { error } = await supabase.from('attendance_records').update({
+        ...data,
+        date_of_absent: data.date_of_absent || null,
+        date_of_resume: data.date_of_resume || null
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      setIsAttendanceModalOpen(false);
+      resetAttendanceForm();
+      toast({ title: 'Attendance record updated successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const deleteAttendanceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance_records').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      toast({ title: 'Attendance record deleted successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const resetEmployeeForm = () => {
+    setEmployeeForm({
+      full_name: '',
+      branch_id: '',
+      date_hired: '',
+      employment_status: 'regular',
+      photo_url: ''
+    });
+    setEditingEmployee(null);
+  };
+
+  const resetAttendanceForm = () => {
+    setAttendanceForm({
+      employee_id: '',
+      attendance_date: format(new Date(), 'yyyy-MM-dd'),
+      status: 'present',
+      reason: '',
+      date_of_absent: '',
+      date_of_resume: '',
+      remarks: '',
+      notes: ''
+    });
+    setEditingRecord(null);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEmployeeForm({
+      full_name: employee.full_name,
+      branch_id: employee.branch_id || '',
+      date_hired: employee.date_hired,
+      employment_status: employee.employment_status,
+      photo_url: employee.photo_url || ''
+    });
+    setIsEmployeeModalOpen(true);
+  };
+
+  const handleEditAttendance = (record: AttendanceRecord) => {
+    setEditingRecord(record);
+    setAttendanceForm({
+      employee_id: record.employee_id,
+      attendance_date: record.attendance_date,
+      status: record.status,
+      reason: record.reason || '',
+      date_of_absent: record.date_of_absent || '',
+      date_of_resume: record.date_of_resume || '',
+      remarks: record.remarks || '',
+      notes: record.notes || ''
+    });
+    setIsAttendanceModalOpen(true);
+  };
+
+  const handleExport = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Attendance Records');
+
+    worksheet.columns = [
+      { header: 'Employee', key: 'employee', width: 25 },
+      { header: 'Branch', key: 'branch', width: 20 },
+      { header: 'Date', key: 'date', width: 15 },
+      { header: 'Status', key: 'status', width: 12 },
+      { header: 'Reason', key: 'reason', width: 30 },
+      { header: 'Date of Absent', key: 'date_of_absent', width: 15 },
+      { header: 'Date of Resume', key: 'date_of_resume', width: 15 },
+      { header: 'Remarks', key: 'remarks', width: 30 },
+      { header: 'Notes', key: 'notes', width: 30 }
+    ];
+
+    filteredRecords.forEach(record => {
+      worksheet.addRow({
+        employee: record.employees?.full_name || '',
+        branch: record.employees?.branches?.name || '',
+        date: record.attendance_date,
+        status: record.status,
+        reason: record.reason || '',
+        date_of_absent: record.date_of_absent || '',
+        date_of_resume: record.date_of_resume || '',
+        remarks: record.remarks || '',
+        notes: record.notes || ''
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-${selectedYear}-${selectedMonth}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'present':
+        return <Badge className="bg-green-500/20 text-green-700 border-green-500/30">Present</Badge>;
+      case 'absent':
+        return <Badge className="bg-red-500/20 text-red-700 border-red-500/30">Absent</Badge>;
+      case 'late':
+        return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30">Late</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Attendance</h1>
+          <p className="text-muted-foreground">Track employee attendance records</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setIsAllYear(false); setSelectedDate(undefined); }}>
+            <SelectTrigger className="w-[120px]">
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((month, i) => (
+                <SelectItem key={month} value={(i + 1).toString()}>{month}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); setSelectedDate(undefined); }}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map(year => (
+                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant={isAllYear ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setIsAllYear(!isAllYear); setSelectedDate(undefined); }}
+          >
+            All Year
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Pick Date
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => { setSelectedDate(date); setIsAllYear(false); }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Records</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
+              </div>
+              <Users className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Present</p>
+                <p className="text-2xl font-bold text-green-600">{stats.present}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Absent</p>
+                <p className="text-2xl font-bold text-red-600">{stats.absent}</p>
+              </div>
+              <XCircle className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Late</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters and Actions */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employee..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="All Branches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map(branch => (
+                  <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="present">Present</SelectItem>
+                <SelectItem value="absent">Absent</SelectItem>
+                <SelectItem value="late">Late</SelectItem>
+              </SelectContent>
+            </Select>
+            {canEdit && (
+              <>
+                <Dialog open={isEmployeeModalOpen} onOpenChange={(open) => { setIsEmployeeModalOpen(open); if (!open) resetEmployeeForm(); }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add Employee
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Full Name</Label>
+                        <Input
+                          value={employeeForm.full_name}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, full_name: e.target.value })}
+                          placeholder="Enter full name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Branch</Label>
+                        <Select value={employeeForm.branch_id} onValueChange={(v) => setEmployeeForm({ ...employeeForm, branch_id: v })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select branch" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branches.map(branch => (
+                              <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Date Hired</Label>
+                        <Input
+                          type="date"
+                          value={employeeForm.date_hired}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, date_hired: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Employment Status</Label>
+                        <Select value={employeeForm.employment_status} onValueChange={(v) => setEmployeeForm({ ...employeeForm, employment_status: v })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="regular">Regular</SelectItem>
+                            <SelectItem value="seasonal">Seasonal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        className="w-full"
+                        onClick={() => {
+                          if (editingEmployee) {
+                            updateEmployeeMutation.mutate({ id: editingEmployee.id, data: employeeForm });
+                          } else {
+                            createEmployeeMutation.mutate(employeeForm);
+                          }
+                        }}
+                        disabled={!employeeForm.full_name || !employeeForm.date_hired}
+                      >
+                        {editingEmployee ? 'Update Employee' : 'Add Employee'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isAttendanceModalOpen} onOpenChange={(open) => { setIsAttendanceModalOpen(open); if (!open) resetAttendanceForm(); }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Record
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>{editingRecord ? 'Edit Attendance Record' : 'Add Attendance Record'}</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[70vh]">
+                      <div className="space-y-4 pr-4">
+                        <div>
+                          <Label>Employee</Label>
+                          <Select value={attendanceForm.employee_id} onValueChange={(v) => setAttendanceForm({ ...attendanceForm, employee_id: v })}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {employees.map(emp => (
+                                <SelectItem key={emp.id} value={emp.id}>{emp.full_name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Date</Label>
+                          <Input
+                            type="date"
+                            value={attendanceForm.attendance_date}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, attendance_date: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Status</Label>
+                          <Select value={attendanceForm.status} onValueChange={(v) => setAttendanceForm({ ...attendanceForm, status: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="present">Present</SelectItem>
+                              <SelectItem value="absent">Absent</SelectItem>
+                              <SelectItem value="late">Late</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Reason</Label>
+                          <Textarea
+                            value={attendanceForm.reason}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, reason: e.target.value })}
+                            placeholder="Enter reason (optional)"
+                          />
+                        </div>
+                        <div>
+                          <Label>Date of Absent</Label>
+                          <Input
+                            type="date"
+                            value={attendanceForm.date_of_absent}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, date_of_absent: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Date of Resume</Label>
+                          <Input
+                            type="date"
+                            value={attendanceForm.date_of_resume}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, date_of_resume: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Remarks</Label>
+                          <Textarea
+                            value={attendanceForm.remarks}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, remarks: e.target.value })}
+                            placeholder="Enter remarks (optional)"
+                          />
+                        </div>
+                        <div>
+                          <Label>Notes</Label>
+                          <Textarea
+                            value={attendanceForm.notes}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, notes: e.target.value })}
+                            placeholder="Enter notes (optional)"
+                          />
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={() => {
+                            if (editingRecord) {
+                              updateAttendanceMutation.mutate({ id: editingRecord.id, data: attendanceForm });
+                            } else {
+                              createAttendanceMutation.mutate(attendanceForm);
+                            }
+                          }}
+                          disabled={!attendanceForm.employee_id || !attendanceForm.attendance_date}
+                        >
+                          {editingRecord ? 'Update Record' : 'Add Record'}
+                        </Button>
+                      </div>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Attendance Records Table */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Photo</TableHead>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reasons</TableHead>
+                  <TableHead>Date of Resume</TableHead>
+                  <TableHead>Remarks</TableHead>
+                  <TableHead>Notes</TableHead>
+                  {canEdit && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">Loading...</TableCell>
+                  </TableRow>
+                ) : filteredRecords.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      No attendance records found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={record.employees?.photo_url || ''} />
+                          <AvatarFallback>
+                            {record.employees?.full_name?.charAt(0) || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">{record.employees?.full_name}</TableCell>
+                      <TableCell>{record.employees?.branches?.name || '-'}</TableCell>
+                      <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">{record.reason || '-'}</TableCell>
+                      <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">{record.remarks || '-'}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">{record.notes || '-'}</TableCell>
+                      {canEdit && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Registered Employees Section */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Registered Employees ({employees.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {employees.map((employee) => (
+              <div key={employee.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={employee.photo_url || ''} />
+                    <AvatarFallback>{employee.full_name?.charAt(0) || '?'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{employee.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{employee.branches?.name || 'No branch'}</p>
+                  </div>
+                </div>
+                {canEdit && (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditEmployee(employee)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" onClick={() => deleteEmployeeMutation.mutate(employee.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            {employees.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">No employees registered yet</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Attendance;
