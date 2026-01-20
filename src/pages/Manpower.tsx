@@ -76,6 +76,7 @@ const Manpower = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
 
   const [form, setForm] = useState({
     employee_id: '',
@@ -615,7 +616,10 @@ const Manpower = () => {
                   filteredEmployees.map((emp) => (
                     <TableRow key={emp.id} className="hover:bg-muted/30">
                       <TableCell>
-                        <Avatar className="h-8 w-8">
+                        <Avatar 
+                          className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
+                          onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
+                        >
                           <AvatarImage src={emp.photo_url || ''} />
                           <AvatarFallback className="text-xs">
                             {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -874,6 +878,22 @@ const Manpower = () => {
               {uploadingPhoto ? 'Uploading...' : editingEmployee ? 'Update' : 'Save'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!viewingPhoto} onOpenChange={() => setViewingPhoto(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{viewingPhoto?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4">
+            <img
+              src={viewingPhoto?.url}
+              alt={viewingPhoto?.name}
+              className="max-w-full max-h-[60vh] object-contain rounded-lg"
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
