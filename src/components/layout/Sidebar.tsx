@@ -21,7 +21,8 @@ import {
   RefreshCcw,
   LayoutList,
   CalendarDays,
-  ClipboardCheck
+  ClipboardCheck,
+  Database
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -133,6 +134,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/attendance', 
       icon: ClipboardCheck, 
       label: 'Attendance',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    },
+    { 
+      to: '/manpower', 
+      icon: Database, 
+      label: 'Manpower Database',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     // { 
