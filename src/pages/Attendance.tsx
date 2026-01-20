@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   Search, 
   Download, 
@@ -31,7 +31,9 @@ import {
   Pencil,
   Trash2,
   Upload,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -111,6 +113,8 @@ const Attendance = () => {
     notes: ''
   });
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
+  const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
 
   const isAdmin = userRole === 'admin';
   const canEdit = userRole === 'admin' || userRole === 'staff';
@@ -882,7 +886,10 @@ const Attendance = () => {
                   filteredRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>
-                        <Avatar className="h-10 w-10">
+                        <Avatar 
+                          className={cn("h-10 w-10", record.employees?.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
+                          onClick={() => record.employees?.photo_url && setViewingPhoto({ url: record.employees.photo_url, name: record.employees.full_name || 'Employee' })}
+                        >
                           <AvatarImage src={record.employees?.photo_url || ''} />
                           <AvatarFallback>
                             {record.employees?.full_name?.charAt(0) || '?'}
@@ -962,6 +969,55 @@ const Attendance = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!viewingPhoto} onOpenChange={() => { setViewingPhoto(null); setPhotoZoomLevel(1); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{viewingPhoto?.name}</span>
+              <div className="flex items-center gap-2 mr-6">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPhotoZoomLevel(prev => Math.max(0.5, prev - 0.25))}
+                  disabled={photoZoomLevel <= 0.5}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[60px] text-center">
+                  {Math.round(photoZoomLevel * 100)}%
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPhotoZoomLevel(prev => Math.min(3, prev + 0.25))}
+                  disabled={photoZoomLevel >= 3}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] w-full border rounded-lg">
+            <div 
+              className="p-4" 
+              style={{ 
+                width: photoZoomLevel > 1 ? `${photoZoomLevel * 100}%` : '100%',
+                height: photoZoomLevel > 1 ? `${photoZoomLevel * 60}vh` : 'auto'
+              }}
+            >
+              <img
+                src={viewingPhoto?.url}
+                alt={viewingPhoto?.name}
+                className="rounded-lg transition-all duration-200 w-full h-auto"
+              />
+            </div>
+            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
