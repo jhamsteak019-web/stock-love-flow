@@ -1175,48 +1175,6 @@ const Attendance = () => {
         </Card>
       </div>
 
-      {/* Registered Employees Section */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Registered Employees ({employees.length})
-            </h3>
-          </div>
-          <div className="space-y-2">
-            {employees.map((employee) => (
-              <div key={employee.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={employee.photo_url || ''} />
-                    <AvatarFallback>{employee.full_name?.charAt(0) || '?'}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{employee.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{employee.branches?.name || 'No branch'}</p>
-                  </div>
-                </div>
-                {canEdit && (
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditEmployee(employee)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" onClick={() => deleteEmployeeMutation.mutate(employee.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-            {employees.length === 0 && (
-              <p className="text-center text-muted-foreground py-4">No employees registered yet</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Photo Preview Dialog */}
       <Dialog open={!!viewingPhoto} onOpenChange={() => { setViewingPhoto(null); setPhotoZoomLevel(1); }}>
