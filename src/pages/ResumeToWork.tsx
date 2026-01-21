@@ -252,7 +252,6 @@ const ResumeToWork = () => {
                   <TableHead>Employee Name</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Date of Resume</TableHead>
                   <TableHead>Remarks</TableHead>
@@ -261,13 +260,13 @@ const ResumeToWork = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No resume records found
                     </TableCell>
                   </TableRow>
@@ -296,9 +295,6 @@ const ResumeToWork = () => {
                               ? format(new Date(record.attendance_date), 'MMM dd, yyyy')
                               : '-'}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(record.status)}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">{record.reason || '-'}</span>
