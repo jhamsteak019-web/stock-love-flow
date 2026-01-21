@@ -28,7 +28,8 @@ import {
   FileText,
   Database,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -81,6 +82,7 @@ const Manpower = () => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
 
   const [form, setForm] = useState({
     employee_id: '',
@@ -607,7 +609,7 @@ const Manpower = () => {
                   <TableHead>Contact No.</TableHead>
                   <TableHead>Service</TableHead>
                   <TableHead>Address</TableHead>
-                  {canEdit && <TableHead className="w-[100px]">Actions</TableHead>}
+                  <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -656,20 +658,25 @@ const Manpower = () => {
                       <TableCell>{emp.cell_no || '-'}</TableCell>
                       <TableCell>{getLengthOfService(emp.date_hired)}</TableCell>
                       <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {isAdmin && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)}>
-                                <Trash2 className="h-4 w-4" />
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingEmployee(emp)} title="View Details">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {canEdit && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
+                              {isAdmin && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -930,6 +937,104 @@ const Manpower = () => {
             <ScrollBar orientation="horizontal" />
             <ScrollBar orientation="vertical" />
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Employee Details Dialog */}
+      <Dialog open={!!viewingEmployee} onOpenChange={(open) => !open && setViewingEmployee(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={viewingEmployee?.photo_url || ''} />
+                <AvatarFallback className="text-lg">
+                  {viewingEmployee?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <span className="block">{viewingEmployee?.full_name || 'Employee Details'}</span>
+                <span className="text-sm text-muted-foreground font-normal">{viewingEmployee?.employee_id || 'No ID'}</span>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {/* Personal Information */}
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-3">Personal Information</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Gender</p>
+                  <p className="font-medium">{viewingEmployee?.gender || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Age</p>
+                  <p className="font-medium">{viewingEmployee?.age || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Date of Birth</p>
+                  <p className="font-medium">{viewingEmployee?.date_of_birth ? format(new Date(viewingEmployee.date_of_birth), 'MMMM dd, yyyy') : '-'}</p>
+                </div>
+                <div className="space-y-1 col-span-2 md:col-span-3">
+                  <p className="text-sm text-muted-foreground">Address</p>
+                  <p className="font-medium">{viewingEmployee?.address || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Cell No.</p>
+                  <p className="font-medium">{viewingEmployee?.cell_no || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Employment Information */}
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-3">Employment Information</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Branch</p>
+                  <p className="font-medium">{viewingEmployee?.branches?.name || viewingEmployee?.branch || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Category</p>
+                  <p className="font-medium">{viewingEmployee?.category || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Position</p>
+                  <p className="font-medium">{viewingEmployee?.position || '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Employment Status</p>
+                  <Badge variant="outline" className={cn(
+                    viewingEmployee?.employment_status === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
+                    viewingEmployee?.employment_status === 'probationary' && 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30',
+                    viewingEmployee?.employment_status === 'contractual' && 'bg-blue-500/10 text-blue-700 border-blue-500/30',
+                    viewingEmployee?.employment_status === 'resigned' && 'bg-red-500/10 text-red-700 border-red-500/30'
+                  )}>
+                    {viewingEmployee?.employment_status || '-'}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Date Hired</p>
+                  <p className="font-medium">{viewingEmployee?.date_hired ? format(new Date(viewingEmployee.date_hired), 'MMMM dd, yyyy') : '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Length of Service</p>
+                  <p className="font-medium">{viewingEmployee?.date_hired ? getLengthOfService(viewingEmployee.date_hired) : '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Maternity</p>
+                  <p className="font-medium">{viewingEmployee?.maternity || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Remarks */}
+            {viewingEmployee?.remarks && (
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3">Remarks</h4>
+                <p className="font-medium bg-muted p-3 rounded-md">{viewingEmployee.remarks}</p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
