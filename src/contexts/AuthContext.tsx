@@ -31,9 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchingRole = useRef(false);
   const lastUserId = useRef<string | null>(null);
 
-  const fetchUserRole = async (userId: string) => {
-    // Prevent duplicate fetches for the same user
-    if (fetchingRole.current || lastUserId.current === userId) return;
+  const fetchUserRole = async (userId: string, forceRefresh: boolean = false) => {
+    // Prevent duplicate fetches for the same user (unless forced)
+    if (fetchingRole.current || (!forceRefresh && lastUserId.current === userId)) return;
     
     fetchingRole.current = true;
     lastUserId.current = userId;
@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        fetchUserRole(session.user.id, true); // Force refresh on initial load
       }
       setLoading(false);
     });
@@ -80,8 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user && event !== 'TOKEN_REFRESHED') {
-          // Only fetch role on actual auth changes, not token refreshes
-          fetchUserRole(session.user.id);
+          // Force refresh role on actual auth changes (login/signup)
+          fetchUserRole(session.user.id, true);
         } else if (!session) {
           setUserRole(null);
           lastUserId.current = null;
