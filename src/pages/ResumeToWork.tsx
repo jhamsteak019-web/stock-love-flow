@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -109,6 +111,65 @@ const ResumeToWork = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const getStatusLabel = (status: string) => {
+    const statusLower = status?.toLowerCase() || '';
+    const labels: Record<string, string> = {
+      'present': 'Present',
+      'absent': 'Absent',
+      'late': 'Late',
+      'half day': 'Half Day',
+      'undertime': 'Undertime',
+      'suspension': 'Suspension',
+      'unauthorized absent': 'Unauthorized Absent',
+      'sil': 'SIL',
+      'vl': 'VL',
+    };
+    return labels[statusLower] || status;
+  };
+
+  const handleSavePDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(16);
+    doc.text('Resume to Work Report', 14, 15);
+    
+    // Date info
+    doc.setFontSize(10);
+    const dateInfo = showAllYear 
+      ? `Year: ${selectedYear}` 
+      : `${months[parseInt(selectedMonth) - 1]} ${selectedYear}`;
+    doc.text(dateInfo, 14, 22);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy')}`, 14, 27);
+
+    // Table data
+    const tableData = filteredRecords.map(record => [
+      record.employees?.full_name || 'Unknown',
+      record.employees?.branch || record.employees?.branches?.name || '-',
+      record.date_of_absent 
+        ? format(new Date(record.date_of_absent), 'MMM dd, yyyy')
+        : record.attendance_date 
+          ? format(new Date(record.attendance_date), 'MMM dd, yyyy')
+          : '-',
+      getStatusLabel(record.status),
+      record.reason || '-',
+      record.date_of_resume 
+        ? format(new Date(record.date_of_resume), 'MMM dd, yyyy')
+        : '-',
+      record.remarks || '-'
+    ]);
+
+    autoTable(doc, {
+      head: [['Employee Name', 'Branch', 'Date', 'Status', 'Reason', 'Date of Resume', 'Remarks']],
+      body: tableData,
+      startY: 32,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`resume-to-work-${selectedYear}-${selectedMonth}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -116,6 +177,10 @@ const ResumeToWork = () => {
           <h1 className="text-2xl font-bold tracking-tight">Resume to Work</h1>
           <p className="text-muted-foreground">Track employees returning to work after absences</p>
         </div>
+        <Button onClick={handleSavePDF} className="gap-2">
+          <FileDown className="h-4 w-4" />
+          Save PDF
+        </Button>
       </div>
 
       {/* Filters */}
