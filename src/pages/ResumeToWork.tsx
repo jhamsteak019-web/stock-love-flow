@@ -19,6 +19,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
+import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
+
+const defaultResumeColumns: GenericColumnConfig[] = [
+  { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
+  { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
+  { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'status', label: 'Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
+  { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
+  { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
+];
 
 
 const months = [
@@ -47,6 +61,10 @@ const statusOptions = [
 const ResumeToWork = () => {
   const queryClient = useQueryClient();
   const { userRole } = useAuth();
+  
+  // Column settings
+  const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('resume-to-work', defaultResumeColumns);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
@@ -358,6 +376,14 @@ const ResumeToWork = () => {
           <p className="text-muted-foreground">Track employees returning to work after absences</p>
         </div>
         <div className="flex gap-2">
+          {isColumnAdmin && (
+            <ColumnSettings 
+              columns={columns} 
+              onColumnChange={setColumns} 
+              defaultColumns={defaultResumeColumns}
+              excludeFromWidthControl={['photo', 'actions']}
+            />
+          )}
           <Button onClick={handleSavePDF} variant="outline" className="gap-2">
             <FileDown className="h-4 w-4" />
             Save PDF
@@ -643,15 +669,15 @@ const ResumeToWork = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60px]">Photo</TableHead>
-                  <TableHead>Employee Name</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Date of Resume</TableHead>
-                  <TableHead>Remarks</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[60px]">Photo</TableHead>}
+                  {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
+                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
+                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
+                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
+                  {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
+                  {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
+                  {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
+                  {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
