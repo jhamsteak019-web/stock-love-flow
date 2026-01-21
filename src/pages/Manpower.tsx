@@ -45,6 +45,7 @@ interface Employee {
   address: string | null;
   cell_no: string | null;
   branch_id: string | null;
+  branch: string | null;
   category: string | null;
   position: string | null;
   employment_status: string;
@@ -90,6 +91,7 @@ const Manpower = () => {
     address: '',
     cell_no: '',
     branch_id: '',
+    branch: '',
     category: '',
     position: '',
     employment_status: 'Regular',
@@ -172,6 +174,7 @@ const Manpower = () => {
         address: data.address || null,
         cell_no: data.cell_no || null,
         branch_id: data.branch_id || null,
+        branch: data.branch || null,
         category: data.category || null,
         position: data.position || null,
         employment_status: data.employment_status.toLowerCase(),
@@ -205,6 +208,7 @@ const Manpower = () => {
         address: data.address || null,
         cell_no: data.cell_no || null,
         branch_id: data.branch_id || null,
+        branch: data.branch || null,
         category: data.category || null,
         position: data.position || null,
         employment_status: data.employment_status.toLowerCase(),
@@ -251,6 +255,7 @@ const Manpower = () => {
       address: '',
       cell_no: '',
       branch_id: '',
+      branch: '',
       category: '',
       position: '',
       employment_status: 'Regular',
@@ -335,6 +340,7 @@ const Manpower = () => {
       address: employee.address || '',
       cell_no: employee.cell_no || '',
       branch_id: employee.branch_id || '',
+      branch: employee.branch || '',
       category: employee.category || '',
       position: employee.position || '',
       employment_status: employee.employment_status.charAt(0).toUpperCase() + employee.employment_status.slice(1),
@@ -631,7 +637,7 @@ const Manpower = () => {
                       </TableCell>
                       <TableCell className="font-mono text-sm">{emp.employee_id || '-'}</TableCell>
                       <TableCell className="font-medium">{emp.full_name}</TableCell>
-                      <TableCell>{emp.branches?.name || '-'}</TableCell>
+                      <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
                       <TableCell>{emp.category || '-'}</TableCell>
                       <TableCell>{emp.position || '-'}</TableCell>
                       <TableCell>
@@ -748,16 +754,11 @@ const Manpower = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Branch</Label>
-                <Select value={form.branch_id} onValueChange={(v) => updateFormField('branch_id', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map(branch => (
-                      <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={form.branch}
+                  onChange={(e) => updateFormField('branch', e.target.value)}
+                  placeholder="Enter branch (e.g., SM Jerry)"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
