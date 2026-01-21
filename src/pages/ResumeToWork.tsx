@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter, FileDown, Plus } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown, Plus, Upload, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -23,13 +27,56 @@ const months = [
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
+const statusOptions = [
+  'Absent',
+  'Late',
+  'Half Day',
+  'Undertime',
+  'Suspension',
+  'Unauthorized Absent',
+  'SIL',
+  'VL',
+  'Change Day off',
+  'Change of Schedule',
+  'Cancel Day off',
+  'Other Concern'
+];
+
 const ResumeToWork = () => {
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [showAllYear, setShowAllYear] = useState(false);
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formEmployeeId, setFormEmployeeId] = useState('');
+  const [formDate, setFormDate] = useState<Date | undefined>(undefined);
+  const [formStatus, setFormStatus] = useState('');
+  const [formReason, setFormReason] = useState('');
+  const [formDateOfResume, setFormDateOfResume] = useState<Date | undefined>(undefined);
+  const [formRemarks, setFormRemarks] = useState('');
+  const [formPhoto, setFormPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch employees for dropdown
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-for-resume'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, full_name, branch, photo_url, branches:branch_id (name)')
+        .eq('is_active', true)
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Fetch attendance records that have date_of_resume
   const { data: attendanceRecords = [], isLoading } = useQuery({
@@ -170,6 +217,64 @@ const ResumeToWork = () => {
     doc.save(`resume-to-work-${selectedYear}-${selectedMonth}.pdf`);
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFormPhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetForm = () => {
+    setFormEmployeeId('');
+    setFormDate(undefined);
+    setFormStatus('');
+    setFormReason('');
+    setFormDateOfResume(undefined);
+    setFormRemarks('');
+    setFormPhoto(null);
+    setPhotoPreview(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!formEmployeeId || !formDateOfResume || !formStatus) {
+      toast.error('Please fill in Employee, Status, and Date of Resume fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('attendance_records')
+        .insert({
+          employee_id: formEmployeeId,
+          attendance_date: formDate ? format(formDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+          date_of_absent: formDate ? format(formDate, 'yyyy-MM-dd') : null,
+          status: formStatus.toLowerCase(),
+          reason: formReason || null,
+          date_of_resume: format(formDateOfResume, 'yyyy-MM-dd'),
+          remarks: formRemarks || null,
+        });
+
+      if (error) throw error;
+
+      toast.success('Resume record added successfully');
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
+      resetForm();
+      setIsModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add record');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const selectedEmployee = employees.find(e => e.id === formEmployeeId);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -182,12 +287,187 @@ const ResumeToWork = () => {
             <FileDown className="h-4 w-4" />
             Save PDF
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4" />
             Add Record
           </Button>
         </div>
       </div>
+
+      {/* Add Record Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Resume Record</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {/* Photo */}
+            <div className="md:col-span-2">
+              <Label>Photo</Label>
+              <div className="mt-2 flex items-center gap-4">
+                {photoPreview ? (
+                  <div className="relative">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={photoPreview} />
+                      <AvatarFallback>P</AvatarFallback>
+                    </Avatar>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-5 w-5"
+                      onClick={() => { setFormPhoto(null); setPhotoPreview(null); }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : selectedEmployee?.photo_url ? (
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={selectedEmployee.photo_url} />
+                    <AvatarFallback>
+                      {selectedEmployee.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <Avatar className="h-16 w-16">
+                    <AvatarFallback>
+                      {selectedEmployee?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Photo
+                </Button>
+              </div>
+            </div>
+
+            {/* Employee Name */}
+            <div>
+              <Label>Employee Name *</Label>
+              <Select value={formEmployeeId} onValueChange={setFormEmployeeId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Branch (auto-filled) */}
+            <div>
+              <Label>Branch</Label>
+              <Input 
+                className="mt-1" 
+                value={selectedEmployee?.branch || (selectedEmployee?.branches as any)?.name || ''} 
+                disabled 
+                placeholder="Auto-filled from employee"
+              />
+            </div>
+
+            {/* Date */}
+            <div>
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full mt-1 justify-start">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formDate ? format(formDate, 'MMM dd, yyyy') : 'Pick date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formDate}
+                    onSelect={setFormDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Status */}
+            <div>
+              <Label>Status *</Label>
+              <Select value={formStatus} onValueChange={setFormStatus}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(status => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Reason */}
+            <div className="md:col-span-2">
+              <Label>Reason</Label>
+              <Input 
+                className="mt-1" 
+                value={formReason} 
+                onChange={(e) => setFormReason(e.target.value)}
+                placeholder="Enter reason"
+              />
+            </div>
+
+            {/* Date of Resume */}
+            <div>
+              <Label>Date of Resume *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full mt-1 justify-start">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formDateOfResume ? format(formDateOfResume, 'MMM dd, yyyy') : 'Pick date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formDateOfResume}
+                    onSelect={setFormDateOfResume}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Remarks */}
+            <div className="md:col-span-2">
+              <Label>Remarks</Label>
+              <Textarea 
+                className="mt-1" 
+                value={formRemarks} 
+                onChange={(e) => setFormRemarks(e.target.value)}
+                placeholder="Enter remarks"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { resetForm(); setIsModalOpen(false); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save Record'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <Card>
