@@ -32,32 +32,58 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranchState] = useState<Branch | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
 
   const fetchBranches = async () => {
     try {
-      const { data, error } = await supabase
+      // First fetch all active branches
+      const { data: branchesData, error: branchesError } = await supabase
         .from('branches')
         .select('*')
         .eq('is_active', true)
         .order('name');
 
-      if (error) throw error;
-      setBranches(data || []);
+      if (branchesError) throw branchesError;
+      setBranches(branchesData || []);
       
-      // Restore selected branch from localStorage or select first
-      const savedBranchId = localStorage.getItem('selectedBranchId');
-      if (savedBranchId && data) {
-        const savedBranch = data.find(b => b.id === savedBranchId);
-        if (savedBranch) {
-          setSelectedBranchState(savedBranch);
-        } else if (data.length > 0) {
-          setSelectedBranchState(data[0]);
-          localStorage.setItem('selectedBranchId', data[0].id);
+      // Fetch user's assigned branch from their profile
+      if (user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('branch_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profileError && profileData?.branch_id && branchesData) {
+          // User has an assigned branch - use it
+          const assignedBranch = branchesData.find(b => b.id === profileData.branch_id);
+          if (assignedBranch) {
+            setSelectedBranchState(assignedBranch);
+            localStorage.setItem('selectedBranchId', assignedBranch.id);
+            setLoading(false);
+            return;
+          }
         }
-      } else if (data && data.length > 0) {
-        setSelectedBranchState(data[0]);
-        localStorage.setItem('selectedBranchId', data[0].id);
+      }
+
+      // For admins without assigned branch, use localStorage or first available
+      if (userRole === 'admin') {
+        const savedBranchId = localStorage.getItem('selectedBranchId');
+        if (savedBranchId && branchesData) {
+          const savedBranch = branchesData.find(b => b.id === savedBranchId);
+          if (savedBranch) {
+            setSelectedBranchState(savedBranch);
+          } else if (branchesData.length > 0) {
+            setSelectedBranchState(branchesData[0]);
+            localStorage.setItem('selectedBranchId', branchesData[0].id);
+          }
+        } else if (branchesData && branchesData.length > 0) {
+          setSelectedBranchState(branchesData[0]);
+          localStorage.setItem('selectedBranchId', branchesData[0].id);
+        }
+      } else if (branchesData && branchesData.length > 0) {
+        // Non-admin without assigned branch - use first as fallback
+        setSelectedBranchState(branchesData[0]);
       }
     } catch (error) {
       console.error('Error fetching branches:', error);
@@ -70,7 +96,7 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (user) {
       fetchBranches();
     }
-  }, [user]);
+  }, [user, userRole]);
 
   const setSelectedBranch = (branch: Branch | null) => {
     setSelectedBranchState(branch);
