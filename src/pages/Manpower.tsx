@@ -35,6 +35,23 @@ import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
+import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
+
+const defaultManpowerColumns: GenericColumnConfig[] = [
+  { key: 'photo', label: 'Photo', visible: true, width: 50, minWidth: 40, maxWidth: 80 },
+  { key: 'employee_id', label: 'Emp ID', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
+  { key: 'name', label: 'Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
+  { key: 'category', label: 'Category', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
+  { key: 'position', label: 'Position', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
+  { key: 'date_hired', label: 'Date Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'status', label: 'Status', visible: true, width: 110, minWidth: 90, maxWidth: 150 },
+  { key: 'contact', label: 'Contact No.', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'service', label: 'Service', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
+  { key: 'address', label: 'Address', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'actions', label: 'Actions', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+];
 
 interface Employee {
   id: string;
@@ -70,6 +87,9 @@ const Manpower = () => {
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Column settings
+  const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('manpower', defaultManpowerColumns);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('all');
@@ -462,6 +482,14 @@ const Manpower = () => {
           <p className="text-muted-foreground">Manage employee information and records</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {isColumnAdmin && (
+            <ColumnSettings 
+              columns={columns} 
+              onColumnChange={setColumns} 
+              defaultColumns={defaultManpowerColumns}
+              excludeFromWidthControl={['photo', 'actions']}
+            />
+          )}
           {canEdit && (
             <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
@@ -598,85 +626,109 @@ const Manpower = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[50px]">Photo</TableHead>
-                  <TableHead>Emp ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Date Hired</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Contact No.</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead className="w-[120px]">Actions</TableHead>
+                  {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[50px]">Photo</TableHead>}
+                  {columns.find(c => c.key === 'employee_id')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'employee_id')?.width }}>Emp ID</TableHead>}
+                  {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Name</TableHead>}
+                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
+                  {columns.find(c => c.key === 'category')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'category')?.width }}>Category</TableHead>}
+                  {columns.find(c => c.key === 'position')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'position')?.width }}>Position</TableHead>}
+                  {columns.find(c => c.key === 'date_hired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_hired')?.width }}>Date Hired</TableHead>}
+                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
+                  {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
+                  {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Service</TableHead>}
+                  {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
+                  {columns.find(c => c.key === 'actions')?.visible && <TableHead className="w-[120px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8">
+                    <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8 text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredEmployees.map((emp) => (
                     <TableRow key={emp.id} className="hover:bg-muted/30">
-                      <TableCell>
-                        <Avatar 
-                          className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
-                          onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
-                        >
-                          <AvatarImage src={emp.photo_url || ''} />
-                          <AvatarFallback className="text-xs">
-                            {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{emp.employee_id || '-'}</TableCell>
-                      <TableCell className="font-medium">{emp.full_name}</TableCell>
-                      <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
-                      <TableCell>{emp.category || '-'}</TableCell>
-                      <TableCell>{emp.position || '-'}</TableCell>
-                      <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn(
-                          emp.employment_status === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
-                          emp.employment_status === 'probationary' && 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30',
-                          emp.employment_status === 'contractual' && 'bg-blue-500/10 text-blue-700 border-blue-500/30',
-                          emp.employment_status === 'resigned' && 'bg-red-500/10 text-red-700 border-red-500/30'
-                        )}>
-                          {emp.employment_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{emp.cell_no || '-'}</TableCell>
-                      <TableCell>{getLengthOfService(emp.date_hired)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingEmployee(emp)} title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEdit && (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              {isAdmin && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
-                                  <Trash2 className="h-4 w-4" />
+                      {columns.find(c => c.key === 'photo')?.visible && (
+                        <TableCell>
+                          <Avatar 
+                            className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
+                            onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
+                          >
+                            <AvatarImage src={emp.photo_url || ''} />
+                            <AvatarFallback className="text-xs">
+                              {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'employee_id')?.visible && (
+                        <TableCell className="font-mono text-sm">{emp.employee_id || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'name')?.visible && (
+                        <TableCell className="font-medium">{emp.full_name}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'branch')?.visible && (
+                        <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'category')?.visible && (
+                        <TableCell>{emp.category || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'position')?.visible && (
+                        <TableCell>{emp.position || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'date_hired')?.visible && (
+                        <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'status')?.visible && (
+                        <TableCell>
+                          <Badge variant="outline" className={cn(
+                            emp.employment_status.toLowerCase() === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
+                            emp.employment_status.toLowerCase() === 'probationary' && 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30',
+                            emp.employment_status.toLowerCase() === 'contractual' && 'bg-blue-500/10 text-blue-700 border-blue-500/30',
+                            emp.employment_status.toLowerCase() === 'resigned' && 'bg-red-500/10 text-red-700 border-red-500/30'
+                          )}>
+                            {emp.employment_status}
+                          </Badge>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'contact')?.visible && (
+                        <TableCell>{emp.cell_no || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'service')?.visible && (
+                        <TableCell>{getLengthOfService(emp.date_hired)}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'address')?.visible && (
+                        <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'actions')?.visible && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingEmployee(emp)} title="View Details">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {canEdit && (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+                                {isAdmin && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
