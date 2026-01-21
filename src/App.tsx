@@ -24,6 +24,7 @@ import RepeatOrder from "./pages/RepeatOrder";
 import Allocation from "./pages/Allocation";
 import TaskCalendar from "./pages/TaskCalendar";
 import Attendance from "./pages/Attendance";
+import ResumeToWork from "./pages/ResumeToWork";
 import Manpower from "./pages/Manpower";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/allocation" element={<Allocation />} />
                 <Route path="/task-calendar" element={<TaskCalendar />} />
                 <Route path="/attendance" element={<Attendance />} />
+                <Route path="/resume-to-work" element={<ResumeToWork />} />
                 <Route path="/manpower" element={<Manpower />} />
               </Route>
               <Route path="*" element={<NotFound />} />
