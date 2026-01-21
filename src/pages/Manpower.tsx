@@ -762,16 +762,11 @@ const Manpower = () => {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => updateFormField('category', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={form.category}
+                  onChange={(e) => updateFormField('category', e.target.value)}
+                  placeholder="Enter category (e.g., MHB, MLP)"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Position</Label>
