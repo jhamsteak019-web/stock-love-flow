@@ -945,25 +945,23 @@ const Attendance = () => {
                 <TableRow>
                   <TableHead>Photo</TableHead>
                   <TableHead>Employee Name</TableHead>
-                  <TableHead>Date Hired</TableHead>
-                  <TableHead>Employment Status</TableHead>
-                  <TableHead>Brand</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Day Off</TableHead>
-                  <TableHead>Shift</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Date of Resume</TableHead>
+                  <TableHead>Remarks</TableHead>
                   {canEdit && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8">Loading...</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No attendance records found
                     </TableCell>
                   </TableRow>
@@ -982,18 +980,12 @@ const Attendance = () => {
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">{record.employees?.full_name}</TableCell>
-                      <TableCell>{record.employees?.date_hired ? format(new Date(record.employees.date_hired), 'MM-dd-yyyy') : '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {record.employees?.employment_status || '-'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{record.employees?.category || '-'}</TableCell>
                       <TableCell>{record.employees?.branches?.name || '-'}</TableCell>
                       <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      <TableCell>{record.day_off || '-'}</TableCell>
-                      <TableCell>{record.shift || '-'}</TableCell>
+                      <TableCell className="max-w-[150px] truncate" title={record.reason || ''}>{record.reason || '-'}</TableCell>
+                      <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
+                      <TableCell className="max-w-[150px] truncate" title={record.remarks || ''}>{record.remarks || '-'}</TableCell>
                       {canEdit && (
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
