@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter, FileDown } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,10 +177,16 @@ const ResumeToWork = () => {
           <h1 className="text-2xl font-bold tracking-tight">Resume to Work</h1>
           <p className="text-muted-foreground">Track employees returning to work after absences</p>
         </div>
-        <Button onClick={handleSavePDF} className="gap-2">
-          <FileDown className="h-4 w-4" />
-          Save PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleSavePDF} variant="outline" className="gap-2">
+            <FileDown className="h-4 w-4" />
+            Save PDF
+          </Button>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Record
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
