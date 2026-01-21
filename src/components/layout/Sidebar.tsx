@@ -22,7 +22,8 @@ import {
   LayoutList,
   CalendarDays,
   ClipboardCheck,
-  Database
+  Database,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -134,6 +135,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/attendance', 
       icon: ClipboardCheck, 
       label: 'Attendance',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    },
+    { 
+      to: '/resume-to-work', 
+      icon: UserCheck, 
+      label: 'Resume to Work',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     { 
