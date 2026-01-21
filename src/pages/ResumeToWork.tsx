@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter, FileDown, Plus, Upload, X } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Users, ClipboardList, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -64,15 +65,31 @@ const ResumeToWork = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch employees for dropdown
+  // Fetch employees for dropdown and count
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-for-resume'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, full_name, branch, photo_url, branches:branch_id (name)')
+        .select('id, full_name, branch, photo_url, branches:branch_id (name), employment_status')
         .eq('is_active', true)
         .order('full_name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch all attendance records for stats
+  const { data: allAttendanceRecords = [] } = useQuery({
+    queryKey: ['all-attendance-stats', selectedYear],
+    queryFn: async () => {
+      const startDate = new Date(parseInt(selectedYear), 0, 1);
+      const endDate = new Date(parseInt(selectedYear), 11, 31);
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('status, attendance_date, date_of_resume')
+        .gte('attendance_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('attendance_date', format(endDate, 'yyyy-MM-dd'));
       if (error) throw error;
       return data || [];
     }
@@ -139,6 +156,49 @@ const ResumeToWork = () => {
       return matchesSearch && matchesBranch && matchesDate;
     });
   }, [attendanceRecords, searchQuery, selectedBranch, selectedDate]);
+
+  // Chart data for Attendance Status Distribution
+  const attendanceChartData = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    allAttendanceRecords.forEach(record => {
+      const status = record.status?.toLowerCase() || 'unknown';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value
+    })).slice(0, 6);
+  }, [allAttendanceRecords]);
+
+  // Chart data for Resume to Work by Month
+  const resumeByMonthData = useMemo(() => {
+    const monthCounts: Record<string, number> = {};
+    allAttendanceRecords
+      .filter(r => r.date_of_resume)
+      .forEach(record => {
+        const month = format(new Date(record.date_of_resume!), 'MMM');
+        monthCounts[month] = (monthCounts[month] || 0) + 1;
+      });
+    return months.map((month, idx) => ({
+      name: month.slice(0, 3),
+      resumptions: monthCounts[month.slice(0, 3)] || 0
+    }));
+  }, [allAttendanceRecords]);
+
+  // Chart data for Employee Status Distribution (Manpower)
+  const employeeStatusData = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    employees.forEach(emp => {
+      const status = emp.employment_status || 'Unknown';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({
+      name,
+      value
+    }));
+  }, [employees]);
+
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--secondary))', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
@@ -560,34 +620,93 @@ const ResumeToWork = () => {
         </CardContent>
       </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Attendance Status Chart */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-primary">{filteredRecords.length}</p>
-              <p className="text-sm text-muted-foreground">Total Resumptions</p>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Attendance Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={attendanceChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {attendanceChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Total: {allAttendanceRecords.length} records in {selectedYear}
+            </p>
           </CardContent>
         </Card>
+
+        {/* Resume to Work Trend Chart */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-destructive">
-                {filteredRecords.filter(r => r.status?.toLowerCase() === 'absent' || r.status?.toLowerCase() === 'unauthorized absent').length}
-              </p>
-              <p className="text-sm text-muted-foreground">From Absences</p>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <RotateCcw className="h-4 w-4" />
+              Resume to Work Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resumeByMonthData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip />
+                  <Bar dataKey="resumptions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Total Resumptions: {filteredRecords.length} (filtered)
+            </p>
           </CardContent>
         </Card>
+
+        {/* Manpower Status Chart */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-secondary-foreground">
-                {filteredRecords.filter(r => !['absent', 'unauthorized absent'].includes(r.status?.toLowerCase() || '')).length}
-              </p>
-              <p className="text-sm text-muted-foreground">From Other Status</p>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Manpower Database
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={employeeStatusData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="hsl(var(--secondary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Total Employees: {employees.length}
+            </p>
           </CardContent>
         </Card>
       </div>
