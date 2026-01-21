@@ -481,6 +481,26 @@ const Attendance = () => {
         return <Badge className="bg-red-500/20 text-red-700 border-red-500/30">Absent</Badge>;
       case 'late':
         return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30">Late</Badge>;
+      case 'half_day':
+        return <Badge className="bg-blue-500/20 text-blue-700 border-blue-500/30">Half day</Badge>;
+      case 'undertime':
+        return <Badge className="bg-orange-500/20 text-orange-700 border-orange-500/30">Undertime</Badge>;
+      case 'suspension':
+        return <Badge className="bg-purple-500/20 text-purple-700 border-purple-500/30">Suspension</Badge>;
+      case 'unauthorized_absent':
+        return <Badge className="bg-red-600/20 text-red-800 border-red-600/30">Unauthorized absent</Badge>;
+      case 'sil':
+        return <Badge className="bg-teal-500/20 text-teal-700 border-teal-500/30">SIL (Service incentive leave)</Badge>;
+      case 'vl':
+        return <Badge className="bg-cyan-500/20 text-cyan-700 border-cyan-500/30">VL (Vacation leave)</Badge>;
+      case 'change_day_off':
+        return <Badge className="bg-indigo-500/20 text-indigo-700 border-indigo-500/30">Change Day off</Badge>;
+      case 'change_of_schedule':
+        return <Badge className="bg-pink-500/20 text-pink-700 border-pink-500/30">Change of Schedule</Badge>;
+      case 'cancel_day_off':
+        return <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30">Cancel Day off</Badge>;
+      case 'other_concern':
+        return <Badge className="bg-gray-500/20 text-gray-700 border-gray-500/30">Other Concern</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -627,6 +647,16 @@ const Attendance = () => {
                 <SelectItem value="present">Present</SelectItem>
                 <SelectItem value="absent">Absent</SelectItem>
                 <SelectItem value="late">Late</SelectItem>
+                <SelectItem value="half_day">Half day</SelectItem>
+                <SelectItem value="undertime">Undertime</SelectItem>
+                <SelectItem value="suspension">Suspension</SelectItem>
+                <SelectItem value="unauthorized_absent">Unauthorized absent</SelectItem>
+                <SelectItem value="sil">SIL (Service incentive leave)</SelectItem>
+                <SelectItem value="vl">VL (Vacation leave)</SelectItem>
+                <SelectItem value="change_day_off">Change Day off</SelectItem>
+                <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
+                <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
+                <SelectItem value="other_concern">Other Concern</SelectItem>
               </SelectContent>
             </Select>
             {canEdit && (
@@ -786,6 +816,16 @@ const Attendance = () => {
                               <SelectItem value="present">Present</SelectItem>
                               <SelectItem value="absent">Absent</SelectItem>
                               <SelectItem value="late">Late</SelectItem>
+                              <SelectItem value="half_day">Half day</SelectItem>
+                              <SelectItem value="undertime">Undertime</SelectItem>
+                              <SelectItem value="suspension">Suspension</SelectItem>
+                              <SelectItem value="unauthorized_absent">Unauthorized absent</SelectItem>
+                              <SelectItem value="sil">SIL (Service incentive leave)</SelectItem>
+                              <SelectItem value="vl">VL (Vacation leave)</SelectItem>
+                              <SelectItem value="change_day_off">Change Day off</SelectItem>
+                              <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
+                              <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
+                              <SelectItem value="other_concern">Other Concern</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
