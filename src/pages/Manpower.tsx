@@ -60,7 +60,7 @@ interface Employee {
 
 const genderOptions = ['Male', 'Female'];
 const categoryOptions = ['Sales', 'Operations', 'Admin', 'Warehouse', 'Logistics', 'Others'];
-const positionOptions = ['Staff', 'Supervisor', 'Manager', 'Team Leader', 'Cashier', 'Clerk', 'Driver', 'Helper'];
+const positionOptions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader', 'OIC', 'AOIC', 'Key Person', 'Demo'];
 const statusOptions = ['Regular', 'Probationary', 'Seasonal', 'Newly Hired', 'Back Up', 'Support Event', 'Stock Man', 'Resigned'];
 const maternityOptions = ['N/A', 'On Leave', 'Returned'];
 
@@ -774,11 +774,16 @@ const Manpower = () => {
               </div>
               <div className="space-y-2">
                 <Label>Position</Label>
-                <Input
-                  value={form.position}
-                  onChange={(e) => updateFormField('position', e.target.value)}
-                  placeholder="Enter position (e.g., Manager, Sales Assistant)"
-                />
+                <Select value={form.position} onValueChange={(v) => updateFormField('position', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {positionOptions.map(pos => (
+                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
