@@ -43,6 +43,7 @@ interface Employee {
   id: string;
   full_name: string;
   branch_id: string | null;
+  branch: string | null;
   date_hired: string;
   employment_status: string;
   photo_url: string | null;
@@ -94,7 +95,7 @@ const Attendance = () => {
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [employeeForm, setEmployeeForm] = useState({
     full_name: '',
-    branch_id: '',
+    branch: '',
     date_hired: '',
     employment_status: 'regular',
     photo_url: ''
@@ -222,12 +223,23 @@ const Attendance = () => {
     return { total, present, absent, late };
   }, [filteredRecords]);
 
+  // Get unique branch names from employees (Manpower database)
+  const uniqueManpowerBranches = useMemo(() => {
+    const branchNames = employees
+      .map(emp => emp.branch || emp.branches?.name)
+      .filter((branch): branch is string => !!branch && branch.trim() !== '');
+    return [...new Set(branchNames)].sort();
+  }, [employees]);
+
   // Employee mutations
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: typeof employeeForm) => {
       const { error } = await supabase.from('employees').insert({
-        ...data,
-        branch_id: data.branch_id || null,
+        full_name: data.full_name,
+        branch: data.branch || null,
+        date_hired: data.date_hired,
+        employment_status: data.employment_status,
+        photo_url: data.photo_url || null,
         created_by: user?.id
       });
       if (error) throw error;
@@ -246,8 +258,11 @@ const Attendance = () => {
   const updateEmployeeMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof employeeForm }) => {
       const { error } = await supabase.from('employees').update({
-        ...data,
-        branch_id: data.branch_id || null
+        full_name: data.full_name,
+        branch: data.branch || null,
+        date_hired: data.date_hired,
+        employment_status: data.employment_status,
+        photo_url: data.photo_url || null
       }).eq('id', id);
       if (error) throw error;
     },
@@ -341,7 +356,7 @@ const Attendance = () => {
   const resetEmployeeForm = () => {
     setEmployeeForm({
       full_name: '',
-      branch_id: '',
+      branch: '',
       date_hired: '',
       employment_status: 'regular',
       photo_url: ''
@@ -421,7 +436,7 @@ const Attendance = () => {
     setEditingEmployee(employee);
     setEmployeeForm({
       full_name: employee.full_name,
-      branch_id: employee.branch_id || '',
+      branch: employee.branch || employee.branches?.name || '',
       date_hired: employee.date_hired,
       employment_status: employee.employment_status,
       photo_url: employee.photo_url || ''
@@ -751,13 +766,13 @@ const Attendance = () => {
                       </div>
                       <div>
                         <Label>Branch</Label>
-                        <Select value={employeeForm.branch_id} onValueChange={(v) => setEmployeeForm({ ...employeeForm, branch_id: v })}>
+                        <Select value={employeeForm.branch} onValueChange={(v) => setEmployeeForm({ ...employeeForm, branch: v })}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select branch" />
                           </SelectTrigger>
                           <SelectContent>
-                            {branches.map(branch => (
-                              <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                            {uniqueManpowerBranches.map(branchName => (
+                              <SelectItem key={branchName} value={branchName}>{branchName}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
