@@ -22,11 +22,13 @@ export type Database = {
           created_by: string | null
           date_of_absent: string | null
           date_of_resume: string | null
+          day_off: string | null
           employee_id: string
           id: string
           notes: string | null
           reason: string | null
           remarks: string | null
+          shift: string | null
           status: string
           updated_at: string
         }
@@ -37,11 +39,13 @@ export type Database = {
           created_by?: string | null
           date_of_absent?: string | null
           date_of_resume?: string | null
+          day_off?: string | null
           employee_id: string
           id?: string
           notes?: string | null
           reason?: string | null
           remarks?: string | null
+          shift?: string | null
           status?: string
           updated_at?: string
         }
@@ -52,11 +56,13 @@ export type Database = {
           created_by?: string | null
           date_of_absent?: string | null
           date_of_resume?: string | null
+          day_off?: string | null
           employee_id?: string
           id?: string
           notes?: string | null
           reason?: string | null
           remarks?: string | null
+          shift?: string | null
           status?: string
           updated_at?: string
         }

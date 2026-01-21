@@ -46,6 +46,7 @@ interface Employee {
   employment_status: string;
   photo_url: string | null;
   is_active: boolean;
+  category: string | null;
   branches?: { name: string } | null;
 }
 
@@ -60,6 +61,8 @@ interface AttendanceRecord {
   remarks: string | null;
   notes: string | null;
   branch_id: string | null;
+  day_off: string | null;
+  shift: string | null;
   employees?: Employee;
   branches?: { name: string } | null;
 }
@@ -110,7 +113,9 @@ const Attendance = () => {
     date_of_absent: '',
     date_of_resume: '',
     remarks: '',
-    notes: ''
+    notes: '',
+    day_off: '',
+    shift: ''
   });
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
@@ -278,6 +283,8 @@ const Attendance = () => {
         branch_id: employee?.branch_id || null,
         date_of_absent: data.date_of_absent || null,
         date_of_resume: data.date_of_resume || null,
+        day_off: data.day_off || null,
+        shift: data.shift || null,
         created_by: user?.id
       });
       if (error) throw error;
@@ -298,7 +305,9 @@ const Attendance = () => {
       const { error } = await supabase.from('attendance_records').update({
         ...data,
         date_of_absent: data.date_of_absent || null,
-        date_of_resume: data.date_of_resume || null
+        date_of_resume: data.date_of_resume || null,
+        day_off: data.day_off || null,
+        shift: data.shift || null
       }).eq('id', id);
       if (error) throw error;
     },
@@ -399,7 +408,9 @@ const Attendance = () => {
       date_of_absent: '',
       date_of_resume: '',
       remarks: '',
-      notes: ''
+      notes: '',
+      day_off: '',
+      shift: ''
     });
     setEditingRecord(null);
   };
@@ -428,7 +439,9 @@ const Attendance = () => {
       date_of_absent: record.date_of_absent || '',
       date_of_resume: record.date_of_resume || '',
       remarks: record.remarks || '',
-      notes: record.notes || ''
+      notes: record.notes || '',
+      day_off: record.day_off || '',
+      shift: record.shift || ''
     });
     setIsAttendanceModalOpen(true);
   };
@@ -438,10 +451,15 @@ const Attendance = () => {
     const worksheet = workbook.addWorksheet('Attendance Records');
 
     worksheet.columns = [
-      { header: 'Employee', key: 'employee', width: 25 },
+      { header: 'Employee Name', key: 'employee', width: 25 },
+      { header: 'Date Hired', key: 'date_hired', width: 15 },
+      { header: 'Employment Status', key: 'employment_status', width: 18 },
+      { header: 'Brand', key: 'brand', width: 15 },
       { header: 'Branch', key: 'branch', width: 20 },
       { header: 'Date', key: 'date', width: 15 },
-      { header: 'Status', key: 'status', width: 12 },
+      { header: 'Status', key: 'status', width: 20 },
+      { header: 'Day Off', key: 'day_off', width: 15 },
+      { header: 'Shift', key: 'shift', width: 15 },
       { header: 'Reason', key: 'reason', width: 30 },
       { header: 'Date of Absent', key: 'date_of_absent', width: 15 },
       { header: 'Date of Resume', key: 'date_of_resume', width: 15 },
@@ -452,9 +470,14 @@ const Attendance = () => {
     filteredRecords.forEach(record => {
       worksheet.addRow({
         employee: record.employees?.full_name || '',
+        date_hired: record.employees?.date_hired || '',
+        employment_status: record.employees?.employment_status || '',
+        brand: record.employees?.category || '',
         branch: record.employees?.branches?.name || '',
         date: record.attendance_date,
         status: record.status,
+        day_off: record.day_off || '',
+        shift: record.shift || '',
         reason: record.reason || '',
         date_of_absent: record.date_of_absent || '',
         date_of_resume: record.date_of_resume || '',
@@ -830,6 +853,27 @@ const Attendance = () => {
                           </Select>
                         </div>
                         <div>
+                          <Label>Day Off</Label>
+                          <Input
+                            value={attendanceForm.day_off}
+                            onChange={(e) => setAttendanceForm({ ...attendanceForm, day_off: e.target.value })}
+                            placeholder="Enter day off (e.g., Sunday)"
+                          />
+                        </div>
+                        <div>
+                          <Label>Shift</Label>
+                          <Select value={attendanceForm.shift} onValueChange={(v) => setAttendanceForm({ ...attendanceForm, shift: v })}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select shift" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Opening">Opening</SelectItem>
+                              <SelectItem value="Midshift">Midshift</SelectItem>
+                              <SelectItem value="Closing">Closing</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
                           <Label>Reason</Label>
                           <Textarea
                             value={attendanceForm.reason}
@@ -900,25 +944,26 @@ const Attendance = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Photo</TableHead>
-                  <TableHead>Employee</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Date Hired</TableHead>
+                  <TableHead>Employment Status</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Reasons</TableHead>
-                  <TableHead>Date of Resume</TableHead>
-                  <TableHead>Remarks</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead>Day Off</TableHead>
+                  <TableHead>Shift</TableHead>
                   {canEdit && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">Loading...</TableCell>
+                    <TableCell colSpan={11} className="text-center py-8">Loading...</TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No attendance records found
                     </TableCell>
                   </TableRow>
@@ -937,13 +982,18 @@ const Attendance = () => {
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">{record.employees?.full_name}</TableCell>
+                      <TableCell>{record.employees?.date_hired ? format(new Date(record.employees.date_hired), 'MM-dd-yyyy') : '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {record.employees?.employment_status || '-'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{record.employees?.category || '-'}</TableCell>
                       <TableCell>{record.employees?.branches?.name || '-'}</TableCell>
                       <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{record.reason || '-'}</TableCell>
-                      <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{record.remarks || '-'}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{record.notes || '-'}</TableCell>
+                      <TableCell>{record.day_off || '-'}</TableCell>
+                      <TableCell>{record.shift || '-'}</TableCell>
                       {canEdit && (
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
