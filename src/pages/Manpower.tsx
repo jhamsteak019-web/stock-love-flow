@@ -602,22 +602,24 @@ const Manpower = () => {
                   <TableHead>Branch</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Date Hired</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Contact No.</TableHead>
                   <TableHead>Service</TableHead>
+                  <TableHead>Address</TableHead>
                   {canEdit && <TableHead className="w-[100px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={12} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                       No employees found
                     </TableCell>
                   </TableRow>
@@ -640,6 +642,7 @@ const Manpower = () => {
                       <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
                       <TableCell>{emp.category || '-'}</TableCell>
                       <TableCell>{emp.position || '-'}</TableCell>
+                      <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn(
                           emp.employment_status === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
@@ -650,8 +653,9 @@ const Manpower = () => {
                           {emp.employment_status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell>{emp.cell_no || '-'}</TableCell>
                       <TableCell>{getLengthOfService(emp.date_hired)}</TableCell>
+                      <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
                       {canEdit && (
                         <TableCell>
                           <div className="flex items-center gap-1">
