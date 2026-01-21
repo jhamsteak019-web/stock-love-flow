@@ -251,7 +251,8 @@ const ResumeToWork = () => {
                   <TableHead className="w-[60px]">Photo</TableHead>
                   <TableHead>Employee Name</TableHead>
                   <TableHead>Branch</TableHead>
-                  <TableHead>Date / Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Date of Resume</TableHead>
                   <TableHead>Remarks</TableHead>
@@ -260,13 +261,13 @@ const ResumeToWork = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No resume records found
                     </TableCell>
                   </TableRow>
@@ -288,16 +289,16 @@ const ResumeToWork = () => {
                         {record.employees?.branch || record.employees?.branches?.name || '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          <div className="text-sm">
-                            {record.date_of_absent 
-                              ? format(new Date(record.date_of_absent), 'MMM dd, yyyy')
-                              : record.attendance_date 
-                                ? format(new Date(record.attendance_date), 'MMM dd, yyyy')
-                                : '-'}
-                          </div>
-                          {getStatusBadge(record.status)}
-                        </div>
+                        <span className="text-sm">
+                          {record.date_of_absent 
+                            ? format(new Date(record.date_of_absent), 'MMM dd, yyyy')
+                            : record.attendance_date 
+                              ? format(new Date(record.attendance_date), 'MMM dd, yyyy')
+                              : '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(record.status)}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">{record.reason || '-'}</span>
