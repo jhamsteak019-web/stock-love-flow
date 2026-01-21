@@ -770,16 +770,11 @@ const Manpower = () => {
               </div>
               <div className="space-y-2">
                 <Label>Position</Label>
-                <Select value={form.position} onValueChange={(v) => updateFormField('position', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {positionOptions.map(pos => (
-                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={form.position}
+                  onChange={(e) => updateFormField('position', e.target.value)}
+                  placeholder="Enter position (e.g., Manager, Sales Assistant)"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
