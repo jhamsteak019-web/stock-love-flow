@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter, FileDown, Plus, Upload, X } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Eye, Pencil, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,7 @@ const statusOptions = [
 
 const ResumeToWork = () => {
   const queryClient = useQueryClient();
+  const { userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
@@ -64,6 +66,13 @@ const ResumeToWork = () => {
   const [formPhoto, setFormPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // View/Edit modal state
+  const [viewingRecord, setViewingRecord] = useState<any | null>(null);
+  const [editingRecord, setEditingRecord] = useState<any | null>(null);
+
+  const isAdmin = userRole === 'admin';
+  const canEdit = userRole === 'admin' || userRole === 'staff';
 
   // Fetch employees for dropdown and count
   const { data: employees = [] } = useQuery({
@@ -274,6 +283,69 @@ const ResumeToWork = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance_records').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
+      toast.success('Record deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete record');
+    }
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { error } = await supabase.from('attendance_records').update(data).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
+      toast.success('Record updated successfully');
+      setEditingRecord(null);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update record');
+    }
+  });
+
+  const handleEdit = (record: any) => {
+    setEditingRecord(record);
+    setFormEmployeeId(record.employee_id);
+    setFormDate(record.date_of_absent ? new Date(record.date_of_absent) : record.attendance_date ? new Date(record.attendance_date) : undefined);
+    setFormStatus(record.status || '');
+    setFormReason(record.reason || '');
+    setFormDateOfResume(record.date_of_resume ? new Date(record.date_of_resume) : undefined);
+    setFormRemarks(record.remarks || '');
+    setPhotoPreview(record.employees?.photo_url || null);
+  };
+
+  const handleUpdateSubmit = async () => {
+    if (!editingRecord || !formEmployeeId || !formDateOfResume || !formStatus) {
+      toast.error('Please fill in Employee, Status, and Date of Resume fields');
+      return;
+    }
+
+    updateMutation.mutate({
+      id: editingRecord.id,
+      data: {
+        employee_id: formEmployeeId,
+        attendance_date: formDate ? format(formDate, 'yyyy-MM-dd') : editingRecord.attendance_date,
+        date_of_absent: formDate ? format(formDate, 'yyyy-MM-dd') : null,
+        status: formStatus.toLowerCase(),
+        reason: formReason || null,
+        date_of_resume: format(formDateOfResume, 'yyyy-MM-dd'),
+        remarks: formRemarks || null,
+      }
+    });
   };
 
   const selectedEmployee = employees.find(e => e.id === formEmployeeId);
@@ -579,18 +651,19 @@ const ResumeToWork = () => {
                   <TableHead>Reason</TableHead>
                   <TableHead>Date of Resume</TableHead>
                   <TableHead>Remarks</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No resume records found
                     </TableCell>
                   </TableRow>
@@ -636,6 +709,23 @@ const ResumeToWork = () => {
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{record.remarks || '-'}</span>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {canEdit && (
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} title="Edit">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(record.id)} title="Delete">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -644,6 +734,201 @@ const ResumeToWork = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* View Record Dialog */}
+      <Dialog open={!!viewingRecord} onOpenChange={(open) => !open && setViewingRecord(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={viewingRecord?.employees?.photo_url || ''} />
+                <AvatarFallback>{viewingRecord?.employees?.full_name?.charAt(0) || '?'}</AvatarFallback>
+              </Avatar>
+              <span>{viewingRecord?.employees?.full_name || 'Resume Record'}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Branch</p>
+                <p className="font-medium">{viewingRecord?.employees?.branch || viewingRecord?.employees?.branches?.name || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Date</p>
+                <p className="font-medium">
+                  {viewingRecord?.date_of_absent 
+                    ? format(new Date(viewingRecord.date_of_absent), 'MMMM dd, yyyy')
+                    : viewingRecord?.attendance_date 
+                      ? format(new Date(viewingRecord.attendance_date), 'MMMM dd, yyyy')
+                      : '-'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Status</p>
+                <div>{viewingRecord?.status ? getStatusBadge(viewingRecord.status) : '-'}</div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Date of Resume</p>
+                <p className="font-medium text-primary">
+                  {viewingRecord?.date_of_resume 
+                    ? format(new Date(viewingRecord.date_of_resume), 'MMMM dd, yyyy')
+                    : '-'}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Reason</p>
+              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.reason || '-'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Remarks</p>
+              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.remarks || '-'}</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Record Dialog */}
+      <Dialog open={!!editingRecord} onOpenChange={(open) => { if (!open) { setEditingRecord(null); resetForm(); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Resume Record</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {/* Photo */}
+            <div className="md:col-span-2">
+              <Label>Photo</Label>
+              <div className="mt-2 flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={photoPreview || ''} />
+                  <AvatarFallback>
+                    {selectedEmployee?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </div>
+
+            {/* Employee Name */}
+            <div>
+              <Label>Employee Name *</Label>
+              <Select value={formEmployeeId} onValueChange={setFormEmployeeId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Branch */}
+            <div>
+              <Label>Branch</Label>
+              <Input 
+                className="mt-1" 
+                value={selectedEmployee?.branch || (selectedEmployee?.branches as any)?.name || ''} 
+                disabled 
+                placeholder="Auto-filled from employee"
+              />
+            </div>
+
+            {/* Date */}
+            <div>
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full mt-1 justify-start">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formDate ? format(formDate, 'MMM dd, yyyy') : 'Pick date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formDate}
+                    onSelect={setFormDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Status */}
+            <div>
+              <Label>Status *</Label>
+              <Select value={formStatus} onValueChange={setFormStatus}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(status => (
+                    <SelectItem key={status} value={status.toLowerCase()}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Reason */}
+            <div className="md:col-span-2">
+              <Label>Reason</Label>
+              <Textarea
+                className="mt-1"
+                value={formReason}
+                onChange={(e) => setFormReason(e.target.value)}
+                placeholder="Enter reason"
+              />
+            </div>
+
+            {/* Date of Resume */}
+            <div>
+              <Label>Date of Resume *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full mt-1 justify-start">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formDateOfResume ? format(formDateOfResume, 'MMM dd, yyyy') : 'Pick date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formDateOfResume}
+                    onSelect={setFormDateOfResume}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Remarks */}
+            <div className="md:col-span-2">
+              <Label>Remarks</Label>
+              <Textarea
+                className="mt-1"
+                value={formRemarks}
+                onChange={(e) => setFormRemarks(e.target.value)}
+                placeholder="Enter remarks"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { setEditingRecord(null); resetForm(); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateSubmit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
