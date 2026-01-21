@@ -33,7 +33,8 @@ import {
   Upload,
   X,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -118,6 +119,7 @@ const Attendance = () => {
     shift: ''
   });
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+  const [viewingRecord, setViewingRecord] = useState<AttendanceRecord | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
 
@@ -951,7 +953,7 @@ const Attendance = () => {
                   <TableHead>Reason</TableHead>
                   <TableHead>Date of Resume</TableHead>
                   <TableHead>Remarks</TableHead>
-                  {canEdit && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -986,20 +988,25 @@ const Attendance = () => {
                       <TableCell className="max-w-[150px] truncate" title={record.reason || ''}>{record.reason || '-'}</TableCell>
                       <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
                       <TableCell className="max-w-[150px] truncate" title={record.remarks || ''}>{record.remarks || '-'}</TableCell>
-                      {canEdit && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {isAdmin && (
-                              <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View Details">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {canEdit && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)} title="Edit">
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
+                              {isAdmin && (
+                                <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)} title="Delete">
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -1098,6 +1105,65 @@ const Attendance = () => {
             <ScrollBar orientation="horizontal" />
             <ScrollBar orientation="vertical" />
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Attendance Record Dialog */}
+      <Dialog open={!!viewingRecord} onOpenChange={(open) => !open && setViewingRecord(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={viewingRecord?.employees?.photo_url || ''} />
+                <AvatarFallback>{viewingRecord?.employees?.full_name?.charAt(0) || '?'}</AvatarFallback>
+              </Avatar>
+              <span>{viewingRecord?.employees?.full_name || 'Attendance Record'}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Branch</p>
+                <p className="font-medium">{viewingRecord?.employees?.branches?.name || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Date</p>
+                <p className="font-medium">{viewingRecord?.attendance_date ? format(new Date(viewingRecord.attendance_date), 'MMMM dd, yyyy') : '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Status</p>
+                <div>{viewingRecord?.status ? getStatusBadge(viewingRecord.status) : '-'}</div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Day Off</p>
+                <p className="font-medium">{viewingRecord?.day_off || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Shift</p>
+                <p className="font-medium">{viewingRecord?.shift || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Date of Absent</p>
+                <p className="font-medium">{viewingRecord?.date_of_absent ? format(new Date(viewingRecord.date_of_absent), 'MMMM dd, yyyy') : '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Date of Resume</p>
+                <p className="font-medium">{viewingRecord?.date_of_resume ? format(new Date(viewingRecord.date_of_resume), 'MMMM dd, yyyy') : '-'}</p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Reason</p>
+              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.reason || '-'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Remarks</p>
+              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.remarks || '-'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Notes</p>
+              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.notes || '-'}</p>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
