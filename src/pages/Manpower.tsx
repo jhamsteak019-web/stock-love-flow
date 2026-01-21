@@ -61,7 +61,7 @@ interface Employee {
 const genderOptions = ['Male', 'Female'];
 const categoryOptions = ['Sales', 'Operations', 'Admin', 'Warehouse', 'Logistics', 'Others'];
 const positionOptions = ['Staff', 'Supervisor', 'Manager', 'Team Leader', 'Cashier', 'Clerk', 'Driver', 'Helper'];
-const statusOptions = ['Regular', 'Probationary', 'Contractual', 'Part-time', 'Resigned', 'Terminated'];
+const statusOptions = ['Regular', 'Probationary', 'Seasonal', 'Newly Hired', 'Back Up', 'Support Event', 'Stock Man', 'Resigned'];
 const maternityOptions = ['N/A', 'On Leave', 'Returned'];
 
 const Manpower = () => {
