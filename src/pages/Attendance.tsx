@@ -1063,43 +1063,61 @@ const Attendance = () => {
                 ) : (
                   filteredRecords.map((record) => (
                     <TableRow key={record.id}>
-                      <TableCell>
-                        <Avatar 
-                          className={cn("h-10 w-10", record.employees?.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
-                          onClick={() => record.employees?.photo_url && setViewingPhoto({ url: record.employees.photo_url, name: record.employees.full_name || 'Employee' })}
-                        >
-                          <AvatarImage src={record.employees?.photo_url || ''} />
-                          <AvatarFallback>
-                            {record.employees?.full_name?.charAt(0) || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">{record.employees?.full_name}</TableCell>
-                      <TableCell>{record.employees?.branches?.name || '-'}</TableCell>
-                      <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate" title={record.reason || ''}>{record.reason || '-'}</TableCell>
-                      <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
-                      <TableCell className="max-w-[150px] truncate" title={record.remarks || ''}>{record.remarks || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEdit && (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)} title="Edit">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              {isAdmin && (
-                                <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)} title="Delete">
-                                  <Trash2 className="h-4 w-4 text-destructive" />
+                      {columns.find(c => c.key === 'photo')?.visible && (
+                        <TableCell>
+                          <Avatar 
+                            className={cn("h-10 w-10", record.employees?.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
+                            onClick={() => record.employees?.photo_url && setViewingPhoto({ url: record.employees.photo_url, name: record.employees.full_name || 'Employee' })}
+                          >
+                            <AvatarImage src={record.employees?.photo_url || ''} />
+                            <AvatarFallback>
+                              {record.employees?.full_name?.charAt(0) || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'name')?.visible && (
+                        <TableCell className="font-medium">{record.employees?.full_name}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'branch')?.visible && (
+                        <TableCell>{record.employees?.branches?.name || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'date')?.visible && (
+                        <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'status')?.visible && (
+                        <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'reason')?.visible && (
+                        <TableCell className="max-w-[150px] truncate" title={record.reason || ''}>{record.reason || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'date_of_resume')?.visible && (
+                        <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'remarks')?.visible && (
+                        <TableCell className="max-w-[150px] truncate" title={record.remarks || ''}>{record.remarks || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'actions')?.visible && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View Details">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {canEdit && (
+                              <>
+                                <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)} title="Edit">
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+                                {isAdmin && (
+                                  <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)} title="Delete">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
