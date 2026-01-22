@@ -47,12 +47,13 @@ import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
 const defaultAttendanceColumns: GenericColumnConfig[] = [
   { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
   { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
-  { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'date_hired', label: 'Date Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'status', label: 'Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
-  { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
-  { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'brand', label: 'Brand', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
+  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
+  { key: 'date', label: 'Date Today', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'day_off', label: 'Day Off', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
+  { key: 'shift', label: 'Shift', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
   { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
 ];
 
@@ -120,9 +121,13 @@ const Attendance = () => {
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [employeeForm, setEmployeeForm] = useState({
     full_name: '',
-    branch: '',
     date_hired: '',
     employment_status: 'regular',
+    brand: '',
+    branch: '',
+    date_today: format(new Date(), 'yyyy-MM-dd'),
+    day_off: '',
+    shift: '',
     photo_url: ''
   });
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -424,9 +429,13 @@ const Attendance = () => {
   const resetEmployeeForm = () => {
     setEmployeeForm({
       full_name: '',
-      branch: '',
       date_hired: '',
       employment_status: 'regular',
+      brand: '',
+      branch: '',
+      date_today: format(new Date(), 'yyyy-MM-dd'),
+      day_off: '',
+      shift: '',
       photo_url: ''
     });
     setEditingEmployee(null);
@@ -504,9 +513,13 @@ const Attendance = () => {
     setEditingEmployee(employee);
     setEmployeeForm({
       full_name: employee.full_name,
-      branch: employee.branch || employee.branches?.name || '',
       date_hired: employee.date_hired,
       employment_status: employee.employment_status,
+      brand: employee.category || '',
+      branch: employee.branch || employee.branches?.name || '',
+      date_today: format(new Date(), 'yyyy-MM-dd'),
+      day_off: '',
+      shift: '',
       photo_url: employee.photo_url || ''
     });
     setPhotoPreview(employee.photo_url || null);
@@ -833,11 +846,45 @@ const Attendance = () => {
                         </div>
                       </div>
                       <div>
-                        <Label>Full Name</Label>
+                        <Label>Employee Name</Label>
                         <Input
                           value={employeeForm.full_name}
                           onChange={(e) => setEmployeeForm({ ...employeeForm, full_name: e.target.value })}
-                          placeholder="Enter full name"
+                          placeholder="Enter employee name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Date Hired</Label>
+                        <Input
+                          type="date"
+                          value={employeeForm.date_hired}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, date_hired: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Status</Label>
+                        <Select value={employeeForm.employment_status} onValueChange={(v) => setEmployeeForm({ ...employeeForm, employment_status: v })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="regular">Regular</SelectItem>
+                            <SelectItem value="probationary">Probationary</SelectItem>
+                            <SelectItem value="seasonal">Seasonal</SelectItem>
+                            <SelectItem value="newly_hired">Newly Hired</SelectItem>
+                            <SelectItem value="back_up">Back Up</SelectItem>
+                            <SelectItem value="support_event">Support Event</SelectItem>
+                            <SelectItem value="stock_man">Stock Man</SelectItem>
+                            <SelectItem value="resigned">Resigned</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Brand</Label>
+                        <Input
+                          value={employeeForm.brand}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, brand: e.target.value })}
+                          placeholder="Enter brand"
                         />
                       </div>
                       <div>
@@ -854,24 +901,28 @@ const Attendance = () => {
                         </Select>
                       </div>
                       <div>
-                        <Label>Date Hired</Label>
+                        <Label>Date Today</Label>
                         <Input
                           type="date"
-                          value={employeeForm.date_hired}
-                          onChange={(e) => setEmployeeForm({ ...employeeForm, date_hired: e.target.value })}
+                          value={employeeForm.date_today}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, date_today: e.target.value })}
                         />
                       </div>
                       <div>
-                        <Label>Employment Status</Label>
-                        <Select value={employeeForm.employment_status} onValueChange={(v) => setEmployeeForm({ ...employeeForm, employment_status: v })}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="regular">Regular</SelectItem>
-                            <SelectItem value="seasonal">Seasonal</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label>Day Off</Label>
+                        <Input
+                          value={employeeForm.day_off}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, day_off: e.target.value })}
+                          placeholder="Enter day off (e.g., Sunday)"
+                        />
+                      </div>
+                      <div>
+                        <Label>Shift</Label>
+                        <Input
+                          value={employeeForm.shift}
+                          onChange={(e) => setEmployeeForm({ ...employeeForm, shift: e.target.value })}
+                          placeholder="Enter shift (e.g., 9AM-6PM)"
+                        />
                       </div>
                       <Button
                         className="w-full"
@@ -1038,23 +1089,24 @@ const Attendance = () => {
                 <TableRow>
                   {columns.find(c => c.key === 'photo')?.visible && <TableHead>Photo</TableHead>}
                   {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
-                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
-                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
+                  {columns.find(c => c.key === 'date_hired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_hired')?.width }}>Date Hired</TableHead>}
                   {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
-                  {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
-                  {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
+                  {columns.find(c => c.key === 'brand')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'brand')?.width }}>Brand</TableHead>}
+                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
+                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date Today</TableHead>}
+                  {columns.find(c => c.key === 'day_off')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'day_off')?.width }}>Day Off</TableHead>}
+                  {columns.find(c => c.key === 'shift')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'shift')?.width }}>Shift</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
+                    <TableCell colSpan={10} className="text-center py-8">Loading...</TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       No attendance records found
                     </TableCell>
                   </TableRow>
@@ -1077,23 +1129,26 @@ const Attendance = () => {
                       {columns.find(c => c.key === 'name')?.visible && (
                         <TableCell className="font-medium">{record.employees?.full_name}</TableCell>
                       )}
-                      {columns.find(c => c.key === 'branch')?.visible && (
-                        <TableCell>{record.employees?.branches?.name || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'date')?.visible && (
-                        <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
+                      {columns.find(c => c.key === 'date_hired')?.visible && (
+                        <TableCell>{record.employees?.date_hired ? format(new Date(record.employees.date_hired), 'MM-dd-yyyy') : '-'}</TableCell>
                       )}
                       {columns.find(c => c.key === 'status')?.visible && (
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
                       )}
-                      {columns.find(c => c.key === 'reason')?.visible && (
-                        <TableCell className="max-w-[150px] truncate" title={record.reason || ''}>{record.reason || '-'}</TableCell>
+                      {columns.find(c => c.key === 'brand')?.visible && (
+                        <TableCell>{record.employees?.category || '-'}</TableCell>
                       )}
-                      {columns.find(c => c.key === 'date_of_resume')?.visible && (
-                        <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MM-dd-yyyy') : '-'}</TableCell>
+                      {columns.find(c => c.key === 'branch')?.visible && (
+                        <TableCell>{record.employees?.branch || record.employees?.branches?.name || '-'}</TableCell>
                       )}
-                      {columns.find(c => c.key === 'remarks')?.visible && (
-                        <TableCell className="max-w-[150px] truncate" title={record.remarks || ''}>{record.remarks || '-'}</TableCell>
+                      {columns.find(c => c.key === 'date')?.visible && (
+                        <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'day_off')?.visible && (
+                        <TableCell>{record.day_off || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'shift')?.visible && (
+                        <TableCell>{record.shift || '-'}</TableCell>
                       )}
                       {columns.find(c => c.key === 'actions')?.visible && (
                         <TableCell className="text-right">
