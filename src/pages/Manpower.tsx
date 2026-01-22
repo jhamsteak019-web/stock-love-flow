@@ -142,19 +142,14 @@ const Manpower = () => {
 
   // Fetch employees
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ['manpower-employees', selectedBranch?.id],
+    queryKey: ['manpower-employees'],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('employees')
         .select('*, branches(name)')
         .eq('is_active', true)
         .order('full_name');
 
-      if (selectedBranch?.id) {
-        query = query.eq('branch_id', selectedBranch.id);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data as Employee[];
     }
