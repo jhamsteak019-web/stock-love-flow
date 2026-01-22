@@ -428,7 +428,8 @@ const ReleaseStock = () => {
           undefined, // waybillNo removed
           firstItem.setDate || undefined, // Use first item's set date for all
           item.qtyItem || item.qtyBoxes,
-          selectedBranch?.id || undefined
+          selectedBranch?.id || undefined,
+          item.amount || undefined
         );
       }
 
