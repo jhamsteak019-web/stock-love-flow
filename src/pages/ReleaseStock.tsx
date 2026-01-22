@@ -25,9 +25,9 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 110, minWidth: 60, maxWidth: 150 },
   { key: 'totalBoxes' as ColumnKey, label: 'Boxes', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
+  { key: 'amount' as ColumnKey, label: 'Amount', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
   { key: 'totalQty' as ColumnKey, label: 'Qty/Item', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
-  { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'dateOut' as ColumnKey, label: 'Date Out Warehouse', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
 
@@ -38,10 +38,10 @@ interface ParsedReleaseItem {
   sheetNo: string;
   deliverTo: string;
   qtyBoxes: number;
+  amount: number;
   qtyItem: number;
   remarks: string;
   category: string;
-  waybillNo: string;
   billDate: string;
   setDate: string;
   courier: string;
@@ -78,7 +78,7 @@ const ReleaseStock = () => {
   const [boxes, setBoxes] = useState<number>(0);
   const [qtyItems, setQtyItems] = useState<number>(0);
   const [remarks, setRemarks] = useState('');
-  const [waybillNo, setWaybillNo] = useState('');
+  const [amount, setAmount] = useState<number>(0);
   const [billDate, setBillDate] = useState<Date | undefined>(undefined);
   const [setDate, setSetDate] = useState<Date | undefined>(undefined);
   const [courier, setCourier] = useState('');
@@ -188,7 +188,7 @@ const ReleaseStock = () => {
         courier || undefined,
         allocationBill || undefined,
         category || undefined,
-        waybillNo || undefined,
+        undefined, // waybillNo removed
         setDate?.toISOString() || undefined,
         qtyItems || boxes,
         selectedBranch?.id || undefined
@@ -202,7 +202,7 @@ const ReleaseStock = () => {
       setBoxes(0);
       setQtyItems(0);
       setRemarks('');
-      setWaybillNo('');
+      setAmount(0);
       setBillDate(undefined);
       setSetDate(undefined);
       setCourier('');
@@ -297,7 +297,7 @@ const ReleaseStock = () => {
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
-        const waybillNo = findColumnValue(row, 'Waybill No.', 'Waybill No', 'Waybill', 'WAYBILL', 'WAYBILL NO');
+        const amountVal = findNumericValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE');
         
         // Log parsed values for first row
         if (index === 0) {
@@ -339,10 +339,10 @@ const ReleaseStock = () => {
           sheetNo,
           deliverTo,
           qtyBoxes,
+          amount: amountVal,
           qtyItem,
           category,
           remarks: rem,
-          waybillNo,
           billDate: billDateStr,
           setDate: '',
           courier: '',
@@ -425,7 +425,7 @@ const ReleaseStock = () => {
           firstItem.courier, // Use first item's courier for all
           item.sheetNo || undefined,
           item.category || undefined,
-          firstItem.waybillNo || undefined, // Use first item's waybill for all
+          undefined, // waybillNo removed
           firstItem.setDate || undefined, // Use first item's set date for all
           item.qtyItem || item.qtyBoxes,
           selectedBranch?.id || undefined
@@ -451,10 +451,10 @@ const ReleaseStock = () => {
     }
   };
 
-  // Bulk update function - when user changes waybill/setDate/courier on any checked item, apply to all checked items
+  // Bulk update function - when user changes amount/setDate/courier on any checked item, apply to all checked items
   const updateParsedItemWithBulk = (id: string, field: keyof ParsedReleaseItem, value: string | number) => {
     const isChecked = selectedItems.has(id);
-    const isBulkField = field === 'waybillNo' || field === 'setDate' || field === 'courier';
+    const isBulkField = field === 'amount' || field === 'setDate' || field === 'courier';
     
     if (isChecked && isBulkField && selectedItems.size > 1) {
       // Apply to all checked items
@@ -668,9 +668,9 @@ const ReleaseStock = () => {
                       {isColumnVisible('destination') && <TableHead className="px-5 whitespace-nowrap">Destination</TableHead>}
                       {isColumnVisible('category') && <TableHead className="px-5 whitespace-nowrap">Category</TableHead>}
                       {isColumnVisible('totalBoxes') && <TableHead className="w-[80px] px-5 whitespace-nowrap">Boxes</TableHead>}
+                      {isColumnVisible('amount') && <TableHead className="w-[100px] px-5 whitespace-nowrap">Amount</TableHead>}
                       {isColumnVisible('totalQty') && <TableHead className="w-[80px] px-5 whitespace-nowrap">Qty/Item</TableHead>}
                       {isColumnVisible('remarks') && <TableHead className="px-5 whitespace-nowrap">Remarks</TableHead>}
-                      {isColumnVisible('waybill') && <TableHead className="px-5 whitespace-nowrap">Waybill No.</TableHead>}
                       {isColumnVisible('dateOut') && <TableHead className="px-5 whitespace-nowrap">Date Out</TableHead>}
                       <TableHead className="px-5 whitespace-nowrap">Courier</TableHead>
                     </TableRow>
@@ -751,6 +751,24 @@ const ReleaseStock = () => {
                               />
                             </TableCell>
                           )}
+                          {isColumnVisible('amount') && (
+                            <TableCell className="px-5">
+                              <Input 
+                                type="number"
+                                defaultValue={item.amount || 0}
+                                onBlur={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  if (val !== item.amount) {
+                                    updateParsedItemWithBulk(item.id, 'amount', val);
+                                  }
+                                }}
+                                className="h-7 text-xs w-[80px] px-2 rounded"
+                                min={0}
+                                step="0.01"
+                                placeholder="Amount"
+                              />
+                            </TableCell>
+                          )}
                           {isColumnVisible('totalQty') && (
                             <TableCell className="px-5">
                               <Input 
@@ -778,20 +796,6 @@ const ReleaseStock = () => {
                                 }}
                                 className="h-8 text-xs min-w-[120px] px-3 rounded-lg"
                                 placeholder="Remarks"
-                              />
-                            </TableCell>
-                          )}
-                          {isColumnVisible('waybill') && (
-                            <TableCell className="px-5">
-                              <Input 
-                                defaultValue={item.waybillNo || ''}
-                                onBlur={(e) => {
-                                  if (e.target.value !== (item.waybillNo || '')) {
-                                    updateParsedItemWithBulk(item.id, 'waybillNo', e.target.value);
-                                  }
-                                }}
-                                className="h-8 text-xs min-w-[120px] px-3 rounded-lg"
-                                placeholder="Waybill No."
                               />
                             </TableCell>
                           )}
@@ -928,7 +932,20 @@ const ReleaseStock = () => {
             />
           </div>
 
-          {/* 5. Qty/Items */}
+          {/* 5. Amount */}
+          <div className="space-y-2">
+            <Label>Amount</Label>
+            <Input 
+              type="number" 
+              min={0}
+              step="0.01"
+              value={amount || ''} 
+              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)} 
+              placeholder="Enter amount" 
+            />
+          </div>
+
+          {/* 6. Qty/Items */}
           <div className="space-y-2">
             <Label>Qty/Items</Label>
             <Input 
@@ -940,16 +957,10 @@ const ReleaseStock = () => {
             />
           </div>
 
-          {/* 6. Remarks */}
+          {/* 7. Remarks */}
           <div className="space-y-2">
             <Label>Remarks</Label>
             <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks / reference" />
-          </div>
-
-          {/* 7. Waybill No */}
-          <div className="space-y-2">
-            <Label>Waybill No.</Label>
-            <Input value={waybillNo} onChange={(e) => setWaybillNo(e.target.value)} placeholder="Enter waybill number" />
           </div>
 
           {/* 8. Set Date */}
