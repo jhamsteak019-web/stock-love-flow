@@ -1,9 +1,8 @@
 import { useState, useMemo, useRef } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Users, ClipboardList, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,21 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
-import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
-
-const defaultResumeColumns: GenericColumnConfig[] = [
-  { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
-  { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
-  { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
-  { key: 'status', label: 'Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
-  { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
-  { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
-];
-
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -60,11 +45,6 @@ const statusOptions = [
 
 const ResumeToWork = () => {
   const queryClient = useQueryClient();
-  const { userRole } = useAuth();
-  
-  // Column settings
-  const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('resume-to-work', defaultResumeColumns);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
@@ -85,13 +65,6 @@ const ResumeToWork = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // View/Edit modal state
-  const [viewingRecord, setViewingRecord] = useState<any | null>(null);
-  const [editingRecord, setEditingRecord] = useState<any | null>(null);
-
-  const isAdmin = userRole === 'admin';
-  const canEdit = userRole === 'admin' || userRole === 'staff';
-
   // Fetch employees for dropdown and count
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-for-resume'],
@@ -106,6 +79,21 @@ const ResumeToWork = () => {
     }
   });
 
+  // Fetch all attendance records for stats
+  const { data: allAttendanceRecords = [] } = useQuery({
+    queryKey: ['all-attendance-stats', selectedYear],
+    queryFn: async () => {
+      const startDate = new Date(parseInt(selectedYear), 0, 1);
+      const endDate = new Date(parseInt(selectedYear), 11, 31);
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('status, attendance_date, date_of_resume')
+        .gte('attendance_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('attendance_date', format(endDate, 'yyyy-MM-dd'));
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Fetch attendance records that have date_of_resume
   const { data: attendanceRecords = [], isLoading } = useQuery({
@@ -169,6 +157,48 @@ const ResumeToWork = () => {
     });
   }, [attendanceRecords, searchQuery, selectedBranch, selectedDate]);
 
+  // Chart data for Attendance Status Distribution
+  const attendanceChartData = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    allAttendanceRecords.forEach(record => {
+      const status = record.status?.toLowerCase() || 'unknown';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value
+    })).slice(0, 6);
+  }, [allAttendanceRecords]);
+
+  // Chart data for Resume to Work by Month
+  const resumeByMonthData = useMemo(() => {
+    const monthCounts: Record<string, number> = {};
+    allAttendanceRecords
+      .filter(r => r.date_of_resume)
+      .forEach(record => {
+        const month = format(new Date(record.date_of_resume!), 'MMM');
+        monthCounts[month] = (monthCounts[month] || 0) + 1;
+      });
+    return months.map((month, idx) => ({
+      name: month.slice(0, 3),
+      resumptions: monthCounts[month.slice(0, 3)] || 0
+    }));
+  }, [allAttendanceRecords]);
+
+  // Chart data for Employee Status Distribution (Manpower)
+  const employeeStatusData = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    employees.forEach(emp => {
+      const status = emp.employment_status || 'Unknown';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({
+      name,
+      value
+    }));
+  }, [employees]);
+
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--secondary))', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
@@ -303,69 +333,6 @@ const ResumeToWork = () => {
     }
   };
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('attendance_records').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
-      toast.success('Record deleted successfully');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete record');
-    }
-  });
-
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const { error } = await supabase.from('attendance_records').update(data).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
-      toast.success('Record updated successfully');
-      setEditingRecord(null);
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to update record');
-    }
-  });
-
-  const handleEdit = (record: any) => {
-    setEditingRecord(record);
-    setFormEmployeeId(record.employee_id);
-    setFormDate(record.date_of_absent ? new Date(record.date_of_absent) : record.attendance_date ? new Date(record.attendance_date) : undefined);
-    setFormStatus(record.status || '');
-    setFormReason(record.reason || '');
-    setFormDateOfResume(record.date_of_resume ? new Date(record.date_of_resume) : undefined);
-    setFormRemarks(record.remarks || '');
-    setPhotoPreview(record.employees?.photo_url || null);
-  };
-
-  const handleUpdateSubmit = async () => {
-    if (!editingRecord || !formEmployeeId || !formDateOfResume || !formStatus) {
-      toast.error('Please fill in Employee, Status, and Date of Resume fields');
-      return;
-    }
-
-    updateMutation.mutate({
-      id: editingRecord.id,
-      data: {
-        employee_id: formEmployeeId,
-        attendance_date: formDate ? format(formDate, 'yyyy-MM-dd') : editingRecord.attendance_date,
-        date_of_absent: formDate ? format(formDate, 'yyyy-MM-dd') : null,
-        status: formStatus.toLowerCase(),
-        reason: formReason || null,
-        date_of_resume: format(formDateOfResume, 'yyyy-MM-dd'),
-        remarks: formRemarks || null,
-      }
-    });
-  };
-
   const selectedEmployee = employees.find(e => e.id === formEmployeeId);
 
   return (
@@ -376,14 +343,6 @@ const ResumeToWork = () => {
           <p className="text-muted-foreground">Track employees returning to work after absences</p>
         </div>
         <div className="flex gap-2">
-          {isColumnAdmin && (
-            <ColumnSettings 
-              columns={columns} 
-              onColumnChange={setColumns} 
-              defaultColumns={defaultResumeColumns}
-              excludeFromWidthControl={['photo', 'actions']}
-            />
-          )}
           <Button onClick={handleSavePDF} variant="outline" className="gap-2">
             <FileDown className="h-4 w-4" />
             Save PDF
@@ -661,6 +620,96 @@ const ResumeToWork = () => {
         </CardContent>
       </Card>
 
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Attendance Status Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Attendance Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={attendanceChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {attendanceChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Total: {allAttendanceRecords.length} records in {selectedYear}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Resume to Work Trend Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <RotateCcw className="h-4 w-4" />
+              Resume to Work Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resumeByMonthData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip />
+                  <Bar dataKey="resumptions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Total Resumptions: {filteredRecords.length} (filtered)
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Manpower Status Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Manpower Database
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={employeeStatusData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="hsl(var(--secondary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Total Employees: {employees.length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Table */}
       <Card>
@@ -669,27 +718,26 @@ const ResumeToWork = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[60px]">Photo</TableHead>}
-                  {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
-                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
-                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
-                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
-                  {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
-                  {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
-                  {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead className="w-[60px]">Photo</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Date of Resume</TableHead>
+                  <TableHead>Remarks</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No resume records found
                     </TableCell>
                   </TableRow>
@@ -735,23 +783,6 @@ const ResumeToWork = () => {
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{record.remarks || '-'}</span>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEdit && (
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} title="Edit">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {isAdmin && (
-                            <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(record.id)} title="Delete">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -760,201 +791,6 @@ const ResumeToWork = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* View Record Dialog */}
-      <Dialog open={!!viewingRecord} onOpenChange={(open) => !open && setViewingRecord(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={viewingRecord?.employees?.photo_url || ''} />
-                <AvatarFallback>{viewingRecord?.employees?.full_name?.charAt(0) || '?'}</AvatarFallback>
-              </Avatar>
-              <span>{viewingRecord?.employees?.full_name || 'Resume Record'}</span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Branch</p>
-                <p className="font-medium">{viewingRecord?.employees?.branch || viewingRecord?.employees?.branches?.name || '-'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Date</p>
-                <p className="font-medium">
-                  {viewingRecord?.date_of_absent 
-                    ? format(new Date(viewingRecord.date_of_absent), 'MMMM dd, yyyy')
-                    : viewingRecord?.attendance_date 
-                      ? format(new Date(viewingRecord.attendance_date), 'MMMM dd, yyyy')
-                      : '-'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Status</p>
-                <div>{viewingRecord?.status ? getStatusBadge(viewingRecord.status) : '-'}</div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Date of Resume</p>
-                <p className="font-medium text-primary">
-                  {viewingRecord?.date_of_resume 
-                    ? format(new Date(viewingRecord.date_of_resume), 'MMMM dd, yyyy')
-                    : '-'}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Reason</p>
-              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.reason || '-'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Remarks</p>
-              <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.remarks || '-'}</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Record Dialog */}
-      <Dialog open={!!editingRecord} onOpenChange={(open) => { if (!open) { setEditingRecord(null); resetForm(); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Resume Record</DialogTitle>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            {/* Photo */}
-            <div className="md:col-span-2">
-              <Label>Photo</Label>
-              <div className="mt-2 flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={photoPreview || ''} />
-                  <AvatarFallback>
-                    {selectedEmployee?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-
-            {/* Employee Name */}
-            <div>
-              <Label>Employee Name *</Label>
-              <Select value={formEmployeeId} onValueChange={setFormEmployeeId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Branch */}
-            <div>
-              <Label>Branch</Label>
-              <Input 
-                className="mt-1" 
-                value={selectedEmployee?.branch || (selectedEmployee?.branches as any)?.name || ''} 
-                disabled 
-                placeholder="Auto-filled from employee"
-              />
-            </div>
-
-            {/* Date */}
-            <div>
-              <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full mt-1 justify-start">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {formDate ? format(formDate, 'MMM dd, yyyy') : 'Pick date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={formDate}
-                    onSelect={setFormDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Status */}
-            <div>
-              <Label>Status *</Label>
-              <Select value={formStatus} onValueChange={setFormStatus}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map(status => (
-                    <SelectItem key={status} value={status.toLowerCase()}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reason */}
-            <div className="md:col-span-2">
-              <Label>Reason</Label>
-              <Textarea
-                className="mt-1"
-                value={formReason}
-                onChange={(e) => setFormReason(e.target.value)}
-                placeholder="Enter reason"
-              />
-            </div>
-
-            {/* Date of Resume */}
-            <div>
-              <Label>Date of Resume *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full mt-1 justify-start">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {formDateOfResume ? format(formDateOfResume, 'MMM dd, yyyy') : 'Pick date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={formDateOfResume}
-                    onSelect={setFormDateOfResume}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Remarks */}
-            <div className="md:col-span-2">
-              <Label>Remarks</Label>
-              <Textarea
-                className="mt-1"
-                value={formRemarks}
-                onChange={(e) => setFormRemarks(e.target.value)}
-                placeholder="Enter remarks"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setEditingRecord(null); resetForm(); }}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateSubmit} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

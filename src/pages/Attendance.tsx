@@ -7,7 +7,7 @@ import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,32 +34,10 @@ import {
   X,
   ZoomIn,
   ZoomOut,
-  Eye,
-  ClipboardList,
-  RotateCcw
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
-import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
-
-const defaultAttendanceColumns: GenericColumnConfig[] = [
-  { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
-  { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
-  { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
-  { key: 'status', label: 'Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
-  { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
-  { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
-];
-
-const monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
 
 interface Employee {
   id: string;
@@ -104,9 +82,6 @@ const Attendance = () => {
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Column settings
-  const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('attendance', defaultAttendanceColumns);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>((getMonth(new Date()) + 1).toString());
@@ -255,51 +230,6 @@ const Attendance = () => {
       .filter((branch): branch is string => !!branch && branch.trim() !== '');
     return [...new Set(branchNames)].sort();
   }, [employees]);
-
-  // Chart data for Attendance Status Distribution
-  const attendanceChartData = useMemo(() => {
-    const statusCounts: Record<string, number> = {};
-    filteredRecords.forEach(record => {
-      const status = record.status?.toLowerCase() || 'unknown';
-      const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
-      statusCounts[formattedStatus] = (statusCounts[formattedStatus] || 0) + 1;
-    });
-    return Object.entries(statusCounts).map(([name, value]) => ({
-      name,
-      value
-    })).slice(0, 6);
-  }, [filteredRecords]);
-
-  // Chart data for Resume to Work by Month (records with date_of_resume)
-  const resumeByMonthData = useMemo(() => {
-    const monthCounts: Record<string, number> = {};
-    filteredRecords
-      .filter(r => r.date_of_resume)
-      .forEach(record => {
-        const month = format(new Date(record.date_of_resume!), 'MMM');
-        monthCounts[month] = (monthCounts[month] || 0) + 1;
-      });
-    return monthNames.map((month) => ({
-      name: month.slice(0, 3),
-      resumptions: monthCounts[month.slice(0, 3)] || 0
-    }));
-  }, [filteredRecords]);
-
-  // Chart data for Employee Status Distribution (Manpower)
-  const employeeStatusData = useMemo(() => {
-    const statusCounts: Record<string, number> = {};
-    employees.forEach(emp => {
-      const status = emp.employment_status || 'Unknown';
-      const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1);
-      statusCounts[formattedStatus] = (statusCounts[formattedStatus] || 0) + 1;
-    });
-    return Object.entries(statusCounts).map(([name, value]) => ({
-      name,
-      value
-    }));
-  }, [employees]);
-
-  const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--secondary))', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   // Employee mutations
   const createEmployeeMutation = useMutation({
@@ -669,14 +599,6 @@ const Attendance = () => {
               />
             </PopoverContent>
           </Popover>
-          {isColumnAdmin && (
-            <ColumnSettings 
-              columns={columns} 
-              onColumnChange={setColumns} 
-              defaultColumns={defaultAttendanceColumns}
-              excludeFromWidthControl={['photo', 'actions']}
-            />
-          )}
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -1038,15 +960,15 @@ const Attendance = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {columns.find(c => c.key === 'photo')?.visible && <TableHead>Photo</TableHead>}
-                  {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
-                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
-                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
-                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
-                  {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
-                  {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
-                  {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>Photo</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Date of Resume</TableHead>
+                  <TableHead>Remarks</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1109,97 +1031,48 @@ const Attendance = () => {
         </CardContent>
       </Card>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Attendance Status Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Attendance Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={attendanceChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {attendanceChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Total: {filteredRecords.length} records in {selectedYear}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Resume to Work Trend Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Resume to Work Trend
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={resumeByMonthData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip />
-                  <Bar dataKey="resumptions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Total Resumptions: {filteredRecords.filter(r => r.date_of_resume).length} (filtered)
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Manpower Status Chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Manpower Database
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={employeeStatusData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--secondary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Total Employees: {employees.length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Registered Employees Section */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Registered Employees ({employees.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {employees.map((employee) => (
+              <div key={employee.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={employee.photo_url || ''} />
+                    <AvatarFallback>{employee.full_name?.charAt(0) || '?'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{employee.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{employee.branches?.name || 'No branch'}</p>
+                  </div>
+                </div>
+                {canEdit && (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditEmployee(employee)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" onClick={() => deleteEmployeeMutation.mutate(employee.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            {employees.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">No employees registered yet</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Photo Preview Dialog */}
       <Dialog open={!!viewingPhoto} onOpenChange={() => { setViewingPhoto(null); setPhotoZoomLevel(1); }}>
