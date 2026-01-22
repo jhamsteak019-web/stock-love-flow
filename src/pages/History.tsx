@@ -44,19 +44,19 @@ const MONTHS = [
 
 const HISTORY_STORAGE_KEY = 'history_filter';
 
-type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'waybill' | 'remarks';
+type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'amount' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 160, minWidth: 120, maxWidth: 250 },
   { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
   { key: 'totalBoxes' as ColumnKey, label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
+  { key: 'amount' as ColumnKey, label: 'Amount', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
   { key: 'totalQty' as ColumnKey, label: 'Total Qty/Items', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
   { key: 'dateOut' as ColumnKey, label: 'Date Out', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
   { key: 'dateReceived' as ColumnKey, label: 'Date Received', visible: true, width: 120, minWidth: 100, maxWidth: 180 },
   { key: 'deliveryTime' as ColumnKey, label: 'Delivery Days', visible: true, width: 120, minWidth: 90, maxWidth: 150 },
   { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
-  { key: 'waybill' as ColumnKey, label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
 
@@ -358,6 +358,7 @@ const History = () => {
         destination: group.destination,
         category: group.category || '-',
         totalBoxes: group.totalBoxes,
+        amount: '-',
         totalQty: group.totalQty,
         dateOut: group.set_date ? format(new Date(group.set_date), 'MMM dd, yyyy') : '-',
         dateReceived: group.date_delivered ? format(new Date(group.date_delivered), 'MMM dd, yyyy') : '-',
@@ -365,7 +366,6 @@ const History = () => {
           ? differenceInDays(new Date(group.date_delivered), new Date(group.set_date)) + ' days'
           : '-',
         courier: group.courier || '-',
-        waybill: group.waybill_no || '-',
         remarks: group.notes || '-',
       }));
 
@@ -378,12 +378,12 @@ const History = () => {
           { header: 'Destination', key: 'destination', width: 18 },
           { header: 'Category', key: 'category', width: 12 },
           { header: 'Total Boxes', key: 'totalBoxes', width: 14 },
+          { header: 'Amount', key: 'amount', width: 14 },
           { header: 'Total Qty', key: 'totalQty', width: 14 },
           { header: 'Date Out', key: 'dateOut', width: 15 },
           { header: 'Date Received', key: 'dateReceived', width: 15 },
           { header: 'Delivery Days', key: 'deliveryDays', width: 14 },
           { header: 'Courier', key: 'courier', width: 12 },
-          { header: 'Waybill No.', key: 'waybill', width: 15 },
           { header: 'Remarks', key: 'remarks', width: 22 },
         ],
         data: excelData,
@@ -556,12 +556,12 @@ const History = () => {
                   {isColumnVisible('destination') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
                   {isColumnVisible('category') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>Category</TableHead>}
                   {isColumnVisible('totalBoxes') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+                  {isColumnVisible('amount') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>Amount</TableHead>}
                   {isColumnVisible('totalQty') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
                   {isColumnVisible('dateOut') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
                   {isColumnVisible('dateReceived') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
                   {isColumnVisible('deliveryTime') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Days</TableHead>}
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
-                  {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
@@ -603,6 +603,7 @@ const History = () => {
                       {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
                       {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
                       {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                      {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>-</TableCell>}
                       {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
                       {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
                       {isColumnVisible('dateReceived') && (
@@ -620,7 +621,6 @@ const History = () => {
                         </TableCell>
                       )}
                       {isColumnVisible('courier') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
-                      {isColumnVisible('waybill') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>{group.waybill_no || '-'}</TableCell>}
                       {isColumnVisible('remarks') && (
                         <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>
                           {isAdmin ? (

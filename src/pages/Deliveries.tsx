@@ -33,10 +33,10 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'destination', label: 'Destination', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
   { key: 'category', label: 'Category', visible: true, width: 100, minWidth: 60, maxWidth: 150 },
   { key: 'totalBoxes', label: 'Total Boxes', visible: true, width: 100, minWidth: 70, maxWidth: 150 },
+  { key: 'amount', label: 'Amount', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
   { key: 'totalQty', label: 'Total Qty/Items', visible: true, width: 110, minWidth: 80, maxWidth: 160 },
   { key: 'dateOut', label: 'Date Out Warehouse', visible: true, width: 140, minWidth: 100, maxWidth: 200 },
   { key: 'status', label: 'Status', visible: true, width: 150, minWidth: 120, maxWidth: 180 },
-  { key: 'waybill', label: 'Waybill No.', visible: true, width: 130, minWidth: 100, maxWidth: 180 },
   { key: 'remarks', label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
 
@@ -287,10 +287,10 @@ const Deliveries = () => {
           { header: 'Destination', key: 'destination', width: 18 },
           { header: 'Category', key: 'category', width: 12 },
           { header: 'Total Boxes', key: 'totalBoxes', width: 14 },
+          { header: 'Amount', key: 'amount', width: 14 },
           { header: 'Total Qty', key: 'totalQty', width: 14 },
           { header: 'Date Out', key: 'dateOut', width: 15 },
           { header: 'Status', key: 'status', width: 15 },
-          { header: 'Waybill No.', key: 'waybill', width: 15 },
           { header: 'Remarks', key: 'remarks', width: 22 },
         ],
         data: excelData,
@@ -362,10 +362,10 @@ const Deliveries = () => {
               {isColumnVisible('destination') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
               {isColumnVisible('category') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>Category</TableHead>}
               {isColumnVisible('totalBoxes') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+              {isColumnVisible('amount') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>Amount</TableHead>}
               {isColumnVisible('totalQty') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
               {isColumnVisible('dateOut') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>Date Out Warehouse</TableHead>}
               {isColumnVisible('status') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('status') }}>Status</TableHead>}
-              {isColumnVisible('waybill') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>Waybill No.</TableHead>}
               {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
               {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
             </TableRow>
@@ -404,6 +404,7 @@ const Deliveries = () => {
                   {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
                   {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
                   {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                  {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>-</TableCell>}
                   {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty}</TableCell>}
                   {isColumnVisible('dateOut') && (
                     <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
@@ -427,24 +428,6 @@ const Deliveries = () => {
                             <SelectItem value="delivered">Delivered</SelectItem>
                           </SelectContent>
                         </Select>
-                      )}
-                    </TableCell>
-                  )}
-                  {isColumnVisible('waybill') && (
-                    <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('waybill') }}>
-                      {isViewer ? (
-                        <span className="text-sm">{group.waybill_no || '-'}</span>
-                      ) : (
-                        <Input
-                          placeholder="Enter waybill"
-                          defaultValue={group.waybill_no || ''}
-                          className="h-8 text-sm"
-                          onBlur={(e) => {
-                            if (e.target.value !== (group.waybill_no || '')) {
-                              handleWaybillChange(group, e.target.value);
-                            }
-                          }}
-                        />
                       )}
                     </TableCell>
                   )}
