@@ -48,6 +48,7 @@ interface GroupedRelease {
   date_delivered: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
+  amount: number | null;
   totalQty: number;
   itemCount: number;
   items: StockRelease[];
@@ -93,6 +94,13 @@ const Deliveries = () => {
   // Debounced search for smooth performance
   const debouncedSearch = useDebounce(searchQuery, 350);
 
+  const formatAmount = useCallback((value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '-';
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }, []);
+
   // Group releases by batch_id, filtered by branch
   const groupedReleases = useMemo(() => {
     // First filter by branch
@@ -114,6 +122,7 @@ const Deliveries = () => {
           date_delivered: release.date_delivered || null,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
+          amount: release.amount ?? null,
           totalQty: 0,
           itemCount: 0,
           items: [],
@@ -133,6 +142,11 @@ const Deliveries = () => {
       groups[batchKey].totalQty += release.total_qty || (release.boxes_released * (release.inventory_item?.pieces_per_box || 1));
       groups[batchKey].itemCount += 1;
       groups[batchKey].releaseIds.push(release.id);
+
+      // Prefer the first non-null amount within the group
+      if (groups[batchKey].amount === null && release.amount != null) {
+        groups[batchKey].amount = release.amount;
+      }
     });
     
     return Object.values(groups).sort((a, b) => {
@@ -271,10 +285,10 @@ const Deliveries = () => {
         destination: group.destination,
         category: group.category || '-',
         totalBoxes: group.totalBoxes,
+        amount: group.amount ?? null,
         totalQty: group.totalQty,
         dateOut: group.set_date ? formatDateFn(new Date(group.set_date), 'MMM dd, yyyy') : '-',
         status: group.delivery_status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-        waybill: group.waybill_no || '-',
         remarks: group.notes || '-',
       }));
 
@@ -404,7 +418,7 @@ const Deliveries = () => {
                   {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
                   {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
                   {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
-                  {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>-</TableCell>}
+                  {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>{formatAmount(group.amount)}</TableCell>}
                   {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty}</TableCell>}
                   {isColumnVisible('dateOut') && (
                     <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>
