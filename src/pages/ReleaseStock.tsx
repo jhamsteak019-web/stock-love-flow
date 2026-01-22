@@ -191,7 +191,8 @@ const ReleaseStock = () => {
         undefined, // waybillNo removed
         setDate?.toISOString() || undefined,
         qtyItems || boxes,
-        selectedBranch?.id || undefined
+        selectedBranch?.id || undefined,
+        amount || undefined
       );
       toast({ title: 'Success', description: 'Stock released successfully' });
       

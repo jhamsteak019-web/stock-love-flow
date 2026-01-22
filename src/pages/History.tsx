@@ -74,6 +74,7 @@ interface GroupedRelease {
   deleted_at?: string | null;
   delivery_status: DeliveryStatus;
   totalBoxes: number;
+  amount: number | null;
   totalQty: number;
   itemCount: number;
   items: StockRelease[];
@@ -129,6 +130,13 @@ const History = () => {
   const isViewer = userRole === 'viewer';
   const canExport = userRole !== 'uploader';
 
+  const formatAmount = useCallback((value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '-';
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }, []);
+
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
     return col?.visible ?? true;
@@ -179,6 +187,7 @@ const History = () => {
           deleted_at: release.deleted_at,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
+          amount: release.amount ?? null,
           totalQty: 0,
           itemCount: 0,
           items: [],
@@ -193,6 +202,11 @@ const History = () => {
       groups[batchKey].totalBoxes += release.boxes_released;
       groups[batchKey].totalQty += release.total_qty || 0;
       groups[batchKey].itemCount += 1;
+
+      // Prefer the first non-null amount within the group
+      if (groups[batchKey].amount === null && release.amount != null) {
+        groups[batchKey].amount = release.amount;
+      }
     });
     
     // Sort by set_date (Date Out) ascending - earlier dates first
@@ -358,7 +372,7 @@ const History = () => {
         destination: group.destination,
         category: group.category || '-',
         totalBoxes: group.totalBoxes,
-        amount: '-',
+        amount: group.amount ?? null,
         totalQty: group.totalQty,
         dateOut: group.set_date ? format(new Date(group.set_date), 'MMM dd, yyyy') : '-',
         dateReceived: group.date_delivered ? format(new Date(group.date_delivered), 'MMM dd, yyyy') : '-',
@@ -603,7 +617,7 @@ const History = () => {
                       {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
                       {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
                       {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
-                      {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>-</TableCell>}
+                      {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>{formatAmount(group.amount)}</TableCell>}
                       {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
                       {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
                       {isColumnVisible('dateReceived') && (
