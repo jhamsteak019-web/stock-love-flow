@@ -746,6 +746,7 @@ export type Database = {
       stock_releases: {
         Row: {
           allocation_bill: string | null
+          amount: number | null
           batch_id: string | null
           boxes_released: number
           branch_id: string | null
@@ -770,6 +771,7 @@ export type Database = {
         }
         Insert: {
           allocation_bill?: string | null
+          amount?: number | null
           batch_id?: string | null
           boxes_released: number
           branch_id?: string | null
@@ -794,6 +796,7 @@ export type Database = {
         }
         Update: {
           allocation_bill?: string | null
+          amount?: number | null
           batch_id?: string | null
           boxes_released?: number
           branch_id?: string | null
