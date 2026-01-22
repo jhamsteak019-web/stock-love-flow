@@ -208,7 +208,7 @@ const Attendance = () => {
 
   // Fetch attendance records
   const { data: attendanceRecords = [], isLoading } = useQuery({
-    queryKey: ['attendance-records', dateRange, branchFilter, selectedBranch?.id],
+    queryKey: ['attendance-records', dateRange, branchFilter],
     queryFn: async () => {
       let query = supabase
         .from('attendance_records')
@@ -219,8 +219,6 @@ const Attendance = () => {
 
       if (branchFilter !== 'all') {
         query = query.eq('branch_id', branchFilter);
-      } else if (selectedBranch?.id) {
-        query = query.eq('branch_id', selectedBranch.id);
       }
 
       const { data, error } = await query;
