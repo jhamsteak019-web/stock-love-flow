@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Eye, Pencil, Trash2, RotateCcw } from 'lucide-react';
@@ -62,6 +63,7 @@ const statusOptions = [
 const ResumeToWork = () => {
   const queryClient = useQueryClient();
   const { userRole } = useAuth();
+  const { selectedBranch: globalSelectedBranch } = useBranch();
   
   // Column settings
   const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('resume-to-work', defaultResumeColumns);
@@ -69,7 +71,7 @@ const ResumeToWork = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
-  const [selectedBranch, setSelectedBranch] = useState<string>('all');
+  const [localSelectedBranch, setLocalSelectedBranch] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [showAllYear, setShowAllYear] = useState(false);
   
@@ -93,15 +95,25 @@ const ResumeToWork = () => {
   const isAdmin = userRole === 'admin';
   const canEdit = userRole === 'admin' || userRole === 'staff';
 
-  // Fetch employees for dropdown and count
+  // Get the effective branch name for filtering
+  const globalBranchName = globalSelectedBranch?.name || null;
+
+  // Fetch employees for dropdown and count - filtered by global branch
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees-for-resume'],
+    queryKey: ['employees-for-resume', globalBranchName],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('employees')
         .select('id, full_name, branch, photo_url, branches:branch_id (name), employment_status')
         .eq('is_active', true)
         .order('full_name');
+      
+      // Filter by global branch if selected
+      if (globalBranchName) {
+        query = query.eq('branch', globalBranchName);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     }
@@ -181,19 +193,26 @@ const ResumeToWork = () => {
     return [...new Set(branches)].sort();
   }, [attendanceRecords]);
 
-  // Filter records
+  // Filter records - prioritize global branch, then local filter
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter(record => {
       const employeeName = record.employees?.full_name?.toLowerCase() || '';
       const branch = record.employees?.branch || record.employees?.branches?.name || '';
       
       const matchesSearch = employeeName.includes(searchQuery.toLowerCase());
-      const matchesBranch = selectedBranch === 'all' || branch === selectedBranch;
+      
+      // First filter by global branch if set
+      if (globalBranchName && branch !== globalBranchName) {
+        return false;
+      }
+      
+      // Then apply local branch filter
+      const matchesBranch = localSelectedBranch === 'all' || branch === localSelectedBranch;
       const matchesDate = !selectedDate || record.date_of_resume === format(selectedDate, 'yyyy-MM-dd');
       
       return matchesSearch && matchesBranch && matchesDate;
     });
-  }, [attendanceRecords, searchQuery, selectedBranch, selectedDate]);
+  }, [attendanceRecords, searchQuery, globalBranchName, localSelectedBranch, selectedDate]);
 
 
   const getStatusBadge = (status: string) => {
@@ -674,7 +693,7 @@ const ResumeToWork = () => {
               </SelectContent>
             </Select>
 
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <Select value={localSelectedBranch} onValueChange={setLocalSelectedBranch}>
               <SelectTrigger>
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
