@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
+import { ResumePhotoUploadCell } from '@/components/resume/ResumePhotoUploadCell';
 import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
 
 const defaultResumeColumns: GenericColumnConfig[] = [
@@ -838,12 +839,24 @@ const ResumeToWork = () => {
                       )}
                       {columns.find(c => c.key === 'letter_photos')?.visible && (
                         <TableCell>
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <ResumePhotoUploadCell
+                            recordId={record.id}
+                            photos={record.letter_photos || []}
+                            fieldName="letter_photos"
+                            maxPhotos={3}
+                            onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['resume-to-work'] })}
+                          />
                         </TableCell>
                       )}
                       {columns.find(c => c.key === 'resume_letter_photos')?.visible && (
                         <TableCell>
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <ResumePhotoUploadCell
+                            recordId={record.id}
+                            photos={record.resume_letter_photos || []}
+                            fieldName="resume_letter_photos"
+                            maxPhotos={3}
+                            onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['resume-to-work'] })}
+                          />
                         </TableCell>
                       )}
                       {columns.find(c => c.key === 'actions')?.visible && (
