@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -61,6 +62,7 @@ const ITEMS_PER_PAGE = 15;
 const Notes = () => {
   const { toast } = useToast();
   const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,14 +94,20 @@ const Notes = () => {
 
   const debouncedSearch = useDebounce(searchQuery, 350);
 
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     try {
-      // Fetch active notes
-      const { data, error } = await supabase
+      // Fetch active notes - filtered by branch
+      let activeQuery = supabase
         .from('notes')
         .select('*, profiles(full_name, email)')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
+
+      if (selectedBranch) {
+        activeQuery = activeQuery.eq('branch_id', selectedBranch.id);
+      }
+
+      const { data, error } = await activeQuery;
 
       if (error) throw error;
       setNotes((data || []).map(note => ({
@@ -108,12 +116,18 @@ const Notes = () => {
         profiles: note.profiles as { full_name: string | null; email: string } | undefined
       })));
 
-      // Fetch deleted notes
-      const { data: deleted, error: deletedError } = await supabase
+      // Fetch deleted notes - filtered by branch
+      let deletedQuery = supabase
         .from('notes')
         .select('*, profiles(full_name, email)')
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
+
+      if (selectedBranch) {
+        deletedQuery = deletedQuery.eq('branch_id', selectedBranch.id);
+      }
+
+      const { data: deleted, error: deletedError } = await deletedQuery;
 
       if (deletedError) throw deletedError;
       setDeletedNotes((deleted || []).map(note => ({
@@ -126,7 +140,7 @@ const Notes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedBranch, toast]);
 
   useEffect(() => {
     fetchNotes();
@@ -154,7 +168,7 @@ const Notes = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedBranch, fetchNotes]);
 
   const filteredNotes = useMemo(() => {
     // First filter by month/year
@@ -346,6 +360,7 @@ const Notes = () => {
             content: formContent.trim(),
             concern: formConcern.trim(),
             is_public: isAdmin ? formIsPublic : false,
+            branch_id: selectedBranch?.id || null,
           })
           .select()
           .single();

@@ -248,7 +248,10 @@ const Attendance = () => {
     }
   });
 
-  // Filter records by search, status, and branch
+  // Get the global branch name for filtering
+  const globalBranchName = selectedBranch?.name || null;
+
+  // Filter records by search, status, and branch - prioritize global branch
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter(record => {
       const matchesSearch = !searchQuery || 
@@ -256,10 +259,17 @@ const Attendance = () => {
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
       // Filter by employee's branch name from Manpower
       const employeeBranch = record.employees?.branch || record.employees?.branches?.name || '';
+      
+      // First filter by global branch if set
+      if (globalBranchName && employeeBranch !== globalBranchName) {
+        return false;
+      }
+      
+      // Then apply local branch filter
       const matchesBranch = branchFilter === 'all' || employeeBranch === branchFilter;
       return matchesSearch && matchesStatus && matchesBranch;
     });
-  }, [attendanceRecords, searchQuery, statusFilter, branchFilter]);
+  }, [attendanceRecords, searchQuery, statusFilter, globalBranchName, branchFilter]);
 
   // Calculate stats
   const stats = useMemo(() => {

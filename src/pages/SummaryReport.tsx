@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { format, differenceInDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const SummaryReport = () => {
   const { releases, items, loading } = useInventory();
   const { userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   
@@ -201,9 +203,14 @@ const SummaryReport = () => {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [releases, currentYear]);
 
-  // Filter releases by selected year, month, and category
+  // Filter releases by selected year, month, category, and branch
   const filteredReleases = useMemo(() => {
     return releases.filter(release => {
+      // Filter by branch first
+      if (selectedBranch && release.branch_id !== selectedBranch.id) {
+        return false;
+      }
+      
       // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
       const dateToUse = release.set_date || release.date_released;
       const releaseDate = new Date(dateToUse);
@@ -217,7 +224,7 @@ const SummaryReport = () => {
       
       return matchesDate && matchesCategory;
     });
-  }, [releases, selectedYear, selectedMonth, selectedCategory]);
+  }, [releases, selectedBranch, selectedYear, selectedMonth, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
