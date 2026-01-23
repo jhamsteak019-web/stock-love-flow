@@ -924,7 +924,91 @@ const SummaryReport = () => {
         </Card>
       </div>
 
-      {/* Tabs for different reports */}
+      {/* Charts for Amount and Qty */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Total Amount by Branch Chart */}
+        <Card className="animate-fade-in">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Total Amount by Branch
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={branchReport.slice(0, 10).map(b => ({
+                    name: b.branch.length > 15 ? b.branch.substring(0, 15) + '...' : b.branch,
+                    amount: b.totalAmount,
+                  }))}
+                  margin={{ top: 10, right: 10, left: 10, bottom: 60 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 10 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => '₱' + (value / 1000).toFixed(0) + 'k'}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => ['₱' + value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'Amount']}
+                    labelFormatter={(label) => `Branch: ${label}`}
+                  />
+                  <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Qty by Branch Chart */}
+        <Card className="animate-fade-in">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Total Qty/Items by Branch
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={branchReport.slice(0, 10).map(b => ({
+                    name: b.branch.length > 15 ? b.branch.substring(0, 15) + '...' : b.branch,
+                    qty: b.totalQty,
+                  }))}
+                  margin={{ top: 10, right: 10, left: 10, bottom: 60 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 10 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [value.toLocaleString(), 'Qty/Items']}
+                    labelFormatter={(label) => `Branch: ${label}`}
+                  />
+                  <Bar dataKey="qty" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-xl grid-cols-3">
           <TabsTrigger value="branch-report" className="flex items-center gap-2">
