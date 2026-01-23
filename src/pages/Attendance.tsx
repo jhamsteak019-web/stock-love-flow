@@ -175,14 +175,14 @@ const Attendance = () => {
     }
   });
 
-  // Fetch employees
+  // Fetch employees - use deleted_at check instead of is_active for visibility
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
         .select('*, branches(name)')
-        .eq('is_active', true)
+        .is('deleted_at', null)
         .order('full_name');
       if (error) throw error;
       return data as Employee[];
