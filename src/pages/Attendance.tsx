@@ -49,13 +49,13 @@ import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnS
 import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
 
 const defaultAttendanceColumns: GenericColumnConfig[] = [
+  { key: 'branch', label: 'Branch', visible: true, width: 140, minWidth: 100, maxWidth: 200 },
   { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
   { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
   { key: 'date_hired', label: 'Date Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
-  { key: 'status', label: 'Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
-  { key: 'brand', label: 'Brand', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
-  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
-  { key: 'date', label: 'Date Today', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'employment_status', label: 'Emp. Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
+  { key: 'attendance_status', label: 'Att. Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
+  { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'day_off', label: 'Day Off', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
   { key: 'shift', label: 'Shift', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
   { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
@@ -1264,13 +1264,13 @@ const Attendance = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
                   {columns.find(c => c.key === 'photo')?.visible && <TableHead>Photo</TableHead>}
                   {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
                   {columns.find(c => c.key === 'date_hired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_hired')?.width }}>Date Hired</TableHead>}
-                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'brand')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'brand')?.width }}>Brand</TableHead>}
-                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
-                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date Today</TableHead>}
+                  {columns.find(c => c.key === 'employment_status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'employment_status')?.width }}>Emp. Status</TableHead>}
+                  {columns.find(c => c.key === 'attendance_status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'attendance_status')?.width }}>Att. Status</TableHead>}
+                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
                   {columns.find(c => c.key === 'day_off')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'day_off')?.width }}>Day Off</TableHead>}
                   {columns.find(c => c.key === 'shift')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'shift')?.width }}>Shift</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
@@ -1290,6 +1290,9 @@ const Attendance = () => {
                 ) : (
                   filteredRecords.map((record) => (
                     <TableRow key={record.id}>
+                      {columns.find(c => c.key === 'branch')?.visible && (
+                        <TableCell>{record.employees?.branch || record.employees?.branches?.name || '-'}</TableCell>
+                      )}
                       {columns.find(c => c.key === 'photo')?.visible && (
                         <TableCell>
                           <Avatar 
@@ -1309,14 +1312,11 @@ const Attendance = () => {
                       {columns.find(c => c.key === 'date_hired')?.visible && (
                         <TableCell>{record.employees?.date_hired ? format(new Date(record.employees.date_hired), 'MM-dd-yyyy') : '-'}</TableCell>
                       )}
-                      {columns.find(c => c.key === 'status')?.visible && (
+                      {columns.find(c => c.key === 'employment_status')?.visible && (
+                        <TableCell className="capitalize">{record.employees?.employment_status?.replace(/_/g, ' ') || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'attendance_status')?.visible && (
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'brand')?.visible && (
-                        <TableCell>{record.employees?.category || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'branch')?.visible && (
-                        <TableCell>{record.employees?.branch || record.employees?.branches?.name || '-'}</TableCell>
                       )}
                       {columns.find(c => c.key === 'date')?.visible && (
                         <TableCell>{format(new Date(record.attendance_date), 'MM-dd-yyyy')}</TableCell>
