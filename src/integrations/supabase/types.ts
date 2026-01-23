@@ -26,11 +26,9 @@ export type Database = {
           deleted_at: string | null
           employee_id: string
           id: string
-          letter_photos: string[] | null
           notes: string | null
           reason: string | null
           remarks: string | null
-          resume_letter_photos: string[] | null
           shift: string | null
           status: string
           updated_at: string
@@ -46,11 +44,9 @@ export type Database = {
           deleted_at?: string | null
           employee_id: string
           id?: string
-          letter_photos?: string[] | null
           notes?: string | null
           reason?: string | null
           remarks?: string | null
-          resume_letter_photos?: string[] | null
           shift?: string | null
           status?: string
           updated_at?: string
@@ -66,11 +62,9 @@ export type Database = {
           deleted_at?: string | null
           employee_id?: string
           id?: string
-          letter_photos?: string[] | null
           notes?: string | null
           reason?: string | null
           remarks?: string | null
-          resume_letter_photos?: string[] | null
           shift?: string | null
           status?: string
           updated_at?: string
