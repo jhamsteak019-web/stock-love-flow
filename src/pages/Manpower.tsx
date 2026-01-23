@@ -244,16 +244,21 @@ const Manpower = () => {
     },
   });
 
-  // Get unique branch names from employees
+  // Get the global branch id for filtering (use branch_id instead of branch name)
+  const globalBranchId = selectedBranch?.id || null;
+
+  // Get unique branch names from employees - filtered by global branch selection
   const uniqueBranches = useMemo(() => {
-    const branchNames = employees
+    // If there's a global branch selection, only show that branch
+    const filteredByGlobalBranch = globalBranchId 
+      ? employees.filter(emp => emp.branch_id === globalBranchId)
+      : employees;
+    
+    const branchNames = filteredByGlobalBranch
       .map(emp => emp.branch)
       .filter((branch): branch is string => !!branch && branch.trim() !== '');
     return [...new Set(branchNames)].sort();
-  }, [employees]);
-
-  // Get the global branch id for filtering (use branch_id instead of branch name)
-  const globalBranchId = selectedBranch?.id || null;
+  }, [employees, globalBranchId]);
 
   // Filter employees - prioritize global branch by branch_id
   const filteredEmployees = useMemo(() => {
