@@ -25,14 +25,15 @@ import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnS
 import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
 
 const defaultResumeColumns: GenericColumnConfig[] = [
+  { key: 'branch', label: 'Branch', visible: true, width: 140, minWidth: 100, maxWidth: 200 },
   { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
   { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
-  { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
-  { key: 'status', label: 'Status', visible: true, width: 120, minWidth: 80, maxWidth: 150 },
-  { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'date_absent', label: 'Date of Absent/Late', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
   { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
+  { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
   { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'letter_photos', label: 'Letter Photos', visible: true, width: 120, minWidth: 80, maxWidth: 160 },
+  { key: 'resume_letter_photos', label: 'Resume Letter', visible: true, width: 120, minWidth: 80, maxWidth: 160 },
   { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
 ];
 
@@ -754,14 +755,15 @@ const ResumeToWork = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
                   {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[60px]">Photo</TableHead>}
                   {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
-                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
-                  {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
-                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
+                  {columns.find(c => c.key === 'date_absent')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_absent')?.width }}>Date of Absent/Late</TableHead>}
                   {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
+                  {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
                   {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
+                  {columns.find(c => c.key === 'letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'letter_photos')?.width }}>Letter Photos</TableHead>}
+                  {columns.find(c => c.key === 'resume_letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'resume_letter_photos')?.width }}>Resume Letter</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -781,62 +783,88 @@ const ResumeToWork = () => {
                 ) : (
                   filteredRecords.map((record) => (
                     <TableRow key={record.id}>
-                      <TableCell>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={record.employees?.photo_url || ''} alt={record.employees?.full_name} />
-                          <AvatarFallback>
-                            {record.employees?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {record.employees?.full_name || 'Unknown'}
-                      </TableCell>
-                      <TableCell>
-                        {record.employees?.branch || record.employees?.branches?.name || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {record.date_of_absent 
-                            ? format(new Date(record.date_of_absent), 'MMM dd, yyyy')
-                            : record.attendance_date 
-                              ? format(new Date(record.attendance_date), 'MMM dd, yyyy')
+                      {columns.find(c => c.key === 'branch')?.visible && (
+                        <TableCell>
+                          {record.employees?.branch || record.employees?.branches?.name || '-'}
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'photo')?.visible && (
+                        <TableCell>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={record.employees?.photo_url || ''} alt={record.employees?.full_name} />
+                            <AvatarFallback>
+                              {record.employees?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'name')?.visible && (
+                        <TableCell className="font-medium">
+                          {record.employees?.full_name || 'Unknown'}
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'date_absent')?.visible && (
+                        <TableCell>
+                          <div className="space-y-1">
+                            <span className="text-sm">
+                              {record.date_of_absent 
+                                ? format(new Date(record.date_of_absent), 'MMM dd, yyyy')
+                                : record.attendance_date 
+                                  ? format(new Date(record.attendance_date), 'MMM dd, yyyy')
+                                  : '-'}
+                            </span>
+                            <div>{getStatusBadge(record.status)}</div>
+                          </div>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'date_of_resume')?.visible && (
+                        <TableCell>
+                          <span className="font-medium text-primary">
+                            {record.date_of_resume 
+                              ? format(new Date(record.date_of_resume), 'MMM dd, yyyy')
                               : '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(record.status)}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{record.reason || '-'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium text-primary">
-                          {record.date_of_resume 
-                            ? format(new Date(record.date_of_resume), 'MMM dd, yyyy')
-                            : '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">{record.remarks || '-'}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEdit && (
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} title="Edit">
-                              <Pencil className="h-4 w-4" />
+                          </span>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'reason')?.visible && (
+                        <TableCell>
+                          <span className="text-sm">{record.reason || '-'}</span>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'remarks')?.visible && (
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">{record.remarks || '-'}</span>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'letter_photos')?.visible && (
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">-</span>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'resume_letter_photos')?.visible && (
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">-</span>
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'actions')?.visible && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => setViewingRecord(record)} title="View">
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                          {isAdmin && (
-                            <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(record.id)} title="Delete">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
+                            {canEdit && (
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} title="Edit">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(record.id)} title="Delete">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
