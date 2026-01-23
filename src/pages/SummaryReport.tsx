@@ -260,15 +260,16 @@ const SummaryReport = () => {
         set_date: string | null;
         date_delivered: string | null;
         courier: string | null;
-        waybill_no: string | null;
         category: string | null;
         boxes: number;
         qty: number;
+        amount: number;
         delivery_status: string;
         remarks: string | null;
       }[];
       totalBoxes: number;
       totalQty: number;
+      totalAmount: number;
     }> = {};
 
     filteredReleases
@@ -281,6 +282,7 @@ const SummaryReport = () => {
             items: [],
             totalBoxes: 0,
             totalQty: 0,
+            totalAmount: 0,
           };
         }
         
@@ -289,15 +291,16 @@ const SummaryReport = () => {
           set_date: release.set_date,
           date_delivered: release.date_delivered,
           courier: release.courier,
-          waybill_no: release.waybill_no,
           category: release.category,
           boxes: release.boxes_released,
           qty: release.total_qty || 0,
+          amount: release.amount || 0,
           delivery_status: release.delivery_status,
           remarks: release.notes,
         });
         branches[branch].totalBoxes += release.boxes_released;
         branches[branch].totalQty += release.total_qty || 0;
+        branches[branch].totalAmount += release.amount || 0;
       });
 
     // Sort branches by name and items by set_date ascending (earliest first)
@@ -574,12 +577,12 @@ const SummaryReport = () => {
               <th>Date Received</th>
               <th>Delivery Days</th>
               <th>Courier</th>
-              <th>Waybill No</th>
               <th>Category</th>
               <th>Status</th>
               <th>Remarks</th>
               <th class="text-center">Boxes</th>
               <th class="text-center">Qty</th>
+              <th class="text-right">Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -594,18 +597,19 @@ const SummaryReport = () => {
                 <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                 <td style="color: ${deliveryDays !== null ? (deliveryDays <= 3 ? '#16a34a' : deliveryDays <= 7 ? '#d97706' : '#dc2626') : '#666'}; font-weight: ${deliveryDays !== null ? 'bold' : 'normal'};">${deliveryDays !== null ? `${deliveryDays} day(s)` : '-'}</td>
                 <td>${item.courier || '-'}</td>
-                <td>${item.waybill_no || '-'}</td>
                 <td>${item.category || '-'}</td>
                 <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
                 <td>${item.remarks || '-'}</td>
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
+                <td class="text-right">${item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
               </tr>
             `}).join('')}
             <tr class="subtotal">
-              <td colspan="9"><strong>Subtotal</strong></td>
+              <td colspan="8"><strong>Subtotal</strong></td>
               <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
               <td class="text-center"><strong>${branch.totalQty}</strong></td>
+              <td class="text-right"><strong>${branch.totalAmount > 0 ? branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -714,12 +718,12 @@ const SummaryReport = () => {
                   <th>Date Received</th>
                   <th>Delivery Days</th>
                   <th>Courier</th>
-                  <th>Waybill No</th>
                   <th>Category</th>
                   <th>Status</th>
                   <th>Remarks</th>
                   <th class="text-center">Boxes</th>
                   <th class="text-center">Qty</th>
+                  <th class="text-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -734,18 +738,19 @@ const SummaryReport = () => {
                     <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                     <td style="color: ${deliveryDays !== null ? (deliveryDays <= 3 ? '#16a34a' : deliveryDays <= 7 ? '#d97706' : '#dc2626') : '#666'}; font-weight: ${deliveryDays !== null ? 'bold' : 'normal'};">${deliveryDays !== null ? `${deliveryDays} day(s)` : '-'}</td>
                     <td>${item.courier || '-'}</td>
-                    <td>${item.waybill_no || '-'}</td>
                     <td>${item.category || '-'}</td>
                     <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
                     <td>${item.remarks || '-'}</td>
                     <td class="text-center">${item.boxes}</td>
                     <td class="text-center">${item.qty}</td>
+                    <td class="text-right">${item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                   </tr>
                 `}).join('')}
                 <tr class="subtotal">
-                  <td colspan="9"><strong>Total</strong></td>
+                  <td colspan="8"><strong>Total</strong></td>
                   <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
                   <td class="text-center"><strong>${branch.totalQty}</strong></td>
+                  <td class="text-right"><strong>${branch.totalAmount > 0 ? branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -1342,6 +1347,7 @@ const SummaryReport = () => {
                     
                     const filteredTotalBoxes = filteredItems.reduce((sum, item) => sum + item.boxes, 0);
                     const filteredTotalQty = filteredItems.reduce((sum, item) => sum + item.qty, 0);
+                    const filteredTotalAmount = filteredItems.reduce((sum, item) => sum + item.amount, 0);
                     
                     // Count unique allocation bills
                     const uniqueAllocationBills = new Set(
@@ -1407,12 +1413,12 @@ const SummaryReport = () => {
                             <TableHead className="whitespace-nowrap">Date Received</TableHead>
                             <TableHead className="whitespace-nowrap">Delivery Days</TableHead>
                             <TableHead className="whitespace-nowrap">Courier</TableHead>
-                            <TableHead className="whitespace-nowrap">Waybill No</TableHead>
                             <TableHead className="whitespace-nowrap">Category</TableHead>
                             <TableHead className="whitespace-nowrap">Status</TableHead>
                             <TableHead className="whitespace-nowrap">Remarks</TableHead>
                             <TableHead className="text-center whitespace-nowrap w-16">Boxes</TableHead>
                             <TableHead className="text-center whitespace-nowrap w-16">Qty</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1429,7 +1435,6 @@ const SummaryReport = () => {
                                 ) : '-'}
                               </TableCell>
                               <TableCell className="whitespace-nowrap">{item.courier || '-'}</TableCell>
-                              <TableCell className="whitespace-nowrap">{item.waybill_no || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{item.category || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'}>
@@ -1439,12 +1444,16 @@ const SummaryReport = () => {
                               <TableCell>{item.remarks || '-'}</TableCell>
                               <TableCell className="text-center">{item.boxes}</TableCell>
                               <TableCell className="text-center">{item.qty}</TableCell>
+                              <TableCell className="text-right">
+                                {item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/50 font-semibold">
-                            <TableCell colSpan={9}>Subtotal</TableCell>
+                            <TableCell colSpan={8}>Subtotal</TableCell>
                             <TableCell className="text-center">{filteredTotalBoxes}</TableCell>
                             <TableCell className="text-center">{filteredTotalQty}</TableCell>
+                            <TableCell className="text-right">{filteredTotalAmount > 0 ? filteredTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>
