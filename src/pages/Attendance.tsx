@@ -213,7 +213,7 @@ const Attendance = () => {
 
   // Fetch attendance records
   const { data: attendanceRecords = [], isLoading } = useQuery({
-    queryKey: ['attendance-records', dateRange, branchFilter],
+    queryKey: ['attendance-records', dateRange],
     queryFn: async () => {
       let query = supabase
         .from('attendance_records')
@@ -222,25 +222,24 @@ const Attendance = () => {
         .lte('attendance_date', dateRange.end)
         .order('attendance_date', { ascending: false });
 
-      if (branchFilter !== 'all') {
-        query = query.eq('branch_id', branchFilter);
-      }
-
       const { data, error } = await query;
       if (error) throw error;
       return data as AttendanceRecord[];
     }
   });
 
-  // Filter records by search and status
+  // Filter records by search, status, and branch
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter(record => {
       const matchesSearch = !searchQuery || 
         record.employees?.full_name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      // Filter by employee's branch name from Manpower
+      const employeeBranch = record.employees?.branch || record.employees?.branches?.name || '';
+      const matchesBranch = branchFilter === 'all' || employeeBranch === branchFilter;
+      return matchesSearch && matchesStatus && matchesBranch;
     });
-  }, [attendanceRecords, searchQuery, statusFilter]);
+  }, [attendanceRecords, searchQuery, statusFilter, branchFilter]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -762,8 +761,8 @@ const Attendance = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
-                {branches.map(branch => (
-                  <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                {uniqueManpowerBranches.map(branchName => (
+                  <SelectItem key={branchName} value={branchName}>{branchName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
