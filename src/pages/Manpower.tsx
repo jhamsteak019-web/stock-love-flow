@@ -101,6 +101,7 @@ const Manpower = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [positionFilter, setPositionFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -205,11 +206,12 @@ const Manpower = () => {
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
+      const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
       const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesBranch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus;
     });
-  }, [employees, searchQuery, branchFilter, categoryFilter, statusFilter]);
+  }, [employees, searchQuery, branchFilter, positionFilter, categoryFilter, statusFilter]);
 
   // Attendance summary data
   const attendanceSummary = useMemo(() => {
@@ -679,6 +681,17 @@ const Manpower = () => {
                 <SelectItem value="all">All Branches</SelectItem>
                 {uniqueBranches.map(branch => (
                   <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={positionFilter} onValueChange={setPositionFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Position" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Positions</SelectItem>
+                {positionOptions.map(pos => (
+                  <SelectItem key={pos} value={pos}>{pos}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
