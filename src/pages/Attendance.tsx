@@ -248,28 +248,29 @@ const Attendance = () => {
     }
   });
 
-  // Get the global branch name for filtering
-  const globalBranchName = selectedBranch?.name || null;
+  // Get the global branch id for filtering (use branch_id instead of branch name)
+  const globalBranchId = selectedBranch?.id || null;
 
-  // Filter records by search, status, and branch - prioritize global branch
+  // Filter records by search, status, and branch - prioritize global branch using branch_id
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter(record => {
       const matchesSearch = !searchQuery || 
         record.employees?.full_name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-      // Filter by employee's branch name from Manpower
+      // Filter by employee's branch_id from Manpower
+      const employeeBranchId = record.employees?.branch_id;
       const employeeBranch = record.employees?.branch || record.employees?.branches?.name || '';
       
-      // First filter by global branch if set
-      if (globalBranchName && employeeBranch !== globalBranchName) {
+      // First filter by global branch using branch_id
+      if (globalBranchId && employeeBranchId !== globalBranchId) {
         return false;
       }
       
-      // Then apply local branch filter
+      // Then apply local branch filter (still uses branch name for local dropdown)
       const matchesBranch = branchFilter === 'all' || employeeBranch === branchFilter;
       return matchesSearch && matchesStatus && matchesBranch;
     });
-  }, [attendanceRecords, searchQuery, statusFilter, globalBranchName, branchFilter]);
+  }, [attendanceRecords, searchQuery, statusFilter, globalBranchId, branchFilter]);
 
   // Calculate stats
   const stats = useMemo(() => {

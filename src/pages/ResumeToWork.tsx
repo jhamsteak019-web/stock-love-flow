@@ -95,22 +95,22 @@ const ResumeToWork = () => {
   const isAdmin = userRole === 'admin';
   const canEdit = userRole === 'admin' || userRole === 'staff';
 
-  // Get the effective branch name for filtering
-  const globalBranchName = globalSelectedBranch?.name || null;
+  // Get the effective branch id for filtering (use branch_id instead of branch name)
+  const globalBranchId = globalSelectedBranch?.id || null;
 
-  // Fetch employees for dropdown and count - filtered by global branch
+  // Fetch employees for dropdown and count - filtered by global branch using branch_id
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees-for-resume', globalBranchName],
+    queryKey: ['employees-for-resume', globalBranchId],
     queryFn: async () => {
       let query = supabase
         .from('employees')
-        .select('id, full_name, branch, photo_url, branches:branch_id (name), employment_status')
+        .select('id, full_name, branch, branch_id, photo_url, branches:branch_id (name), employment_status')
         .eq('is_active', true)
         .order('full_name');
       
-      // Filter by global branch if selected
-      if (globalBranchName) {
-        query = query.eq('branch', globalBranchName);
+      // Filter by global branch using branch_id
+      if (globalBranchId) {
+        query = query.eq('branch_id', globalBranchId);
       }
       
       const { data, error } = await query;
@@ -144,6 +144,7 @@ const ResumeToWork = () => {
             full_name,
             photo_url,
             branch,
+            branch_id,
             branches:branch_id (name)
           )
         `)
@@ -173,6 +174,7 @@ const ResumeToWork = () => {
             full_name,
             photo_url,
             branch,
+            branch_id,
             branches:branch_id (name)
           )
         `)
@@ -193,26 +195,27 @@ const ResumeToWork = () => {
     return [...new Set(branches)].sort();
   }, [attendanceRecords]);
 
-  // Filter records - prioritize global branch, then local filter
+  // Filter records - prioritize global branch using branch_id, then local filter
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter(record => {
       const employeeName = record.employees?.full_name?.toLowerCase() || '';
+      const employeeBranchId = record.employees?.branch_id;
       const branch = record.employees?.branch || record.employees?.branches?.name || '';
       
       const matchesSearch = employeeName.includes(searchQuery.toLowerCase());
       
-      // First filter by global branch if set
-      if (globalBranchName && branch !== globalBranchName) {
+      // First filter by global branch using branch_id
+      if (globalBranchId && employeeBranchId !== globalBranchId) {
         return false;
       }
       
-      // Then apply local branch filter
+      // Then apply local branch filter (still uses branch name for local dropdown)
       const matchesBranch = localSelectedBranch === 'all' || branch === localSelectedBranch;
       const matchesDate = !selectedDate || record.date_of_resume === format(selectedDate, 'yyyy-MM-dd');
       
       return matchesSearch && matchesBranch && matchesDate;
     });
-  }, [attendanceRecords, searchQuery, globalBranchName, localSelectedBranch, selectedDate]);
+  }, [attendanceRecords, searchQuery, globalBranchId, localSelectedBranch, selectedDate]);
 
 
   const getStatusBadge = (status: string) => {
