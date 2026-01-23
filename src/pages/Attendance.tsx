@@ -175,7 +175,7 @@ const Attendance = () => {
     }
   });
 
-  // Fetch employees - use deleted_at check instead of is_active for visibility
+  // Fetch employees - filter by both deleted_at and is_active for proper visibility
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
@@ -183,6 +183,7 @@ const Attendance = () => {
         .from('employees')
         .select('*, branches(name)')
         .is('deleted_at', null)
+        .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
       return data as Employee[];

@@ -98,7 +98,7 @@ const ResumeToWork = () => {
   // Get the effective branch id for filtering (use branch_id instead of branch name)
   const globalBranchId = globalSelectedBranch?.id || null;
 
-  // Fetch employees for dropdown and count - filtered by global branch using branch_id
+  // Fetch employees for dropdown and count - filter by both deleted_at and is_active
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-for-resume', globalBranchId],
     queryFn: async () => {
@@ -106,6 +106,7 @@ const ResumeToWork = () => {
         .from('employees')
         .select('id, full_name, branch, branch_id, photo_url, branches:branch_id (name), employment_status')
         .is('deleted_at', null)
+        .eq('is_active', true)
         .order('full_name');
       
       // Filter by global branch using branch_id
