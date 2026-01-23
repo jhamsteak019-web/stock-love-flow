@@ -899,6 +899,7 @@ const Attendance = () => {
                 <SelectItem value="present">Present</SelectItem>
                 <SelectItem value="absent">Absent</SelectItem>
                 <SelectItem value="late">Late</SelectItem>
+                <SelectItem value="day_off">Day Off</SelectItem>
                 <SelectItem value="half_day">Half day</SelectItem>
                 <SelectItem value="undertime">Undertime</SelectItem>
                 <SelectItem value="suspension">Suspension</SelectItem>
