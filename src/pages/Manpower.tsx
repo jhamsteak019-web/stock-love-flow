@@ -163,7 +163,6 @@ const Manpower = () => {
       const { data, error } = await supabase
         .from('employees')
         .select('*, branches(name)')
-        .eq('is_active', true)
         .is('deleted_at', null)
         .order('full_name');
 
@@ -314,7 +313,8 @@ const Manpower = () => {
         date_of_birth: data.date_of_birth || null,
         address: data.address || null,
         cell_no: data.cell_no || null,
-        branch_id: data.branch_id || null,
+        // Ensure employee belongs to the currently selected global branch
+        branch_id: data.branch_id || selectedBranch?.id || null,
         branch: data.branch || null,
         category: data.category || null,
         position: data.position || null,
@@ -348,7 +348,8 @@ const Manpower = () => {
         date_of_birth: data.date_of_birth || null,
         address: data.address || null,
         cell_no: data.cell_no || null,
-        branch_id: data.branch_id || null,
+        // Keep/assign employee to the currently selected global branch if branch_id not provided
+        branch_id: data.branch_id || selectedBranch?.id || null,
         branch: data.branch || null,
         category: data.category || null,
         position: data.position || null,
@@ -434,7 +435,8 @@ const Manpower = () => {
       date_of_birth: '',
       address: '',
       cell_no: '',
-      branch_id: '',
+      // Default branch_id to the globally selected branch for correct isolation
+      branch_id: selectedBranch?.id || '',
       branch: '',
       category: '',
       position: '',
@@ -447,7 +449,7 @@ const Manpower = () => {
     setEditingEmployee(null);
     setPhotoFile(null);
     setPhotoPreview(null);
-  }, []);
+  }, [selectedBranch?.id]);
 
   const closeModal = () => {
     setIsModalOpen(false);
