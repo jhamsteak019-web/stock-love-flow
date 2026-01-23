@@ -1,12 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign, Users, ClipboardList } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { exportToExcel } from '@/lib/excelExport';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -36,6 +38,79 @@ const SummaryReport = () => {
   
   const isViewer = userRole === 'viewer';
   const canExport = userRole !== 'uploader';
+
+  // Fetch attendance records
+  const { data: attendanceRecords = [] } = useQuery({
+    queryKey: ['attendance-summary', selectedYear, selectedMonth],
+    queryFn: async () => {
+      const monthNum = parseInt(selectedMonth) + 1;
+      const startDate = `${selectedYear}-${String(monthNum).padStart(2, '0')}-01`;
+      const endDate = format(endOfMonth(new Date(parseInt(selectedYear), parseInt(selectedMonth))), 'yyyy-MM-dd');
+      
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*, employees(full_name, branch, category, photo_url)')
+        .gte('attendance_date', startDate)
+        .lte('attendance_date', endDate);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch employees for resume to work stats
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Attendance summary data
+  const attendanceSummary = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    const branchCounts: Record<string, { total: number; statuses: Record<string, number> }> = {};
+    
+    attendanceRecords.forEach((record: any) => {
+      const status = record.status || 'unknown';
+      const branch = record.employees?.branch || 'Unknown';
+      
+      // Count by status
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      
+      // Count by branch
+      if (!branchCounts[branch]) {
+        branchCounts[branch] = { total: 0, statuses: {} };
+      }
+      branchCounts[branch].total += 1;
+      branchCounts[branch].statuses[status] = (branchCounts[branch].statuses[status] || 0) + 1;
+    });
+    
+    const statusData = Object.entries(statusCounts)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+    
+    const branchData = Object.entries(branchCounts)
+      .map(([branch, data]) => ({ branch, ...data }))
+      .sort((a, b) => b.total - a.total);
+    
+    // Resume to work stats (records with date_of_resume)
+    const resumeRecords = attendanceRecords.filter((r: any) => r.date_of_resume);
+    
+    return {
+      totalRecords: attendanceRecords.length,
+      statusData,
+      branchData,
+      resumeCount: resumeRecords.length,
+      totalEmployees: employees.length,
+    };
+  }, [attendanceRecords, employees]);
 
   // Export to PDF function
   const handleExportPDF = () => {
@@ -1010,7 +1085,7 @@ const SummaryReport = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-xl grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="branch-report" className="flex items-center gap-2">
             <Store className="h-4 w-4" />
             Branch Report
@@ -1022,6 +1097,10 @@ const SummaryReport = () => {
           <TabsTrigger value="delivered-summary" className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4" />
             Delivered Summary
+          </TabsTrigger>
+          <TabsTrigger value="attendance-summary" className="flex items-center gap-2">
+            <ClipboardList className="h-4 w-4" />
+            Attendance Summary
           </TabsTrigger>
         </TabsList>
 
@@ -1569,6 +1648,228 @@ const SummaryReport = () => {
                       ? `No branches matching "${branchSearch}"` 
                       : `No deliveries marked as delivered for ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`}
                   </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Attendance Summary Tab */}
+        <TabsContent value="attendance-summary" className="space-y-6">
+          {/* Overview Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Records</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{attendanceSummary.totalRecords}</div>
+                <p className="text-xs text-muted-foreground">Attendance records this month</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Employees</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{attendanceSummary.totalEmployees}</div>
+                <p className="text-xs text-muted-foreground">In manpower database</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Resume to Work</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{attendanceSummary.resumeCount}</div>
+                <p className="text-xs text-muted-foreground">Returned from absence</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Unique Statuses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{attendanceSummary.statusData.length}</div>
+                <p className="text-xs text-muted-foreground">Different status types</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Status Distribution */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Attendance Status Distribution - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {attendanceSummary.statusData.length > 0 ? (
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={attendanceSummary.statusData.slice(0, 8)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="count"
+                          nameKey="status"
+                        >
+                          {attendanceSummary.statusData.slice(0, 8).map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <ClipboardList className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <p className="text-muted-foreground">No attendance records for this period</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Status Count Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {attendanceSummary.statusData.length > 0 ? (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {attendanceSummary.statusData.map((item, index) => (
+                      <div key={item.status} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="font-medium capitalize">{item.status.replace(/_/g, ' ')}</span>
+                        </div>
+                        <Badge variant="secondary">{item.count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <p className="text-muted-foreground">No data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Branch Breakdown Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Attendance by Branch - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {attendanceSummary.branchData.length > 0 ? (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px] text-center">#</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead className="text-center">Total Records</TableHead>
+                        <TableHead className="text-center">Present</TableHead>
+                        <TableHead className="text-center">Absent</TableHead>
+                        <TableHead className="text-center">Late</TableHead>
+                        <TableHead className="text-center">Day Off</TableHead>
+                        <TableHead className="text-center">Others</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {attendanceSummary.branchData.map((branch, index) => {
+                        const present = branch.statuses['present'] || 0;
+                        const absent = branch.statuses['absent'] || 0;
+                        const late = branch.statuses['late'] || 0;
+                        const dayOff = branch.statuses['day_off'] || 0;
+                        const others = branch.total - present - absent - late - dayOff;
+                        
+                        return (
+                          <TableRow key={branch.branch}>
+                            <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
+                            <TableCell className="font-medium">{branch.branch}</TableCell>
+                            <TableCell className="text-center font-bold">{branch.total}</TableCell>
+                            <TableCell className="text-center">
+                              {present > 0 ? (
+                                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                  {present}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {absent > 0 ? (
+                                <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                  {absent}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {late > 0 ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                  {late}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {dayOff > 0 ? (
+                                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                  {dayOff}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {others > 0 ? (
+                                <Badge variant="secondary">{others}</Badge>
+                              ) : '-'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {/* Totals Row */}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell></TableCell>
+                        <TableCell>TOTAL</TableCell>
+                        <TableCell className="text-center">{attendanceSummary.totalRecords}</TableCell>
+                        <TableCell className="text-center">
+                          {attendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['present'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {attendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['absent'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {attendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['late'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {attendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['day_off'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {attendanceSummary.branchData.reduce((sum, b) => {
+                            const present = b.statuses['present'] || 0;
+                            const absent = b.statuses['absent'] || 0;
+                            const late = b.statuses['late'] || 0;
+                            const dayOff = b.statuses['day_off'] || 0;
+                            return sum + (b.total - present - absent - late - dayOff);
+                          }, 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No attendance records found</h3>
+                  <p className="text-muted-foreground">No attendance data for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
                 </div>
               )}
             </CardContent>
