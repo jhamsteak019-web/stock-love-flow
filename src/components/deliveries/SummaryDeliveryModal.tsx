@@ -575,7 +575,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                         <TableCell className="text-center font-bold">{store.totalBoxes}</TableCell>
                         <TableCell className="text-center font-bold">{store.totalQty}</TableCell>
                         <TableCell className="text-right font-bold">
-                          {store.totalAmount > 0 ? store.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                          {store.totalAmount > 0 ? '₱' + store.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                         </TableCell>
                       </TableRow>
                     ))
@@ -671,7 +671,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                   <TableCell className="text-center">{item.boxes}</TableCell>
                                   <TableCell className="text-center">{item.qty}</TableCell>
                                   <TableCell className="text-right">
-                                    {item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                    {item.amount > 0 ? '₱' + item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -681,7 +681,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                               <TableCell className="text-center font-semibold">{branch.totalBoxes}</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalQty}</TableCell>
                               <TableCell className="text-right font-semibold">
-                                {branch.totalAmount > 0 ? branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                {branch.totalAmount > 0 ? '₱' + branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                               </TableCell>
                             </TableRow>
                           </TableBody>

@@ -602,14 +602,14 @@ const SummaryReport = () => {
                 <td>${item.remarks || '-'}</td>
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
-                <td class="text-right">${item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                <td class="text-right">${item.amount > 0 ? '₱' + item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
               </tr>
             `}).join('')}
             <tr class="subtotal">
               <td colspan="8"><strong>Subtotal</strong></td>
               <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
               <td class="text-center"><strong>${branch.totalQty}</strong></td>
-              <td class="text-right"><strong>${branch.totalAmount > 0 ? branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</strong></td>
+              <td class="text-right"><strong>${branch.totalAmount > 0 ? '₱' + branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -743,14 +743,14 @@ const SummaryReport = () => {
                     <td>${item.remarks || '-'}</td>
                     <td class="text-center">${item.boxes}</td>
                     <td class="text-center">${item.qty}</td>
-                    <td class="text-right">${item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                    <td class="text-right">${item.amount > 0 ? '₱' + item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
                   </tr>
                 `}).join('')}
                 <tr class="subtotal">
                   <td colspan="8"><strong>Total</strong></td>
                   <td class="text-center"><strong>${branch.totalBoxes}</strong></td>
                   <td class="text-center"><strong>${branch.totalQty}</strong></td>
-                  <td class="text-right"><strong>${branch.totalAmount > 0 ? branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</strong></td>
+                  <td class="text-right"><strong>${branch.totalAmount > 0 ? '₱' + branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -870,7 +870,7 @@ const SummaryReport = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold">₱{totalStats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">total value</p>
           </CardContent>
         </Card>
@@ -1171,7 +1171,7 @@ const SummaryReport = () => {
                             <TableCell className="text-center font-medium">{item.totalBoxes.toLocaleString()}</TableCell>
                             <TableCell className="text-center font-medium">{item.totalQty.toLocaleString()}</TableCell>
                             <TableCell className="text-right font-medium">
-                              {item.totalAmount > 0 ? item.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              {item.totalAmount > 0 ? '₱' + item.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                             </TableCell>
                             <TableCell className="text-center">
                               {allDelivered ? (
@@ -1445,7 +1445,7 @@ const SummaryReport = () => {
                               <TableCell className="text-center">{item.boxes}</TableCell>
                               <TableCell className="text-center">{item.qty}</TableCell>
                               <TableCell className="text-right">
-                                {item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                {item.amount > 0 ? '₱' + item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1453,7 +1453,7 @@ const SummaryReport = () => {
                             <TableCell colSpan={8}>Subtotal</TableCell>
                             <TableCell className="text-center">{filteredTotalBoxes}</TableCell>
                             <TableCell className="text-center">{filteredTotalQty}</TableCell>
-                            <TableCell className="text-right">{filteredTotalAmount > 0 ? filteredTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>
+                            <TableCell className="text-right">{filteredTotalAmount > 0 ? '₱' + filteredTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>
