@@ -36,7 +36,8 @@ import {
   ZoomOut,
   Eye,
   ClipboardList,
-  RotateCcw
+  RotateCcw,
+  Printer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -593,6 +594,125 @@ const Attendance = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Print attendance table
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const getStatusText = (status: string) => {
+      const statusMap: Record<string, string> = {
+        present: 'Present',
+        absent: 'Absent',
+        late: 'Late',
+        half_day: 'Half day',
+        undertime: 'Undertime',
+        suspension: 'Suspension',
+        unauthorized_absent: 'Unauthorized absent',
+        sil: 'SIL',
+        vl: 'VL',
+        change_day_off: 'Change Day off',
+        change_of_schedule: 'Change of Schedule',
+        cancel_day_off: 'Cancel Day off',
+        other_concern: 'Other Concern'
+      };
+      return statusMap[status] || status;
+    };
+
+    const getStatusColor = (status: string) => {
+      const colorMap: Record<string, string> = {
+        present: '#16a34a',
+        absent: '#dc2626',
+        late: '#d97706',
+        half_day: '#2563eb',
+        undertime: '#ea580c',
+        suspension: '#9333ea',
+        unauthorized_absent: '#b91c1c',
+        sil: '#0d9488',
+        vl: '#0891b2',
+        change_day_off: '#4f46e5',
+        change_of_schedule: '#db2777',
+        cancel_day_off: '#d97706',
+        other_concern: '#6b7280'
+      };
+      return colorMap[status] || '#6b7280';
+    };
+
+    const tableRows = filteredRecords.map(record => `
+      <tr>
+        <td style="text-align: center; padding: 8px;">
+          ${record.employees?.photo_url 
+            ? `<img src="${record.employees.photo_url}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />`
+            : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto;">${record.employees?.full_name?.charAt(0) || '?'}</div>`
+          }
+        </td>
+        <td style="padding: 8px; font-weight: 500;">${record.employees?.full_name || '-'}</td>
+        <td style="padding: 8px;">${record.employees?.date_hired ? format(new Date(record.employees.date_hired), 'MM-dd-yyyy') : '-'}</td>
+        <td style="padding: 8px;">
+          <span style="padding: 4px 8px; border-radius: 4px; background: ${getStatusColor(record.status)}20; color: ${getStatusColor(record.status)}; font-weight: 500; font-size: 12px;">
+            ${getStatusText(record.status)}
+          </span>
+        </td>
+        <td style="padding: 8px;">${record.employees?.category || '-'}</td>
+        <td style="padding: 8px;">${record.employees?.branch || record.employees?.branches?.name || '-'}</td>
+        <td style="padding: 8px;">${format(new Date(record.attendance_date), 'MM-dd-yyyy')}</td>
+        <td style="padding: 8px;">${record.day_off || '-'}</td>
+        <td style="padding: 8px;">${record.shift || '-'}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Attendance Report - ${months[parseInt(selectedMonth) - 1]} ${selectedYear}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { text-align: center; margin-bottom: 5px; }
+            .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th { background: #f3f4f6; padding: 10px 8px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; }
+            td { padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+            tr:hover { background: #f9fafb; }
+            .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #666; }
+            @media print {
+              body { padding: 0; }
+              table { font-size: 10px; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Attendance Report</h1>
+          <p class="subtitle">${months[parseInt(selectedMonth) - 1]} ${selectedYear} ${branchFilter !== 'all' ? `- ${branchFilter}` : ''}</p>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: center; width: 60px;">Photo</th>
+                <th>Employee Name</th>
+                <th>Date Hired</th>
+                <th>Status</th>
+                <th>Brand</th>
+                <th>Branch</th>
+                <th>Date Today</th>
+                <th>Day Off</th>
+                <th>Shift</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <p class="footer">Generated on ${format(new Date(), 'MMMM d, yyyy h:mm a')} | Total Records: ${filteredRecords.length}</p>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'present':
@@ -687,6 +807,10 @@ const Attendance = () => {
               excludeFromWidthControl={['photo', 'actions']}
             />
           )}
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
