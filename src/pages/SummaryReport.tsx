@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -201,6 +201,7 @@ const SummaryReport = () => {
       deliveredCount: number;
       totalBoxes: number;
       totalQty: number;
+      totalAmount: number;
       deliveredBoxes: number;
       deliveredQty: number;
     }> = {};
@@ -218,6 +219,7 @@ const SummaryReport = () => {
           deliveredCount: 0,
           totalBoxes: 0,
           totalQty: 0,
+          totalAmount: 0,
           deliveredBoxes: 0,
           deliveredQty: 0,
         };
@@ -226,6 +228,7 @@ const SummaryReport = () => {
       branches[branch].totalDeliveries += 1;
       branches[branch].totalBoxes += release.boxes_released;
       branches[branch].totalQty += release.total_qty || 0;
+      branches[branch].totalAmount += release.amount || 0;
       
       switch (release.delivery_status) {
         case 'pending':
@@ -413,6 +416,7 @@ const SummaryReport = () => {
   const totalStats = useMemo(() => {
     const totalBoxes = groupedByBatch.reduce((sum, r) => sum + r.boxes_released, 0);
     const totalQty = groupedByBatch.reduce((sum, r) => sum + r.total_qty, 0);
+    const totalAmount = filteredReleases.reduce((sum, r) => sum + (r.amount || 0), 0);
     const deliveredCount = groupedByBatch.filter(r => r.delivery_status === 'delivered').length;
     const pendingCount = groupedByBatch.filter(r => r.delivery_status !== 'delivered').length;
     const uniqueDestinations = new Set(groupedByBatch.map(r => r.destination)).size;
@@ -423,13 +427,14 @@ const SummaryReport = () => {
     return {
       totalBoxes,
       totalQty,
+      totalAmount,
       totalDeliveries: groupedByBatch.length,
       deliveredCount,
       pendingCount,
       uniqueDestinations,
       deliveryPercentage,
     };
-  }, [groupedByBatch]);
+  }, [groupedByBatch, filteredReleases]);
 
   // Monthly summary for chart - group by batch first
   const monthlySummary = useMemo(() => {
@@ -840,7 +845,7 @@ const SummaryReport = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Boxes</CardTitle>
@@ -849,8 +854,19 @@ const SummaryReport = () => {
           <CardContent>
             <div className="text-2xl font-bold">{totalStats.totalBoxes.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {totalStats.totalQty.toLocaleString()} total qty/items
+              {totalStats.totalQty.toLocaleString()} qty/items
             </p>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-fade-in" style={{ animationDelay: '0.12s' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalStats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground">total value</p>
           </CardContent>
         </Card>
 
@@ -1108,6 +1124,7 @@ const SummaryReport = () => {
                         <TableHead className="text-center">Delivered</TableHead>
                         <TableHead className="text-center">Total Boxes</TableHead>
                         <TableHead className="text-center">Total Qty/Items</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1148,6 +1165,9 @@ const SummaryReport = () => {
                             </TableCell>
                             <TableCell className="text-center font-medium">{item.totalBoxes.toLocaleString()}</TableCell>
                             <TableCell className="text-center font-medium">{item.totalQty.toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {item.totalAmount > 0 ? item.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                            </TableCell>
                             <TableCell className="text-center">
                               {allDelivered ? (
                                 <Badge className="bg-green-600 hover:bg-green-700">All Delivered</Badge>
