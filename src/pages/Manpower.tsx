@@ -324,10 +324,10 @@ const Manpower = () => {
       statusData,
       branchData,
       resumeCount: resumeRecords.length,
-      totalEmployees: employees.length,
+      totalEmployees: filteredEmployees.length,
       employeesByStatus,
     };
-  }, [attendanceRecords, employees]);
+  }, [attendanceRecords, filteredEmployees]);
 
   // Calculate length of service
   const getLengthOfService = (dateHired: string) => {
