@@ -28,12 +28,12 @@ const defaultResumeColumns: GenericColumnConfig[] = [
   { key: 'branch', label: 'Branch', visible: true, width: 140, minWidth: 100, maxWidth: 200 },
   { key: 'photo', label: 'Photo', visible: true, width: 60, minWidth: 50, maxWidth: 80 },
   { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'date_absent', label: 'Date of Absent/Late', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
+  { key: 'date_absent', label: 'Date of Absent', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
   { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
   { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
   { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'letter_photos', label: 'Letter Photos', visible: true, width: 120, minWidth: 80, maxWidth: 160 },
-  { key: 'resume_letter_photos', label: 'Resume Letter', visible: true, width: 120, minWidth: 80, maxWidth: 160 },
+  { key: 'letter_photos', label: 'Letter (3 Photos)', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
+  { key: 'resume_letter_photos', label: 'Resume Letter (3 Photos)', visible: true, width: 160, minWidth: 120, maxWidth: 200 },
   { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
 ];
 
@@ -758,12 +758,12 @@ const ResumeToWork = () => {
                   {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
                   {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[60px]">Photo</TableHead>}
                   {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
-                  {columns.find(c => c.key === 'date_absent')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_absent')?.width }}>Date of Absent/Late</TableHead>}
+                  {columns.find(c => c.key === 'date_absent')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_absent')?.width }}>Date of Absent</TableHead>}
                   {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
                   {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
                   {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
-                  {columns.find(c => c.key === 'letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'letter_photos')?.width }}>Letter Photos</TableHead>}
-                  {columns.find(c => c.key === 'resume_letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'resume_letter_photos')?.width }}>Resume Letter</TableHead>}
+                  {columns.find(c => c.key === 'letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'letter_photos')?.width }}>Letter (3 Photos)</TableHead>}
+                  {columns.find(c => c.key === 'resume_letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'resume_letter_photos')?.width }}>Resume Letter (3 Photos)</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
