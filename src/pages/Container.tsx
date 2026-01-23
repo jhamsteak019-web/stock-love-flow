@@ -20,6 +20,22 @@ import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import ExcelJS from 'exceljs';
+import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
+import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
+
+// Default column configuration for Container page
+const defaultContainerColumns: GenericColumnConfig[] = [
+  { key: 'container', label: 'Container', visible: true, width: 200, minWidth: 120, maxWidth: 300 },
+  { key: 'date_out', label: 'Date Out Factory', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
+  { key: 'photo', label: 'Photo', visible: true, width: 80, minWidth: 60, maxWidth: 100 },
+  { key: 'date_receive', label: 'Date Receive Warehouse', visible: true, width: 160, minWidth: 120, maxWidth: 200 },
+  { key: 'delivery_days', label: 'Delivery Days', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
+  { key: 'upload_photo', label: 'Upload Photo', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
+  { key: 'category', label: 'Category', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
+  { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'status', label: 'Status', visible: true, width: 180, minWidth: 120, maxWidth: 250 },
+  { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 120 },
+];
 
 interface ContainerItem {
   id: string;
@@ -47,6 +63,9 @@ const MONTHS = [
 const Container = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
+  
+  // Column settings hook
+  const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('container', defaultContainerColumns);
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const receivePhotoInputRef = useRef<HTMLInputElement>(null);
@@ -661,6 +680,12 @@ const Container = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <ColumnSettings
+                  columns={columns}
+                  onColumnChange={setColumns}
+                  defaultColumns={defaultContainerColumns}
+                  excludeFromWidthControl={['photo', 'upload_photo', 'actions']}
+                />
                 {canExport && (
                   <>
                     <Button variant="outline" size="sm" onClick={handleExportPDF}>
@@ -719,196 +744,238 @@ const Container = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Container</TableHead>
-                        <TableHead>Date Out Factory</TableHead>
-                        <TableHead>Photo</TableHead>
-                        <TableHead>Date Receive Warehouse</TableHead>
-                        <TableHead>Delivery Days</TableHead>
-                        <TableHead>Upload Photo</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Remarks</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        {columns.find(c => c.key === 'container')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'container')?.width }}>Container</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'date_out')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'date_out')?.width }}>Date Out Factory</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'photo')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'photo')?.width }}>Photo</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'date_receive')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'date_receive')?.width }}>Date Receive Warehouse</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'delivery_days')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'delivery_days')?.width }}>Delivery Days</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'upload_photo')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'upload_photo')?.width }}>Upload Photo</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'category')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'category')?.width }}>Category</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'remarks')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'status')?.visible && (
+                          <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>
+                        )}
+                        {columns.find(c => c.key === 'actions')?.visible && (
+                          <TableHead className="text-right" style={{ width: columns.find(c => c.key === 'actions')?.width }}>Actions</TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredContainers.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium max-w-[200px]">
-                            <span className="truncate block" title={item.notes || ''}>
-                              {item.notes || '-'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {format(new Date(item.date), 'MMM dd, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-center">
-                              {item.photo_url ? (
-                                <div className="relative inline-block group">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setPreviewPhotoUrl(item.photo_url);
-                                      setZoomLevel(1);
-                                    }}
-                                    className="focus:outline-none"
-                                  >
-                                    <img 
-                                      src={item.photo_url} 
-                                      alt="Container" 
-                                      className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
-                                    />
-                                  </button>
-                                  {canEdit && (
+                          {columns.find(c => c.key === 'container')?.visible && (
+                            <TableCell className="font-medium" style={{ maxWidth: columns.find(c => c.key === 'container')?.width }}>
+                              <span className="truncate block" title={item.notes || ''}>
+                                {item.notes || '-'}
+                              </span>
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'date_out')?.visible && (
+                            <TableCell className="whitespace-nowrap">
+                              {format(new Date(item.date), 'MMM dd, yyyy')}
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'photo')?.visible && (
+                            <TableCell>
+                              <div className="text-center">
+                                {item.photo_url ? (
+                                  <div className="relative inline-block group">
                                     <button
                                       type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeletePhoto(item.id, 'photo');
+                                      onClick={() => {
+                                        setPreviewPhotoUrl(item.photo_url);
+                                        setZoomLevel(1);
                                       }}
-                                      className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                      className="focus:outline-none"
                                     >
-                                      <X className="h-3 w-3 text-white" />
+                                      <img 
+                                        src={item.photo_url} 
+                                        alt="Container" 
+                                        className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                      />
                                     </button>
-                                  )}
-                                </div>
-                              ) : canEdit ? (
-                                <label className="cursor-pointer inline-block">
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
-                                    disabled={uploadingPhotoId === item.id}
-                                  />
-                                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
-                                    {uploadingPhotoId === item.id ? (
-                                      <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                                    ) : (
-                                      <Camera className="h-5 w-5 text-muted-foreground" />
+                                    {canEdit && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeletePhoto(item.id, 'photo');
+                                        }}
+                                        className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                      >
+                                        <X className="h-3 w-3 text-white" />
+                                      </button>
                                     )}
                                   </div>
-                                </label>
-                              ) : (
-                                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                                  <Camera className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {item.date_receive_factory 
-                              ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy')
-                              : '-'
-                            }
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {item.date && item.date_receive_factory 
-                              ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date))
-                              : '-'
-                            }
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-center">
-                              {item.receive_photo_url ? (
-                                <div className="relative inline-block group">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setPreviewPhotoUrl(item.receive_photo_url);
-                                      setZoomLevel(1);
-                                    }}
-                                    className="focus:outline-none"
-                                  >
-                                    <img 
-                                      src={item.receive_photo_url} 
-                                      alt="Receive" 
-                                      className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                ) : canEdit ? (
+                                  <label className="cursor-pointer inline-block">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => handlePhotoUpload(e, item.id, 'photo')}
+                                      disabled={uploadingPhotoId === item.id}
                                     />
-                                  </button>
-                                  {canEdit && (
+                                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
+                                      {uploadingPhotoId === item.id ? (
+                                        <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                                      ) : (
+                                        <Camera className="h-5 w-5 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                  </label>
+                                ) : (
+                                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                                    <Camera className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'date_receive')?.visible && (
+                            <TableCell className="whitespace-nowrap">
+                              {item.date_receive_factory 
+                                ? format(new Date(item.date_receive_factory), 'MMM dd, yyyy')
+                                : '-'
+                              }
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'delivery_days')?.visible && (
+                            <TableCell className="text-center">
+                              {item.date && item.date_receive_factory 
+                                ? differenceInDays(new Date(item.date_receive_factory), new Date(item.date))
+                                : '-'
+                              }
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'upload_photo')?.visible && (
+                            <TableCell>
+                              <div className="text-center">
+                                {item.receive_photo_url ? (
+                                  <div className="relative inline-block group">
                                     <button
                                       type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeletePhoto(item.id, 'receive');
+                                      onClick={() => {
+                                        setPreviewPhotoUrl(item.receive_photo_url);
+                                        setZoomLevel(1);
                                       }}
-                                      className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                      className="focus:outline-none"
                                     >
-                                      <X className="h-3 w-3 text-white" />
+                                      <img 
+                                        src={item.receive_photo_url} 
+                                        alt="Receive" 
+                                        className="h-12 w-12 object-cover rounded-xl cursor-pointer hover:opacity-80 transition-all shadow-md"
+                                      />
                                     </button>
-                                  )}
-                                </div>
-                              ) : canEdit ? (
-                                <label className="cursor-pointer inline-block">
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
-                                    disabled={uploadingReceivePhotoId === item.id}
-                                  />
-                                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
-                                    {uploadingReceivePhotoId === item.id ? (
-                                      <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                                    ) : (
-                                      <Camera className="h-5 w-5 text-muted-foreground" />
+                                    {canEdit && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeletePhoto(item.id, 'receive');
+                                        }}
+                                        className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                      >
+                                        <X className="h-3 w-3 text-white" />
+                                      </button>
                                     )}
                                   </div>
-                                </label>
-                              ) : (
-                                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
-                                  <Camera className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{item.category || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] break-words whitespace-normal">{item.remarks || '-'}</TableCell>
-                          <TableCell className="min-w-[240px]">
-                            <Select 
-                              value={item.status || 'ON PROCESS WAREHOUSE'} 
-                              onValueChange={(value) => {
-                                updateMutation.mutate({
-                                  id: item.id,
-                                  data: { status: value }
-                                });
-                              }}
-                              disabled={!canEdit}
-                            >
-                              <SelectTrigger className="w-full h-8 bg-background text-xs">
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-background z-50">
-                                {STATUS_OPTIONS.map(status => (
-                                  <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleView(item)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {canEdit && (
-                                <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
-                                  <Pencil className="h-4 w-4" />
+                                ) : canEdit ? (
+                                  <label className="cursor-pointer inline-block">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => handlePhotoUpload(e, item.id, 'receive')}
+                                      disabled={uploadingReceivePhotoId === item.id}
+                                    />
+                                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all mx-auto">
+                                      {uploadingReceivePhotoId === item.id ? (
+                                        <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                                      ) : (
+                                        <Camera className="h-5 w-5 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                  </label>
+                                ) : (
+                                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                                    <Camera className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'category')?.visible && (
+                            <TableCell>{item.category || '-'}</TableCell>
+                          )}
+                          {columns.find(c => c.key === 'remarks')?.visible && (
+                            <TableCell className="break-words whitespace-normal" style={{ maxWidth: columns.find(c => c.key === 'remarks')?.width }}>
+                              {item.remarks || '-'}
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'status')?.visible && (
+                            <TableCell className="min-w-[240px]">
+                              <Select 
+                                value={item.status || 'ON PROCESS WAREHOUSE'} 
+                                onValueChange={(value) => {
+                                  updateMutation.mutate({
+                                    id: item.id,
+                                    data: { status: value }
+                                  });
+                                }}
+                                disabled={!canEdit}
+                              >
+                                <SelectTrigger className="w-full h-8 bg-background text-xs">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-background z-50">
+                                  {STATUS_OPTIONS.map(status => (
+                                    <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          )}
+                          {columns.find(c => c.key === 'actions')?.visible && (
+                            <TableCell className="text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => handleView(item)}>
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
-                              {canDelete && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => softDeleteMutation.mutate(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
+                                {canEdit && (
+                                  <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => softDeleteMutation.mutate(item.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
