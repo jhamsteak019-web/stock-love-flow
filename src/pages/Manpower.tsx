@@ -202,8 +202,9 @@ const Manpower = () => {
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
       const matchesSearch = !searchQuery || 
-        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
       const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
@@ -667,7 +668,7 @@ const Manpower = () => {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, ID, or position..."
+                placeholder="Search by Emp ID, Name, Branch, Position..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
