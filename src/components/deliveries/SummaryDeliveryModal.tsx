@@ -633,6 +633,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                               <TableHead>Bill No</TableHead>
                               <TableHead>Date Out</TableHead>
                               <TableHead>Date Received</TableHead>
+                              <TableHead>Delivery Days</TableHead>
                               <TableHead>Courier</TableHead>
                               <TableHead>Category</TableHead>
                               <TableHead>Status</TableHead>
@@ -643,28 +644,40 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {branch.items.map((item, idx) => (
-                              <TableRow key={idx}>
-                                <TableCell>{item.allocation_bill || '-'}</TableCell>
-                                <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
-                                <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
-                                <TableCell>{item.courier || '-'}</TableCell>
-                                <TableCell>{item.category || '-'}</TableCell>
-                                <TableCell>
-                                  <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'} className={item.delivery_status === 'delivered' ? 'bg-green-500' : ''}>
-                                    {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{item.remarks || '-'}</TableCell>
-                                <TableCell className="text-center">{item.boxes}</TableCell>
-                                <TableCell className="text-center">{item.qty}</TableCell>
-                                <TableCell className="text-right">
-                                  {item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                            {branch.items.map((item, idx) => {
+                              // Calculate delivery days
+                              let deliveryDays = '-';
+                              if (item.set_date && item.date_delivered) {
+                                const outDate = new Date(item.set_date);
+                                const receivedDate = new Date(item.date_delivered);
+                                const diffTime = receivedDate.getTime() - outDate.getTime();
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                deliveryDays = diffDays >= 0 ? `${diffDays} day${diffDays !== 1 ? 's' : ''}` : '-';
+                              }
+                              return (
+                                <TableRow key={idx}>
+                                  <TableCell>{item.allocation_bill || '-'}</TableCell>
+                                  <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
+                                  <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
+                                  <TableCell>{deliveryDays}</TableCell>
+                                  <TableCell>{item.courier || '-'}</TableCell>
+                                  <TableCell>{item.category || '-'}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'} className={item.delivery_status === 'delivered' ? 'bg-green-500' : ''}>
+                                      {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{item.remarks || '-'}</TableCell>
+                                  <TableCell className="text-center">{item.boxes}</TableCell>
+                                  <TableCell className="text-center">{item.qty}</TableCell>
+                                  <TableCell className="text-right">
+                                    {item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                             <TableRow className="bg-muted/50">
-                              <TableCell colSpan={7} className="font-semibold">Subtotal</TableCell>
+                              <TableCell colSpan={8} className="font-semibold">Subtotal</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalBoxes}</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalQty}</TableCell>
                               <TableCell className="text-right font-semibold">
