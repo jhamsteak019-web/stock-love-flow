@@ -789,13 +789,8 @@ const Attendance = () => {
             </Select>
             {canEdit && (
               <>
+                {/* Add Employee button hidden - employees should be added via Manpower page */}
                 <Dialog open={isEmployeeModalOpen} onOpenChange={(open) => { setIsEmployeeModalOpen(open); if (!open) resetEmployeeForm(); }}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Add Employee
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
