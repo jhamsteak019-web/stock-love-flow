@@ -655,9 +655,6 @@ const History = () => {
                       )}
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedBatch(group); }} className="transition-transform hover:scale-110">
-                            <Eye className="h-4 w-4" />
-                          </Button>
                           {isAdmin && (
                             <Button 
                               variant="ghost" 
