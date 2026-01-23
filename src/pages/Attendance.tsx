@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { 
   Search, 
   Download, 
@@ -1147,16 +1148,14 @@ const Attendance = () => {
                       <div className="space-y-4 pr-4">
                         <div>
                           <Label>Employee</Label>
-                          <Select value={attendanceForm.employee_id} onValueChange={(v) => setAttendanceForm({ ...attendanceForm, employee_id: v })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {employees.map(emp => (
-                                <SelectItem key={emp.id} value={emp.id}>{emp.full_name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            options={employees.map(emp => ({ value: emp.id, label: emp.full_name }))}
+                            value={attendanceForm.employee_id}
+                            onValueChange={(v) => setAttendanceForm({ ...attendanceForm, employee_id: v })}
+                            placeholder="Select employee"
+                            searchPlaceholder="Search employee name..."
+                            emptyText="No employee found."
+                          />
                         </div>
                         <div>
                           <Label>Date</Label>
