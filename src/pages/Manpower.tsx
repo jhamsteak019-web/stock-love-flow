@@ -156,7 +156,7 @@ const Manpower = () => {
     }
   });
 
-  // Fetch active employees
+  // Fetch active employees - filter by both deleted_at and is_active
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['manpower-employees'],
     queryFn: async () => {
@@ -164,6 +164,7 @@ const Manpower = () => {
         .from('employees')
         .select('*, branches(name)')
         .is('deleted_at', null)
+        .eq('is_active', true)
         .order('full_name');
 
       if (error) throw error;
