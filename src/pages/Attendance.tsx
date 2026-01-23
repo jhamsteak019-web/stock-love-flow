@@ -1441,43 +1441,6 @@ const Attendance = () => {
         </Card>
       </div>
 
-      {/* Registered Employees Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Registered Employees ({employees.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {employees.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6">No employees registered yet</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {employees.map(employee => (
-                <div 
-                  key={employee.id} 
-                  className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                >
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={employee.photo_url || ''} alt={employee.full_name} />
-                    <AvatarFallback>{employee.full_name?.charAt(0) || '?'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{employee.full_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {employee.branch || employee.branches?.name || 'No Branch'}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-xs shrink-0">
-                    {employee.employment_status || 'N/A'}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Photo Preview Dialog */}
       <Dialog open={!!viewingPhoto} onOpenChange={() => { setViewingPhoto(null); setPhotoZoomLevel(1); }}>
