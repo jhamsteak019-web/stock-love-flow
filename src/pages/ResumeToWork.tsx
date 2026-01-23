@@ -105,7 +105,7 @@ const ResumeToWork = () => {
       let query = supabase
         .from('employees')
         .select('id, full_name, branch, branch_id, photo_url, branches:branch_id (name), employment_status')
-        .eq('is_active', true)
+        .is('deleted_at', null)
         .order('full_name');
       
       // Filter by global branch using branch_id
