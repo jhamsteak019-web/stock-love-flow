@@ -197,7 +197,7 @@ const Manpower = () => {
       
       const { data, error } = await supabase
         .from('attendance_records')
-        .select('*, employees(full_name, branch, category, photo_url)')
+        .select('*, employees(full_name, branch, category, photo_url, is_active, deleted_at)')
         .gte('attendance_date', startDate)
         .lte('attendance_date', endDate);
       
@@ -245,12 +245,21 @@ const Manpower = () => {
     const statusCounts: Record<string, number> = {};
     const branchCounts: Record<string, { total: number; statuses: Record<string, number> }> = {};
     const employeesByStatus: Record<string, Array<{ name: string; branch: string; date: string; photo_url?: string }>> = {};
+
+    // NOTE: When an employee is soft-deleted (deleted_at set) or deactivated (is_active=false),
+    // their historical attendance records still exist. For the summary UI, we hide those employees.
+    const normalizeEmployee = (emp: any) => (Array.isArray(emp) ? emp[0] : emp);
+    const activeAttendanceRecords = attendanceRecords.filter((record: any) => {
+      const emp = normalizeEmployee(record.employees);
+      return emp && emp.is_active === true && !emp.deleted_at;
+    });
     
-    attendanceRecords.forEach((record: any) => {
+    activeAttendanceRecords.forEach((record: any) => {
+      const emp = normalizeEmployee(record.employees);
       const status = record.status || 'unknown';
-      const branch = record.employees?.branch || 'Unknown';
-      const employeeName = record.employees?.full_name || 'Unknown';
-      const photoUrl = record.employees?.photo_url;
+      const branch = emp?.branch || 'Unknown';
+      const employeeName = emp?.full_name || 'Unknown';
+      const photoUrl = emp?.photo_url;
       const attendanceDate = record.attendance_date;
       
       statusCounts[status] = (statusCounts[status] || 0) + 1;
@@ -281,10 +290,10 @@ const Manpower = () => {
       .map(([branch, data]) => ({ branch, ...data }))
       .sort((a, b) => b.total - a.total);
     
-    const resumeRecords = attendanceRecords.filter((r: any) => r.date_of_resume);
+    const resumeRecords = activeAttendanceRecords.filter((r: any) => r.date_of_resume);
     
     return {
-      totalRecords: attendanceRecords.length,
+      totalRecords: activeAttendanceRecords.length,
       statusData,
       branchData,
       resumeCount: resumeRecords.length,
@@ -385,6 +394,7 @@ const Manpower = () => {
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
       queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
       toast({ title: 'Employee moved to Recently Deleted!' });
     },
     onError: (error: any) => {
@@ -405,6 +415,7 @@ const Manpower = () => {
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
       queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
       toast({ title: 'Employee restored successfully!' });
     },
     onError: (error: any) => {
@@ -420,6 +431,7 @@ const Manpower = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
       toast({ title: 'Employee permanently deleted!' });
     },
     onError: (error: any) => {
