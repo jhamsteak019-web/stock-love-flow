@@ -162,14 +162,15 @@ const History = () => {
 
   // Group releases by batch_id, filtered by branch
   const groupReleases = (releasesList: StockRelease[], filterByBranch = true) => {
-    // Filter by branch if enabled
+    // Filter by branch if enabled - STRICT branch isolation
     const filtered = filterByBranch && selectedBranch 
       ? releasesList.filter(r => r.branch_id === selectedBranch.id)
       : releasesList;
     
     const groups: Record<string, GroupedRelease> = {};
     
-    releasesList.forEach(release => {
+    // Use filtered list instead of original releasesList
+    filtered.forEach(release => {
       const batchKey = release.batch_id || release.id;
       
       if (!groups[batchKey]) {
