@@ -107,11 +107,22 @@ const ResumeToWork = () => {
   });
 
 
-  // Fetch attendance records that have date_of_resume
+  // Fetch attendance records that are absent-related OR have date_of_resume
   const { data: attendanceRecords = [], isLoading } = useQuery({
     queryKey: ['resume-to-work', selectedMonth, selectedYear, showAllYear],
     queryFn: async () => {
-      let query = supabase
+      // Absence-related statuses that should appear in Resume to Work
+      const absenceStatuses = ['absent', 'suspension', 'unauthorized absent', 'sil', 'vl'];
+      
+      const startDate = !showAllYear 
+        ? new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1)
+        : new Date(parseInt(selectedYear), 0, 1);
+      const endDate = !showAllYear 
+        ? new Date(parseInt(selectedYear), parseInt(selectedMonth), 0)
+        : new Date(parseInt(selectedYear), 11, 31);
+
+      // Fetch records with absence status OR with date_of_resume
+      const { data, error } = await supabase
         .from('attendance_records')
         .select(`
           *,
@@ -123,25 +134,11 @@ const ResumeToWork = () => {
             branches:branch_id (name)
           )
         `)
-        .not('date_of_resume', 'is', null)
-        .order('date_of_resume', { ascending: false });
+        .or(`status.in.(${absenceStatuses.join(',')}),date_of_resume.not.is.null`)
+        .gte('attendance_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('attendance_date', format(endDate, 'yyyy-MM-dd'))
+        .order('attendance_date', { ascending: false });
 
-      // Filter by date range
-      if (!showAllYear) {
-        const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
-        const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
-        query = query
-          .gte('date_of_resume', format(startDate, 'yyyy-MM-dd'))
-          .lte('date_of_resume', format(endDate, 'yyyy-MM-dd'));
-      } else {
-        const startDate = new Date(parseInt(selectedYear), 0, 1);
-        const endDate = new Date(parseInt(selectedYear), 11, 31);
-        query = query
-          .gte('date_of_resume', format(startDate, 'yyyy-MM-dd'))
-          .lte('date_of_resume', format(endDate, 'yyyy-MM-dd'));
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     }
