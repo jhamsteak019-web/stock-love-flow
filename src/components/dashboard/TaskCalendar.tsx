@@ -264,7 +264,7 @@ export function TaskCalendar() {
               {format(currentDate, 'MMMM yyyy')}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-2">
+          <CardContent className="p-2 flex justify-center">
             <Calendar
               mode="single"
               selected={sidebarSelectedDate || undefined}
@@ -276,7 +276,7 @@ export function TaskCalendar() {
               }}
               month={currentDate}
               onMonthChange={setCurrentDate}
-              className="pointer-events-auto"
+              className="pointer-events-auto w-full max-w-[260px]"
               modifiers={{
                 hasTask: datesWithTasks,
               }}
