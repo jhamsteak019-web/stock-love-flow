@@ -118,6 +118,8 @@ const Manpower = () => {
   const currentMonth = getMonth(new Date());
   const [attendanceMonth, setAttendanceMonth] = useState(currentMonth.toString());
   const [attendanceYear, setAttendanceYear] = useState(currentYear.toString());
+  const [attendanceDate, setAttendanceDate] = useState<string>(''); // Specific date for daily report
+  const [positionCategoryFilter, setPositionCategoryFilter] = useState<string>('all'); // Store, Office, Team Leader, All
 
   const [form, setForm] = useState({
     employee_id: '',
@@ -215,15 +217,25 @@ const Manpower = () => {
 
   // Fetch attendance records for summary
   const { data: attendanceRecords = [] } = useQuery({
-    queryKey: ['manpower-attendance-summary', attendanceYear, attendanceMonth],
+    queryKey: ['manpower-attendance-summary', attendanceYear, attendanceMonth, attendanceDate],
     queryFn: async () => {
       const monthNum = parseInt(attendanceMonth) + 1;
-      const startDate = `${attendanceYear}-${String(monthNum).padStart(2, '0')}-01`;
-      const endDate = format(endOfMonth(new Date(parseInt(attendanceYear), parseInt(attendanceMonth))), 'yyyy-MM-dd');
+      
+      // If specific date is selected, use that date only
+      let startDate: string;
+      let endDate: string;
+      
+      if (attendanceDate) {
+        startDate = attendanceDate;
+        endDate = attendanceDate;
+      } else {
+        startDate = `${attendanceYear}-${String(monthNum).padStart(2, '0')}-01`;
+        endDate = format(endOfMonth(new Date(parseInt(attendanceYear), parseInt(attendanceMonth))), 'yyyy-MM-dd');
+      }
       
       const { data, error } = await supabase
         .from('attendance_records')
-        .select('*, employees(full_name, branch, category, photo_url, is_active, deleted_at)')
+        .select('*, employees(full_name, branch, category, position, photo_url, is_active, deleted_at)')
         .gte('attendance_date', startDate)
         .lte('attendance_date', endDate);
       
@@ -266,18 +278,42 @@ const Manpower = () => {
     });
   }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter]);
 
+  // Position category mapping
+  const storePositions = ['Demo', 'OIC', 'AOIC', 'Key Person', 'Sales Assistant', 'Stock Merchandising'];
+  const officePositions = ['Manager', 'Assistant Manager', 'Encoder Inventory', 'Stock Support Event'];
+  const teamLeaderPositions = ['Team Leader'];
+
   // Attendance summary data with employee details by status
   const attendanceSummary = useMemo(() => {
     const statusCounts: Record<string, number> = {};
     const branchCounts: Record<string, { total: number; statuses: Record<string, number> }> = {};
-    const employeesByStatus: Record<string, Array<{ name: string; branch: string; date: string; photo_url?: string }>> = {};
+    const employeesByStatus: Record<string, Array<{ name: string; branch: string; date: string; photo_url?: string; position?: string }>> = {};
 
     // NOTE: When an employee is soft-deleted (deleted_at set) or deactivated (is_active=false),
     // their historical attendance records still exist. For the summary UI, we hide those employees.
     const normalizeEmployee = (emp: any) => (Array.isArray(emp) ? emp[0] : emp);
+    
+    // Filter by position category
+    const filterByPositionCategory = (position: string | null): boolean => {
+      if (positionCategoryFilter === 'all') return true;
+      if (!position) return false;
+      
+      switch (positionCategoryFilter) {
+        case 'store':
+          return storePositions.some(p => p.toLowerCase() === position.toLowerCase());
+        case 'office':
+          return officePositions.some(p => p.toLowerCase() === position.toLowerCase());
+        case 'teamleader':
+          return teamLeaderPositions.some(p => p.toLowerCase() === position.toLowerCase());
+        default:
+          return true;
+      }
+    };
+    
     const activeAttendanceRecords = attendanceRecords.filter((record: any) => {
       const emp = normalizeEmployee(record.employees);
-      return emp && emp.is_active === true && !emp.deleted_at;
+      if (!emp || emp.is_active !== true || emp.deleted_at) return false;
+      return filterByPositionCategory(emp.position);
     });
     
     activeAttendanceRecords.forEach((record: any) => {
@@ -286,6 +322,7 @@ const Manpower = () => {
       const branch = emp?.branch || 'Unknown';
       const employeeName = emp?.full_name || 'Unknown';
       const photoUrl = emp?.photo_url;
+      const position = emp?.position;
       const attendanceDate = record.attendance_date;
       
       statusCounts[status] = (statusCounts[status] || 0) + 1;
@@ -304,7 +341,8 @@ const Manpower = () => {
         name: employeeName, 
         branch, 
         date: attendanceDate,
-        photo_url: photoUrl
+        photo_url: photoUrl,
+        position
       });
     });
     
@@ -326,7 +364,7 @@ const Manpower = () => {
       totalEmployees: filteredEmployees.length,
       employeesByStatus,
     };
-  }, [attendanceRecords, filteredEmployees]);
+  }, [attendanceRecords, filteredEmployees, positionCategoryFilter]);
 
   // Calculate length of service
   const getLengthOfService = (dateHired: string) => {
@@ -998,26 +1036,63 @@ const Manpower = () => {
         <TabsContent value="attendance-summary" className="space-y-6">
           {/* Date Filters and Clear Button */}
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Select value={attendanceMonth} onValueChange={setAttendanceMonth}>
-                <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
-                  <SelectValue />
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Month/Year Filter */}
+              <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Select value={attendanceMonth} onValueChange={(val) => { setAttendanceMonth(val); setAttendanceDate(''); }}>
+                  <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {MONTHS.map((month, index) => (
+                      <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={attendanceYear} onValueChange={(val) => { setAttendanceYear(val); setAttendanceDate(''); }}>
+                  <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Specific Date Picker */}
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={attendanceDate}
+                  onChange={(e) => setAttendanceDate(e.target.value)}
+                  className="w-[160px] h-9"
+                  placeholder="Pick a date"
+                />
+                {attendanceDate && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAttendanceDate('')}
+                    className="h-8 px-2"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Position Category Filter */}
+              <Select value={positionCategoryFilter} onValueChange={setPositionCategoryFilter}>
+                <SelectTrigger className="w-[150px] h-9">
+                  <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-50">
-                  {MONTHS.map((month, index) => (
-                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={attendanceYear} onValueChange={setAttendanceYear}>
-                <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="store">Store</SelectItem>
+                  <SelectItem value="office">Office</SelectItem>
+                  <SelectItem value="teamleader">Team Leader</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1042,7 +1117,9 @@ const Manpower = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{attendanceSummary.totalRecords}</div>
-                <p className="text-xs text-muted-foreground">Attendance records this month</p>
+                <p className="text-xs text-muted-foreground">
+                  {attendanceDate ? `Records for ${format(new Date(attendanceDate), 'MMM dd, yyyy')}` : 'Attendance records this month'}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -1078,7 +1155,7 @@ const Manpower = () => {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Attendance Status Distribution - {MONTHS[parseInt(attendanceMonth)]} {attendanceYear}</CardTitle>
+                <CardTitle>Attendance Status Distribution - {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</CardTitle>
               </CardHeader>
               <CardContent>
                 {attendanceSummary.statusData.length > 0 ? (
@@ -1146,7 +1223,7 @@ const Manpower = () => {
           {/* Branch Breakdown Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Attendance by Branch - {MONTHS[parseInt(attendanceMonth)]} {attendanceYear}</CardTitle>
+              <CardTitle>Attendance by Branch - {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</CardTitle>
             </CardHeader>
             <CardContent>
               {attendanceSummary.branchData.length > 0 ? (
@@ -1247,7 +1324,7 @@ const Manpower = () => {
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium">No attendance records found</h3>
-                  <p className="text-muted-foreground">No attendance data for {MONTHS[parseInt(attendanceMonth)]} {attendanceYear}</p>
+                  <p className="text-muted-foreground">No attendance data for {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</p>
                 </div>
               )}
             </CardContent>
