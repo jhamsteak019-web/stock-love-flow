@@ -634,7 +634,6 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                               <TableHead>Date Out</TableHead>
                               <TableHead>Date Received</TableHead>
                               <TableHead>Courier</TableHead>
-                              <TableHead>Waybill No</TableHead>
                               <TableHead>Category</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Remarks</TableHead>
@@ -650,7 +649,6 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                 <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                                 <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                                 <TableCell>{item.courier || '-'}</TableCell>
-                                <TableCell>{item.waybill_no || '-'}</TableCell>
                                 <TableCell>{item.category || '-'}</TableCell>
                                 <TableCell>
                                   <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'} className={item.delivery_status === 'delivered' ? 'bg-green-500' : ''}>
@@ -666,7 +664,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                               </TableRow>
                             ))}
                             <TableRow className="bg-muted/50">
-                              <TableCell colSpan={8} className="font-semibold">Subtotal</TableCell>
+                              <TableCell colSpan={7} className="font-semibold">Subtotal</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalBoxes}</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalQty}</TableCell>
                               <TableCell className="text-right font-semibold">
