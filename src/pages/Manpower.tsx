@@ -189,6 +189,14 @@ const Manpower = () => {
     },
   });
 
+  // Get unique branch names from employees
+  const uniqueBranches = useMemo(() => {
+    const branchNames = employees
+      .map(emp => emp.branch)
+      .filter((branch): branch is string => !!branch && branch.trim() !== '');
+    return [...new Set(branchNames)].sort();
+  }, [employees]);
+
   // Filter employees
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
@@ -196,7 +204,7 @@ const Manpower = () => {
         emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesBranch = branchFilter === 'all' || emp.branch_id === branchFilter;
+      const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
       const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
       return matchesSearch && matchesBranch && matchesCategory && matchesStatus;
@@ -669,8 +677,8 @@ const Manpower = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
-                {branches.map(branch => (
-                  <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                {uniqueBranches.map(branch => (
+                  <SelectItem key={branch} value={branch}>{branch}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
