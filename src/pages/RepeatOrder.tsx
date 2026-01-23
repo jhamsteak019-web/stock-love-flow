@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ interface RepeatOrderItem {
   created_at: string;
   created_by: string | null;
   deleted_at: string | null;
+  branch_id: string | null;
 }
 
 interface ColumnConfig {
@@ -76,6 +78,7 @@ const parsePhotoUrls = (photoUrl: string | null): string[] => {
 
 const RepeatOrder = () => {
   const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -133,31 +136,41 @@ const RepeatOrder = () => {
     (currentDate.getFullYear() - i).toString()
   );
 
-  // Fetch active repeat orders
+  // Fetch active repeat orders - filtered by branch
   const { data: activeOrders = [], isLoading: isLoadingActive } = useQuery({
-    queryKey: ['repeat-orders', 'active'],
+    queryKey: ['repeat-orders', 'active', selectedBranch?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('repeat_orders' as any)
         .select('*')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
+      if (selectedBranch) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []) as unknown as RepeatOrderItem[];
     },
   });
 
-  // Fetch deleted repeat orders
+  // Fetch deleted repeat orders - filtered by branch
   const { data: deletedOrders = [], isLoading: isLoadingDeleted } = useQuery({
-    queryKey: ['repeat-orders', 'deleted'],
+    queryKey: ['repeat-orders', 'deleted', selectedBranch?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('repeat_orders' as any)
         .select('*')
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
       
+      if (selectedBranch) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []) as unknown as RepeatOrderItem[];
     },
@@ -182,7 +195,6 @@ const RepeatOrder = () => {
       toast.error('Failed to update: ' + error.message);
     },
   });
-
   // Add mutation
   const addMutation = useMutation({
     mutationFn: async (newOrder: { branch_store: string; category: string; date_give_store: string; date_give_warehouse: string; date_out_warehouse: string; status: string }) => {
@@ -196,6 +208,7 @@ const RepeatOrder = () => {
           date_out_warehouse: newOrder.date_out_warehouse || null,
           status: newOrder.status,
           created_by: user?.id,
+          branch_id: selectedBranch?.id || null,
         })
         .select()
         .single();

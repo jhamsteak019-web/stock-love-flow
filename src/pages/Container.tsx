@@ -3,6 +3,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ interface ContainerItem {
   status: string | null;
   created_at: string;
   deleted_at: string | null;
+  branch_id: string | null;
 }
 
 const STATUS_OPTIONS = ['ON PROCESS WAREHOUSE', 'FOR DISTRIBUTION ON WAREHOUSE', 'FOR DELIVERY ON STORE'];
@@ -44,6 +46,7 @@ const MONTHS = [
 
 const Container = () => {
   const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const receivePhotoInputRef = useRef<HTMLInputElement>(null);
@@ -82,31 +85,41 @@ const Container = () => {
   const canDelete = userRole === 'admin';
   const canExport = userRole !== 'uploader';
 
-  // Fetch active containers
+  // Fetch active containers - filtered by branch
   const { data: containers = [], isLoading, refetch } = useQuery({
-    queryKey: ['containers'],
+    queryKey: ['containers', selectedBranch?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('containers')
         .select('*')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
+      if (selectedBranch) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as ContainerItem[];
     }
   });
 
-  // Fetch deleted containers
+  // Fetch deleted containers - filtered by branch
   const { data: deletedContainers = [], refetch: refetchDeleted } = useQuery({
-    queryKey: ['containers-deleted'],
+    queryKey: ['containers-deleted', selectedBranch?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('containers')
         .select('*')
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
       
+      if (selectedBranch) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as ContainerItem[];
     }
@@ -130,7 +143,8 @@ const Container = () => {
           category: data.category || null,
           notes: data.notes || null,
           remarks: data.remarks || null,
-          created_by: user?.id
+          created_by: user?.id,
+          branch_id: selectedBranch?.id || null
         });
       if (error) throw error;
     },
