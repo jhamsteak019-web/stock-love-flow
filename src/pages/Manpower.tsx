@@ -85,7 +85,7 @@ interface Employee {
 }
 
 const genderOptions = ['Male', 'Female'];
-const categoryOptions = ['Sales', 'Operations', 'Admin', 'Warehouse', 'Logistics', 'Others'];
+const categoryOptions = ['MHB', 'MLP', 'MUM', 'MSH'];
 const positionOptions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader', 'OIC', 'AOIC', 'Key Person', 'Demo'];
 const statusOptions = ['Regular', 'Probationary', 'Seasonal', 'Newly Hired', 'Back Up', 'Support Event', 'Stock Man', 'Resigned'];
 const maternityOptions = ['N/A', 'On Leave', 'Returned'];
