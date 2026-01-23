@@ -955,7 +955,7 @@ const Attendance = () => {
               />
             </div>
             <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Branches" />
               </SelectTrigger>
               <SelectContent>
