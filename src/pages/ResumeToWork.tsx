@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
 import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
+import { MultiPhotoUpload, TablePhotoDisplay } from '@/components/resume/MultiPhotoUpload';
 
 const defaultResumeColumns: GenericColumnConfig[] = [
   { key: 'branch', label: 'Branch', visible: true, width: 140, minWidth: 100, maxWidth: 200 },
@@ -87,6 +88,8 @@ const ResumeToWork = () => {
   const [formRemarks, setFormRemarks] = useState('');
   const [formPhoto, setFormPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [formLetterPhotos, setFormLetterPhotos] = useState<string[]>([]);
+  const [formResumeLetterPhotos, setFormResumeLetterPhotos] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // View/Edit modal state
@@ -318,6 +321,8 @@ const ResumeToWork = () => {
     setFormRemarks('');
     setFormPhoto(null);
     setPhotoPreview(null);
+    setFormLetterPhotos([]);
+    setFormResumeLetterPhotos([]);
   };
 
   const handleSubmit = async () => {
@@ -338,6 +343,8 @@ const ResumeToWork = () => {
           reason: formReason || null,
           date_of_resume: format(formDateOfResume, 'yyyy-MM-dd'),
           remarks: formRemarks || null,
+          letter_photos: formLetterPhotos,
+          resume_letter_photos: formResumeLetterPhotos,
         });
 
       if (error) throw error;
@@ -430,6 +437,8 @@ const ResumeToWork = () => {
     setFormDateOfResume(record.date_of_resume ? new Date(record.date_of_resume) : undefined);
     setFormRemarks(record.remarks || '');
     setPhotoPreview(record.employees?.photo_url || null);
+    setFormLetterPhotos(record.letter_photos || []);
+    setFormResumeLetterPhotos(record.resume_letter_photos || []);
   };
 
   const handleUpdateSubmit = async () => {
@@ -448,6 +457,8 @@ const ResumeToWork = () => {
         reason: formReason || null,
         date_of_resume: format(formDateOfResume, 'yyyy-MM-dd'),
         remarks: formRemarks || null,
+        letter_photos: formLetterPhotos,
+        resume_letter_photos: formResumeLetterPhotos,
       }
     });
   };
@@ -642,6 +653,32 @@ const ResumeToWork = () => {
                 placeholder="Enter remarks"
                 rows={3}
               />
+            </div>
+
+            {/* Letter Photos */}
+            <div>
+              <Label>Letter Photos (max 3)</Label>
+              <div className="mt-2">
+                <MultiPhotoUpload
+                  photos={formLetterPhotos}
+                  onPhotosChange={setFormLetterPhotos}
+                  maxPhotos={3}
+                  type="letter"
+                />
+              </div>
+            </div>
+
+            {/* Resume Letter Photos */}
+            <div>
+              <Label>Resume Letter Photos (max 3)</Label>
+              <div className="mt-2">
+                <MultiPhotoUpload
+                  photos={formResumeLetterPhotos}
+                  onPhotosChange={setFormResumeLetterPhotos}
+                  maxPhotos={3}
+                  type="resume_letter"
+                />
+              </div>
             </div>
           </div>
 
@@ -838,12 +875,12 @@ const ResumeToWork = () => {
                       )}
                       {columns.find(c => c.key === 'letter_photos')?.visible && (
                         <TableCell>
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <TablePhotoDisplay photos={record.letter_photos || []} />
                         </TableCell>
                       )}
                       {columns.find(c => c.key === 'resume_letter_photos')?.visible && (
                         <TableCell>
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <TablePhotoDisplay photos={record.resume_letter_photos || []} />
                         </TableCell>
                       )}
                       {columns.find(c => c.key === 'actions')?.visible && (
@@ -923,6 +960,26 @@ const ResumeToWork = () => {
               <p className="text-sm text-muted-foreground">Remarks</p>
               <p className="font-medium bg-muted p-3 rounded-md">{viewingRecord?.remarks || '-'}</p>
             </div>
+            {viewingRecord?.letter_photos && viewingRecord.letter_photos.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Letter Photos</p>
+                <div className="flex gap-2 flex-wrap">
+                  {viewingRecord.letter_photos.map((photo: string, idx: number) => (
+                    <img key={idx} src={photo} alt={`Letter ${idx + 1}`} className="w-20 h-20 object-cover rounded-md border" />
+                  ))}
+                </div>
+              </div>
+            )}
+            {viewingRecord?.resume_letter_photos && viewingRecord.resume_letter_photos.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Resume Letter Photos</p>
+                <div className="flex gap-2 flex-wrap">
+                  {viewingRecord.resume_letter_photos.map((photo: string, idx: number) => (
+                    <img key={idx} src={photo} alt={`Resume Letter ${idx + 1}`} className="w-20 h-20 object-cover rounded-md border" />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1055,6 +1112,34 @@ const ResumeToWork = () => {
                 onChange={(e) => setFormRemarks(e.target.value)}
                 placeholder="Enter remarks"
               />
+            </div>
+
+            {/* Letter Photos */}
+            <div>
+              <Label>Letter Photos (max 3)</Label>
+              <div className="mt-2">
+                <MultiPhotoUpload
+                  photos={formLetterPhotos}
+                  onPhotosChange={setFormLetterPhotos}
+                  maxPhotos={3}
+                  recordId={editingRecord?.id}
+                  type="letter"
+                />
+              </div>
+            </div>
+
+            {/* Resume Letter Photos */}
+            <div>
+              <Label>Resume Letter Photos (max 3)</Label>
+              <div className="mt-2">
+                <MultiPhotoUpload
+                  photos={formResumeLetterPhotos}
+                  onPhotosChange={setFormResumeLetterPhotos}
+                  maxPhotos={3}
+                  recordId={editingRecord?.id}
+                  type="resume_letter"
+                />
+              </div>
             </div>
           </div>
 
