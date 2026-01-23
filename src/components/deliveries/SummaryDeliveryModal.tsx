@@ -103,11 +103,13 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         category: string | null;
         boxes: number;
         qty: number;
+        amount: number;
         delivery_status: string;
         remarks: string | null;
       }[];
       totalBoxes: number;
       totalQty: number;
+      totalAmount: number;
     }> = {};
 
     filteredReleases.forEach(release => {
@@ -119,6 +121,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
           items: [],
           totalBoxes: 0,
           totalQty: 0,
+          totalAmount: 0,
         };
       }
 
@@ -131,11 +134,13 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         category: release.category,
         boxes: release.boxes_released,
         qty: release.total_qty || 0,
+        amount: release.amount || 0,
         delivery_status: release.delivery_status,
         remarks: release.notes,
       });
       branches[branch].totalBoxes += release.boxes_released;
       branches[branch].totalQty += release.total_qty || 0;
+      branches[branch].totalAmount += release.amount || 0;
     });
 
     return Object.values(branches)
@@ -170,6 +175,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
             items: filteredItems,
             totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
             totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
+            totalAmount: filteredItems.reduce((sum, item) => sum + item.amount, 0),
           };
         }
         return null;
@@ -184,6 +190,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
       categories: Record<string, { boxes: number; qty: number }>;
       totalBoxes: number;
       totalQty: number;
+      totalAmount: number;
     }> = {};
 
     filteredReleases
@@ -193,7 +200,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         const category = release.category || 'Uncategorized';
 
         if (!stores[store]) {
-          stores[store] = { store, categories: {}, totalBoxes: 0, totalQty: 0 };
+          stores[store] = { store, categories: {}, totalBoxes: 0, totalQty: 0, totalAmount: 0 };
         }
 
         if (!stores[store].categories[category]) {
@@ -204,6 +211,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         stores[store].categories[category].qty += release.total_qty || 0;
         stores[store].totalBoxes += release.boxes_released;
         stores[store].totalQty += release.total_qty || 0;
+        stores[store].totalAmount += release.amount || 0;
       });
 
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);
@@ -545,12 +553,13 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                     ))}
                     <TableHead className="text-center">Total Boxes</TableHead>
                     <TableHead className="text-center">Total Qty</TableHead>
+                    <TableHead className="text-right">Total Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {categoryByStore.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={allCategories.length + 3} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={allCategories.length + 4} className="text-center py-8 text-muted-foreground">
                         No delivered items for this period
                       </TableCell>
                     </TableRow>
@@ -565,6 +574,9 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                         ))}
                         <TableCell className="text-center font-bold">{store.totalBoxes}</TableCell>
                         <TableCell className="text-center font-bold">{store.totalQty}</TableCell>
+                        <TableCell className="text-right font-bold">
+                          {store.totalAmount > 0 ? store.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -628,6 +640,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                               <TableHead>Remarks</TableHead>
                               <TableHead className="text-center">Boxes</TableHead>
                               <TableHead className="text-center">Qty</TableHead>
+                              <TableHead className="text-right">Amount</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -647,12 +660,18 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                 <TableCell>{item.remarks || '-'}</TableCell>
                                 <TableCell className="text-center">{item.boxes}</TableCell>
                                 <TableCell className="text-center">{item.qty}</TableCell>
+                                <TableCell className="text-right">
+                                  {item.amount > 0 ? item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                </TableCell>
                               </TableRow>
                             ))}
                             <TableRow className="bg-muted/50">
                               <TableCell colSpan={8} className="font-semibold">Subtotal</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalBoxes}</TableCell>
                               <TableCell className="text-center font-semibold">{branch.totalQty}</TableCell>
+                              <TableCell className="text-right font-semibold">
+                                {branch.totalAmount > 0 ? branch.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
