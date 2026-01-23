@@ -175,16 +175,23 @@ const Attendance = () => {
     }
   });
 
-  // Fetch employees - filter by both deleted_at and is_active for proper visibility
+  // Fetch employees - filter by global branch, deleted_at and is_active
   const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
+    queryKey: ['employees', selectedBranch?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('employees')
         .select('*, branches(name)')
         .is('deleted_at', null)
         .eq('is_active', true)
         .order('full_name');
+      
+      // Filter by global branch
+      if (selectedBranch?.id) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as Employee[];
     }
