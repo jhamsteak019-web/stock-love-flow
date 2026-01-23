@@ -466,6 +466,36 @@ const Manpower = () => {
     }
   });
 
+  // Clear all attendance records for selected month
+  const clearAttendanceMutation = useMutation({
+    mutationFn: async () => {
+      const monthNum = parseInt(attendanceMonth) + 1;
+      const startDate = `${attendanceYear}-${String(monthNum).padStart(2, '0')}-01`;
+      const endDate = format(endOfMonth(new Date(parseInt(attendanceYear), parseInt(attendanceMonth))), 'yyyy-MM-dd');
+      
+      const { error } = await supabase
+        .from('attendance_records')
+        .delete()
+        .gte('attendance_date', startDate)
+        .lte('attendance_date', endDate);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      toast({ title: 'Attendance records cleared successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const handleClearAttendance = () => {
+    if (confirm(`Are you sure you want to clear all attendance records for ${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}? This action cannot be undone.`)) {
+      clearAttendanceMutation.mutate();
+    }
+  };
+
   const resetForm = useCallback(() => {
     setForm({
       employee_id: '',
@@ -971,29 +1001,42 @@ const Manpower = () => {
 
         {/* Attendance Summary Tab */}
         <TabsContent value="attendance-summary" className="space-y-6">
-          {/* Date Filters */}
-          <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={attendanceMonth} onValueChange={setAttendanceMonth}>
-              <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                {MONTHS.map((month, index) => (
-                  <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={attendanceYear} onValueChange={setAttendanceYear}>
-              <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
-                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Date Filters and Clear Button */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={attendanceMonth} onValueChange={setAttendanceMonth}>
+                <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {MONTHS.map((month, index) => (
+                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={attendanceYear} onValueChange={setAttendanceYear}>
+                <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {isAdmin && attendanceSummary.totalRecords > 0 && (
+              <Button 
+                variant="destructive" 
+                onClick={handleClearAttendance}
+                disabled={clearAttendanceMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {clearAttendanceMutation.isPending ? 'Clearing...' : `Clear All (${attendanceSummary.totalRecords})`}
+              </Button>
+            )}
           </div>
 
           {/* Overview Cards */}
