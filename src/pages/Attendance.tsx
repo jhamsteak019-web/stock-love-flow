@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Search, 
   Download, 
@@ -37,7 +38,8 @@ import {
   Eye,
   ClipboardList,
   RotateCcw,
-  Printer
+  Printer,
+  Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -117,6 +119,7 @@ const Attendance = () => {
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [isAllYear, setIsAllYear] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState('attendance');
 
   // Employee modal states
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
@@ -212,18 +215,34 @@ const Attendance = () => {
     };
   }, [selectedMonth, selectedYear, isAllYear, selectedDate]);
 
-  // Fetch attendance records
+  // Fetch attendance records (active only)
   const { data: attendanceRecords = [], isLoading } = useQuery({
     queryKey: ['attendance-records', dateRange],
     queryFn: async () => {
       let query = supabase
         .from('attendance_records')
         .select('*, employees(*, branches(name)), branches(name)')
+        .is('deleted_at', null)
         .gte('attendance_date', dateRange.start)
         .lte('attendance_date', dateRange.end)
         .order('attendance_date', { ascending: false });
 
       const { data, error } = await query;
+      if (error) throw error;
+      return data as AttendanceRecord[];
+    }
+  });
+
+  // Fetch deleted attendance records
+  const { data: deletedRecords = [] } = useQuery({
+    queryKey: ['attendance-deleted-records'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*, employees(*, branches(name)), branches(name)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
       if (error) throw error;
       return data as AttendanceRecord[];
     }
@@ -414,12 +433,48 @@ const Attendance = () => {
 
   const deleteAttendanceMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('attendance_records').delete().eq('id', id);
+      const { error } = await supabase.from('attendance_records').update({
+        deleted_at: new Date().toISOString()
+      }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
-      toast({ title: 'Attendance record deleted successfully!' });
+      queryClient.invalidateQueries({ queryKey: ['attendance-deleted-records'] });
+      toast({ title: 'Record moved to Recently Deleted!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Restore attendance mutation
+  const restoreAttendanceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance_records').update({
+        deleted_at: null
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-deleted-records'] });
+      toast({ title: 'Record restored successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Permanent delete attendance mutation
+  const permanentDeleteAttendanceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance_records').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-deleted-records'] });
+      toast({ title: 'Record permanently deleted!' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -1462,7 +1517,89 @@ const Attendance = () => {
         </DialogContent>
       </Dialog>
 
-      {/* View Attendance Record Dialog */}
+      {/* Recently Deleted Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            Recently Deleted ({deletedRecords.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {deletedRecords.length > 0 ? (
+            <ScrollArea className="h-[300px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[50px]">Photo</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Deleted At</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deletedRecords.map((record: AttendanceRecord) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={record.employees?.photo_url || ''} />
+                          <AvatarFallback className="text-xs">
+                            {record.employees?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">{record.employees?.full_name || 'Unknown'}</TableCell>
+                      <TableCell>{record.attendance_date ? format(new Date(record.attendance_date), 'MMM dd, yyyy') : '-'}</TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell>
+                        {(record as any).deleted_at 
+                          ? format(new Date((record as any).deleted_at), 'MMM dd, yyyy hh:mm a')
+                          : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => restoreAttendanceMutation.mutate(record.id)}
+                            title="Restore"
+                          >
+                            <RotateCcw className="h-4 w-4 text-green-600" />
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (confirm('Permanently delete this record? This cannot be undone.')) {
+                                  permanentDeleteAttendanceMutation.mutate(record.id);
+                                }
+                              }}
+                              title="Permanently Delete"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Trash2 className="h-10 w-10 text-muted-foreground/50 mb-3" />
+              <h3 className="text-base font-medium">No deleted records</h3>
+              <p className="text-sm text-muted-foreground">Deleted attendance records will appear here</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
       <Dialog open={!!viewingRecord} onOpenChange={(open) => !open && setViewingRecord(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>

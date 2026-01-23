@@ -156,7 +156,7 @@ const Manpower = () => {
     }
   });
 
-  // Fetch employees
+  // Fetch active employees
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['manpower-employees'],
     queryFn: async () => {
@@ -164,7 +164,23 @@ const Manpower = () => {
         .from('employees')
         .select('*, branches(name)')
         .eq('is_active', true)
+        .is('deleted_at', null)
         .order('full_name');
+
+      if (error) throw error;
+      return data as Employee[];
+    }
+  });
+
+  // Fetch deleted employees
+  const { data: deletedEmployees = [] } = useQuery({
+    queryKey: ['manpower-deleted-employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*, branches(name)')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
 
       if (error) throw error;
       return data as Employee[];
@@ -331,13 +347,52 @@ const Manpower = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('employees').update({ is_active: false }).eq('id', id);
+      const { error } = await supabase.from('employees').update({ 
+        is_active: false,
+        deleted_at: new Date().toISOString()
+      }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
-      toast({ title: 'Employee deleted successfully!' });
+      toast({ title: 'Employee moved to Recently Deleted!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Restore employee mutation
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('employees').update({ 
+        is_active: true,
+        deleted_at: null
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({ title: 'Employee restored successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Permanent delete mutation
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('employees').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
+      toast({ title: 'Employee permanently deleted!' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -648,7 +703,7 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="manpower" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Manpower Database
@@ -656,6 +711,10 @@ const Manpower = () => {
           <TabsTrigger value="attendance-summary" className="flex items-center gap-2">
             <ClipboardList className="h-4 w-4" />
             Attendance Summary
+          </TabsTrigger>
+          <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Recently Deleted ({deletedEmployees.length})
           </TabsTrigger>
         </TabsList>
 
@@ -1083,6 +1142,92 @@ const Manpower = () => {
                   <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium">No attendance records found</h3>
                   <p className="text-muted-foreground">No attendance data for {MONTHS[parseInt(attendanceMonth)]} {attendanceYear}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Recently Deleted Tab */}
+        <TabsContent value="recently-deleted" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
+                Recently Deleted Employees
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {deletedEmployees.length > 0 ? (
+                <ScrollArea className="h-[500px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-[50px]">Photo</TableHead>
+                        <TableHead>Emp ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Deleted At</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deletedEmployees.map((emp: Employee) => (
+                        <TableRow key={emp.id}>
+                          <TableCell>
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={emp.photo_url || ''} />
+                              <AvatarFallback className="text-xs">
+                                {emp.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell className="font-medium">{emp.employee_id || '-'}</TableCell>
+                          <TableCell>{emp.full_name}</TableCell>
+                          <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
+                          <TableCell>{emp.position || '-'}</TableCell>
+                          <TableCell>
+                            {(emp as any).deleted_at 
+                              ? format(new Date((emp as any).deleted_at), 'MMM dd, yyyy hh:mm a')
+                              : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => restoreMutation.mutate(emp.id)}
+                                title="Restore"
+                              >
+                                <RotateCcw className="h-4 w-4 text-green-600" />
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    if (confirm('Permanently delete this employee? This cannot be undone.')) {
+                                      permanentDeleteMutation.mutate(emp.id);
+                                    }
+                                  }}
+                                  title="Permanently Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Trash2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No deleted employees</h3>
+                  <p className="text-muted-foreground">Deleted employees will appear here</p>
                 </div>
               )}
             </CardContent>

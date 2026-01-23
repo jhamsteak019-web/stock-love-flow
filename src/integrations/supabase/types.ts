@@ -23,6 +23,7 @@ export type Database = {
           date_of_absent: string | null
           date_of_resume: string | null
           day_off: string | null
+          deleted_at: string | null
           employee_id: string
           id: string
           notes: string | null
@@ -40,6 +41,7 @@ export type Database = {
           date_of_absent?: string | null
           date_of_resume?: string | null
           day_off?: string | null
+          deleted_at?: string | null
           employee_id: string
           id?: string
           notes?: string | null
@@ -57,6 +59,7 @@ export type Database = {
           date_of_absent?: string | null
           date_of_resume?: string | null
           day_off?: string | null
+          deleted_at?: string | null
           employee_id?: string
           id?: string
           notes?: string | null
@@ -280,6 +283,7 @@ export type Database = {
           created_by: string | null
           date_hired: string
           date_of_birth: string | null
+          deleted_at: string | null
           employee_id: string | null
           employment_status: string
           full_name: string
@@ -303,6 +307,7 @@ export type Database = {
           created_by?: string | null
           date_hired: string
           date_of_birth?: string | null
+          deleted_at?: string | null
           employee_id?: string | null
           employment_status?: string
           full_name: string
@@ -326,6 +331,7 @@ export type Database = {
           created_by?: string | null
           date_hired?: string
           date_of_birth?: string | null
+          deleted_at?: string | null
           employee_id?: string | null
           employment_status?: string
           full_name?: string

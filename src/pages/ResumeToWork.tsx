@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Search, Calendar, Filter, FileDown, Plus, Upload, X, Eye, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -107,7 +108,7 @@ const ResumeToWork = () => {
   });
 
 
-  // Fetch attendance records that are absent-related OR have date_of_resume
+  // Fetch attendance records that are absent-related OR have date_of_resume (active only)
   const { data: attendanceRecords = [], isLoading } = useQuery({
     queryKey: ['resume-to-work', selectedMonth, selectedYear, showAllYear],
     queryFn: async () => {
@@ -121,7 +122,7 @@ const ResumeToWork = () => {
         ? new Date(parseInt(selectedYear), parseInt(selectedMonth), 0)
         : new Date(parseInt(selectedYear), 11, 31);
 
-      // Fetch records with absence status OR with date_of_resume
+      // Fetch records with absence status OR with date_of_resume (excluding deleted)
       const { data, error } = await supabase
         .from('attendance_records')
         .select(`
@@ -134,10 +135,38 @@ const ResumeToWork = () => {
             branches:branch_id (name)
           )
         `)
+        .is('deleted_at', null)
         .or(`status.in.(${absenceStatuses.join(',')}),date_of_resume.not.is.null`)
         .gte('attendance_date', format(startDate, 'yyyy-MM-dd'))
         .lte('attendance_date', format(endDate, 'yyyy-MM-dd'))
         .order('attendance_date', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch deleted resume records
+  const { data: deletedRecords = [] } = useQuery({
+    queryKey: ['resume-to-work-deleted'],
+    queryFn: async () => {
+      const absenceStatuses = ['absent', 'suspension', 'unauthorized absent', 'sil', 'vl'];
+      
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select(`
+          *,
+          employees!attendance_records_employee_id_fkey (
+            id,
+            full_name,
+            photo_url,
+            branch,
+            branches:branch_id (name)
+          )
+        `)
+        .not('deleted_at', 'is', null)
+        .or(`status.in.(${absenceStatuses.join(',')}),date_of_resume.not.is.null`)
+        .order('deleted_at', { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -300,15 +329,51 @@ const ResumeToWork = () => {
     }
   };
 
-  // Delete mutation
+  // Delete mutation (soft delete)
   const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance_records').update({
+        deleted_at: new Date().toISOString()
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work-deleted'] });
+      toast.success('Record moved to Recently Deleted');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete record');
+    }
+  });
+
+  // Restore mutation
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('attendance_records').update({
+        deleted_at: null
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work-deleted'] });
+      toast.success('Record restored successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to restore record');
+    }
+  });
+
+  // Permanent delete mutation
+  const permanentDeleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('attendance_records').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resume-to-work'] });
-      toast.success('Record deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['resume-to-work-deleted'] });
+      toast.success('Record permanently deleted');
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to delete record');
@@ -952,6 +1017,88 @@ const ResumeToWork = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Recently Deleted Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            Recently Deleted ({deletedRecords.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {deletedRecords.length > 0 ? (
+            <ScrollArea className="h-[300px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[50px]">Photo</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Date of Resume</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Deleted At</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deletedRecords.map((record: any) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={record.employees?.photo_url || ''} />
+                          <AvatarFallback className="text-xs">
+                            {record.employees?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">{record.employees?.full_name || 'Unknown'}</TableCell>
+                      <TableCell>{record.date_of_resume ? format(new Date(record.date_of_resume), 'MMM dd, yyyy') : '-'}</TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell>
+                        {record.deleted_at 
+                          ? format(new Date(record.deleted_at), 'MMM dd, yyyy hh:mm a')
+                          : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => restoreMutation.mutate(record.id)}
+                            title="Restore"
+                          >
+                            <RotateCcw className="h-4 w-4 text-green-600" />
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                if (confirm('Permanently delete this record? This cannot be undone.')) {
+                                  permanentDeleteMutation.mutate(record.id);
+                                }
+                              }}
+                              title="Permanently Delete"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Trash2 className="h-10 w-10 text-muted-foreground/50 mb-3" />
+              <h3 className="text-base font-medium">No deleted records</h3>
+              <p className="text-sm text-muted-foreground">Deleted resume records will appear here</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
