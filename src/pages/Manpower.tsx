@@ -821,7 +821,7 @@ const Manpower = () => {
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[200px] max-w-[400px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by Emp ID, Name, Branch, Position..."
@@ -831,7 +831,7 @@ const Manpower = () => {
               />
             </div>
             <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
               <SelectContent>
