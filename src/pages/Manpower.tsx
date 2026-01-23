@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInYears, differenceInMonths, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,6 +141,33 @@ const Manpower = () => {
 
   const isAdmin = userRole === 'admin';
   const canEdit = userRole === 'admin' || userRole === 'staff';
+
+  // Realtime subscription for attendance_records and employees
+  useEffect(() => {
+    const channel = supabase
+      .channel('manpower-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance_records' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'employees' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+          queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
+          queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Fetch branches
   const { data: branches = [] } = useQuery({
