@@ -214,10 +214,10 @@ const Manpower = () => {
     return [...new Set(branchNames)].sort();
   }, [employees]);
 
-  // Get the global branch name for filtering
-  const globalBranchName = selectedBranch?.name || null;
+  // Get the global branch id for filtering (use branch_id instead of branch name)
+  const globalBranchId = selectedBranch?.id || null;
 
-  // Filter employees - prioritize global branch
+  // Filter employees - prioritize global branch by branch_id
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
       const matchesSearch = !searchQuery || 
@@ -226,8 +226,8 @@ const Manpower = () => {
         emp.branch?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
       
-      // First filter by global branch if set
-      if (globalBranchName && emp.branch !== globalBranchName) {
+      // First filter by global branch using branch_id
+      if (globalBranchId && emp.branch_id !== globalBranchId) {
         return false;
       }
       
@@ -238,7 +238,7 @@ const Manpower = () => {
       const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
       return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus;
     });
-  }, [employees, searchQuery, globalBranchName, branchFilter, positionFilter, categoryFilter, statusFilter]);
+  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter]);
 
   // Attendance summary data with employee details by status
   const attendanceSummary = useMemo(() => {
