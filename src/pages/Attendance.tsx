@@ -1144,22 +1144,7 @@ const Attendance = () => {
                             placeholder="Enter reason (optional)"
                           />
                         </div>
-                        <div>
-                          <Label>Date of Absent</Label>
-                          <Input
-                            type="date"
-                            value={attendanceForm.date_of_absent}
-                            onChange={(e) => setAttendanceForm({ ...attendanceForm, date_of_absent: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label>Date of Resume</Label>
-                          <Input
-                            type="date"
-                            value={attendanceForm.date_of_resume}
-                            onChange={(e) => setAttendanceForm({ ...attendanceForm, date_of_resume: e.target.value })}
-                          />
-                        </div>
+                        {/* Date of Absent and Date of Resume fields hidden */}
                         <div>
                           <Label>Remarks</Label>
                           <Textarea
