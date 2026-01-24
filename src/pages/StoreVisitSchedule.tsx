@@ -344,14 +344,15 @@ const StoreVisitSchedule = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="sticky left-0 bg-muted/50 z-10 min-w-[150px]">Store</TableHead>
-                      <TableHead className="sticky left-[150px] bg-muted/50 z-10 w-[60px]">CAT</TableHead>
+                      <TableHead className="sticky left-0 bg-muted/50 z-20 min-w-[120px] border-r">AREA</TableHead>
+                      <TableHead className="sticky left-[120px] bg-muted/50 z-20 min-w-[180px] border-r">STORE NAME</TableHead>
+                      <TableHead className="sticky left-[300px] bg-muted/50 z-20 w-[80px] text-center border-r">CAT</TableHead>
                       {daysInMonth.map((day) => (
-                        <TableHead key={day.toISOString()} className="text-center min-w-[120px] text-xs">
-                          <div>{format(day, 'MMM d')}</div>
-                          <div className="text-muted-foreground">{format(day, 'EEE')}</div>
+                        <TableHead key={day.toISOString()} className="text-center w-[36px] min-w-[36px] text-xs px-1 border-r">
+                          {format(day, 'd')}
                         </TableHead>
                       ))}
+                      <TableHead className="min-w-[150px] text-center">REMARKS</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -359,55 +360,57 @@ const StoreVisitSchedule = () => {
                       const areaStores = Object.entries(groupedSchedules[area] || {});
                       if (areaStores.length === 0 && !schedules.some(s => s.area === area)) return null;
                       
-                      return (
-                        <>
-                          <TableRow key={area} className="bg-primary/10">
-                            <TableCell colSpan={daysInMonth.length + 2} className="font-bold text-primary">
-                              {area}
+                      return areaStores.map(([storeName, storeData], storeIndex) => {
+                        // Get all remarks for this store in the month
+                        const storeRemarks = Object.values(storeData.visits)
+                          .filter(v => v.remarks)
+                          .map(v => v.remarks)
+                          .filter((v, i, a) => a.indexOf(v) === i)
+                          .join(', ');
+                        
+                        return (
+                          <TableRow key={`${area}-${storeName}`} className="hover:bg-muted/30">
+                            {storeIndex === 0 ? (
+                              <TableCell 
+                                className="sticky left-0 bg-primary/10 z-10 font-bold text-primary text-xs border-r"
+                                rowSpan={areaStores.length}
+                              >
+                                {area}
+                              </TableCell>
+                            ) : null}
+                            <TableCell className="sticky left-[120px] bg-background z-10 font-medium text-xs border-r">
+                              {storeName}
+                            </TableCell>
+                            <TableCell className="sticky left-[300px] bg-background z-10 text-xs text-center font-medium text-primary border-r">
+                              {storeData.category || '-'}
+                            </TableCell>
+                            {daysInMonth.map((day) => {
+                              const dateKey = format(day, 'yyyy-MM-dd');
+                              const schedule = storeData.visits[dateKey];
+                              
+                              return (
+                                <TableCell 
+                                  key={dateKey} 
+                                  className={cn(
+                                    "text-center text-xs p-0 w-[36px] min-w-[36px] border-r cursor-pointer hover:bg-accent transition-colors",
+                                    schedule && "bg-primary/20 text-primary font-bold"
+                                  )}
+                                  onClick={() => handleCellClick(area, storeName, storeData.category, day, schedule)}
+                                >
+                                  {schedule ? '✓' : ''}
+                                </TableCell>
+                              );
+                            })}
+                            <TableCell className="text-xs text-muted-foreground">
+                              {storeRemarks || '-'}
                             </TableCell>
                           </TableRow>
-                          {areaStores.map(([storeName, storeData]) => (
-                            <TableRow key={`${area}-${storeName}`} className="hover:bg-muted/30">
-                              <TableCell className="sticky left-0 bg-background z-10 font-medium text-sm">
-                                {storeName}
-                              </TableCell>
-                              <TableCell className="sticky left-[150px] bg-background z-10 text-xs text-center font-medium text-primary">
-                                {storeData.category}
-                              </TableCell>
-                              {daysInMonth.map((day) => {
-                                const dateKey = format(day, 'yyyy-MM-dd');
-                                const schedule = storeData.visits[dateKey];
-                                
-                                return (
-                                  <TableCell 
-                                    key={dateKey} 
-                                    className={cn(
-                                      "text-center text-xs p-1 border cursor-pointer hover:bg-accent transition-colors",
-                                      schedule && "bg-primary/10"
-                                    )}
-                                    onClick={() => handleCellClick(area, storeName, storeData.category, day, schedule)}
-                                  >
-                                    {schedule && (
-                                      <div className="space-y-0.5">
-                                        <div className="text-[10px] text-muted-foreground">
-                                          {format(new Date(schedule.visit_date), 'MMM d, yyyy')}
-                                        </div>
-                                        <div className="font-medium text-xs text-primary">
-                                          {schedule.remarks || 'Store Visit'}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                );
-                              })}
-                            </TableRow>
-                          ))}
-                        </>
-                      );
+                        );
+                      });
                     })}
                     {uniqueStores.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={daysInMonth.length + 2} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={daysInMonth.length + 4} className="text-center py-8 text-muted-foreground">
                           No store visit schedules found for this month. Click "Add Schedule" to create one.
                         </TableCell>
                       </TableRow>
