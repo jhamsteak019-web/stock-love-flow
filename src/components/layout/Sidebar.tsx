@@ -23,7 +23,8 @@ import {
   CalendarDays,
   ClipboardCheck,
   Database,
-  UserCheck
+  UserCheck,
+  MapPin
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -147,6 +148,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/manpower', 
       icon: Database, 
       label: 'Manpower Database',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    },
+    { 
+      to: '/store-visit-schedule', 
+      icon: MapPin, 
+      label: 'Store Visit Schedule',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     // { 
