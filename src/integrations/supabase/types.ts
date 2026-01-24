@@ -875,6 +875,56 @@ export type Database = {
         }
         Relationships: []
       }
+      store_visit_schedules: {
+        Row: {
+          area: string
+          branch_id: string | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          remarks: string | null
+          store_name: string
+          updated_at: string
+          visit_date: string
+        }
+        Insert: {
+          area: string
+          branch_id?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          remarks?: string | null
+          store_name: string
+          updated_at?: string
+          visit_date: string
+        }
+        Update: {
+          area?: string
+          branch_id?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          remarks?: string | null
+          store_name?: string
+          updated_at?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_visit_schedules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           branch_id: string | null
