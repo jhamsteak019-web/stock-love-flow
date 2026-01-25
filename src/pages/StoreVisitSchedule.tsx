@@ -504,11 +504,11 @@ const StoreVisitSchedule = () => {
                   {/* Sticky Header */}
                   <TableHeader className="sticky top-0 z-30 bg-white">
                     <TableRow>
-                      <TableHead className="bg-gray-100 border border-black w-[30px] text-center font-bold text-black p-1">#</TableHead>
-                      <TableHead className="bg-gray-100 border border-black min-w-[150px] font-bold text-black p-1">Store Name</TableHead>
-                      <TableHead className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '69px', minWidth: '69px' }}>CAT</TableHead>
+                      <TableHead className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '25px', minWidth: '25px' }}>#</TableHead>
+                      <TableHead className="bg-gray-100 border border-black font-bold text-black p-1" style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}>Store Name</TableHead>
+                      <TableHead className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '50px', minWidth: '50px' }}>CAT</TableHead>
                       {Array.from({ length: maxVisits }).map((_, idx) => (
-                        <TableHead key={idx} className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '239px', minWidth: '239px' }}>
+                        <TableHead key={idx} className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '180px', minWidth: '180px' }}>
                           Remarks
                         </TableHead>
                       ))}
@@ -537,13 +537,13 @@ const StoreVisitSchedule = () => {
                             <>
                               {/* Row 1: Row Number, Store Name, Category, Dates (RED) */}
                               <TableRow key={`${area}-${storeName}-1`} className="bg-white">
-                                <TableCell className="border border-black text-center font-medium p-1 align-top" rowSpan={3}>
+                                <TableCell className="border border-black text-center font-medium p-1 align-top" rowSpan={3} style={{ width: '25px', minWidth: '25px' }}>
                                   {rowNum}
                                 </TableCell>
-                                <TableCell className="border border-black font-medium p-1 align-top" rowSpan={3}>
+                                <TableCell className="border border-black font-medium p-1 align-top text-[10px]" rowSpan={3} style={{ width: '120px', minWidth: '120px', maxWidth: '120px' }}>
                                   {storeName}
                                 </TableCell>
-                                <TableCell className="border border-black text-center font-bold text-blue-600 p-1 align-top" rowSpan={3} style={{ width: '69px', minWidth: '69px', height: '86px' }}>
+                                <TableCell className="border border-black text-center font-bold text-blue-600 p-1 align-top" rowSpan={3} style={{ width: '50px', minWidth: '50px' }}>
                                   {storeData.category || '-'}
                                 </TableCell>
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
@@ -551,8 +551,8 @@ const StoreVisitSchedule = () => {
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-date`}
-                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-red-600 font-medium p-1 align-top"
-                                      style={{ width: '239px', minWidth: '239px', height: '27px' }}
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-red-600 font-medium p-1 align-top text-[10px]"
+                                      style={{ width: '180px', minWidth: '180px' }}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {visit ? formatDateDisplay(visit.visit_date) : ''}
@@ -569,8 +569,8 @@ const StoreVisitSchedule = () => {
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-activity`}
-                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1"
-                                      style={{ width: '239px', minWidth: '239px', height: '27px' }}
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1 text-[10px]"
+                                      style={{ width: '180px', minWidth: '180px' }}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.activity}
@@ -587,8 +587,8 @@ const StoreVisitSchedule = () => {
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-names`}
-                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1"
-                                      style={{ width: '239px', minWidth: '239px', height: '27px' }}
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1 text-[10px]"
+                                      style={{ width: '180px', minWidth: '180px' }}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.names}
