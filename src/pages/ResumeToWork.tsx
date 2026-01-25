@@ -96,7 +96,15 @@ const ResumeToWork = () => {
   const [editingRecord, setEditingRecord] = useState<any | null>(null);
 
   const isAdmin = userRole === 'admin';
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const isStaff = userRole === 'staff';
+  const isHr = userRole === 'hr';
+  const isOicOrTeamleader = userRole === 'oic' || userRole === 'teamleader';
+  
+  // Staff and HR can input but cannot delete or edit - OIC/TeamLeader view only
+  const canAdd = isAdmin || isStaff || isHr;
+  const canEdit = isAdmin; // Only admin can edit
+  const canDelete = isAdmin; // Only admin can delete
+  const isViewOnly = isOicOrTeamleader;
 
   // Get the effective branch id for filtering (use branch_id instead of branch name)
   const globalBranchId = globalSelectedBranch?.id || null;

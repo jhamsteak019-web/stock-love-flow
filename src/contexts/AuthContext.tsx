@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/inventory';
+import { logActivityDirect } from '@/hooks/useActivityLog';
 
 interface AuthContextType {
   user: User | null;
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const fetchingRole = useRef(false);
   const lastUserId = useRef<string | null>(null);
+  const hasLoggedIn = useRef(false);
 
   const fetchUserRole = async (userId: string, forceRefresh: boolean = false) => {
     // Prevent duplicate fetches for the same user (unless forced)
@@ -73,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (!mounted) return;
         
         setSession(session);
@@ -82,9 +84,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user && event !== 'TOKEN_REFRESHED') {
           // Force refresh role on actual auth changes (login/signup)
           fetchUserRole(session.user.id, true);
+          
+          // Log login activity (only once per session)
+          if (event === 'SIGNED_IN' && !hasLoggedIn.current) {
+            hasLoggedIn.current = true;
+            await logActivityDirect(
+              session.user.id,
+              session.user.email,
+              session.user.user_metadata?.full_name,
+              'login',
+              'auth',
+              `User logged in: ${session.user.email}`,
+              { event: 'SIGNED_IN', timestamp: new Date().toISOString() }
+            );
+          }
         } else if (!session) {
           setUserRole(null);
           lastUserId.current = null;
+          hasLoggedIn.current = false;
         }
         setLoading(false);
       }
@@ -98,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     lastUserId.current = null; // Reset to allow role fetch on new login
+    hasLoggedIn.current = false; // Reset login tracking
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -120,7 +138,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Log logout activity before signing out
+    if (user) {
+      await logActivityDirect(
+        user.id,
+        user.email,
+        user.user_metadata?.full_name,
+        'logout',
+        'auth',
+        `User logged out: ${user.email}`,
+        { event: 'SIGNED_OUT', timestamp: new Date().toISOString() }
+      );
+    }
+    
     lastUserId.current = null;
+    hasLoggedIn.current = false;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

@@ -278,7 +278,13 @@ const ManageUsers = () => {
                                 Staff
                               </div>
                             </SelectItem>
-                            <SelectItem value="viewer">
+                            <SelectItem value="hr">
+                              <div className="flex items-center gap-2">
+                                <Users className="h-3 w-3" />
+                                HR
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="oic">
                               <div className="flex items-center gap-2">
                                 <Eye className="h-3 w-3" />
                                 OIC
@@ -294,6 +300,12 @@ const ManageUsers = () => {
                               <div className="flex items-center gap-2">
                                 <Eye className="h-3 w-3" />
                                 Uploader
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="viewer">
+                              <div className="flex items-center gap-2">
+                                <Eye className="h-3 w-3" />
+                                Viewer
                               </div>
                             </SelectItem>
                           </SelectContent>
