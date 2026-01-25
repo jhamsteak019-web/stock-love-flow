@@ -150,12 +150,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Manpower Database',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
-    { 
-      to: '/store-visit-schedule', 
-      icon: MapPin, 
-      label: 'Store Visit Schedule',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
-    },
+    // { 
+    //   to: '/store-visit-schedule', 
+    //   icon: MapPin, 
+    //   label: 'Store Visit Schedule',
+    //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    // },
     // { 
     //   to: '/allocation', 
     //   icon: LayoutList, 
