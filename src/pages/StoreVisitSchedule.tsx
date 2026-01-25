@@ -499,16 +499,16 @@ const StoreVisitSchedule = () => {
             <div className="flex justify-center py-8">Loading...</div>
           ) : (
             <ScrollArea className="w-full">
-              <div className="min-w-max">
-                <Table className="border-collapse text-[11px] bg-white">
+              <div className="min-w-max border border-black">
+                <Table className="text-[11px] bg-white" style={{ borderCollapse: 'collapse' }}>
                   {/* Sticky Header */}
                   <TableHeader className="sticky top-0 z-30 bg-white">
-                    <TableRow className="border-b-2 border-black">
-                      <TableHead className="bg-white border border-black w-[30px] text-center font-bold">#</TableHead>
-                      <TableHead className="bg-white border border-black min-w-[150px] font-bold">Store Name</TableHead>
-                      <TableHead className="bg-white border border-black w-[50px] text-center font-bold">CAT</TableHead>
+                    <TableRow>
+                      <TableHead className="bg-gray-100 border border-black w-[30px] text-center font-bold text-black p-1">#</TableHead>
+                      <TableHead className="bg-gray-100 border border-black min-w-[150px] font-bold text-black p-1">Store Name</TableHead>
+                      <TableHead className="bg-gray-100 border border-black w-[50px] text-center font-bold text-black p-1">CAT</TableHead>
                       {Array.from({ length: maxVisits }).map((_, idx) => (
-                        <TableHead key={idx} className="bg-white border border-black min-w-[180px] text-center font-bold">
+                        <TableHead key={idx} className="bg-gray-100 border border-black min-w-[200px] text-center font-bold text-black p-1">
                           Remarks
                         </TableHead>
                       ))}
@@ -522,8 +522,8 @@ const StoreVisitSchedule = () => {
                     return (
                       <TableBody key={area}>
                         {/* Area Header Row - Blue */}
-                        <TableRow className="bg-blue-600">
-                          <TableCell colSpan={3 + maxVisits} className="font-bold text-white text-sm border border-black py-2">
+                        <TableRow>
+                          <TableCell colSpan={3 + maxVisits} className="bg-blue-600 font-bold text-white text-sm border border-black py-1 px-2">
                             {area}
                           </TableCell>
                         </TableRow>
@@ -536,14 +536,14 @@ const StoreVisitSchedule = () => {
                           return (
                             <>
                               {/* Row 1: Row Number, Store Name, Category, Dates (RED) */}
-                              <TableRow key={`${area}-${storeName}-1`} className="bg-white hover:bg-gray-50">
-                                <TableCell className="border border-black text-center font-medium" rowSpan={3}>
+                              <TableRow key={`${area}-${storeName}-1`} className="bg-white">
+                                <TableCell className="border border-black text-center font-medium p-1 align-top" rowSpan={3}>
                                   {rowNum}
                                 </TableCell>
-                                <TableCell className="border border-black font-medium" rowSpan={3}>
+                                <TableCell className="border border-black font-medium p-1 align-top" rowSpan={3}>
                                   {storeName}
                                 </TableCell>
-                                <TableCell className="border border-black text-center font-bold text-blue-600" rowSpan={3}>
+                                <TableCell className="border border-black text-center font-bold text-blue-600 p-1 align-top" rowSpan={3}>
                                   {storeData.category || '-'}
                                 </TableCell>
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
@@ -551,7 +551,7 @@ const StoreVisitSchedule = () => {
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-date`}
-                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-red-600 font-medium"
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-red-600 font-medium p-1 align-top"
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {visit ? formatDateDisplay(visit.visit_date) : ''}
@@ -561,14 +561,14 @@ const StoreVisitSchedule = () => {
                               </TableRow>
                               
                               {/* Row 2: Activity Type (BLACK) */}
-                              <TableRow key={`${area}-${storeName}-2`} className="bg-white hover:bg-gray-50">
+                              <TableRow key={`${area}-${storeName}-2`} className="bg-white">
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
                                   const visit = storeData.visits[colIdx];
                                   const parsed = parseRemarks(visit?.remarks);
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-activity`}
-                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black"
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1"
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.activity}
@@ -578,14 +578,14 @@ const StoreVisitSchedule = () => {
                               </TableRow>
                               
                               {/* Row 3: Names/Remarks (BLACK) */}
-                              <TableRow key={`${area}-${storeName}-3`} className="bg-white hover:bg-gray-50">
+                              <TableRow key={`${area}-${storeName}-3`} className="bg-white">
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
                                   const visit = storeData.visits[colIdx];
                                   const parsed = parseRemarks(visit?.remarks);
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-names`}
-                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black"
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1"
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.names}
@@ -604,7 +604,7 @@ const StoreVisitSchedule = () => {
                     <TableBody>
                       <TableRow>
                         <TableCell colSpan={3 + maxVisits} className="text-center py-8 text-muted-foreground border border-black">
-                          No store visit schedules found. {canEdit ? 'Click any cell to add a schedule.' : ''}
+                          No store visit schedules found. {canEdit ? 'Click "+ Add Schedule" to add a new entry.' : ''}
                         </TableCell>
                       </TableRow>
                     </TableBody>
