@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,6 +50,7 @@ const StoreVisitSchedule = () => {
   const [formStoreName, setFormStoreName] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formVisitDate, setFormVisitDate] = useState<Date | undefined>(undefined);
+  const [formActivity, setFormActivity] = useState('');
   const [formRemarks, setFormRemarks] = useState('');
 
   const isAdmin = userRole === 'admin';
@@ -58,15 +59,15 @@ const StoreVisitSchedule = () => {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  // Fetch schedules
+  // Fetch schedules for the year
   const { data: schedules = [], isLoading } = useQuery({
-    queryKey: ['store-visit-schedules', selectedBranch?.id, format(currentMonth, 'yyyy-MM')],
+    queryKey: ['store-visit-schedules', selectedBranch?.id, format(currentMonth, 'yyyy')],
     queryFn: async () => {
       let query = supabase
         .from('store_visit_schedules')
         .select('*')
-        .gte('visit_date', format(monthStart, 'yyyy-MM-dd'))
-        .lte('visit_date', format(monthEnd, 'yyyy-MM-dd'))
+        .gte('visit_date', `${format(currentMonth, 'yyyy')}-01-01`)
+        .lte('visit_date', `${format(currentMonth, 'yyyy')}-12-31`)
         .is('deleted_at', null)
         .order('area')
         .order('store_name')
@@ -122,7 +123,7 @@ const StoreVisitSchedule = () => {
         max = Math.max(max, storeData.visits.length);
       });
     });
-    return Math.max(max + 1, MAX_COLUMNS); // +1 for empty column to add new
+    return Math.max(max + 1, MAX_COLUMNS);
   }, [groupedSchedules]);
 
   // Add mutation
@@ -202,7 +203,18 @@ const StoreVisitSchedule = () => {
     setFormStoreName('');
     setFormCategory('');
     setFormVisitDate(undefined);
+    setFormActivity('');
     setFormRemarks('');
+  };
+
+  // Parse remarks to get activity and names
+  const parseRemarks = (remarks: string | null) => {
+    if (!remarks) return { activity: '', names: '' };
+    const parts = remarks.split('|');
+    return {
+      activity: parts[0]?.trim() || '',
+      names: parts[1]?.trim() || '',
+    };
   };
 
   const handleSubmit = () => {
@@ -211,12 +223,17 @@ const StoreVisitSchedule = () => {
       return;
     }
 
+    // Combine activity and remarks with separator
+    const combinedRemarks = formActivity && formRemarks 
+      ? `${formActivity}|${formRemarks}`
+      : formActivity || formRemarks;
+
     const data = {
       area: formArea,
       store_name: formStoreName,
       category: formCategory,
       visit_date: format(formVisitDate, 'yyyy-MM-dd'),
-      remarks: formRemarks,
+      remarks: combinedRemarks,
     };
 
     if (editingSchedule) {
@@ -229,12 +246,14 @@ const StoreVisitSchedule = () => {
   // Click on existing schedule to edit
   const handleCellClick = (schedule: StoreVisitSchedule) => {
     if (!canEdit) return;
+    const parsed = parseRemarks(schedule.remarks);
     setEditingSchedule(schedule);
     setFormArea(schedule.area);
     setFormStoreName(schedule.store_name);
     setFormCategory(schedule.category || '');
     setFormVisitDate(new Date(schedule.visit_date));
-    setFormRemarks(schedule.remarks || '');
+    setFormActivity(parsed.activity);
+    setFormRemarks(parsed.names);
     setIsDialogOpen(true);
   };
 
@@ -246,6 +265,7 @@ const StoreVisitSchedule = () => {
     setFormStoreName(storeName);
     setFormCategory(category || '');
     setFormVisitDate(undefined);
+    setFormActivity('');
     setFormRemarks('');
     setIsDialogOpen(true);
   };
@@ -253,10 +273,9 @@ const StoreVisitSchedule = () => {
   // Format date for display
   const formatDateDisplay = (dateStr: string) => {
     const date = parseISO(dateStr);
-    return format(date, 'MMMM d,yyyy | EEEE');
+    return format(date, "MMMM d,yyyy '(' EEEE ')'");
   };
 
-  // Get row number for store within area
   let globalRowNum = 0;
 
   return (
@@ -268,13 +287,13 @@ const StoreVisitSchedule = () => {
             <CardTitle className="text-xl font-bold text-primary">SCHEDULE NCR and Province</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 12))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="font-medium min-w-[140px] text-center">
-              {format(currentMonth, 'MMMM yyyy')}
+            <span className="font-medium min-w-[80px] text-center">
+              {format(currentMonth, 'yyyy')}
             </span>
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 12))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -285,7 +304,7 @@ const StoreVisitSchedule = () => {
           ) : (
             <ScrollArea className="w-full">
               <div className="min-w-max">
-                <Table className="border-collapse">
+                <Table className="border-collapse text-[11px]">
                   {AREAS.map((area) => {
                     const areaStores = Object.entries(groupedSchedules[area] || {});
                     if (areaStores.length === 0) return null;
@@ -294,84 +313,105 @@ const StoreVisitSchedule = () => {
                       <TableBody key={area}>
                         {/* Area Header Row */}
                         <TableRow className="bg-muted border-t-2 border-border">
-                          <TableCell className="font-bold text-destructive text-xs border p-1 w-[30px]"></TableCell>
-                          <TableCell className="font-bold text-destructive text-xs border p-1 min-w-[160px]">{area}</TableCell>
-                          <TableCell className="font-bold text-xs border p-1 w-[50px] text-center">CAT</TableCell>
+                          <TableCell className="font-bold text-destructive border p-1 w-[25px]"></TableCell>
+                          <TableCell className="font-bold text-destructive border p-1 min-w-[150px]">{area}</TableCell>
+                          <TableCell className="font-bold border p-1 w-[45px] text-center">CAT</TableCell>
                           {Array.from({ length: maxVisits }).map((_, idx) => (
-                            <>
-                              <TableCell key={`${idx}-date-header`} className="font-bold text-xs border p-1 min-w-[180px] bg-muted"></TableCell>
-                              <TableCell key={`${idx}-remarks-header`} className="font-bold text-xs border p-1 min-w-[140px] bg-muted text-center">Remarks</TableCell>
-                            </>
+                            <TableCell key={idx} className="font-bold border p-1 min-w-[180px] bg-muted text-center">
+                              Remarks
+                            </TableCell>
                           ))}
                         </TableRow>
 
-                        {/* Store Rows */}
+                        {/* Store Rows - Each store has 3 rows */}
                         {areaStores.map(([storeName, storeData], storeIndex) => {
                           globalRowNum++;
+                          const rowNum = globalRowNum;
+                          
                           return (
-                            <TableRow key={`${area}-${storeName}`} className="hover:bg-muted/30">
-                              <TableCell className="text-xs border p-1 text-center font-medium w-[30px]">
-                                {globalRowNum}
-                              </TableCell>
-                              <TableCell className="text-xs border p-1 font-medium min-w-[160px]">
-                                {storeName}
-                              </TableCell>
-                              <TableCell className="text-xs border p-1 text-center font-bold text-primary w-[50px]">
-                                {storeData.category || '-'}
-                              </TableCell>
-                              {Array.from({ length: maxVisits }).map((_, colIdx) => {
-                                const visit = storeData.visits[colIdx];
-                                
-                                return (
-                                  <>
-                                    {/* Date Cell */}
+                            <>
+                              {/* Row 1: Row Number, Store Name, Category, Dates */}
+                              <TableRow key={`${area}-${storeName}-1`} className="hover:bg-muted/30">
+                                <TableCell className="border p-1 text-center font-medium w-[25px]" rowSpan={3}>
+                                  {rowNum}
+                                </TableCell>
+                                <TableCell className="border p-1 font-medium min-w-[150px]" rowSpan={3}>
+                                  {storeName}
+                                </TableCell>
+                                <TableCell className="border p-1 text-center font-bold text-primary w-[45px]" rowSpan={3}>
+                                  {storeData.category || '-'}
+                                </TableCell>
+                                {Array.from({ length: maxVisits }).map((_, colIdx) => {
+                                  const visit = storeData.visits[colIdx];
+                                  return (
                                     <TableCell 
                                       key={`${colIdx}-date`}
                                       className={cn(
-                                        "text-xs border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors align-top",
-                                        visit ? "bg-background" : "bg-muted/20"
+                                        "border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors",
+                                        visit ? "bg-background text-primary font-medium" : "bg-muted/20"
                                       )}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
-                                      {visit ? (
-                                        <div className="flex flex-col gap-0.5">
-                                          <span className="font-medium text-primary">
-                                            {formatDateDisplay(visit.visit_date)}
-                                          </span>
-                                          <span className="text-muted-foreground">
-                                            Store Visit
-                                          </span>
-                                        </div>
-                                      ) : null}
+                                      {visit ? formatDateDisplay(visit.visit_date) : ''}
                                     </TableCell>
-                                    {/* Remarks Cell */}
+                                  );
+                                })}
+                              </TableRow>
+                              
+                              {/* Row 2: Activity Type */}
+                              <TableRow key={`${area}-${storeName}-2`} className="hover:bg-muted/30">
+                                {Array.from({ length: maxVisits }).map((_, colIdx) => {
+                                  const visit = storeData.visits[colIdx];
+                                  const parsed = parseRemarks(visit?.remarks);
+                                  return (
                                     <TableCell 
-                                      key={`${colIdx}-remarks`}
+                                      key={`${colIdx}-activity`}
                                       className={cn(
-                                        "text-xs border p-1 min-w-[140px] cursor-pointer hover:bg-accent/50 transition-colors align-top",
+                                        "border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors",
                                         visit ? "bg-background" : "bg-muted/20"
                                       )}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
-                                      {visit?.remarks && (
-                                        <span className="text-muted-foreground">
-                                          {visit.remarks}
-                                        </span>
-                                      )}
+                                      {parsed.activity}
                                     </TableCell>
-                                  </>
-                                );
-                              })}
-                            </TableRow>
+                                  );
+                                })}
+                              </TableRow>
+                              
+                              {/* Row 3: Names/Remarks */}
+                              <TableRow key={`${area}-${storeName}-3`} className="hover:bg-muted/30">
+                                {Array.from({ length: maxVisits }).map((_, colIdx) => {
+                                  const visit = storeData.visits[colIdx];
+                                  const parsed = parseRemarks(visit?.remarks);
+                                  return (
+                                    <TableCell 
+                                      key={`${colIdx}-names`}
+                                      className={cn(
+                                        "border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors text-muted-foreground",
+                                        visit ? "bg-background" : "bg-muted/20"
+                                      )}
+                                      onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
+                                    >
+                                      {parsed.names}
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            </>
                           );
                         })}
+                        
+                        {/* Empty row between areas */}
+                        <TableRow className="h-2 bg-background">
+                          <TableCell colSpan={3 + maxVisits} className="p-0 border-0"></TableCell>
+                        </TableRow>
                       </TableBody>
                     );
                   })}
                   {Object.keys(groupedSchedules).length === 0 && (
                     <TableBody>
                       <TableRow>
-                        <TableCell colSpan={3 + (maxVisits * 2)} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={3 + maxVisits} className="text-center py-8 text-muted-foreground">
                           No store visit schedules found. Click any cell to add a schedule.
                         </TableCell>
                       </TableRow>
@@ -432,7 +472,7 @@ const StoreVisitSchedule = () => {
                 <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !formVisitDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formVisitDate ? format(formVisitDate, 'MMMM d, yyyy | EEEE') : 'Pick a date'}
+                    {formVisitDate ? format(formVisitDate, "MMMM d, yyyy '(' EEEE ')'") : 'Pick a date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -441,11 +481,19 @@ const StoreVisitSchedule = () => {
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label>Remarks</Label>
+              <Label>Activity</Label>
+              <Input 
+                value={formActivity} 
+                onChange={(e) => setFormActivity(e.target.value)}
+                placeholder="e.g., Store Visit, Store Inventory"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Assigned Staff</Label>
               <Input 
                 value={formRemarks} 
                 onChange={(e) => setFormRemarks(e.target.value)}
-                placeholder="e.g., Sir Ken, Sir RR"
+                placeholder="e.g., Sir RR, Niño, Marvin"
               />
             </div>
             <div className="flex justify-between">
