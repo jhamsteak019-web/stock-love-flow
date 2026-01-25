@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -540,18 +541,15 @@ const ResumeToWork = () => {
             {/* Employee Name */}
             <div>
               <Label>Employee Name *</Label>
-              <Select value={formEmployeeId} onValueChange={setFormEmployeeId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={employees.map(emp => ({ value: emp.id, label: emp.full_name }))}
+                value={formEmployeeId}
+                onValueChange={setFormEmployeeId}
+                placeholder="Select employee"
+                searchPlaceholder="Search employee name..."
+                emptyText="No employee found."
+                className="mt-1"
+              />
             </div>
 
             {/* Branch (auto-filled) */}
@@ -964,18 +962,15 @@ const ResumeToWork = () => {
             {/* Employee Name */}
             <div>
               <Label>Employee Name *</Label>
-              <Select value={formEmployeeId} onValueChange={setFormEmployeeId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={employees.map(emp => ({ value: emp.id, label: emp.full_name }))}
+                value={formEmployeeId}
+                onValueChange={setFormEmployeeId}
+                placeholder="Select employee"
+                searchPlaceholder="Search employee name..."
+                emptyText="No employee found."
+                className="mt-1"
+              />
             </div>
 
             {/* Branch */}
