@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'staff' | 'viewer' | 'pending' | 'teamleader' | 'uploader' | 'oic';
+export type UserRole = 'admin' | 'staff' | 'viewer' | 'pending' | 'teamleader' | 'uploader' | 'oic' | 'hr';
 
 export type DeliveryStatus = 'pending' | 'in_transit' | 'out_for_delivery' | 'delivered';
 

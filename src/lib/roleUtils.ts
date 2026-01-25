@@ -9,6 +9,7 @@ export const roleDisplayNames: Record<string, string> = {
   teamleader: 'Team Leader',
   uploader: 'Uploader',
   pending: 'Pending',
+  hr: 'HR',
 };
 
 export const getRoleDisplayName = (role: string | null | undefined): string => {
