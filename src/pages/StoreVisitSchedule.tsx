@@ -506,9 +506,9 @@ const StoreVisitSchedule = () => {
                     <TableRow>
                       <TableHead className="bg-gray-100 border border-black w-[30px] text-center font-bold text-black p-1">#</TableHead>
                       <TableHead className="bg-gray-100 border border-black min-w-[150px] font-bold text-black p-1">Store Name</TableHead>
-                      <TableHead className="bg-gray-100 border border-black w-[50px] text-center font-bold text-black p-1">CAT</TableHead>
+                      <TableHead className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '69px', minWidth: '69px' }}>CAT</TableHead>
                       {Array.from({ length: maxVisits }).map((_, idx) => (
-                        <TableHead key={idx} className="bg-gray-100 border border-black min-w-[200px] text-center font-bold text-black p-1">
+                        <TableHead key={idx} className="bg-gray-100 border border-black text-center font-bold text-black p-1" style={{ width: '239px', minWidth: '239px' }}>
                           Remarks
                         </TableHead>
                       ))}
@@ -543,7 +543,7 @@ const StoreVisitSchedule = () => {
                                 <TableCell className="border border-black font-medium p-1 align-top" rowSpan={3}>
                                   {storeName}
                                 </TableCell>
-                                <TableCell className="border border-black text-center font-bold text-blue-600 p-1 align-top" rowSpan={3}>
+                                <TableCell className="border border-black text-center font-bold text-blue-600 p-1 align-top" rowSpan={3} style={{ width: '69px', minWidth: '69px', height: '86px' }}>
                                   {storeData.category || '-'}
                                 </TableCell>
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
@@ -552,6 +552,7 @@ const StoreVisitSchedule = () => {
                                     <TableCell 
                                       key={`${colIdx}-date`}
                                       className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-red-600 font-medium p-1 align-top"
+                                      style={{ width: '239px', minWidth: '239px', height: '27px' }}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {visit ? formatDateDisplay(visit.visit_date) : ''}
@@ -569,6 +570,7 @@ const StoreVisitSchedule = () => {
                                     <TableCell 
                                       key={`${colIdx}-activity`}
                                       className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1"
+                                      style={{ width: '239px', minWidth: '239px', height: '27px' }}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.activity}
@@ -586,6 +588,7 @@ const StoreVisitSchedule = () => {
                                     <TableCell 
                                       key={`${colIdx}-names`}
                                       className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black p-1"
+                                      style={{ width: '239px', minWidth: '239px', height: '27px' }}
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.names}
