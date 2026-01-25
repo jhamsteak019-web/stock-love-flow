@@ -34,7 +34,7 @@ interface StoreVisitSchedule {
 
 const AREAS = ['NCR', 'NORTH AREA', 'SOUTH AREA', 'VISAYAS AREA', 'MINDANAO AREA'];
 const CATEGORIES = ['BSW', 'BSWU', 'BWU', 'BSU', 'BW', 'BS', 'BU', 'SW', 'SU', 'WU', 'B', 'S', 'W', 'U'];
-const MAX_COLUMNS = 20; // Many remarks columns
+const MAX_COLUMNS = 45; // 45 Remarks columns
 
 const StoreVisitSchedule = () => {
   const { user, userRole } = useAuth();
