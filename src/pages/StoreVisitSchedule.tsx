@@ -439,6 +439,13 @@ const StoreVisitSchedule = () => {
                 </Button>
               </div>
               
+              {/* Add Schedule Button */}
+              {canEdit && (
+                <Button size="sm" onClick={() => { resetForm(); setEditingSchedule(null); setIsDialogOpen(true); }}>
+                  + Add Schedule
+                </Button>
+              )}
+              
               {/* Export buttons */}
               <Button variant="outline" size="sm" onClick={exportToExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-1" />
