@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronLeft, ChevronRight, CalendarIcon, Trash2 } from 'lucide-react';
+import { CalendarIcon, Trash2, Search, FileSpreadsheet, FileText, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface StoreVisitSchedule {
   id: string;
@@ -33,7 +34,7 @@ interface StoreVisitSchedule {
 
 const AREAS = ['NCR', 'NORTH AREA', 'SOUTH AREA', 'VISAYAS AREA', 'MINDANAO AREA'];
 const CATEGORIES = ['BSW', 'BSWU', 'BWU', 'BSU', 'BW', 'BS', 'BU', 'SW', 'SU', 'WU', 'B', 'S', 'W', 'U'];
-const MAX_COLUMNS = 10;
+const MAX_COLUMNS = 12;
 
 const StoreVisitSchedule = () => {
   const { user, userRole } = useAuth();
@@ -41,9 +42,16 @@ const StoreVisitSchedule = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<StoreVisitSchedule | null>(null);
+  const [viewingSchedule, setViewingSchedule] = useState<StoreVisitSchedule | null>(null);
+  
+  // Search and filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterArea, setFilterArea] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Form state
   const [formArea, setFormArea] = useState('');
@@ -56,18 +64,15 @@ const StoreVisitSchedule = () => {
   const isAdmin = userRole === 'admin';
   const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'teamleader' || userRole === 'oic';
 
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-
   // Fetch schedules for the year
   const { data: schedules = [], isLoading } = useQuery({
-    queryKey: ['store-visit-schedules', selectedBranch?.id, format(currentMonth, 'yyyy')],
+    queryKey: ['store-visit-schedules', selectedBranch?.id, currentYear],
     queryFn: async () => {
       let query = supabase
         .from('store_visit_schedules')
         .select('*')
-        .gte('visit_date', `${format(currentMonth, 'yyyy')}-01-01`)
-        .lte('visit_date', `${format(currentMonth, 'yyyy')}-12-31`)
+        .gte('visit_date', `${currentYear}-01-01`)
+        .lte('visit_date', `${currentYear}-12-31`)
         .is('deleted_at', null)
         .order('area')
         .order('store_name')
@@ -83,6 +88,21 @@ const StoreVisitSchedule = () => {
     },
   });
 
+  // Filter schedules based on search and filters
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter(schedule => {
+      const searchLower = debouncedSearch.toLowerCase();
+      const matchesSearch = !debouncedSearch || 
+        schedule.store_name.toLowerCase().includes(searchLower) ||
+        (schedule.remarks?.toLowerCase().includes(searchLower));
+      
+      const matchesArea = filterArea === 'all' || schedule.area === filterArea;
+      const matchesCategory = filterCategory === 'all' || schedule.category === filterCategory;
+      
+      return matchesSearch && matchesArea && matchesCategory;
+    });
+  }, [schedules, debouncedSearch, filterArea, filterCategory]);
+
   // Group schedules by area and store
   const groupedSchedules = useMemo(() => {
     const grouped: Record<string, Record<string, { 
@@ -90,7 +110,7 @@ const StoreVisitSchedule = () => {
       visits: StoreVisitSchedule[];
     }>> = {};
     
-    schedules.forEach((schedule) => {
+    filteredSchedules.forEach((schedule) => {
       if (!grouped[schedule.area]) {
         grouped[schedule.area] = {};
       }
@@ -113,7 +133,7 @@ const StoreVisitSchedule = () => {
     });
     
     return grouped;
-  }, [schedules]);
+  }, [filteredSchedules]);
 
   // Calculate max visits across all stores
   const maxVisits = useMemo(() => {
@@ -126,7 +146,7 @@ const StoreVisitSchedule = () => {
     return Math.max(max + 1, MAX_COLUMNS);
   }, [groupedSchedules]);
 
-  // Add mutation
+  // Mutations
   const addMutation = useMutation({
     mutationFn: async (data: { area: string; store_name: string; category: string; visit_date: string; remarks: string }) => {
       const { error } = await supabase.from('store_visit_schedules').insert({
@@ -151,7 +171,6 @@ const StoreVisitSchedule = () => {
     },
   });
 
-  // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (data: { id: string; area: string; store_name: string; category: string; visit_date: string; remarks: string }) => {
       const { error } = await supabase
@@ -178,7 +197,6 @@ const StoreVisitSchedule = () => {
     },
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -207,7 +225,6 @@ const StoreVisitSchedule = () => {
     setFormRemarks('');
   };
 
-  // Parse remarks to get activity and names
   const parseRemarks = (remarks: string | null) => {
     if (!remarks) return { activity: '', names: '' };
     const parts = remarks.split('|');
@@ -223,7 +240,6 @@ const StoreVisitSchedule = () => {
       return;
     }
 
-    // Combine activity and remarks with separator
     const combinedRemarks = formActivity && formRemarks 
       ? `${formActivity}|${formRemarks}`
       : formActivity || formRemarks;
@@ -243,21 +259,22 @@ const StoreVisitSchedule = () => {
     }
   };
 
-  // Click on existing schedule to edit
   const handleCellClick = (schedule: StoreVisitSchedule) => {
-    if (!canEdit) return;
-    const parsed = parseRemarks(schedule.remarks);
-    setEditingSchedule(schedule);
-    setFormArea(schedule.area);
-    setFormStoreName(schedule.store_name);
-    setFormCategory(schedule.category || '');
-    setFormVisitDate(new Date(schedule.visit_date));
-    setFormActivity(parsed.activity);
-    setFormRemarks(parsed.names);
-    setIsDialogOpen(true);
+    if (canEdit) {
+      const parsed = parseRemarks(schedule.remarks);
+      setEditingSchedule(schedule);
+      setFormArea(schedule.area);
+      setFormStoreName(schedule.store_name);
+      setFormCategory(schedule.category || '');
+      setFormVisitDate(new Date(schedule.visit_date));
+      setFormActivity(parsed.activity);
+      setFormRemarks(parsed.names);
+      setIsDialogOpen(true);
+    } else {
+      setViewingSchedule(schedule);
+    }
   };
 
-  // Click on empty cell to add new
   const handleEmptyCellClick = (area: string, storeName: string, category: string | null) => {
     if (!canEdit) return;
     setEditingSchedule(null);
@@ -270,75 +287,256 @@ const StoreVisitSchedule = () => {
     setIsDialogOpen(true);
   };
 
-  // Format date for display
   const formatDateDisplay = (dateStr: string) => {
     const date = parseISO(dateStr);
     return format(date, "MMMM d,yyyy '(' EEEE ')'");
+  };
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    const ExcelJS = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Store Visit Schedule');
+
+    // Add title
+    worksheet.mergeCells('A1:M1');
+    worksheet.getCell('A1').value = `METRO GROUP ${currentYear} - SCHEDULE NCR and Province`;
+    worksheet.getCell('A1').font = { bold: true, size: 14 };
+
+    let rowIndex = 3;
+    let storeNum = 0;
+
+    AREAS.forEach(area => {
+      const areaStores = Object.entries(groupedSchedules[area] || {});
+      if (areaStores.length === 0) return;
+
+      // Area header
+      worksheet.getCell(`A${rowIndex}`).value = area;
+      worksheet.getCell(`A${rowIndex}`).font = { bold: true, color: { argb: 'FF0000FF' } };
+      worksheet.getCell(`B${rowIndex}`).value = 'CAT';
+      for (let i = 0; i < maxVisits; i++) {
+        worksheet.getCell(rowIndex, 3 + i).value = 'Remarks';
+      }
+      rowIndex++;
+
+      areaStores.forEach(([storeName, storeData]) => {
+        storeNum++;
+        // Row 1: Dates
+        worksheet.getCell(`A${rowIndex}`).value = `${storeNum} ${storeName}`;
+        worksheet.getCell(`B${rowIndex}`).value = storeData.category || '-';
+        storeData.visits.forEach((visit, idx) => {
+          worksheet.getCell(rowIndex, 3 + idx).value = formatDateDisplay(visit.visit_date);
+          worksheet.getCell(rowIndex, 3 + idx).font = { color: { argb: 'FFFF0000' } };
+        });
+        rowIndex++;
+
+        // Row 2: Activities
+        worksheet.getCell(`A${rowIndex}`).value = '';
+        worksheet.getCell(`B${rowIndex}`).value = '';
+        storeData.visits.forEach((visit, idx) => {
+          const parsed = parseRemarks(visit.remarks);
+          worksheet.getCell(rowIndex, 3 + idx).value = parsed.activity;
+        });
+        rowIndex++;
+
+        // Row 3: Names
+        worksheet.getCell(`A${rowIndex}`).value = '';
+        worksheet.getCell(`B${rowIndex}`).value = '';
+        storeData.visits.forEach((visit, idx) => {
+          const parsed = parseRemarks(visit.remarks);
+          worksheet.getCell(rowIndex, 3 + idx).value = parsed.names;
+        });
+        rowIndex++;
+      });
+      rowIndex++;
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Store_Visit_Schedule_${currentYear}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Success', description: 'Excel exported successfully' });
+  };
+
+  // Export to PDF
+  const exportToPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
+    
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    
+    doc.setFontSize(16);
+    doc.text(`METRO GROUP ${currentYear}`, 14, 15);
+    doc.setFontSize(12);
+    doc.text('SCHEDULE NCR and Province', 14, 22);
+
+    let yPos = 30;
+    let storeNum = 0;
+
+    AREAS.forEach(area => {
+      const areaStores = Object.entries(groupedSchedules[area] || {});
+      if (areaStores.length === 0) return;
+
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 255);
+      doc.text(area, 14, yPos);
+      yPos += 5;
+      doc.setTextColor(0, 0, 0);
+
+      areaStores.forEach(([storeName, storeData]) => {
+        storeNum++;
+        if (yPos > 180) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.setFontSize(9);
+        doc.text(`${storeNum}. ${storeName} (${storeData.category || '-'})`, 14, yPos);
+        yPos += 4;
+
+        storeData.visits.slice(0, 4).forEach(visit => {
+          const parsed = parseRemarks(visit.remarks);
+          doc.setTextColor(255, 0, 0);
+          doc.text(`  ${formatDateDisplay(visit.visit_date)}`, 18, yPos);
+          yPos += 3;
+          doc.setTextColor(0, 0, 0);
+          doc.text(`    ${parsed.activity} - ${parsed.names}`, 18, yPos);
+          yPos += 4;
+        });
+        yPos += 2;
+      });
+      yPos += 5;
+    });
+
+    doc.save(`Store_Visit_Schedule_${currentYear}.pdf`);
+    toast({ title: 'Success', description: 'PDF exported successfully' });
   };
 
   let globalRowNum = 0;
 
   return (
     <div className="space-y-4 p-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <p className="text-sm text-muted-foreground">METRO GROUP 2025</p>
-            <CardTitle className="text-xl font-bold text-primary">SCHEDULE NCR and Province</CardTitle>
+      <Card className="bg-white">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">METRO GROUP {currentYear}</p>
+              <CardTitle className="text-xl font-bold text-primary">SCHEDULE NCR and Province</CardTitle>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Year selector */}
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" onClick={() => setCurrentYear(currentYear - 1)}>
+                  ←
+                </Button>
+                <span className="font-medium min-w-[60px] text-center">{currentYear}</span>
+                <Button variant="outline" size="sm" onClick={() => setCurrentYear(currentYear + 1)}>
+                  →
+                </Button>
+              </div>
+              
+              {/* Export buttons */}
+              <Button variant="outline" size="sm" onClick={exportToExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileText className="h-4 w-4 mr-1" />
+                PDF
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 12))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="font-medium min-w-[80px] text-center">
-              {format(currentMonth, 'yyyy')}
-            </span>
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 12))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          
+          {/* Search and Filters */}
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search store or staff..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filterArea} onValueChange={setFilterArea}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Filter Area" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Areas</SelectItem>
+                {AREAS.map(area => (
+                  <SelectItem key={area} value={area}>{area}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Filter CAT" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All CAT</SelectItem>
+                {CATEGORIES.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
+        
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex justify-center py-8">Loading...</div>
           ) : (
             <ScrollArea className="w-full">
               <div className="min-w-max">
-                <Table className="border-collapse text-[11px]">
-                  {AREAS.map((area) => {
+                <Table className="border-collapse text-[11px] bg-white">
+                  {/* Sticky Header */}
+                  <TableHeader className="sticky top-0 z-30 bg-white">
+                    <TableRow className="border-b-2 border-black">
+                      <TableHead className="bg-white border border-black w-[30px] text-center font-bold">#</TableHead>
+                      <TableHead className="bg-white border border-black min-w-[150px] font-bold">Store Name</TableHead>
+                      <TableHead className="bg-white border border-black w-[50px] text-center font-bold">CAT</TableHead>
+                      {Array.from({ length: maxVisits }).map((_, idx) => (
+                        <TableHead key={idx} className="bg-white border border-black min-w-[180px] text-center font-bold">
+                          Remarks
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  
+                  {AREAS.filter(area => filterArea === 'all' || area === filterArea).map((area) => {
                     const areaStores = Object.entries(groupedSchedules[area] || {});
                     if (areaStores.length === 0) return null;
 
                     return (
                       <TableBody key={area}>
-                        {/* Area Header Row */}
-                        <TableRow className="bg-muted border-t-2 border-border">
-                          <TableCell className="font-bold text-destructive border p-1 w-[25px]"></TableCell>
-                          <TableCell className="font-bold text-destructive border p-1 min-w-[150px]">{area}</TableCell>
-                          <TableCell className="font-bold border p-1 w-[45px] text-center">CAT</TableCell>
-                          {Array.from({ length: maxVisits }).map((_, idx) => (
-                            <TableCell key={idx} className="font-bold border p-1 min-w-[180px] bg-muted text-center">
-                              Remarks
-                            </TableCell>
-                          ))}
+                        {/* Area Header Row - Blue */}
+                        <TableRow className="bg-blue-600">
+                          <TableCell colSpan={3 + maxVisits} className="font-bold text-white text-sm border border-black py-2">
+                            {area}
+                          </TableCell>
                         </TableRow>
 
-                        {/* Store Rows - Each store has 3 rows */}
-                        {areaStores.map(([storeName, storeData], storeIndex) => {
+                        {/* Store Rows */}
+                        {areaStores.map(([storeName, storeData]) => {
                           globalRowNum++;
                           const rowNum = globalRowNum;
                           
                           return (
                             <>
-                              {/* Row 1: Row Number, Store Name, Category, Dates */}
-                              <TableRow key={`${area}-${storeName}-1`} className="hover:bg-muted/30">
-                                <TableCell className="border p-1 text-center font-medium w-[25px]" rowSpan={3}>
+                              {/* Row 1: Row Number, Store Name, Category, Dates (RED) */}
+                              <TableRow key={`${area}-${storeName}-1`} className="bg-white hover:bg-gray-50">
+                                <TableCell className="border border-black text-center font-medium" rowSpan={3}>
                                   {rowNum}
                                 </TableCell>
-                                <TableCell className="border p-1 font-medium min-w-[150px]" rowSpan={3}>
+                                <TableCell className="border border-black font-medium" rowSpan={3}>
                                   {storeName}
                                 </TableCell>
-                                <TableCell className="border p-1 text-center font-bold text-primary w-[45px]" rowSpan={3}>
+                                <TableCell className="border border-black text-center font-bold text-blue-600" rowSpan={3}>
                                   {storeData.category || '-'}
                                 </TableCell>
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
@@ -346,10 +544,7 @@ const StoreVisitSchedule = () => {
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-date`}
-                                      className={cn(
-                                        "border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors",
-                                        visit ? "bg-background text-primary font-medium" : "bg-muted/20"
-                                      )}
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-red-600 font-medium"
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {visit ? formatDateDisplay(visit.visit_date) : ''}
@@ -358,18 +553,15 @@ const StoreVisitSchedule = () => {
                                 })}
                               </TableRow>
                               
-                              {/* Row 2: Activity Type */}
-                              <TableRow key={`${area}-${storeName}-2`} className="hover:bg-muted/30">
+                              {/* Row 2: Activity Type (BLACK) */}
+                              <TableRow key={`${area}-${storeName}-2`} className="bg-white hover:bg-gray-50">
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
                                   const visit = storeData.visits[colIdx];
                                   const parsed = parseRemarks(visit?.remarks);
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-activity`}
-                                      className={cn(
-                                        "border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors",
-                                        visit ? "bg-background" : "bg-muted/20"
-                                      )}
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black"
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.activity}
@@ -378,18 +570,15 @@ const StoreVisitSchedule = () => {
                                 })}
                               </TableRow>
                               
-                              {/* Row 3: Names/Remarks */}
-                              <TableRow key={`${area}-${storeName}-3`} className="hover:bg-muted/30">
+                              {/* Row 3: Names/Remarks (BLACK) */}
+                              <TableRow key={`${area}-${storeName}-3`} className="bg-white hover:bg-gray-50">
                                 {Array.from({ length: maxVisits }).map((_, colIdx) => {
                                   const visit = storeData.visits[colIdx];
                                   const parsed = parseRemarks(visit?.remarks);
                                   return (
                                     <TableCell 
                                       key={`${colIdx}-names`}
-                                      className={cn(
-                                        "border p-1 min-w-[180px] cursor-pointer hover:bg-accent/50 transition-colors text-muted-foreground",
-                                        visit ? "bg-background" : "bg-muted/20"
-                                      )}
+                                      className="border border-black cursor-pointer hover:bg-yellow-50 transition-colors text-black"
                                       onClick={() => visit ? handleCellClick(visit) : handleEmptyCellClick(area, storeName, storeData.category)}
                                     >
                                       {parsed.names}
@@ -400,19 +589,15 @@ const StoreVisitSchedule = () => {
                             </>
                           );
                         })}
-                        
-                        {/* Empty row between areas */}
-                        <TableRow className="h-2 bg-background">
-                          <TableCell colSpan={3 + maxVisits} className="p-0 border-0"></TableCell>
-                        </TableRow>
                       </TableBody>
                     );
                   })}
+                  
                   {Object.keys(groupedSchedules).length === 0 && (
                     <TableBody>
                       <TableRow>
-                        <TableCell colSpan={3 + maxVisits} className="text-center py-8 text-muted-foreground">
-                          No store visit schedules found. Click any cell to add a schedule.
+                        <TableCell colSpan={3 + maxVisits} className="text-center py-8 text-muted-foreground border border-black">
+                          No store visit schedules found. {canEdit ? 'Click any cell to add a schedule.' : ''}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -517,6 +702,25 @@ const StoreVisitSchedule = () => {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog (for non-editors) */}
+      <Dialog open={!!viewingSchedule} onOpenChange={(open) => !open && setViewingSchedule(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule Details</DialogTitle>
+          </DialogHeader>
+          {viewingSchedule && (
+            <div className="space-y-3">
+              <div><strong>Store:</strong> {viewingSchedule.store_name}</div>
+              <div><strong>Area:</strong> {viewingSchedule.area}</div>
+              <div><strong>Category:</strong> {viewingSchedule.category || '-'}</div>
+              <div><strong>Date:</strong> <span className="text-red-600">{formatDateDisplay(viewingSchedule.visit_date)}</span></div>
+              <div><strong>Activity:</strong> {parseRemarks(viewingSchedule.remarks).activity || '-'}</div>
+              <div><strong>Staff:</strong> {parseRemarks(viewingSchedule.remarks).names || '-'}</div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
