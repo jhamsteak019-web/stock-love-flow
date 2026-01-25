@@ -34,7 +34,7 @@ interface StoreVisitSchedule {
 
 const AREAS = ['NCR', 'NORTH AREA', 'SOUTH AREA', 'VISAYAS AREA', 'MINDANAO AREA'];
 const CATEGORIES = ['BSW', 'BSWU', 'BWU', 'BSU', 'BW', 'BS', 'BU', 'SW', 'SU', 'WU', 'B', 'S', 'W', 'U'];
-const MAX_COLUMNS = 12;
+const MAX_COLUMNS = 20; // Many remarks columns
 
 const StoreVisitSchedule = () => {
   const { user, userRole } = useAuth();
@@ -619,45 +619,60 @@ const StoreVisitSchedule = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { resetForm(); setEditingSchedule(null); } setIsDialogOpen(open); }}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingSchedule ? 'Edit Schedule' : 'Add Schedule'}</DialogTitle>
+            <DialogTitle>{editingSchedule ? 'Edit Remarks' : 'Add Remarks'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Area *</Label>
-              <Select value={formArea} onValueChange={setFormArea}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select area" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AREAS.map((area) => (
-                    <SelectItem key={area} value={area}>{area}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Store Name *</Label>
-              <Input 
-                value={formStoreName} 
-                onChange={(e) => setFormStoreName(e.target.value)}
-                placeholder="e.g., METRO Market Market"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={formCategory} onValueChange={setFormCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Show store info if already set (from clicking cell) */}
+            {formStoreName && (
+              <div className="bg-muted p-3 rounded-md space-y-1">
+                <div className="text-sm"><strong>Store:</strong> {formStoreName}</div>
+                <div className="text-sm"><strong>Area:</strong> {formArea}</div>
+                <div className="text-sm"><strong>CAT:</strong> {formCategory || '-'}</div>
+              </div>
+            )}
+            
+            {/* Only show area/store/cat inputs when adding brand new schedule */}
+            {!formStoreName && (
+              <>
+                <div className="space-y-2">
+                  <Label>Area *</Label>
+                  <Select value={formArea} onValueChange={setFormArea}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AREAS.map((area) => (
+                        <SelectItem key={area} value={area}>{area}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Store Name *</Label>
+                  <Input 
+                    value={formStoreName} 
+                    onChange={(e) => setFormStoreName(e.target.value)}
+                    placeholder="e.g., METRO Market Market"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category (CAT)</Label>
+                  <Select value={formCategory} onValueChange={setFormCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
             <div className="space-y-2">
               <Label>Visit Date *</Label>
               <Popover>
@@ -677,7 +692,7 @@ const StoreVisitSchedule = () => {
               <Input 
                 value={formActivity} 
                 onChange={(e) => setFormActivity(e.target.value)}
-                placeholder="e.g., Store Visit, Store Inventory"
+                placeholder="e.g., Store Visit, Store Inventory, Support Event"
               />
             </div>
             <div className="space-y-2">
@@ -704,7 +719,7 @@ const StoreVisitSchedule = () => {
                   Cancel
                 </Button>
                 <Button onClick={handleSubmit} disabled={addMutation.isPending || updateMutation.isPending}>
-                  {editingSchedule ? 'Update' : 'Add'}
+                  {editingSchedule ? 'Update' : 'Add Remarks'}
                 </Button>
               </div>
             </div>
