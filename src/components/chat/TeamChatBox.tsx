@@ -477,20 +477,23 @@ export const TeamChatBox = () => {
                       </AvatarFallback>
                     </Avatar>
                     <div className={cn(
-                      "max-w-[70%]",
-                      isOwnMessage(msg.user_id) && "text-right"
+                      "max-w-[70%] min-w-0",
+                      isOwnMessage(msg.user_id) && "items-end"
                     )}>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-medium">
+                      <div className={cn(
+                        "flex items-center gap-2 mb-0.5",
+                        isOwnMessage(msg.user_id) && "flex-row-reverse justify-start"
+                      )}>
+                        <span className="text-xs font-medium truncate">
                           {msg.profiles?.full_name || msg.profiles?.email?.split('@')[0]}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
                           {format(new Date(msg.created_at), 'h:mm a')}
                         </span>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                           onClick={() => handleReply(msg)}
                           title="Reply"
                         >
@@ -500,7 +503,7 @@ export const TeamChatBox = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                             onClick={() => deleteMessage.mutate(msg.id)}
                           >
                             <Trash2 className="h-3 w-3 text-destructive" />
