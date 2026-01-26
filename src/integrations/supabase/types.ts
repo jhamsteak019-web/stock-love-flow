@@ -1016,6 +1016,7 @@ export type Database = {
           file_url: string | null
           id: string
           mentions: string[] | null
+          reply_to_id: string | null
           user_id: string
         }
         Insert: {
@@ -1025,6 +1026,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           mentions?: string[] | null
+          reply_to_id?: string | null
           user_id: string
         }
         Update: {
@@ -1034,9 +1036,18 @@ export type Database = {
           file_url?: string | null
           id?: string
           mentions?: string[] | null
+          reply_to_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "team_chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
