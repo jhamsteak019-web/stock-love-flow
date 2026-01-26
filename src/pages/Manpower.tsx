@@ -1936,7 +1936,7 @@ const Manpower = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Branch</p>
-                  <p className="font-medium">{viewingEmployee?.branches?.name || viewingEmployee?.branch || '-'}</p>
+                  <p className="font-medium">{viewingEmployee?.branch || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Category</p>
