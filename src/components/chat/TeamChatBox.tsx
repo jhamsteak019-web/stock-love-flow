@@ -273,7 +273,14 @@ export const TeamChatBox = () => {
     if (!selectedMentions.includes(userId)) {
       setSelectedMentions(prev => [...prev, userId]);
     }
-    setMessage(prev => prev + `@${userName} `);
+    // Replace partial @mention text with proper mention format
+    setMessage(prev => {
+      const lastAtIndex = prev.lastIndexOf('@');
+      if (lastAtIndex >= 0) {
+        return prev.substring(0, lastAtIndex) + `@[${userName}] `;
+      }
+      return prev + `@[${userName}] `;
+    });
     setShowMentions(false);
     inputRef.current?.focus();
   };
@@ -339,11 +346,11 @@ export const TeamChatBox = () => {
     if (!user?.id) return false;
     // Check mentions array
     if (msg.mentions?.includes(user.id)) return true;
-    // Also check if @username is in content (fallback)
+    // Also check if @[username] is in content (fallback)
     const userProfile = users.find(u => u.id === user.id);
     if (userProfile) {
       const nameToCheck = userProfile.full_name || userProfile.email.split('@')[0];
-      return msg.content.toLowerCase().includes(`@${nameToCheck.toLowerCase()}`);
+      return msg.content.toLowerCase().includes(`@[${nameToCheck.toLowerCase()}]`);
     }
     return false;
   };
@@ -357,11 +364,12 @@ export const TeamChatBox = () => {
   };
 
   const renderContent = (content: string) => {
-    // Highlight @mentions
-    const parts = content.split(/(@\w+)/g);
+    // Match @[Name] format and display just the name
+    const parts = content.split(/(@\[[^\]]+\])/g);
     return parts.map((part, i) => {
-      if (part.startsWith('@')) {
-        return <span key={i} className="text-primary font-medium">{part}</span>;
+      if (part.startsWith('@[') && part.endsWith(']')) {
+        const name = part.slice(2, -1); // Extract name from @[Name]
+        return <span key={i} className="text-primary font-medium">{name}</span>;
       }
       return part;
     });
