@@ -745,7 +745,16 @@ const Manpower = () => {
   };
 
   const updateFormField = useCallback((field: string, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-calculate age when date of birth changes
+      if (field === 'date_of_birth' && value) {
+        const birthDate = new Date(value);
+        const age = differenceInYears(new Date(), birthDate);
+        updated.age = age >= 0 ? age.toString() : '';
+      }
+      return updated;
+    });
   }, []);
 
   return (
