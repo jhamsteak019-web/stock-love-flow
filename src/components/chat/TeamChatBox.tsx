@@ -381,13 +381,17 @@ export const TeamChatBox = () => {
 
   const renderContent = (content: string) => {
     if (!content) return null;
-    
-    // Match @[Name] format and display just the name highlighted
+
+    // Match @[Name] format and display just the name (inherit bubble text color)
     const parts = content.split(/(@\[[^\]]+\])/g);
     return parts.map((part, i) => {
       if (part.startsWith('@[') && part.endsWith(']')) {
-        const name = part.slice(2, -1); // Extract name from @[Name]
-        return <span key={i} className="font-medium text-blue-600 dark:text-blue-400">{name}</span>;
+        const name = part.slice(2, -1);
+        return (
+          <span key={i} className="font-semibold underline text-current">
+            {name}
+          </span>
+        );
       }
       return <span key={i}>{part}</span>;
     });
@@ -446,12 +450,7 @@ export const TeamChatBox = () => {
           </div>
 
           {/* Messages */}
-          <ScrollArea 
-            className="flex-1 p-3"
-            style={{
-              backgroundColor: '#F9B9D1',
-            }}
-          >
+          <ScrollArea className="flex-1 p-3 bg-chat-surface">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
@@ -508,16 +507,14 @@ export const TeamChatBox = () => {
                           </Button>
                         )}
                       </div>
-                      <div 
+                      <div
                         className={cn(
                           "px-3 py-2 rounded-lg text-sm relative",
-                          isOwnMessage(msg.user_id) 
-                            ? "bg-primary text-primary-foreground" 
-                            : isMentionedInMessage(msg)
-                              ? "border-l-4 border-amber-500"
-                              : ""
+                          isOwnMessage(msg.user_id)
+                            ? "bg-chat-own text-chat-own-foreground"
+                            : "bg-chat-bubble text-chat-bubble-foreground",
+                          !isOwnMessage(msg.user_id) && isMentionedInMessage(msg) && "border-l-4 border-status-pending"
                         )}
-                        style={!isOwnMessage(msg.user_id) ? { backgroundColor: '#FFF0F3', color: '#333' } : undefined}
                       >
                         {/* Reply Quote */}
                         {msg.reply_to_id && (() => {

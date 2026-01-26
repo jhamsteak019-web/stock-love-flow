@@ -78,6 +78,13 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        chat: {
+          surface: "hsl(var(--chat-surface))",
+          bubble: "hsl(var(--chat-bubble))",
+          "bubble-foreground": "hsl(var(--chat-bubble-foreground))",
+          own: "hsl(var(--chat-own-bubble))",
+          "own-foreground": "hsl(var(--chat-own-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
