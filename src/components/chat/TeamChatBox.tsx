@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import chatBackground from '@/assets/chat-background.png';
 
 // Notification sound using Web Audio API
 const playNotificationSound = () => {
@@ -450,9 +449,7 @@ export const TeamChatBox = () => {
           <ScrollArea 
             className="flex-1 p-3"
             style={{
-              backgroundImage: `url(${chatBackground})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundColor: '#F9B9D1',
             }}
           >
             {isLoading ? (
@@ -511,14 +508,17 @@ export const TeamChatBox = () => {
                           </Button>
                         )}
                       </div>
-                      <div className={cn(
-                        "px-3 py-2 rounded-lg text-sm relative",
-                        isOwnMessage(msg.user_id) 
-                          ? "bg-primary text-primary-foreground" 
-                          : isMentionedInMessage(msg)
-                            ? "bg-amber-100 dark:bg-amber-900/50 border-l-4 border-amber-500"
-                            : "bg-muted"
-                      )}>
+                      <div 
+                        className={cn(
+                          "px-3 py-2 rounded-lg text-sm relative",
+                          isOwnMessage(msg.user_id) 
+                            ? "bg-primary text-primary-foreground" 
+                            : isMentionedInMessage(msg)
+                              ? "border-l-4 border-amber-500"
+                              : ""
+                        )}
+                        style={!isOwnMessage(msg.user_id) ? { backgroundColor: '#FFF0F3', color: '#333' } : undefined}
+                      >
                         {/* Reply Quote */}
                         {msg.reply_to_id && (() => {
                           const repliedMsg = getReplyMessage(msg.reply_to_id);
