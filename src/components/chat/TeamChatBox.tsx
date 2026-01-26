@@ -381,14 +381,16 @@ export const TeamChatBox = () => {
   };
 
   const renderContent = (content: string) => {
-    // Match @[Name] format and display just the name
+    if (!content) return null;
+    
+    // Match @[Name] format and display just the name highlighted
     const parts = content.split(/(@\[[^\]]+\])/g);
     return parts.map((part, i) => {
       if (part.startsWith('@[') && part.endsWith(']')) {
         const name = part.slice(2, -1); // Extract name from @[Name]
-        return <span key={i} className="text-primary font-medium">{name}</span>;
+        return <span key={i} className="font-medium text-blue-600 dark:text-blue-400">{name}</span>;
       }
-      return part;
+      return <span key={i}>{part}</span>;
     });
   };
 
