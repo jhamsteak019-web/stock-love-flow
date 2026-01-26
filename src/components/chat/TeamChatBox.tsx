@@ -17,10 +17,13 @@ import {
   Trash2,
   AtSign,
   Volume2,
-  VolumeX
+  VolumeX,
+  Reply,
+  XCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import chatBackground from '@/assets/chat-background.png';
 
 // Notification sound using Web Audio API
 const playNotificationSound = () => {
@@ -52,6 +55,7 @@ interface ChatMessage {
   file_url: string | null;
   file_name: string | null;
   mentions: string[];
+  reply_to_id: string | null;
   created_at: string;
   profiles?: {
     full_name: string | null;
@@ -74,6 +78,7 @@ export const TeamChatBox = () => {
   const [mentionSearch, setMentionSearch] = useState('');
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const stored = localStorage.getItem('chat-sound-enabled');
     return stored !== 'false'; // Default to true
@@ -210,7 +215,7 @@ export const TeamChatBox = () => {
 
   // Send message mutation
   const sendMessage = useMutation({
-    mutationFn: async ({ content, fileUrl, fileName }: { content: string; fileUrl?: string; fileName?: string }) => {
+    mutationFn: async ({ content, fileUrl, fileName, replyToId }: { content: string; fileUrl?: string; fileName?: string; replyToId?: string }) => {
       const { error } = await supabase
         .from('team_chat_messages')
         .insert({
@@ -219,6 +224,7 @@ export const TeamChatBox = () => {
           file_url: fileUrl || null,
           file_name: fileName || null,
           mentions: selectedMentions,
+          reply_to_id: replyToId || null,
         });
       
       if (error) throw error;
@@ -226,6 +232,7 @@ export const TeamChatBox = () => {
     onSuccess: () => {
       setMessage('');
       setSelectedMentions([]);
+      setReplyTo(null);
       queryClient.invalidateQueries({ queryKey: ['team-chat-messages'] });
     },
     onError: (error) => {
@@ -255,7 +262,17 @@ export const TeamChatBox = () => {
 
   const handleSend = () => {
     if (!message.trim()) return;
-    sendMessage.mutate({ content: message.trim() });
+    sendMessage.mutate({ content: message.trim(), replyToId: replyTo?.id });
+  };
+
+  const handleReply = (msg: ChatMessage) => {
+    setReplyTo(msg);
+    inputRef.current?.focus();
+  };
+
+  const getReplyMessage = (replyToId: string | null) => {
+    if (!replyToId) return null;
+    return messages.find(m => m.id === replyToId);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -428,7 +445,14 @@ export const TeamChatBox = () => {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-3">
+          <ScrollArea 
+            className="flex-1 p-3"
+            style={{
+              backgroundImage: `url(${chatBackground})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
@@ -465,6 +489,15 @@ export const TeamChatBox = () => {
                         <span className="text-[10px] text-muted-foreground">
                           {format(new Date(msg.created_at), 'h:mm a')}
                         </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleReply(msg)}
+                          title="Reply"
+                        >
+                          <Reply className="h-3 w-3 text-muted-foreground" />
+                        </Button>
                         {canDelete(msg.user_id) && (
                           <Button
                             variant="ghost"
@@ -484,6 +517,23 @@ export const TeamChatBox = () => {
                             ? "bg-amber-100 dark:bg-amber-900/50 border-l-4 border-amber-500"
                             : "bg-muted"
                       )}>
+                        {/* Reply Quote */}
+                        {msg.reply_to_id && (() => {
+                          const repliedMsg = getReplyMessage(msg.reply_to_id);
+                          return repliedMsg ? (
+                            <div className={cn(
+                              "text-xs mb-1 px-2 py-1 rounded border-l-2",
+                              isOwnMessage(msg.user_id) 
+                                ? "bg-primary-foreground/10 border-primary-foreground/50" 
+                                : "bg-muted-foreground/10 border-muted-foreground/50"
+                            )}>
+                              <span className="font-medium">
+                                {repliedMsg.profiles?.full_name || repliedMsg.profiles?.email?.split('@')[0]}
+                              </span>
+                              <p className="truncate opacity-80">{repliedMsg.content.slice(0, 50)}{repliedMsg.content.length > 50 ? '...' : ''}</p>
+                            </div>
+                          ) : null;
+                        })()}
                         {renderContent(msg.content)}
                         {msg.file_url && (
                           msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
@@ -539,8 +589,31 @@ export const TeamChatBox = () => {
             </div>
           )}
 
+          {/* Reply Preview */}
+          {replyTo && (
+            <div className="px-3 py-2 border-t bg-muted/50 flex items-center gap-2">
+              <Reply className="h-4 w-4 text-primary flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-primary">
+                  Replying to {replyTo.profiles?.full_name || replyTo.profiles?.email?.split('@')[0]}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {replyTo.content.slice(0, 50)}{replyTo.content.length > 50 ? '...' : ''}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 flex-shrink-0"
+                onClick={() => setReplyTo(null)}
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {/* Input */}
-          <div className="p-3 border-t">
+          <div className="p-3 border-t bg-background">
             <div className="flex items-center gap-2">
               <input
                 type="file"
