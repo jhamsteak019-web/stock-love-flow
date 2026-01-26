@@ -512,12 +512,13 @@ export const TeamChatBox = () => {
                       </div>
                       <div
                         className={cn(
-                          "px-3 py-2 rounded-lg text-sm relative",
+                          "px-3 py-2 rounded-lg text-sm relative break-words whitespace-pre-wrap",
                           isOwnMessage(msg.user_id)
                             ? "bg-chat-own text-chat-own-foreground"
                             : "bg-chat-bubble text-chat-bubble-foreground",
                           !isOwnMessage(msg.user_id) && isMentionedInMessage(msg) && "border-l-4 border-status-pending"
                         )}
+                        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                       >
                         {/* Reply Quote */}
                         {msg.reply_to_id && (() => {
