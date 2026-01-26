@@ -160,7 +160,13 @@ const Attendance = () => {
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
 
   const isAdmin = userRole === 'admin';
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const isStaff = userRole === 'staff';
+  const isHR = userRole === 'hr';
+  const isOIC = userRole === 'oic';
+  const isTeamleader = userRole === 'teamleader';
+  const canAdd = isAdmin || isStaff || isHR;
+  const canEdit = isAdmin; // Only admin can edit
+  const canDelete = isAdmin; // Only admin can delete
 
   // Fetch branches
   const { data: branches = [] } = useQuery({
@@ -987,7 +993,7 @@ const Attendance = () => {
                 <SelectItem value="other_concern">Other Concern</SelectItem>
               </SelectContent>
             </Select>
-            {canEdit && (
+            {canAdd && (
               <>
                 {/* Add Employee button hidden - employees should be added via Manpower page */}
                 <Dialog open={isEmployeeModalOpen} onOpenChange={(open) => { setIsEmployeeModalOpen(open); if (!open) resetEmployeeForm(); }}>
@@ -1334,16 +1340,14 @@ const Attendance = () => {
                               <Eye className="h-4 w-4" />
                             </Button>
                             {canEdit && (
-                              <>
-                                <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)} title="Edit">
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                {isAdmin && (
-                                  <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)} title="Delete">
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                )}
-                              </>
+                              <Button variant="ghost" size="icon" onClick={() => handleEditAttendance(record)} title="Edit">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button variant="ghost" size="icon" onClick={() => deleteAttendanceMutation.mutate(record.id)} title="Delete">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -1549,7 +1553,7 @@ const Attendance = () => {
                           >
                             <RotateCcw className="h-4 w-4 text-green-600" />
                           </Button>
-                          {isAdmin && (
+                          {canDelete && (
                             <Button
                               variant="ghost"
                               size="icon"

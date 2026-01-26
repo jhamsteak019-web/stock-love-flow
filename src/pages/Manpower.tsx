@@ -141,7 +141,13 @@ const Manpower = () => {
   });
 
   const isAdmin = userRole === 'admin';
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const isStaff = userRole === 'staff';
+  const isHR = userRole === 'hr';
+  const isOIC = userRole === 'oic';
+  const isTeamleader = userRole === 'teamleader';
+  const canAdd = isAdmin || isStaff || isHR;
+  const canEdit = isAdmin; // Only admin can edit
+  const canDelete = isAdmin; // Only admin can delete
 
   // Realtime subscription for attendance_records and employees
   useEffect(() => {
@@ -762,7 +768,7 @@ const Manpower = () => {
               excludeFromWidthControl={['photo', 'actions']}
             />
           )}
-          {canEdit && (
+          {canAdd && (
             <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Employee
@@ -1013,16 +1019,14 @@ const Manpower = () => {
                               <Eye className="h-4 w-4" />
                             </Button>
                             {canEdit && (
-                              <>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                {isAdmin && (
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -1594,7 +1598,7 @@ const Manpower = () => {
                               >
                                 <RotateCcw className="h-4 w-4 text-green-600" />
                               </Button>
-                              {isAdmin && (
+                              {canDelete && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
