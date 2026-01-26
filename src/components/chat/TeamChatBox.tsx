@@ -382,22 +382,33 @@ export const TeamChatBox = () => {
                       )}>
                         {renderContent(msg.content)}
                         {msg.file_url && (
-                          <a
-                            href={msg.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(
-                              "flex items-center gap-1 mt-1 text-xs underline",
-                              isOwnMessage(msg.user_id) ? "text-primary-foreground/80" : "text-primary"
-                            )}
-                          >
-                            {msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                              <ImageIcon className="h-3 w-3" />
-                            ) : (
+                          msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                            <a
+                              href={msg.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block mt-2"
+                            >
+                              <img
+                                src={msg.file_url}
+                                alt={msg.file_name || 'Shared image'}
+                                className="max-w-full max-h-48 rounded-md object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              href={msg.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                "flex items-center gap-1 mt-1 text-xs underline",
+                                isOwnMessage(msg.user_id) ? "text-primary-foreground/80" : "text-primary"
+                              )}
+                            >
                               <Paperclip className="h-3 w-3" />
-                            )}
-                            {msg.file_name || 'View attachment'}
-                          </a>
+                              {msg.file_name || 'View attachment'}
+                            </a>
+                          )
                         )}
                       </div>
                     </div>
