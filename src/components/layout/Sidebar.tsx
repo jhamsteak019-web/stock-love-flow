@@ -64,37 +64,43 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'hr']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/release', 
       icon: PackagePlus, 
       label: 'OUT WAREHOUSE DELIVERY',
-      roles: ['admin', 'staff'] // Staff: can input, cannot delete/edit
+      roles: ['admin', 'staff']
     },
     { 
       to: '/deliveries', 
       icon: Truck, 
       label: 'MONITORING',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic'] // Staff: can update status, OIC/TL: view only
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic'] // All: view only except admin
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic'] // All: view only except admin
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
     },
+    // { 
+    //   to: '/import', 
+    //   icon: Archive, 
+    //   label: 'Bucket',
+    //   roles: ['admin', 'uploader']
+    // },
     { 
       to: '/notes', 
       icon: StickyNote, 
       label: 'Reminder',
-      roles: ['admin', 'staff', 'uploader'] // Staff: can input, cannot delete/edit
+      roles: ['admin', 'staff', 'uploader']
     },
     { 
       to: '/task-calendar', 
@@ -102,6 +108,18 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Task Calendar',
       roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
     },
+    // { 
+    //   to: '/collections', 
+    //   icon: FolderHeart, 
+    //   label: 'Collection Items',
+    //   roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
+    // },
+    // { 
+    //   to: '/favorites', 
+    //   icon: Heart, 
+    //   label: 'Favorites',
+    //   roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
+    // },
     { 
       to: '/container', 
       icon: Container, 
@@ -112,26 +130,38 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/repeat-order', 
       icon: RefreshCcw, 
       label: 'Repeat Order',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic'] // Staff: can input, OIC/TL: view only
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     { 
       to: '/attendance', 
       icon: ClipboardCheck, 
       label: 'Attendance',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr'] // Staff/HR: can input, OIC/TL: view only
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     { 
       to: '/resume-to-work', 
       icon: UserCheck, 
       label: 'Resume to Work',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr'] // Staff/HR: can input, OIC/TL: view only
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
     { 
       to: '/manpower', 
       icon: Database, 
       label: 'Manpower Database',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr'] // Staff/HR: can input, OIC/TL: view only (hidden from TL per image)
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     },
+    // { 
+    //   to: '/store-visit-schedule', 
+    //   icon: MapPin, 
+    //   label: 'Store Visit Schedule',
+    //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    // },
+    // { 
+    //   to: '/allocation', 
+    //   icon: LayoutList, 
+    //   label: 'Allocation',
+    //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+    // },
     { 
       to: '/users',
       icon: Users, 

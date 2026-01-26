@@ -123,15 +123,10 @@ const RepeatOrder = () => {
   const isStaff = userRole === 'staff';
   const isTeamleader = userRole === 'teamleader';
   const isOic = userRole === 'oic';
-  const isOicOrTeamleader = isTeamleader || isOic;
-  
-  // Staff can input but cannot delete or edit - OIC/TeamLeader view only
   const canView = isAdmin || isStaff || isTeamleader || isOic;
   const canAdd = isAdmin || isStaff;
   const canUploadPhoto = isAdmin || isStaff;
-  const canEdit = isAdmin; // Only admin can edit
-  const canDelete = isAdmin; // Only admin can delete
-  const isViewOnly = isOicOrTeamleader;
+  const canEdit = isAdmin;
 
   // Debounce search for smooth typing
   const debouncedSearchTerm = useDebounce(searchTerm, 300);

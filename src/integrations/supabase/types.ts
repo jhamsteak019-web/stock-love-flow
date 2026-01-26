@@ -14,45 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_logs: {
-        Row: {
-          action_type: string
-          created_at: string
-          description: string | null
-          id: string
-          ip_address: string | null
-          metadata: Json | null
-          module: string | null
-          user_email: string | null
-          user_id: string
-          user_name: string | null
-        }
-        Insert: {
-          action_type: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          ip_address?: string | null
-          metadata?: Json | null
-          module?: string | null
-          user_email?: string | null
-          user_id: string
-          user_name?: string | null
-        }
-        Update: {
-          action_type?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          ip_address?: string | null
-          metadata?: Json | null
-          module?: string | null
-          user_email?: string | null
-          user_id?: string
-          user_name?: string | null
-        }
-        Relationships: []
-      }
       attendance_records: {
         Row: {
           attendance_date: string
@@ -1055,7 +1016,6 @@ export type Database = {
         | "teamleader"
         | "uploader"
         | "oic"
-        | "hr"
       delivery_status:
         | "pending"
         | "in_transit"
@@ -1196,7 +1156,6 @@ export const Constants = {
         "teamleader",
         "uploader",
         "oic",
-        "hr",
       ],
       delivery_status: [
         "pending",

@@ -160,15 +160,7 @@ const Attendance = () => {
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
 
   const isAdmin = userRole === 'admin';
-  const isStaff = userRole === 'staff';
-  const isHr = userRole === 'hr';
-  const isOicOrTeamleader = userRole === 'oic' || userRole === 'teamleader';
-  
-  // Staff and HR can input but cannot delete or edit - OIC/TeamLeader view only
-  const canAdd = isAdmin || isStaff || isHr;
-  const canEdit = isAdmin; // Only admin can edit
-  const canDelete = isAdmin; // Only admin can delete
-  const isViewOnly = isOicOrTeamleader;
+  const canEdit = userRole === 'admin' || userRole === 'staff';
 
   // Fetch branches
   const { data: branches = [] } = useQuery({
