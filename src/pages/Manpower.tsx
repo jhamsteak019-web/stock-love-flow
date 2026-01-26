@@ -284,7 +284,7 @@ const Manpower = () => {
       
       // Then apply local filters
       const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
-      const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
+      const matchesPosition = positionFilter === 'all' || emp.position?.toLowerCase() === positionFilter.toLowerCase();
       const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
       return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus;
@@ -899,7 +899,7 @@ const Manpower = () => {
               <SelectContent>
                 <SelectItem value="all">All Positions</SelectItem>
                 {positionOptions.map(pos => (
-                  <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                  <SelectItem key={pos} value={pos.toLowerCase()}>{pos}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1688,7 +1688,15 @@ const Manpower = () => {
                 <Input
                   type="date"
                   value={form.date_of_birth}
-                  onChange={(e) => updateFormField('date_of_birth', e.target.value)}
+                  onChange={(e) => {
+                    const dob = e.target.value;
+                    updateFormField('date_of_birth', dob);
+                    // Auto-calculate age when DOB is set
+                    if (dob) {
+                      const age = differenceInYears(new Date(), new Date(dob));
+                      updateFormField('age', age.toString());
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -1940,7 +1948,7 @@ const Manpower = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Branch</p>
-                  <p className="font-medium">{viewingEmployee?.branches?.name || viewingEmployee?.branch || '-'}</p>
+                  <p className="font-medium">{viewingEmployee?.branch || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Category</p>
