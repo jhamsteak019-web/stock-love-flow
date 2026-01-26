@@ -49,7 +49,13 @@ export const TeamChatBox = () => {
   const [mentionSearch, setMentionSearch] = useState('');
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(() => {
+    const stored = localStorage.getItem('chat-unread-count');
+    return stored ? parseInt(stored, 10) : 0;
+  });
+  const [lastReadTimestamp, setLastReadTimestamp] = useState(() => {
+    return localStorage.getItem('chat-last-read') || new Date().toISOString();
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +103,17 @@ export const TeamChatBox = () => {
     },
   });
 
+  // Calculate unread count from messages newer than last read
+  useEffect(() => {
+    if (!isOpen && messages.length > 0 && user?.id) {
+      const unread = messages.filter(
+        msg => msg.user_id !== user.id && new Date(msg.created_at) > new Date(lastReadTimestamp)
+      ).length;
+      setUnreadCount(unread);
+      localStorage.setItem('chat-unread-count', unread.toString());
+    }
+  }, [messages, isOpen, user?.id, lastReadTimestamp]);
+
   // Subscribe to realtime updates
   useEffect(() => {
     const channel = supabase
@@ -108,10 +125,14 @@ export const TeamChatBox = () => {
           schema: 'public',
           table: 'team_chat_messages',
         },
-        (payload) => {
+        (payload: { new: { user_id: string } }) => {
           queryClient.invalidateQueries({ queryKey: ['team-chat-messages'] });
           if (!isOpen && payload.new.user_id !== user?.id) {
-            setUnreadCount(prev => prev + 1);
+            setUnreadCount(prev => {
+              const newCount = prev + 1;
+              localStorage.setItem('chat-unread-count', newCount.toString());
+              return newCount;
+            });
           }
         }
       )
@@ -140,10 +161,14 @@ export const TeamChatBox = () => {
     }
   }, [messages, isOpen]);
 
-  // Reset unread count when opening
+  // Reset unread count when opening and update last read timestamp
   useEffect(() => {
     if (isOpen) {
       setUnreadCount(0);
+      localStorage.setItem('chat-unread-count', '0');
+      const now = new Date().toISOString();
+      setLastReadTimestamp(now);
+      localStorage.setItem('chat-last-read', now);
     }
   }, [isOpen]);
 
