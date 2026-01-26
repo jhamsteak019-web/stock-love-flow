@@ -433,9 +433,10 @@ const SummaryReport = () => {
   const categoryByStore = useMemo(() => {
     const stores: Record<string, {
       store: string;
-      categories: Record<string, { boxes: number; qty: number }>;
+      categories: Record<string, { boxes: number; qty: number; amount: number }>;
       totalBoxes: number;
       totalQty: number;
+      totalAmount: number;
     }> = {};
 
     // Only include delivered releases (items that were actually received)
@@ -451,17 +452,20 @@ const SummaryReport = () => {
             categories: {},
             totalBoxes: 0,
             totalQty: 0,
+            totalAmount: 0,
           };
         }
         
         if (!stores[store].categories[category]) {
-          stores[store].categories[category] = { boxes: 0, qty: 0 };
+          stores[store].categories[category] = { boxes: 0, qty: 0, amount: 0 };
         }
         
         stores[store].categories[category].boxes += release.boxes_released;
         stores[store].categories[category].qty += release.total_qty || 0;
+        stores[store].categories[category].amount += release.amount || 0;
         stores[store].totalBoxes += release.boxes_released;
         stores[store].totalQty += release.total_qty || 0;
+        stores[store].totalAmount += release.amount || 0;
       });
 
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);
@@ -1390,6 +1394,7 @@ const SummaryReport = () => {
                           </TableHead>
                         ))}
                         <TableHead className="text-right">Total Boxes</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Total Qty</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1412,6 +1417,7 @@ const SummaryReport = () => {
                             );
                           })}
                           <TableCell className="text-right font-bold">{store.totalBoxes.toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-bold text-primary">₱{store.totalAmount.toLocaleString()}</TableCell>
                           <TableCell className="text-right font-bold">{store.totalQty.toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
@@ -1433,6 +1439,9 @@ const SummaryReport = () => {
                         })}
                         <TableCell className="text-right">
                           {categoryByStore.reduce((sum, s) => sum + s.totalBoxes, 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-primary font-bold">
+                          ₱{categoryByStore.reduce((sum, s) => sum + s.totalAmount, 0).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right">
                           {categoryByStore.reduce((sum, s) => sum + s.totalQty, 0).toLocaleString()}
