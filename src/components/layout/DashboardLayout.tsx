@@ -3,6 +3,7 @@ import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuth } from '@/contexts/AuthContext';
+import { TeamChatBox } from '@/components/chat/TeamChatBox';
 
 const pageTitles: Record<string, string> = {
   '/inventory': 'Inventory',
@@ -96,6 +97,9 @@ export const DashboardLayout = () => {
           </div>
         </main>
       </div>
+      
+      {/* Team Chat - Available to all authenticated users */}
+      <TeamChatBox />
     </div>
   );
 };
