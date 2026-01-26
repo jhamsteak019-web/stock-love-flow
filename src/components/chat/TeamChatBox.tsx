@@ -15,10 +15,35 @@ import {
   Paperclip, 
   Image as ImageIcon,
   Trash2,
-  AtSign
+  AtSign,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+// Notification sound using Web Audio API
+const playNotificationSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (error) {
+    console.log('Could not play notification sound:', error);
+  }
+};
 
 interface ChatMessage {
   id: string;
@@ -49,6 +74,10 @@ export const TeamChatBox = () => {
   const [mentionSearch, setMentionSearch] = useState('');
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const stored = localStorage.getItem('chat-sound-enabled');
+    return stored !== 'false'; // Default to true
+  });
   const [unreadCount, setUnreadCount] = useState(() => {
     const stored = localStorage.getItem('chat-unread-count');
     return stored ? parseInt(stored, 10) : 0;
@@ -125,14 +154,21 @@ export const TeamChatBox = () => {
           schema: 'public',
           table: 'team_chat_messages',
         },
-        (payload: { new: { user_id: string } }) => {
+        (payload: { new: { user_id: string; mentions?: string[] } }) => {
           queryClient.invalidateQueries({ queryKey: ['team-chat-messages'] });
-          if (!isOpen && payload.new.user_id !== user?.id) {
-            setUnreadCount(prev => {
-              const newCount = prev + 1;
-              localStorage.setItem('chat-unread-count', newCount.toString());
-              return newCount;
-            });
+          if (payload.new.user_id !== user?.id) {
+            // Play sound if enabled
+            if (soundEnabled) {
+              playNotificationSound();
+            }
+            
+            if (!isOpen) {
+              setUnreadCount(prev => {
+                const newCount = prev + 1;
+                localStorage.setItem('chat-unread-count', newCount.toString());
+                return newCount;
+              });
+            }
           }
         }
       )
@@ -152,7 +188,7 @@ export const TeamChatBox = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient, isOpen, user?.id]);
+  }, [queryClient, isOpen, user?.id, soundEnabled]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -297,6 +333,28 @@ export const TeamChatBox = () => {
 
   const isOwnMessage = (messageUserId: string) => messageUserId === user?.id;
   const canDelete = (messageUserId: string) => isOwnMessage(messageUserId) || userRole === 'admin';
+  
+  // Check if current user is mentioned in message
+  const isMentionedInMessage = (msg: ChatMessage) => {
+    if (!user?.id) return false;
+    // Check mentions array
+    if (msg.mentions?.includes(user.id)) return true;
+    // Also check if @username is in content (fallback)
+    const userProfile = users.find(u => u.id === user.id);
+    if (userProfile) {
+      const nameToCheck = userProfile.full_name || userProfile.email.split('@')[0];
+      return msg.content.toLowerCase().includes(`@${nameToCheck.toLowerCase()}`);
+    }
+    return false;
+  };
+
+  const toggleSound = () => {
+    setSoundEnabled(prev => {
+      const newValue = !prev;
+      localStorage.setItem('chat-sound-enabled', newValue.toString());
+      return newValue;
+    });
+  };
 
   const renderContent = (content: string) => {
     // Highlight @mentions
@@ -340,14 +398,25 @@ export const TeamChatBox = () => {
               <MessageCircle className="h-5 w-5" />
               <span className="font-semibold">Team Chat</span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsOpen(false)}
-              className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleSound}
+                className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
+                title={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
+              >
+                {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsOpen(false)}
+                className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -400,10 +469,12 @@ export const TeamChatBox = () => {
                         )}
                       </div>
                       <div className={cn(
-                        "px-3 py-2 rounded-lg text-sm",
+                        "px-3 py-2 rounded-lg text-sm relative",
                         isOwnMessage(msg.user_id) 
                           ? "bg-primary text-primary-foreground" 
-                          : "bg-muted"
+                          : isMentionedInMessage(msg)
+                            ? "bg-amber-100 dark:bg-amber-900/50 border-l-4 border-amber-500"
+                            : "bg-muted"
                       )}>
                         {renderContent(msg.content)}
                         {msg.file_url && (
