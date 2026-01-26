@@ -136,13 +136,19 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/attendance', 
       icon: ClipboardCheck, 
       label: 'Attendance',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
     },
     { 
       to: '/resume-to-work', 
       icon: UserCheck, 
       label: 'Resume to Work',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
+    },
+    { 
+      to: '/manpower', 
+      icon: Database, 
+      label: 'Manpower Database',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
     },
     { 
       to: '/manpower', 

@@ -67,8 +67,11 @@ const Notes = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const isAdmin = userRole === 'admin';
+  const isStaff = userRole === 'staff';
   const canExport = userRole !== 'uploader';
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const canAdd = isAdmin || isStaff; // Staff can input
+  const canEdit = isAdmin; // Only admin can edit
+  const canDelete = isAdmin; // Only admin can delete
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -619,7 +622,7 @@ const Notes = () => {
             </Button>
           )}
           
-          {canEdit && (
+          {canAdd && (
             <Button onClick={openCreateDialog} className="gap-2">
               <Plus className="h-4 w-4" />
               New Reminder
@@ -725,7 +728,7 @@ const Notes = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {isAdmin && (
+                      {canEdit && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -735,7 +738,7 @@ const Notes = () => {
                           <Edit2 className="h-4 w-4" />
                         </Button>
                       )}
-                      {isAdmin && (
+                      {canDelete && (
                         <Button
                           variant="ghost"
                           size="icon"

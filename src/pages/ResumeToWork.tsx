@@ -96,7 +96,13 @@ const ResumeToWork = () => {
   const [editingRecord, setEditingRecord] = useState<any | null>(null);
 
   const isAdmin = userRole === 'admin';
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const isStaff = userRole === 'staff';
+  const isHR = userRole === 'hr';
+  const isOIC = userRole === 'oic';
+  const isTeamleader = userRole === 'teamleader';
+  const canAdd = isAdmin || isStaff || isHR;
+  const canEdit = isAdmin; // Only admin can edit
+  const canDelete = isAdmin; // Only admin can delete
 
   // Get the effective branch id for filtering (use branch_id instead of branch name)
   const globalBranchId = globalSelectedBranch?.id || null;
@@ -476,10 +482,12 @@ const ResumeToWork = () => {
             <FileDown className="h-4 w-4" />
             Save PDF
           </Button>
-          <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add Record
-          </Button>
+          {canAdd && (
+            <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add Record
+            </Button>
+          )}
         </div>
       </div>
 
@@ -868,7 +876,7 @@ const ResumeToWork = () => {
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             )}
-                            {isAdmin && (
+                            {canDelete && (
                               <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(record.id)} title="Delete">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
