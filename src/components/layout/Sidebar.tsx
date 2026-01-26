@@ -150,12 +150,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Manpower Database',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
     },
-    { 
-      to: '/manpower', 
-      icon: Database, 
-      label: 'Manpower Database',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
-    },
     // { 
     //   to: '/store-visit-schedule', 
     //   icon: MapPin, 
