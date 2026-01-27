@@ -34,7 +34,10 @@ import {
   Eye,
   ClipboardList,
   RotateCcw,
-  Calendar
+  Calendar,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -108,6 +111,8 @@ const Manpower = () => {
   const [positionFilter, setPositionFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [genderFilter, setGenderFilter] = useState<string>('all');
+  const [maternityFilter, setMaternityFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -117,6 +122,10 @@ const Manpower = () => {
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState('manpower');
+  
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Attendance summary filters
   const currentYear = new Date().getFullYear();
@@ -273,7 +282,7 @@ const Manpower = () => {
 
   // Filter employees - prioritize global branch by branch_id
   const filteredEmployees = useMemo(() => {
-    return employees.filter(emp => {
+    let filtered = employees.filter(emp => {
       const matchesSearch = !searchQuery || 
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -290,9 +299,85 @@ const Manpower = () => {
       const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
       const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus;
+      const matchesGender = genderFilter === 'all' || emp.gender === genderFilter;
+      const matchesMaternity = maternityFilter === 'all' || emp.maternity === maternityFilter;
+      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus && matchesGender && matchesMaternity;
     });
-  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter]);
+    
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aVal: any = '';
+        let bVal: any = '';
+        
+        switch (sortColumn) {
+          case 'name':
+            aVal = a.full_name || '';
+            bVal = b.full_name || '';
+            break;
+          case 'position':
+            aVal = a.position || '';
+            bVal = b.position || '';
+            break;
+          case 'branch':
+            aVal = a.branch || '';
+            bVal = b.branch || '';
+            break;
+          case 'category':
+            aVal = a.category || '';
+            bVal = b.category || '';
+            break;
+          case 'status':
+            aVal = a.employment_status || '';
+            bVal = b.employment_status || '';
+            break;
+          case 'date_hired':
+            aVal = new Date(a.date_hired).getTime();
+            bVal = new Date(b.date_hired).getTime();
+            break;
+          case 'age':
+            aVal = a.age || 0;
+            bVal = b.age || 0;
+            break;
+          case 'gender':
+            aVal = a.gender || '';
+            bVal = b.gender || '';
+            break;
+          default:
+            return 0;
+        }
+        
+        if (typeof aVal === 'string') {
+          const comparison = aVal.localeCompare(bVal);
+          return sortDirection === 'asc' ? comparison : -comparison;
+        } else {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+      });
+    }
+    
+    return filtered;
+  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
+
+  // Handle column sort
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort icon component
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="ml-1 h-3 w-3" /> 
+      : <ArrowDown className="ml-1 h-3 w-3" />;
+  };
 
   // Position category mapping
   const storePositions = ['Demo', 'OIC', 'AOIC', 'Key Person', 'Sales Assistant', 'Stock Merchandising'];
@@ -912,7 +997,7 @@ const Manpower = () => {
               />
             </div>
             <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
               <SelectContent>
@@ -923,7 +1008,7 @@ const Manpower = () => {
               </SelectContent>
             </Select>
             <Select value={positionFilter} onValueChange={setPositionFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Position" />
               </SelectTrigger>
               <SelectContent>
@@ -934,7 +1019,7 @@ const Manpower = () => {
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -945,13 +1030,35 @@ const Manpower = () => {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 {statusOptions.map(status => (
                   <SelectItem key={status} value={status.toLowerCase()}>{status}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={genderFilter} onValueChange={setGenderFilter}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Gender</SelectItem>
+                {genderOptions.map(gender => (
+                  <SelectItem key={gender} value={gender}>{gender}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={maternityFilter} onValueChange={setMaternityFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Maternity" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Maternity</SelectItem>
+                {maternityOptions.map(mat => (
+                  <SelectItem key={mat} value={mat}>{mat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -966,15 +1073,79 @@ const Manpower = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
+                  {columns.find(c => c.key === 'branch')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'branch')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('branch')}
+                    >
+                      <div className="flex items-center">Branch<SortIcon column="branch" /></div>
+                    </TableHead>
+                  )}
                   {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[50px]">Photo</TableHead>}
-                  {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
-                  {columns.find(c => c.key === 'gender')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'gender')?.width }}>Gender</TableHead>}
-                  {columns.find(c => c.key === 'age')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'age')?.width }}>Age</TableHead>}
-                  {columns.find(c => c.key === 'position')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'position')?.width }}>Position</TableHead>}
-                  {columns.find(c => c.key === 'category')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'category')?.width }}>Category</TableHead>}
-                  {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'date_hired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_hired')?.width }}>Date Hired</TableHead>}
+                  {columns.find(c => c.key === 'name')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'name')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">Employee Name<SortIcon column="name" /></div>
+                    </TableHead>
+                  )}
+                  {columns.find(c => c.key === 'gender')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'gender')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('gender')}
+                    >
+                      <div className="flex items-center">Gender<SortIcon column="gender" /></div>
+                    </TableHead>
+                  )}
+                  {columns.find(c => c.key === 'age')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'age')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('age')}
+                    >
+                      <div className="flex items-center">Age<SortIcon column="age" /></div>
+                    </TableHead>
+                  )}
+                  {columns.find(c => c.key === 'position')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'position')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('position')}
+                    >
+                      <div className="flex items-center">Position<SortIcon column="position" /></div>
+                    </TableHead>
+                  )}
+                  {columns.find(c => c.key === 'category')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'category')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('category')}
+                    >
+                      <div className="flex items-center">Category<SortIcon column="category" /></div>
+                    </TableHead>
+                  )}
+                  {columns.find(c => c.key === 'status')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'status')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">Status<SortIcon column="status" /></div>
+                    </TableHead>
+                  )}
+                  {columns.find(c => c.key === 'date_hired')?.visible && (
+                    <TableHead 
+                      style={{ width: columns.find(c => c.key === 'date_hired')?.width }} 
+                      className="cursor-pointer hover:bg-muted/80 select-none"
+                      onClick={() => handleSort('date_hired')}
+                    >
+                      <div className="flex items-center">Date Hired<SortIcon column="date_hired" /></div>
+                    </TableHead>
+                  )}
                   {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
                   {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
                   {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
