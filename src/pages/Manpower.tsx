@@ -146,7 +146,7 @@ const Manpower = () => {
   const isOIC = userRole === 'oic';
   const isTeamleader = userRole === 'teamleader';
   const canAdd = isAdmin || isStaff || isHR;
-  const canEdit = isAdmin; // Only admin can edit
+  const canEdit = isAdmin || isStaff; // Admin and Staff can edit
   const canDelete = isAdmin; // Only admin can delete
 
   // Realtime subscription for attendance_records and employees
