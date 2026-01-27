@@ -31,6 +31,7 @@ const SummaryReport = () => {
   
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
+  const [showAllYear, setShowAllYear] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
@@ -216,15 +217,20 @@ const SummaryReport = () => {
       const releaseDate = new Date(dateToUse);
       const releaseYear = releaseDate.getFullYear().toString();
       const releaseMonth = releaseDate.getMonth().toString();
-      const matchesDate = releaseYear === selectedYear && releaseMonth === selectedMonth;
+      
+      // Year filter always applies
+      const matchesYear = releaseYear === selectedYear;
+      
+      // Month filter only applies if not showing all year
+      const matchesMonth = showAllYear ? true : releaseMonth === selectedMonth;
       
       // Category filter
       const matchesCategory = selectedCategory === 'all' || 
         (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
       
-      return matchesDate && matchesCategory;
+      return matchesYear && matchesMonth && matchesCategory;
     });
-  }, [releases, selectedBranch, selectedYear, selectedMonth, selectedCategory]);
+  }, [releases, selectedBranch, selectedYear, selectedMonth, showAllYear, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -900,7 +906,7 @@ const SummaryReport = () => {
           )}
           <div className="flex items-center gap-2 bg-card border rounded-lg p-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); }}>
               <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -932,6 +938,13 @@ const SummaryReport = () => {
               </SelectContent>
             </Select>
           </div>
+          <Button 
+            variant={showAllYear ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowAllYear(!showAllYear)}
+          >
+            {showAllYear ? 'Showing All Year' : 'All Year'}
+          </Button>
         </div>
       </div>
 

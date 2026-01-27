@@ -96,6 +96,7 @@ const RepeatOrder = () => {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
+  const [showAllYear, setShowAllYear] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all');
   
   // Column settings
@@ -512,12 +513,12 @@ const RepeatOrder = () => {
       const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
       
       const orderDate = new Date(order.created_at);
-      const matchesMonth = orderDate.getMonth().toString() === selectedMonth;
       const matchesYear = orderDate.getFullYear().toString() === selectedYear;
+      const matchesMonth = showAllYear ? true : orderDate.getMonth().toString() === selectedMonth;
       
       return matchesSearch && matchesStatus && matchesMonth && matchesYear;
     });
-  }, [activeOrders, debouncedSearchTerm, selectedStatus, selectedMonth, selectedYear]);
+  }, [activeOrders, debouncedSearchTerm, selectedStatus, selectedMonth, selectedYear, showAllYear]);
 
   const filteredDeletedOrders = useMemo(() => {
     const searchLower = debouncedSearchTerm.toLowerCase();
@@ -742,7 +743,7 @@ const RepeatOrder = () => {
           <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); }}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -768,6 +769,14 @@ const RepeatOrder = () => {
                 ))}
               </SelectContent>
             </Select>
+
+            <Button 
+              variant={showAllYear ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setShowAllYear(!showAllYear)}
+            >
+              {showAllYear ? 'Showing All Year' : 'All Year'}
+            </Button>
 
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-[130px]">

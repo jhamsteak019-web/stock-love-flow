@@ -862,7 +862,7 @@ const Attendance = () => {
             size="sm"
             onClick={() => { setIsAllYear(!isAllYear); setSelectedDate(undefined); }}
           >
-            All Year
+            {isAllYear ? 'Showing All Year' : 'All Year'}
           </Button>
           <Popover>
             <PopoverTrigger asChild>

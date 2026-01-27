@@ -115,6 +115,7 @@ const History = () => {
   const savedHistoryFilter = getSavedHistoryFilter();
   const [selectedMonth, setSelectedMonth] = useState<number>(savedHistoryFilter.month);
   const [selectedYear, setSelectedYear] = useState<number>(savedHistoryFilter.year);
+  const [showAllYear, setShowAllYear] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   
   // Persist filter to localStorage when it changes
@@ -234,12 +235,19 @@ const History = () => {
   const groupedReleases = useMemo(() => groupReleases(releases, true), [releases, selectedBranch]);
   const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases, false), [deletedReleases]);
 
-  // Filter grouped releases based on search query, date range, month/year, and status
+  // Filter grouped releases based on search query, date range, month/year (or all year), and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
       const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
-      if (dateToFilter.getMonth() !== selectedMonth || dateToFilter.getFullYear() !== selectedYear) {
+      
+      // Year filter always applies
+      if (dateToFilter.getFullYear() !== selectedYear) {
+        return false;
+      }
+      
+      // Month filter only applies if not showing all year
+      if (!showAllYear && dateToFilter.getMonth() !== selectedMonth) {
         return false;
       }
 
@@ -521,7 +529,7 @@ const History = () => {
               {/* Month/Year Filter */}
               <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
                 <CalendarLucide className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+                <Select value={selectedMonth.toString()} onValueChange={(val) => { setSelectedMonth(parseInt(val)); setShowAllYear(false); }}>
                   <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
@@ -542,6 +550,14 @@ const History = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <Button 
+                variant={showAllYear ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setShowAllYear(!showAllYear)}
+              >
+                {showAllYear ? 'Showing All Year' : 'All Year'}
+              </Button>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[160px]">
