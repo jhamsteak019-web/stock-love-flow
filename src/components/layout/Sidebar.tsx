@@ -89,7 +89,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder']
     },
     // { 
     //   to: '/import', 
