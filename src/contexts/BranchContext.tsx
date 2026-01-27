@@ -72,8 +72,8 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      // Only admins can use localStorage preference (if no assigned branch)
-      if (userRole === 'admin') {
+      // Admins and HR can use localStorage preference (if no assigned branch)
+      if (userRole === 'admin' || userRole === 'hr') {
         const savedBranchId = localStorage.getItem('selectedBranchId');
         if (savedBranchId && branchesData) {
           const savedBranch = branchesData.find(b => b.id === savedBranchId);
