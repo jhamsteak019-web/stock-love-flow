@@ -302,6 +302,12 @@ const ManageUsers = () => {
                                 HR
                               </div>
                             </SelectItem>
+                            <SelectItem value="encoder">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-3 w-3" />
+                                Encoder
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       )}

@@ -128,6 +128,9 @@ const History = () => {
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
   const isViewer = userRole === 'viewer';
+  const isEncoder = userRole === 'encoder';
+  const canEdit = isAdmin || isEncoder; // Admin and encoder can edit
+  const canDelete = isAdmin; // Only admin can delete
   const canExport = userRole !== 'uploader';
 
   const formatAmount = useCallback((value: number | null | undefined) => {
@@ -656,7 +659,7 @@ const History = () => {
                       )}
                       <TableCell>
                         <div className="flex gap-1">
-                          {isAdmin && (
+                          {canEdit && (
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -667,7 +670,7 @@ const History = () => {
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {isAdmin && (
+                          {canDelete && (
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -738,7 +741,7 @@ const History = () => {
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
-                            {isAdmin && (
+                            {canDelete && (
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
