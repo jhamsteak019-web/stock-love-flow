@@ -167,7 +167,7 @@ const Attendance = () => {
   const isOIC = userRole === 'oic';
   const isTeamleader = userRole === 'teamleader';
   const canAdd = isAdmin || isStaff || isHR;
-  const canEdit = isAdmin; // Only admin can edit
+  const canEdit = isAdmin || isStaff || isHR; // Admin, Staff, and HR can edit
   const canDelete = isAdmin; // Only admin can delete
 
   // Fetch branches
