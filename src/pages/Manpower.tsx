@@ -37,7 +37,9 @@ import {
   Calendar,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Printer,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -134,6 +136,12 @@ const Manpower = () => {
   const [attendanceYear, setAttendanceYear] = useState(currentYear.toString());
   const [attendanceDate, setAttendanceDate] = useState<string>(''); // Specific date for daily report
   const [positionCategoryFilter, setPositionCategoryFilter] = useState<string>('all'); // Store, Office, Team Leader, All
+  
+  // Manpower Summary filters
+  const [summaryCategory, setSummaryCategory] = useState<string>('all');
+  const [summaryPosition, setSummaryPosition] = useState<string>('all');
+  const [summaryMaternity, setSummaryMaternity] = useState<string>('all');
+  const [summarySortOrder, setSummarySortOrder] = useState<'newest' | 'oldest'>('newest');
 
   const [form, setForm] = useState({
     employee_id: '',
@@ -466,6 +474,279 @@ const Manpower = () => {
       employeesByStatus,
     };
   }, [attendanceRecords, filteredEmployees, positionCategoryFilter]);
+
+  // Manpower Summary data - group employees by store/branch with filters
+  const manpowerSummaryData = useMemo(() => {
+    // Apply filters first
+    let filtered = employees.filter(emp => {
+      // Global branch filter
+      if (globalBranchId && emp.branch_id !== globalBranchId) {
+        return false;
+      }
+      
+      const matchesCategory = summaryCategory === 'all' || emp.category === summaryCategory;
+      const matchesPosition = summaryPosition === 'all' || emp.position === summaryPosition;
+      const matchesMaternity = summaryMaternity === 'all' || emp.maternity === summaryMaternity;
+      
+      return matchesCategory && matchesPosition && matchesMaternity;
+    });
+    
+    // Sort by date hired
+    filtered = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.date_hired).getTime();
+      const dateB = new Date(b.date_hired).getTime();
+      return summarySortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+    
+    // Group by branch
+    const branchGroups: Record<string, Employee[]> = {};
+    filtered.forEach(emp => {
+      const branchName = emp.branch || 'Unassigned';
+      if (!branchGroups[branchName]) {
+        branchGroups[branchName] = [];
+      }
+      branchGroups[branchName].push(emp);
+    });
+    
+    // Convert to array and sort by count
+    const branchSummary = Object.entries(branchGroups)
+      .map(([branch, emps]) => ({
+        branch,
+        employees: emps,
+        count: emps.length,
+        regularCount: emps.filter(e => e.employment_status.toLowerCase() === 'regular').length,
+        probationaryCount: emps.filter(e => e.employment_status.toLowerCase() === 'probationary').length,
+      }))
+      .sort((a, b) => b.count - a.count);
+    
+    return {
+      totalFiltered: filtered.length,
+      branchSummary,
+      allFilteredEmployees: filtered,
+    };
+  }, [employees, globalBranchId, summaryCategory, summaryPosition, summaryMaternity, summarySortOrder]);
+
+  // Export Manpower Summary to Excel
+  const exportManpowerSummaryExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Warehouse Management System';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('Manpower Summary');
+
+    // Title
+    const titleRow = worksheet.addRow(['Manpower Summary Report']);
+    titleRow.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4472C4' } };
+    titleRow.height = 28;
+    titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.mergeCells(1, 1, 1, 6);
+
+    // Subtitle with filters
+    const filterInfo = [
+      summaryCategory !== 'all' ? `Category: ${summaryCategory}` : '',
+      summaryPosition !== 'all' ? `Position: ${summaryPosition}` : '',
+      summaryMaternity !== 'all' ? `Maternity: ${summaryMaternity}` : '',
+    ].filter(Boolean).join(' | ') || 'All Employees';
+    
+    const subtitleRow = worksheet.addRow([`Generated: ${format(new Date(), 'MMM dd, yyyy')} | ${filterInfo}`]);
+    subtitleRow.font = { italic: true, size: 11, color: { argb: '666666' } };
+    subtitleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.mergeCells(2, 1, 2, 6);
+
+    worksheet.addRow([]);
+
+    // Headers
+    const headerRow = worksheet.addRow(['Branch', 'Employee Name', 'Position', 'Category', 'Status', 'Date Hired']);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4472C4' } };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    worksheet.columns = [
+      { width: 20 },
+      { width: 25 },
+      { width: 18 },
+      { width: 12 },
+      { width: 15 },
+      { width: 15 },
+    ];
+
+    // Data rows
+    manpowerSummaryData.allFilteredEmployees.forEach((emp, idx) => {
+      const row = worksheet.addRow([
+        emp.branch || '-',
+        emp.full_name,
+        emp.position || '-',
+        emp.category || '-',
+        emp.employment_status,
+        format(new Date(emp.date_hired), 'MMM dd, yyyy'),
+      ]);
+      if (idx % 2 === 0) {
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F5F5F5' } };
+      }
+    });
+
+    // Summary section
+    worksheet.addRow([]);
+    const summaryHeader = worksheet.addRow(['Branch Summary']);
+    summaryHeader.font = { bold: true, size: 14 };
+    worksheet.addRow(['Branch', 'Total', 'Regular', 'Probationary']);
+    
+    manpowerSummaryData.branchSummary.forEach(b => {
+      worksheet.addRow([b.branch, b.count, b.regularCount, b.probationaryCount]);
+    });
+
+    // Download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `manpower-summary-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({ title: 'Excel exported successfully!' });
+  };
+
+  // Export Manpower Summary to PDF
+  const exportManpowerSummaryPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Manpower Summary Report', 14, 20);
+    
+    doc.setFontSize(10);
+    const filterInfo = [
+      summaryCategory !== 'all' ? `Category: ${summaryCategory}` : '',
+      summaryPosition !== 'all' ? `Position: ${summaryPosition}` : '',
+      summaryMaternity !== 'all' ? `Maternity: ${summaryMaternity}` : '',
+    ].filter(Boolean).join(' | ') || 'All Employees';
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy')} | ${filterInfo}`, 14, 28);
+    
+    // Employee list table
+    autoTable(doc, {
+      startY: 35,
+      head: [['Branch', 'Employee Name', 'Position', 'Category', 'Status', 'Date Hired']],
+      body: manpowerSummaryData.allFilteredEmployees.map(emp => [
+        emp.branch || '-',
+        emp.full_name,
+        emp.position || '-',
+        emp.category || '-',
+        emp.employment_status,
+        format(new Date(emp.date_hired), 'MMM dd, yyyy'),
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [68, 114, 196] },
+    });
+
+    // Branch summary table
+    const finalY = (doc as any).lastAutoTable?.finalY || 35;
+    doc.setFontSize(14);
+    doc.text('Branch Summary', 14, finalY + 15);
+    
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [['Branch', 'Total', 'Regular', 'Probationary']],
+      body: manpowerSummaryData.branchSummary.map(b => [
+        b.branch,
+        b.count.toString(),
+        b.regularCount.toString(),
+        b.probationaryCount.toString(),
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [68, 114, 196] },
+    });
+    
+    doc.save(`manpower-summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast({ title: 'PDF exported successfully!' });
+  };
+
+  // Print Manpower Summary
+  const printManpowerSummary = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    const filterInfo = [
+      summaryCategory !== 'all' ? `Category: ${summaryCategory}` : '',
+      summaryPosition !== 'all' ? `Position: ${summaryPosition}` : '',
+      summaryMaternity !== 'all' ? `Maternity: ${summaryMaternity}` : '',
+    ].filter(Boolean).join(' | ') || 'All Employees';
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Manpower Summary Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; margin-bottom: 5px; }
+            .subtitle { color: #666; font-size: 12px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
+            th { background-color: #4472C4; color: white; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .summary-title { margin-top: 30px; font-size: 16px; font-weight: bold; }
+            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+          </style>
+        </head>
+        <body>
+          <h1>Manpower Summary Report</h1>
+          <p class="subtitle">Generated: ${format(new Date(), 'MMM dd, yyyy')} | ${filterInfo}</p>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Branch</th>
+                <th>Employee Name</th>
+                <th>Position</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Date Hired</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${manpowerSummaryData.allFilteredEmployees.map(emp => `
+                <tr>
+                  <td>${emp.branch || '-'}</td>
+                  <td>${emp.full_name}</td>
+                  <td>${emp.position || '-'}</td>
+                  <td>${emp.category || '-'}</td>
+                  <td>${emp.employment_status}</td>
+                  <td>${format(new Date(emp.date_hired), 'MMM dd, yyyy')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <p class="summary-title">Branch Summary</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Branch</th>
+                <th>Total</th>
+                <th>Regular</th>
+                <th>Probationary</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${manpowerSummaryData.branchSummary.map(b => `
+                <tr>
+                  <td>${b.branch}</td>
+                  <td>${b.count}</td>
+                  <td>${b.regularCount}</td>
+                  <td>${b.probationaryCount}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
 
   // Calculate length of service
   const getLengthOfService = (dateHired: string) => {
@@ -966,10 +1247,14 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="manpower" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Manpower Database
+          </TabsTrigger>
+          <TabsTrigger value="manpower-summary" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Manpower Summary
           </TabsTrigger>
           <TabsTrigger value="attendance-summary" className="flex items-center gap-2">
             <ClipboardList className="h-4 w-4" />
@@ -1254,6 +1539,245 @@ const Manpower = () => {
           </ScrollArea>
         </CardContent>
         </Card>
+        </TabsContent>
+
+        {/* Manpower Summary Tab */}
+        <TabsContent value="manpower-summary" className="space-y-6">
+          {/* Filters and Export */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Select value={summaryCategory} onValueChange={setSummaryCategory}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categoryOptions.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={summaryPosition} onValueChange={setSummaryPosition}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Positions</SelectItem>
+                      {positionOptions.map(pos => (
+                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={summaryMaternity} onValueChange={setSummaryMaternity}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Maternity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Maternity</SelectItem>
+                      {maternityOptions.map(mat => (
+                        <SelectItem key={mat} value={mat}>{mat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={summarySortOrder} onValueChange={(val: 'newest' | 'oldest') => setSummarySortOrder(val)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Sort by Date Hired" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Date Hired (Newest)</SelectItem>
+                      <SelectItem value="oldest">Date Hired (Oldest)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={exportManpowerSummaryExcel} className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Excel
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportManpowerSummaryPDF} className="gap-2">
+                    <FileText className="h-4 w-4" />
+                    PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={printManpowerSummary} className="gap-2">
+                    <Printer className="h-4 w-4" />
+                    Print
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{manpowerSummaryData.totalFiltered}</p>
+                    <p className="text-sm text-muted-foreground">Total Filtered</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <Building2 className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{manpowerSummaryData.branchSummary.length}</p>
+                    <p className="text-sm text-muted-foreground">Branches</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <Users className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {manpowerSummaryData.branchSummary.reduce((sum, b) => sum + b.regularCount, 0)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Regular</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-yellow-500/10">
+                    <Users className="h-5 w-5 text-yellow-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {manpowerSummaryData.branchSummary.reduce((sum, b) => sum + b.probationaryCount, 0)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Probationary</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Branch Summary Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Manpower per Store/Branch
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {manpowerSummaryData.branchSummary.length > 0 ? (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-[50px]">#</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead className="text-center">Total</TableHead>
+                        <TableHead className="text-center">Regular</TableHead>
+                        <TableHead className="text-center">Probationary</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {manpowerSummaryData.branchSummary.map((b, idx) => (
+                        <TableRow key={b.branch}>
+                          <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-medium">{b.branch}</TableCell>
+                          <TableCell className="text-center font-bold">{b.count}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                              {b.regularCount}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                              {b.probationaryCount}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell></TableCell>
+                        <TableCell>TOTAL</TableCell>
+                        <TableCell className="text-center">{manpowerSummaryData.totalFiltered}</TableCell>
+                        <TableCell className="text-center">
+                          {manpowerSummaryData.branchSummary.reduce((sum, b) => sum + b.regularCount, 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {manpowerSummaryData.branchSummary.reduce((sum, b) => sum + b.probationaryCount, 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No data found</h3>
+                  <p className="text-muted-foreground">Try adjusting the filters</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Employee List by Branch */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Employee List ({manpowerSummaryData.totalFiltered})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-[50px]">#</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>Employee Name</TableHead>
+                      <TableHead>Position</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date Hired</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {manpowerSummaryData.allFilteredEmployees.map((emp, idx) => (
+                      <TableRow key={emp.id}>
+                        <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                        <TableCell className="font-medium">{emp.branch || '-'}</TableCell>
+                        <TableCell>{emp.full_name}</TableCell>
+                        <TableCell>{emp.position || '-'}</TableCell>
+                        <TableCell>{emp.category || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn(
+                            emp.employment_status.toLowerCase() === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
+                            emp.employment_status.toLowerCase() === 'probationary' && 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30',
+                          )}>
+                            {emp.employment_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Attendance Summary Tab */}
