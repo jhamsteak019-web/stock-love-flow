@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DeliveryStatus } from '@/types/inventory';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
 interface GroupedRelease {
@@ -37,6 +38,7 @@ const COURIER_OPTIONS = ['AP CARGO', 'SOUTHSEA', 'AIRSPEED', 'FAST CARGO', 'JUNI
 
 const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliveryModalProps) => {
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [loading, setLoading] = useState(false);
   
   const [destination, setDestination] = useState(group.destination);
@@ -93,6 +95,22 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
 
         if (error) throw error;
       }
+
+      // Log activity
+      await logActivity({
+        actionType: 'update',
+        module: 'deliveries',
+        description: `Edited delivery: ${allocationBill || group.batch_id.slice(0, 8)} to ${destination}`,
+        metadata: {
+          batch_id: group.batch_id,
+          allocation_bill: allocationBill,
+          destination,
+          category,
+          delivery_status: deliveryStatus,
+          total_boxes: totalBoxes,
+          total_qty: totalQty
+        }
+      });
 
       toast({ title: 'Success', description: 'Delivery updated successfully' });
       onSuccess();
