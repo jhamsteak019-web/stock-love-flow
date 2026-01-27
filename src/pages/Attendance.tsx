@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,6 +109,7 @@ const Attendance = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const queryClient = useQueryClient();
 
   // Column settings
@@ -424,8 +426,15 @@ const Attendance = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, data) => {
       queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      const employee = employees.find(e => e.id === data.employee_id);
+      logActivity({
+        actionType: 'create',
+        module: 'attendance',
+        description: `Added attendance record for ${employee?.full_name || 'employee'}`,
+        metadata: { employee_id: data.employee_id, status: data.status }
+      });
       setIsAttendanceModalOpen(false);
       resetAttendanceForm();
       toast({ title: 'Attendance record added successfully!' });
@@ -446,8 +455,14 @@ const Attendance = () => {
       }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      logActivity({
+        actionType: 'update',
+        module: 'attendance',
+        description: `Updated attendance record`,
+        metadata: { record_id: id, status: data.status }
+      });
       setIsAttendanceModalOpen(false);
       resetAttendanceForm();
       toast({ title: 'Attendance record updated successfully!' });
@@ -464,9 +479,15 @@ const Attendance = () => {
       }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
       queryClient.invalidateQueries({ queryKey: ['attendance-deleted-records'] });
+      logActivity({
+        actionType: 'delete',
+        module: 'attendance',
+        description: `Deleted attendance record`,
+        metadata: { record_id: id }
+      });
       toast({ title: 'Record moved to Recently Deleted!' });
     },
     onError: (error: any) => {

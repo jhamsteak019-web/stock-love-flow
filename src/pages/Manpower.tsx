@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,6 +94,7 @@ const Manpower = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const queryClient = useQueryClient();
 
   // Column settings
@@ -412,9 +414,15 @@ const Manpower = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, data) => {
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      logActivity({
+        actionType: 'create',
+        module: 'manpower',
+        description: `Added new employee: ${data.full_name}`,
+        metadata: { employee_name: data.full_name, position: data.position }
+      });
       closeModal();
       toast({ title: 'Employee added successfully!' });
     },
@@ -446,9 +454,15 @@ const Manpower = () => {
       }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      logActivity({
+        actionType: 'update',
+        module: 'manpower',
+        description: `Updated employee: ${data.full_name}`,
+        metadata: { employee_id: id, employee_name: data.full_name }
+      });
       closeModal();
       toast({ title: 'Employee updated successfully!' });
     },
@@ -465,11 +479,17 @@ const Manpower = () => {
       }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
       queryClient.invalidateQueries({ queryKey: ['manpower-deleted-employees'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+      logActivity({
+        actionType: 'delete',
+        module: 'manpower',
+        description: `Deleted employee record`,
+        metadata: { employee_id: id }
+      });
       toast({ title: 'Employee moved to Recently Deleted!' });
     },
     onError: (error: any) => {
