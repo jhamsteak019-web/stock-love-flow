@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,6 +80,7 @@ const parsePhotoUrls = (photoUrl: string | null): string[] => {
 const RepeatOrder = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
+  const { logActivity } = useActivityLog();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -218,8 +220,14 @@ const RepeatOrder = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, data) => {
       queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      logActivity({
+        actionType: 'create',
+        module: 'repeat_orders',
+        description: `Added repeat order for ${data.branch_store || 'store'}`,
+        metadata: { branch_store: data.branch_store, category: data.category }
+      });
       toast.success('Repeat order added successfully');
       setIsAddDialogOpen(false);
       resetForm();
@@ -246,8 +254,14 @@ const RepeatOrder = () => {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, order) => {
       queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      logActivity({
+        actionType: 'update',
+        module: 'repeat_orders',
+        description: `Updated repeat order for ${order.branch_store || 'store'}`,
+        metadata: { order_id: order.id, branch_store: order.branch_store }
+      });
       toast.success('Order updated successfully');
       setIsEditDialogOpen(false);
       setEditingOrder(null);
@@ -267,8 +281,14 @@ const RepeatOrder = () => {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['repeat-orders'] });
+      logActivity({
+        actionType: 'delete',
+        module: 'repeat_orders',
+        description: `Deleted repeat order`,
+        metadata: { order_id: id }
+      });
       toast.success('Order moved to Recently Deleted');
     },
     onError: (error) => {

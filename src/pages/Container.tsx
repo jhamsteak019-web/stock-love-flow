@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +64,7 @@ const MONTHS = [
 const Container = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
+  const { logActivity } = useActivityLog();
   
   // Column settings hook
   const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('container', defaultContainerColumns);
@@ -161,8 +163,14 @@ const Container = () => {
         });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, data) => {
       queryClient.invalidateQueries({ queryKey: ['containers'] });
+      logActivity({
+        actionType: 'create',
+        module: 'containers',
+        description: `Added new container: ${data.out_factory || 'N/A'}`,
+        metadata: { category: data.category, date: data.date }
+      });
       toast.success('Container added successfully');
       setIsAddDialogOpen(false);
       resetForm();
@@ -181,8 +189,14 @@ const Container = () => {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['containers'] });
+      logActivity({
+        actionType: 'update',
+        module: 'containers',
+        description: `Updated container`,
+        metadata: { container_id: id }
+      });
       toast.success('Container updated successfully');
       setIsEditDialogOpen(false);
       setEditingItem(null);
@@ -201,9 +215,15 @@ const Container = () => {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['containers'] });
       queryClient.invalidateQueries({ queryKey: ['containers-deleted'] });
+      logActivity({
+        actionType: 'delete',
+        module: 'containers',
+        description: `Deleted container`,
+        metadata: { container_id: id }
+      });
       toast.success('Container moved to Recently Deleted');
     },
     onError: (error: any) => {

@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,6 +62,7 @@ const ITEMS_PER_PAGE = 15;
 
 const Notes = () => {
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -353,6 +355,12 @@ const Notes = () => {
             ? { ...note, title: formTitle.trim() || 'Untitled', content: formContent.trim(), concern: formConcern.trim(), is_public: isAdmin ? formIsPublic : editingNote.is_public, updated_at: new Date().toISOString() }
             : note
         ));
+        await logActivity({
+          actionType: 'update',
+          module: 'notes',
+          description: `Updated reminder: ${formTitle.trim() || 'Untitled'}`,
+          metadata: { note_id: editingNote.id, title: formTitle.trim() }
+        });
         toast({ title: 'Success', description: 'Reminder updated' });
       } else {
         const { data, error } = await supabase
@@ -392,7 +400,12 @@ const Notes = () => {
             await supabase.from('notifications').insert(notifications);
           }
         }
-        
+        await logActivity({
+          actionType: 'create',
+          module: 'notes',
+          description: `Created reminder: ${formTitle.trim() || 'Untitled'}`,
+          metadata: { note_id: data.id, title: formTitle.trim() }
+        });
         toast({ title: 'Success', description: 'Reminder created' });
       }
       closeDialog();
@@ -417,6 +430,12 @@ const Notes = () => {
       if (deletedNote) {
         setNotes(notes.filter(note => note.id !== noteId));
         setDeletedNotes([{ ...deletedNote, deleted_at: new Date().toISOString() }, ...deletedNotes]);
+        await logActivity({
+          actionType: 'delete',
+          module: 'notes',
+          description: `Deleted reminder: ${deletedNote.title}`,
+          metadata: { note_id: noteId, title: deletedNote.title }
+        });
       }
       toast({ title: 'Success', description: 'Moved to recently deleted' });
     } catch (error: any) {
