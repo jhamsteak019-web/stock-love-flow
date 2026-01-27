@@ -51,9 +51,12 @@ const defaultManpowerColumns: GenericColumnConfig[] = [
   { key: 'branch', label: 'Branch', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
   { key: 'photo', label: 'Photo', visible: true, width: 50, minWidth: 40, maxWidth: 80 },
   { key: 'name', label: 'Employee Name', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'gender', label: 'Gender', visible: true, width: 80, minWidth: 60, maxWidth: 120 },
+  { key: 'age', label: 'Age', visible: true, width: 60, minWidth: 50, maxWidth: 100 },
   { key: 'position', label: 'Position', visible: true, width: 120, minWidth: 80, maxWidth: 180 },
+  { key: 'category', label: 'Category', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
   { key: 'status', label: 'Status', visible: true, width: 110, minWidth: 90, maxWidth: 150 },
-  { key: 'date_hired', label: 'Date of Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
+  { key: 'date_hired', label: 'Date Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'service', label: 'Length of Service', visible: true, width: 120, minWidth: 90, maxWidth: 150 },
   { key: 'contact', label: 'Contact No.', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'address', label: 'Address', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
@@ -966,9 +969,12 @@ const Manpower = () => {
                   {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
                   {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[50px]">Photo</TableHead>}
                   {columns.find(c => c.key === 'name')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'name')?.width }}>Employee Name</TableHead>}
+                  {columns.find(c => c.key === 'gender')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'gender')?.width }}>Gender</TableHead>}
+                  {columns.find(c => c.key === 'age')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'age')?.width }}>Age</TableHead>}
                   {columns.find(c => c.key === 'position')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'position')?.width }}>Position</TableHead>}
+                  {columns.find(c => c.key === 'category')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'category')?.width }}>Category</TableHead>}
                   {columns.find(c => c.key === 'status')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'status')?.width }}>Status</TableHead>}
-                  {columns.find(c => c.key === 'date_hired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_hired')?.width }}>Date of Hired</TableHead>}
+                  {columns.find(c => c.key === 'date_hired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_hired')?.width }}>Date Hired</TableHead>}
                   {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
                   {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
                   {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
@@ -1011,8 +1017,17 @@ const Manpower = () => {
                       {columns.find(c => c.key === 'name')?.visible && (
                         <TableCell className="font-medium">{emp.full_name}</TableCell>
                       )}
+                      {columns.find(c => c.key === 'gender')?.visible && (
+                        <TableCell>{emp.gender || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'age')?.visible && (
+                        <TableCell>{emp.age || '-'}</TableCell>
+                      )}
                       {columns.find(c => c.key === 'position')?.visible && (
                         <TableCell>{emp.position || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'category')?.visible && (
+                        <TableCell>{emp.category || '-'}</TableCell>
                       )}
                       {columns.find(c => c.key === 'status')?.visible && (
                         <TableCell>
