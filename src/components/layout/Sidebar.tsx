@@ -76,7 +76,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     { 
       to: '/deliveries', 
       icon: Truck, 
-      label: 'MONITORING',
+      label: 'Deliveries',
       roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
     },
     { 
