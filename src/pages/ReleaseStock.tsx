@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
+import { useActivityLog } from '@/hooks/useActivityLog';
 
 const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'allocation' as ColumnKey, label: 'Allocation Bill', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
@@ -61,6 +62,7 @@ const ReleaseStock = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
@@ -194,6 +196,22 @@ const ReleaseStock = () => {
         selectedBranch?.id || undefined,
         amount || undefined
       );
+      
+      // Log activity
+      await logActivity({
+        actionType: 'create',
+        module: 'stock_releases',
+        description: `Created delivery: ${allocationBill || 'Manual Entry'} to ${destination}`,
+        metadata: {
+          allocation_bill: allocationBill,
+          destination,
+          category,
+          boxes,
+          amount,
+          branch: selectedBranch?.name
+        }
+      });
+      
       toast({ title: 'Success', description: 'Stock released successfully' });
       
       // Reset form
@@ -443,6 +461,19 @@ const ReleaseStock = () => {
       if (parsedItems.length - validItems.length === 0) {
         setShowImportPreview(false);
       }
+
+      // Log activity for batch import
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `Imported ${validItems.length} delivery item(s) via Excel`,
+        metadata: {
+          items_count: validItems.length,
+          courier: firstItem.courier,
+          branch: selectedBranch?.name,
+          allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
+        }
+      });
 
       toast({ title: 'Success', description: `${validItems.length} item(s) released as one batch` });
     } catch (error) {
