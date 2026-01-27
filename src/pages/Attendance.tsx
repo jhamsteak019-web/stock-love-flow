@@ -1600,7 +1600,7 @@ const Attendance = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Branch</p>
-                <p className="font-medium">{viewingRecord?.employees?.branches?.name || '-'}</p>
+                <p className="font-medium">{viewingRecord?.employees?.branch || viewingRecord?.employees?.branches?.name || '-'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Date</p>
