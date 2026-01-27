@@ -1010,6 +1010,7 @@ export type Database = {
       }
       team_chat_messages: {
         Row: {
+          branch_id: string | null
           content: string
           created_at: string
           file_name: string | null
@@ -1020,6 +1021,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          branch_id?: string | null
           content: string
           created_at?: string
           file_name?: string | null
@@ -1030,6 +1032,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          branch_id?: string | null
           content?: string
           created_at?: string
           file_name?: string | null
@@ -1040,6 +1043,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "team_chat_messages_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "team_chat_messages_reply_to_id_fkey"
             columns: ["reply_to_id"]

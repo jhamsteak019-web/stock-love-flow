@@ -13,6 +13,7 @@ export interface Branch {
 interface BranchContextType {
   branches: Branch[];
   selectedBranch: Branch | null;
+  userBranch: Branch | null; // The user's assigned branch (for non-admins)
   setSelectedBranch: (branch: Branch | null) => void;
   loading: boolean;
   refetch: () => Promise<void>;
@@ -31,6 +32,7 @@ export const useBranch = () => {
 export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranchState] = useState<Branch | null>(null);
+  const [userBranch, setUserBranch] = useState<Branch | null>(null); // User's assigned branch
   const [loading, setLoading] = useState(true);
   const { user, userRole } = useAuth();
 
@@ -60,15 +62,19 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.log('BranchContext - User profile data:', profileData);
       console.log('BranchContext - User role:', userRole);
 
-      // If user has an assigned branch, use it (non-admins are locked to this)
+      // If user has an assigned branch, save it
       if (!profileError && profileData?.branch_id && branchesData) {
         const assignedBranch = branchesData.find(b => b.id === profileData.branch_id);
         console.log('BranchContext - Assigned branch found:', assignedBranch);
         
         if (assignedBranch) {
+          setUserBranch(assignedBranch); // Always track the user's assigned branch
           setSelectedBranchState(assignedBranch);
           localStorage.setItem('selectedBranchId', assignedBranch.id);
-          return;
+          // Non-admins stop here - they're locked to their branch
+          if (userRole !== 'admin' && userRole !== 'hr') {
+            return;
+          }
         }
       }
 
@@ -103,6 +109,7 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else {
       // Clear state on logout
       setSelectedBranchState(null);
+      setUserBranch(null);
       setBranches([]);
       setLoading(false);
     }
@@ -120,7 +127,8 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <BranchContext.Provider value={{ 
       branches, 
-      selectedBranch, 
+      selectedBranch,
+      userBranch,
       setSelectedBranch, 
       loading,
       refetch: fetchBranches 
