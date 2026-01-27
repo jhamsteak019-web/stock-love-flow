@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,7 +20,8 @@ import {
   Volume2,
   VolumeX,
   Reply,
-  XCircle
+  XCircle,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -70,7 +72,13 @@ interface UserProfile {
 
 export const TeamChatBox = () => {
   const { user, userRole } = useAuth();
+  const { selectedBranch, userBranch } = useBranch();
   const queryClient = useQueryClient();
+  const isAdmin = userRole === 'admin';
+  
+  // For non-admins, use their assigned branch; for admins, use selected branch
+  const currentBranchId = isAdmin ? selectedBranch?.id : userBranch?.id;
+  const currentBranchName = isAdmin ? selectedBranch?.name : userBranch?.name;
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -224,6 +232,7 @@ export const TeamChatBox = () => {
           file_name: fileName || null,
           mentions: selectedMentions,
           reply_to_id: replyToId || null,
+          branch_id: currentBranchId || null, // Associate message with current branch
         });
       
       if (error) throw error;
@@ -423,29 +432,42 @@ export const TeamChatBox = () => {
       {isOpen && (
         <div className="fixed bottom-6 right-6 w-[380px] h-[500px] bg-background border rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-primary text-primary-foreground">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              <span className="font-semibold">Team Chat</span>
+          <div className="flex flex-col border-b bg-primary text-primary-foreground">
+            <div className="flex items-center justify-between px-4 py-2">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" />
+                <span className="font-semibold">Team Chat</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSound}
+                  className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
+                  title={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
+                >
+                  {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSound}
-                className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
-                title={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
-              >
-                {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsOpen(false)}
-                className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            {/* Branch indicator */}
+            <div className="px-4 pb-2 flex items-center gap-1.5">
+              <Building2 className="h-3 w-3 text-primary-foreground/70" />
+              <span className="text-xs text-primary-foreground/80">
+                {isAdmin ? (
+                  <>All Branches <span className="opacity-60">(Admin)</span></>
+                ) : (
+                  currentBranchName || 'No Branch'
+                )}
+              </span>
             </div>
           </div>
 
