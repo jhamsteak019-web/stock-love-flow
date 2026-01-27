@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   Database,
   UserCheck,
+  History,
   MapPin
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -166,6 +167,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/users',
       icon: Users, 
       label: 'Manage Users',
+      roles: ['admin']
+    },
+    { 
+      to: '/activity-history',
+      icon: History, 
+      label: 'Activity History',
       roles: ['admin']
     },
   ];
