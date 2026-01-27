@@ -748,7 +748,7 @@ const ResumeToWork = () => {
               size="sm"
               onClick={() => setShowAllYear(!showAllYear)}
             >
-              {showAllYear ? 'Showing All Year' : 'Show All Year'}
+              {showAllYear ? 'Showing All Year' : 'All Year'}
             </Button>
           </div>
         </CardContent>

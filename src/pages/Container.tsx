@@ -73,6 +73,7 @@ const Container = () => {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
+  const [showAllYear, setShowAllYear] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -144,9 +145,12 @@ const Container = () => {
     }
   });
 
-  // Filter containers by month and year
+  // Filter containers by month and year (or all year)
   const filteredByDate = containers.filter(item => {
     const itemDate = new Date(item.date);
+    if (showAllYear) {
+      return itemDate.getFullYear() === selectedYear;
+    }
     return itemDate.getMonth() === selectedMonth && itemDate.getFullYear() === selectedYear;
   });
 
@@ -659,7 +663,7 @@ const Container = () => {
                 {/* Month/Year Filter */}
                 <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
                   <CalendarLucide className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+                  <Select value={selectedMonth.toString()} onValueChange={(val) => { setSelectedMonth(parseInt(val)); setShowAllYear(false); }}>
                     <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
                       <SelectValue placeholder="Month" />
                     </SelectTrigger>
@@ -680,6 +684,13 @@ const Container = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button 
+                  variant={showAllYear ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setShowAllYear(!showAllYear)}
+                >
+                  {showAllYear ? 'Showing All Year' : 'All Year'}
+                </Button>
                 <ColumnSettings
                   columns={columns}
                   onColumnChange={setColumns}
