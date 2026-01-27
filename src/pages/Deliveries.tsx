@@ -77,6 +77,8 @@ const Deliveries = () => {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   
   const isViewer = userRole === 'viewer';
+  const isEncoder = userRole === 'encoder';
+  const canEdit = isAdmin || isEncoder; // Admin and encoder can edit
   const canExport = userRole !== 'uploader';
 
   const getColumnWidth = (key: ColumnKey) => {
@@ -89,7 +91,7 @@ const Deliveries = () => {
     return col?.visible ?? true;
   };
 
-  const visibleColumnCount = columns.filter(c => c.visible).length + (isAdmin ? 1 : 0); // +1 for Edit if admin
+  const visibleColumnCount = columns.filter(c => c.visible).length + (canEdit ? 1 : 0); // +1 for Edit if can edit
   
   // Debounced search for smooth performance
   const debouncedSearch = useDebounce(searchQuery, 350);
@@ -381,7 +383,7 @@ const Deliveries = () => {
               {isColumnVisible('dateOut') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>Date Out Warehouse</TableHead>}
               {isColumnVisible('status') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('status') }}>Status</TableHead>}
               {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
-              {isAdmin && <TableHead className="w-[80px]">Edit</TableHead>}
+              {canEdit && <TableHead className="w-[80px]">Edit</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -463,7 +465,7 @@ const Deliveries = () => {
                       )}
                     </TableCell>
                   )}
-                  {isAdmin && (
+                  {canEdit && (
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingBatch(group); }} className="transition-transform hover:scale-110">
                         <Pencil className="h-4 w-4" />

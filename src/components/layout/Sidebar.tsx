@@ -64,25 +64,25 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
     },
     { 
       to: '/release', 
       icon: PackagePlus, 
       label: 'OUT WAREHOUSE DELIVERY',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff', 'encoder']
     },
     { 
       to: '/deliveries', 
       icon: Truck, 
       label: 'MONITORING',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
     },
     { 
       to: '/summary', 

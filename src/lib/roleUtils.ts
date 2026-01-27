@@ -10,6 +10,7 @@ export const roleDisplayNames: Record<string, string> = {
   uploader: 'Uploader',
   pending: 'Pending',
   hr: 'HR',
+  encoder: 'Encoder',
 };
 
 export const getRoleDisplayName = (role: string | null | undefined): string => {

@@ -26,6 +26,7 @@ const roleRestrictedRoutes: Record<string, string[]> = {
   oic: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
   staff: ['/import', '/users', '/inventory', '/container'],
   uploader: ['/users'], // Can view everything except user management
+  encoder: ['/import', '/users', '/notes', '/inventory', '/collections', '/container', '/repeat-order', '/allocation', '/attendance', '/resume-to-work', '/manpower', '/summary', '/task-calendar', '/store-visit-schedule'], // Only Dashboard, Monitoring (Deliveries), History
 };
 
 export const DashboardLayout = () => {
