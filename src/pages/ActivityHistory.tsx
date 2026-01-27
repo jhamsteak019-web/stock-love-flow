@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,8 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Filter, RefreshCw, Activity, User, Calendar, FileText } from 'lucide-react';
+import { Search, Filter, RefreshCw, Activity, User, Calendar, FileText, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ActivityLog {
   id: string;
@@ -58,13 +59,15 @@ const ActivityHistory = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [users, setUsers] = useState<{ id: string; email: string; name: string }[]>([]);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Redirect non-admins
   if (userRole !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -114,7 +117,7 @@ const ActivityHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedUser, selectedModule, selectedAction, dateFrom, dateTo, searchTerm, toast]);
 
   const fetchUsers = async () => {
     try {
@@ -136,7 +139,51 @@ const ActivityHistory = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedUser, selectedModule, selectedAction, dateFrom, dateTo]);
+  }, [selectedUser, selectedModule, selectedAction, dateFrom, dateTo, fetchLogs]);
+
+  // Realtime subscription for activity logs
+  useEffect(() => {
+    const channel = supabase
+      .channel('activity-logs-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'activity_logs'
+        },
+        () => {
+          // Refetch logs when any change happens
+          fetchLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchLogs]);
+
+  const handleDeleteAll = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('activity_logs')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+      
+      if (error) throw error;
+      
+      toast({ title: 'Success', description: 'All activity logs have been deleted' });
+      setDeleteAllDialogOpen(false);
+      fetchLogs();
+    } catch (error) {
+      console.error('Error deleting activity logs:', error);
+      toast({ title: 'Error', description: 'Failed to delete activity logs', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSearch = () => {
     fetchLogs();
@@ -318,11 +365,18 @@ const ActivityHistory = () => {
             <span className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
               Activity Logs
+              <Badge variant="outline" className="ml-2 text-xs">Realtime</Badge>
             </span>
-            <Button onClick={fetchLogs} variant="outline" size="sm" disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setDeleteAllDialogOpen(true)} variant="destructive" size="sm" disabled={logs.length === 0}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete All
+              </Button>
+              <Button onClick={fetchLogs} variant="outline" size="sm" disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -391,6 +445,36 @@ const ActivityHistory = () => {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* Delete All Confirmation Dialog */}
+      <Dialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete All Activity Logs</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete all {logs.length} activity logs? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAllDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAll} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete All
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
