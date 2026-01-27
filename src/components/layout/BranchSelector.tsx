@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 export const BranchSelector = () => {
   const { branches, selectedBranch, setSelectedBranch, loading } = useBranch();
   const { userRole } = useAuth();
-  const isAdmin = userRole === 'admin';
+  // Admin and HR can switch branches
+  const canSwitchBranch = userRole === 'admin' || userRole === 'hr';
 
   if (loading) {
     return (
@@ -25,8 +26,8 @@ export const BranchSelector = () => {
     return null;
   }
 
-  // Non-admins see a read-only badge showing their assigned branch
-  if (!isAdmin) {
+  // Non-admins and non-HR see a read-only badge showing their assigned branch
+  if (!canSwitchBranch) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border">
         <Building2 className="h-4 w-4 text-primary" />
