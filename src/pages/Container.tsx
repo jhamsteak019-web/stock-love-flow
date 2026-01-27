@@ -105,41 +105,31 @@ const Container = () => {
   const canDelete = userRole === 'admin';
   const canExport = userRole !== 'uploader';
 
-  // Fetch active containers - filtered by branch
+  // Fetch active containers - visible across all branches
   const { data: containers = [], isLoading, refetch } = useQuery({
-    queryKey: ['containers', selectedBranch?.id],
+    queryKey: ['containers'],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('containers')
         .select('*')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
-      if (selectedBranch) {
-        query = query.eq('branch_id', selectedBranch.id);
-      }
-      
-      const { data, error } = await query;
       if (error) throw error;
       return data as ContainerItem[];
     }
   });
 
-  // Fetch deleted containers - filtered by branch
+  // Fetch deleted containers - visible across all branches
   const { data: deletedContainers = [], refetch: refetchDeleted } = useQuery({
-    queryKey: ['containers-deleted', selectedBranch?.id],
+    queryKey: ['containers-deleted'],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('containers')
         .select('*')
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
       
-      if (selectedBranch) {
-        query = query.eq('branch_id', selectedBranch.id);
-      }
-      
-      const { data, error } = await query;
       if (error) throw error;
       return data as ContainerItem[];
     }
