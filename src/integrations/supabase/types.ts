@@ -1097,6 +1097,7 @@ export type Database = {
         | "uploader"
         | "oic"
         | "hr"
+        | "encoder"
       delivery_status:
         | "pending"
         | "in_transit"
@@ -1238,6 +1239,7 @@ export const Constants = {
         "uploader",
         "oic",
         "hr",
+        "encoder",
       ],
       delivery_status: [
         "pending",
