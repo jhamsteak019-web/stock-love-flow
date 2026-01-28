@@ -166,6 +166,7 @@ const Attendance = () => {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkSelectedEmployees, setBulkSelectedEmployees] = useState<string[]>([]);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [bulkBranchFilter, setBulkBranchFilter] = useState<string>('all');
   const [bulkForm, setBulkForm] = useState({
     attendance_date: format(new Date(), 'yyyy-MM-dd'),
     status: 'present',
@@ -320,6 +321,36 @@ const Attendance = () => {
       .filter((branch): branch is string => !!branch && branch.trim() !== '');
     return [...new Set(branchNames)].sort();
   }, [employees]);
+
+  // Fetch employee IDs who already have attendance for the bulk date
+  const { data: existingAttendanceForBulkDate = [] } = useQuery({
+    queryKey: ['attendance-bulk-date', bulkForm.attendance_date],
+    queryFn: async () => {
+      if (!bulkForm.attendance_date) return [];
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('employee_id')
+        .eq('attendance_date', bulkForm.attendance_date)
+        .is('deleted_at', null);
+      if (error) throw error;
+      return data.map(r => r.employee_id);
+    },
+    enabled: isBulkModalOpen && !!bulkForm.attendance_date
+  });
+
+  // Filter employees for bulk modal (exclude those with existing attendance, apply branch filter)
+  const bulkAvailableEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      // Exclude employees who already have attendance for the date
+      if (existingAttendanceForBulkDate.includes(emp.id)) return false;
+      // Apply branch filter
+      const empBranch = emp.branch || emp.branches?.name || '';
+      if (bulkBranchFilter !== 'all' && empBranch !== bulkBranchFilter) return false;
+      // Apply search filter
+      if (bulkSearchQuery && !emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())) return false;
+      return true;
+    });
+  }, [employees, existingAttendanceForBulkDate, bulkBranchFilter, bulkSearchQuery]);
 
   // Chart data for Attendance Status Distribution
   const attendanceChartData = useMemo(() => {
@@ -1351,6 +1382,7 @@ const Attendance = () => {
                   if (!open) {
                     setBulkSelectedEmployees([]);
                     setBulkSearchQuery('');
+                    setBulkBranchFilter('all');
                     setBulkForm({
                       attendance_date: format(new Date(), 'yyyy-MM-dd'),
                       status: 'present',
@@ -1432,63 +1464,76 @@ const Attendance = () => {
 
                       {/* Employee Selection */}
                       <div className="flex-1 overflow-hidden flex flex-col border rounded-lg">
-                        <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-4">
-                          <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="Search employees..."
-                              value={bulkSearchQuery}
-                              onChange={(e) => setBulkSearchQuery(e.target.value)}
-                              className="pl-10"
-                            />
+                        <div className="p-3 border-b bg-muted/50 flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="relative flex-1">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Search employees..."
+                                value={bulkSearchQuery}
+                                onChange={(e) => setBulkSearchQuery(e.target.value)}
+                                className="pl-10"
+                              />
+                            </div>
+                            <Select value={bulkBranchFilter} onValueChange={(v) => {
+                              setBulkBranchFilter(v);
+                              setBulkSelectedEmployees([]);
+                            }}>
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Filter by branch" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Branches</SelectItem>
+                                {uniqueManpowerBranches.map(branch => (
+                                  <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
+                          <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground">
-                              Selected: <span className="font-semibold text-foreground">{bulkSelectedEmployees.length}</span> / {employees.length}
+                              Available: <span className="font-semibold text-foreground">{bulkAvailableEmployees.length}</span>
+                              {existingAttendanceForBulkDate.length > 0 && (
+                                <span className="ml-2 text-xs">({existingAttendanceForBulkDate.length} already recorded)</span>
+                              )}
                             </span>
-                            {bulkSelectedEmployees.length > 0 && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => setBulkSelectedEmployees([])}
-                              >
-                                Clear
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                Selected: <span className="font-semibold text-foreground">{bulkSelectedEmployees.length}</span>
+                              </span>
+                              {bulkSelectedEmployees.length > 0 && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => setBulkSelectedEmployees([])}
+                                >
+                                  Clear
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="p-2 border-b bg-muted/30">
                           <div className="flex items-center gap-2">
                             <Checkbox
                               id="select-all"
-                              checked={bulkSelectedEmployees.length === employees.filter(emp => 
-                                emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
-                              ).length && employees.filter(emp => 
-                                emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
-                              ).length > 0}
+                              checked={bulkSelectedEmployees.length === bulkAvailableEmployees.length && bulkAvailableEmployees.length > 0}
                               onCheckedChange={(checked) => {
                                 if (checked) {
-                                  const filtered = employees.filter(emp => 
-                                    emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
-                                  );
-                                  setBulkSelectedEmployees(filtered.map(e => e.id));
+                                  setBulkSelectedEmployees(bulkAvailableEmployees.map(e => e.id));
                                 } else {
                                   setBulkSelectedEmployees([]);
                                 }
                               }}
                             />
                             <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                              Select All ({employees.filter(emp => 
-                                emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
-                              ).length} employees)
+                              Select All ({bulkAvailableEmployees.length} employees)
                             </Label>
                           </div>
                         </div>
                         <ScrollArea className="flex-1 max-h-[300px]">
                           <div className="p-2 space-y-1">
-                            {employees
-                              .filter(emp => emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase()))
-                              .map(emp => (
+                            {bulkAvailableEmployees.map(emp => (
                                 <div
                                   key={emp.id}
                                   className={cn(
@@ -1527,8 +1572,12 @@ const Attendance = () => {
                                   </div>
                                 </div>
                               ))}
-                            {employees.filter(emp => emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())).length === 0 && (
-                              <p className="text-center text-muted-foreground py-8">No employees found</p>
+                            {bulkAvailableEmployees.length === 0 && (
+                              <p className="text-center text-muted-foreground py-8">
+                                {existingAttendanceForBulkDate.length > 0 && employees.length === existingAttendanceForBulkDate.length
+                                  ? 'All employees already have attendance for this date'
+                                  : 'No employees found'}
+                              </p>
                             )}
                           </div>
                         </ScrollArea>
