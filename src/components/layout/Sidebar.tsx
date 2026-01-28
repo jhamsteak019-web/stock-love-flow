@@ -1,6 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   LayoutDashboard, 
   Package, 
@@ -25,13 +27,17 @@ import {
   Database,
   UserCheck,
   History,
-  MapPin
+  MapPin,
+  MessageSquare,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { getRoleDisplayName } from '@/lib/roleUtils';
+import { PrivateMessageBox } from '@/components/chat/PrivateMessageBox';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -45,6 +51,25 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [isDMOpen, setIsDMOpen] = useState(false);
+
+  // Fetch unread DM count
+  const { data: unreadDMCount = 0 } = useQuery({
+    queryKey: ['unread-dm-count', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { count, error } = await supabase
+        .from('private_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false);
+      
+      if (error) return 0;
+      return count || 0;
+    },
+    enabled: !!user?.id,
+    refetchInterval: 10000,
+  });
 
   // Update date/time every second
   useEffect(() => {
@@ -287,6 +312,52 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
                   return navLink;
                 })}
+
+                {/* Direct Messages Button */}
+                <div className="mt-2 pt-2 border-t border-sidebar-border/50">
+                  {isCollapsed ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setIsDMOpen(true)}
+                          className={cn(
+                            "w-full flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 px-2 py-2.5",
+                            "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground relative"
+                          )}
+                        >
+                          <Mail className="h-5 w-5 flex-shrink-0" />
+                          {unreadDMCount > 0 && (
+                            <Badge 
+                              variant="destructive" 
+                              className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
+                            >
+                              {unreadDMCount > 9 ? '9+' : unreadDMCount}
+                            </Badge>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="bg-popover text-popover-foreground">
+                        Direct Messages {unreadDMCount > 0 && `(${unreadDMCount})`}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <button
+                      onClick={() => setIsDMOpen(true)}
+                      className={cn(
+                        "w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200 px-3 py-2.5",
+                        "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      )}
+                    >
+                      <Mail className="h-5 w-5 flex-shrink-0" />
+                      <span className="flex-1 text-left">Direct Messages</span>
+                      {unreadDMCount > 0 && (
+                        <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center text-xs">
+                          {unreadDMCount > 99 ? '99+' : unreadDMCount}
+                        </Badge>
+                      )}
+                    </button>
+                  )}
+                </div>
               </nav>
             </ScrollArea>
 
@@ -330,6 +401,9 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </div>
         </aside>
       </TooltipProvider>
+
+      {/* Private Messages Modal */}
+      <PrivateMessageBox isOpen={isDMOpen} onClose={() => setIsDMOpen(false)} />
     </>
   );
 };
