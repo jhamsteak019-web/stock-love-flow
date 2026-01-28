@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -41,6 +42,7 @@ interface UserProfile {
   id: string;
   full_name: string | null;
   email: string;
+  branch_id: string | null;
 }
 
 interface ConversationPreview {
@@ -59,6 +61,7 @@ interface PrivateMessageBoxProps {
 
 export const PrivateMessageBox = ({ isOpen, onClose }: PrivateMessageBoxProps) => {
   const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const queryClient = useQueryClient();
   const isAdmin = userRole === 'admin';
   
@@ -77,20 +80,59 @@ export const PrivateMessageBox = ({ isOpen, onClose }: PrivateMessageBoxProps) =
     inputRef.current?.focus();
   };
 
-  // Fetch all users for starting new conversations
-  const { data: allUsers = [] } = useQuery({
-    queryKey: ['dm-users'],
+  // Fetch current user's profile to get their branch_id
+  const { data: currentUserProfile } = useQuery({
+    queryKey: ['current-user-profile', user?.id],
     queryFn: async () => {
+      if (!user?.id) return null;
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, branch_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch all users for starting new conversations (filtered by role and branch)
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['dm-users', isAdmin, currentUserProfile?.branch_id, selectedBranch?.id],
+    queryFn: async () => {
+      // For admin, fetch all profiles
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, branch_id')
+          .neq('id', user?.id || '')
+          .order('full_name');
+        
+        if (error) throw error;
+        return data as UserProfile[];
+      }
+      
+      // For non-admin, get branch_id from profile or selected branch
+      const userBranchId = currentUserProfile?.branch_id || selectedBranch?.id;
+      
+      if (!userBranchId) {
+        // If no branch assigned, return empty list
+        return [];
+      }
+      
+      // Fetch profiles that belong to the same branch
+      const { data: branchProfiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, branch_id')
+        .eq('branch_id', userBranchId)
         .neq('id', user?.id || '')
         .order('full_name');
       
-      if (error) throw error;
-      return data as UserProfile[];
+      if (profileError) throw profileError;
+      
+      return (branchProfiles || []) as UserProfile[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && (isAdmin || !!currentUserProfile),
   });
 
   // Fetch private messages
