@@ -74,6 +74,21 @@ interface UserProfile {
   email: string;
 }
 
+interface MessageReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+}
+
+interface GroupedReaction {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  hasUserReacted: boolean;
+}
+
 export const TeamChatBox = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch, userBranch } = useBranch();
@@ -91,6 +106,7 @@ export const TeamChatBox = () => {
   const [uploading, setUploading] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const stored = localStorage.getItem('chat-sound-enabled');
     return stored !== 'false'; // Default to true
@@ -155,6 +171,43 @@ export const TeamChatBox = () => {
     },
   });
 
+  // Fetch reactions for messages
+  const { data: reactions = [] } = useQuery({
+    queryKey: ['chat-reactions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chat_message_reactions')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data as MessageReaction[];
+    },
+  });
+
+  // Group reactions by message and emoji
+  const getGroupedReactions = useCallback((messageId: string): GroupedReaction[] => {
+    const messageReactions = reactions.filter(r => r.message_id === messageId);
+    const grouped = new Map<string, { userIds: string[]; count: number }>();
+    
+    messageReactions.forEach(r => {
+      const existing = grouped.get(r.emoji);
+      if (existing) {
+        existing.userIds.push(r.user_id);
+        existing.count++;
+      } else {
+        grouped.set(r.emoji, { userIds: [r.user_id], count: 1 });
+      }
+    });
+
+    return Array.from(grouped.entries()).map(([emoji, data]) => ({
+      emoji,
+      count: data.count,
+      userIds: data.userIds,
+      hasUserReacted: user?.id ? data.userIds.includes(user.id) : false,
+    }));
+  }, [reactions, user?.id]);
+
   // Calculate unread count from messages newer than last read
   useEffect(() => {
     if (!isOpen && messages.length > 0 && user?.id) {
@@ -208,8 +261,25 @@ export const TeamChatBox = () => {
       )
       .subscribe();
 
+    // Subscribe to reactions changes
+    const reactionsChannel = supabase
+      .channel('chat-reactions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_message_reactions',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['chat-reactions'] });
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(reactionsChannel);
     };
   }, [queryClient, isOpen, user?.id, soundEnabled]);
 
@@ -279,6 +349,41 @@ export const TeamChatBox = () => {
     },
   });
 
+  // Toggle reaction mutation
+  const toggleReaction = useMutation({
+    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
+      // Check if user already reacted with this emoji
+      const existingReaction = reactions.find(
+        r => r.message_id === messageId && r.user_id === user?.id && r.emoji === emoji
+      );
+
+      if (existingReaction) {
+        // Remove reaction
+        const { error } = await supabase
+          .from('chat_message_reactions')
+          .delete()
+          .eq('id', existingReaction.id);
+        if (error) throw error;
+      } else {
+        // Add reaction
+        const { error } = await supabase
+          .from('chat_message_reactions')
+          .insert({
+            message_id: messageId,
+            user_id: user?.id,
+            emoji,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-reactions'] });
+    },
+    onError: () => {
+      toast.error('Failed to update reaction');
+    },
+  });
+
   const handleSend = () => {
     if (!message.trim()) return;
     sendMessage.mutate({ content: message.trim(), replyToId: replyTo?.id });
@@ -287,6 +392,24 @@ export const TeamChatBox = () => {
   const handleReply = (msg: ChatMessage) => {
     setReplyTo(msg);
     inputRef.current?.focus();
+  };
+
+  const handleReactionSelect = (messageId: string, emoji: { native: string }) => {
+    toggleReaction.mutate({ messageId, emoji: emoji.native });
+    setReactionPickerMessageId(null);
+  };
+
+  const handleReactionClick = (messageId: string, emoji: string) => {
+    toggleReaction.mutate({ messageId, emoji });
+  };
+
+  const getUserNamesForReaction = (userIds: string[]): string => {
+    return userIds
+      .map(id => {
+        const profile = users.find(u => u.id === id);
+        return profile?.full_name || profile?.email?.split('@')[0] || 'Unknown';
+      })
+      .join(', ');
   };
 
   const getReplyMessage = (replyToId: string | null) => {
@@ -532,6 +655,36 @@ export const TeamChatBox = () => {
                         >
                           <Reply className="h-3 w-3 text-muted-foreground" />
                         </Button>
+                        <Popover 
+                          open={reactionPickerMessageId === msg.id} 
+                          onOpenChange={(open) => setReactionPickerMessageId(open ? msg.id : null)}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                              title="Add reaction"
+                            >
+                              <Smile className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent 
+                            className="w-auto p-0 border-none" 
+                            side="top" 
+                            align="center"
+                            sideOffset={8}
+                          >
+                            <Picker 
+                              data={data} 
+                              onEmojiSelect={(emoji: { native: string }) => handleReactionSelect(msg.id, emoji)}
+                              theme="light"
+                              previewPosition="none"
+                              skinTonePosition="none"
+                              maxFrequentRows={2}
+                            />
+                          </PopoverContent>
+                        </Popover>
                         {canDelete(msg.user_id) && (
                           <Button
                             variant="ghost"
@@ -601,6 +754,30 @@ export const TeamChatBox = () => {
                           )
                         )}
                       </div>
+                      {/* Reactions display */}
+                      {getGroupedReactions(msg.id).length > 0 && (
+                        <div className={cn(
+                          "flex flex-wrap gap-1 mt-1",
+                          isOwnMessage(msg.user_id) && "justify-end"
+                        )}>
+                          {getGroupedReactions(msg.id).map((reaction) => (
+                            <button
+                              key={reaction.emoji}
+                              onClick={() => handleReactionClick(msg.id, reaction.emoji)}
+                              title={getUserNamesForReaction(reaction.userIds)}
+                              className={cn(
+                                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
+                                reaction.hasUserReacted
+                                  ? "bg-primary/10 border-primary/30 hover:bg-primary/20"
+                                  : "bg-muted/50 border-border hover:bg-muted"
+                              )}
+                            >
+                              <span>{reaction.emoji}</span>
+                              <span className="text-muted-foreground">{reaction.count}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
