@@ -21,6 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Search, 
   Download, 
@@ -160,6 +161,20 @@ const Attendance = () => {
   const [viewingRecord, setViewingRecord] = useState<AttendanceRecord | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
+
+  // Bulk attendance modal states
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkSelectedEmployees, setBulkSelectedEmployees] = useState<string[]>([]);
+  const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [bulkForm, setBulkForm] = useState({
+    attendance_date: format(new Date(), 'yyyy-MM-dd'),
+    status: 'present',
+    day_off: '',
+    shift: '',
+    reason: '',
+    remarks: '',
+    notes: ''
+  });
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
@@ -438,6 +453,56 @@ const Attendance = () => {
       setIsAttendanceModalOpen(false);
       resetAttendanceForm();
       toast({ title: 'Attendance record added successfully!' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Bulk create attendance mutation
+  const bulkCreateAttendanceMutation = useMutation({
+    mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm }) => {
+      const records = data.employeeIds.map(employeeId => {
+        const employee = employees.find(e => e.id === employeeId);
+        return {
+          employee_id: employeeId,
+          attendance_date: data.form.attendance_date,
+          status: data.form.status,
+          day_off: data.form.day_off || null,
+          shift: data.form.shift || null,
+          reason: data.form.reason || null,
+          remarks: data.form.remarks || null,
+          notes: data.form.notes || null,
+          branch_id: employee?.branch_id || null,
+          created_by: user?.id
+        };
+      });
+      
+      const { error } = await supabase.from('attendance_records').insert(records);
+      if (error) throw error;
+      return data.employeeIds.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      logActivity({
+        actionType: 'create',
+        module: 'attendance',
+        description: `Bulk added ${count} attendance records`,
+        metadata: { count, status: bulkForm.status }
+      });
+      setIsBulkModalOpen(false);
+      setBulkSelectedEmployees([]);
+      setBulkSearchQuery('');
+      setBulkForm({
+        attendance_date: format(new Date(), 'yyyy-MM-dd'),
+        status: 'present',
+        day_off: '',
+        shift: '',
+        reason: '',
+        remarks: '',
+        notes: ''
+      });
+      toast({ title: `Successfully added ${count} attendance records!` });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -1277,6 +1342,215 @@ const Attendance = () => {
                         </Button>
                       </div>
                     </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Bulk Add Modal */}
+                <Dialog open={isBulkModalOpen} onOpenChange={(open) => { 
+                  setIsBulkModalOpen(open); 
+                  if (!open) {
+                    setBulkSelectedEmployees([]);
+                    setBulkSearchQuery('');
+                    setBulkForm({
+                      attendance_date: format(new Date(), 'yyyy-MM-dd'),
+                      status: 'present',
+                      day_off: '',
+                      shift: '',
+                      reason: '',
+                      remarks: '',
+                      notes: ''
+                    });
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Users className="h-4 w-4 mr-2" />
+                      Bulk Add
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+                    <DialogHeader>
+                      <DialogTitle>Bulk Add Attendance Records</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-hidden flex flex-col gap-4">
+                      {/* Bulk Form Fields */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Date</Label>
+                          <Input
+                            type="date"
+                            value={bulkForm.attendance_date}
+                            onChange={(e) => setBulkForm({ ...bulkForm, attendance_date: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label>Status</Label>
+                          <Select value={bulkForm.status} onValueChange={(v) => setBulkForm({ ...bulkForm, status: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="present">Present</SelectItem>
+                              <SelectItem value="absent">Absent</SelectItem>
+                              <SelectItem value="late">Late</SelectItem>
+                              <SelectItem value="day_off">Day Off</SelectItem>
+                              <SelectItem value="half_day">Half day</SelectItem>
+                              <SelectItem value="undertime">Undertime</SelectItem>
+                              <SelectItem value="suspension">Suspension</SelectItem>
+                              <SelectItem value="unauthorized_absent">Unauthorized absent</SelectItem>
+                              <SelectItem value="sil">SIL</SelectItem>
+                              <SelectItem value="vl">VL</SelectItem>
+                              <SelectItem value="change_day_off">Change Day off</SelectItem>
+                              <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
+                              <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
+                              <SelectItem value="other_concern">Other Concern</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Day Off</Label>
+                          <Input
+                            value={bulkForm.day_off}
+                            onChange={(e) => setBulkForm({ ...bulkForm, day_off: e.target.value })}
+                            placeholder="e.g., Sunday"
+                          />
+                        </div>
+                        <div>
+                          <Label>Shift</Label>
+                          <Select value={bulkForm.shift} onValueChange={(v) => setBulkForm({ ...bulkForm, shift: v })}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select shift" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Opening">Opening</SelectItem>
+                              <SelectItem value="Midshift">Midshift</SelectItem>
+                              <SelectItem value="Closing">Closing</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Employee Selection */}
+                      <div className="flex-1 overflow-hidden flex flex-col border rounded-lg">
+                        <div className="p-3 border-b bg-muted/50 flex items-center justify-between gap-4">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search employees..."
+                              value={bulkSearchQuery}
+                              onChange={(e) => setBulkSearchQuery(e.target.value)}
+                              className="pl-10"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">
+                              Selected: <span className="font-semibold text-foreground">{bulkSelectedEmployees.length}</span> / {employees.length}
+                            </span>
+                            {bulkSelectedEmployees.length > 0 && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setBulkSelectedEmployees([])}
+                              >
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="p-2 border-b bg-muted/30">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="select-all"
+                              checked={bulkSelectedEmployees.length === employees.filter(emp => 
+                                emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
+                              ).length && employees.filter(emp => 
+                                emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
+                              ).length > 0}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  const filtered = employees.filter(emp => 
+                                    emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
+                                  );
+                                  setBulkSelectedEmployees(filtered.map(e => e.id));
+                                } else {
+                                  setBulkSelectedEmployees([]);
+                                }
+                              }}
+                            />
+                            <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                              Select All ({employees.filter(emp => 
+                                emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())
+                              ).length} employees)
+                            </Label>
+                          </div>
+                        </div>
+                        <ScrollArea className="flex-1 max-h-[300px]">
+                          <div className="p-2 space-y-1">
+                            {employees
+                              .filter(emp => emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase()))
+                              .map(emp => (
+                                <div
+                                  key={emp.id}
+                                  className={cn(
+                                    "flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
+                                    bulkSelectedEmployees.includes(emp.id) && "bg-primary/10"
+                                  )}
+                                  onClick={() => {
+                                    setBulkSelectedEmployees(prev => 
+                                      prev.includes(emp.id) 
+                                        ? prev.filter(id => id !== emp.id)
+                                        : [...prev, emp.id]
+                                    );
+                                  }}
+                                >
+                                  <Checkbox
+                                    checked={bulkSelectedEmployees.includes(emp.id)}
+                                    onCheckedChange={(checked) => {
+                                      setBulkSelectedEmployees(prev => 
+                                        checked 
+                                          ? [...prev, emp.id]
+                                          : prev.filter(id => id !== emp.id)
+                                      );
+                                    }}
+                                  />
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={emp.photo_url || ''} />
+                                    <AvatarFallback className="text-xs">
+                                      {emp.full_name?.charAt(0) || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{emp.full_name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {emp.branch || emp.branches?.name || 'No branch'} • {emp.employment_status?.replace(/_/g, ' ')}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            {employees.filter(emp => emp.full_name.toLowerCase().includes(bulkSearchQuery.toLowerCase())).length === 0 && (
+                              <p className="text-center text-muted-foreground py-8">No employees found</p>
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+
+                      {/* Submit Button */}
+                      <Button
+                        className="w-full"
+                        onClick={() => {
+                          bulkCreateAttendanceMutation.mutate({
+                            employeeIds: bulkSelectedEmployees,
+                            form: bulkForm
+                          });
+                        }}
+                        disabled={bulkSelectedEmployees.length === 0 || !bulkForm.attendance_date || bulkCreateAttendanceMutation.isPending}
+                      >
+                        {bulkCreateAttendanceMutation.isPending ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent mr-2" />
+                        ) : null}
+                        Add {bulkSelectedEmployees.length} Attendance Records
+                      </Button>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </>
