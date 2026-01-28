@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   MessageCircle, 
   X, 
@@ -22,13 +21,10 @@ import {
   VolumeX,
   Reply,
   XCircle,
-  Building2,
-  Smile
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import data from '@emoji-mart/data';
-import Picker from '@emoji-mart/react';
 
 // Notification sound using Web Audio API
 const playNotificationSound = () => {
@@ -90,7 +86,6 @@ export const TeamChatBox = () => {
   const [selectedMentions, setSelectedMentions] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const stored = localStorage.getItem('chat-sound-enabled');
     return stored !== 'false'; // Default to true
@@ -105,12 +100,6 @@ export const TeamChatBox = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleEmojiSelect = (emoji: { native: string }) => {
-    setMessage(prev => prev + emoji.native);
-    setShowEmojiPicker(false);
-    inputRef.current?.focus();
-  };
 
   // Fetch messages
   const { data: messages = [], isLoading } = useQuery({
@@ -675,32 +664,6 @@ export const TeamChatBox = () => {
               >
                 <AtSign className="h-4 w-4" />
               </Button>
-              <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 flex-shrink-0"
-                  >
-                    <Smile className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent 
-                  className="w-auto p-0 border-none" 
-                  side="top" 
-                  align="start"
-                  sideOffset={8}
-                >
-                  <Picker 
-                    data={data} 
-                    onEmojiSelect={handleEmojiSelect}
-                    theme="light"
-                    previewPosition="none"
-                    skinTonePosition="none"
-                    maxFrequentRows={2}
-                  />
-                </PopoverContent>
-              </Popover>
               <Input
                 ref={inputRef}
                 value={message}
