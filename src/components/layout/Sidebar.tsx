@@ -90,31 +90,31 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant']
     },
     { 
       to: '/release', 
       icon: PackagePlus, 
       label: 'OUT WAREHOUSE DELIVERY',
-      roles: ['admin', 'staff', 'encoder']
+      roles: ['admin', 'staff', 'encoder', 'assistant']
     },
     { 
       to: '/deliveries', 
       icon: Truck, 
       label: 'Deliveries',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'hr']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'hr', 'assistant']
     },
     // { 
     //   to: '/import', 
@@ -126,13 +126,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/notes', 
       icon: StickyNote, 
       label: 'Reminder',
-      roles: ['admin', 'staff', 'uploader']
+      roles: ['admin', 'staff', 'uploader', 'assistant']
     },
     { 
       to: '/task-calendar', 
       icon: CalendarDays, 
       label: 'Task Calendar',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'assistant']
     },
     // { 
     //   to: '/collections', 
@@ -150,31 +150,31 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       to: '/container', 
       icon: Container, 
       label: 'Container',
-      roles: ['admin', 'uploader']
+      roles: ['admin', 'uploader', 'assistant']
     },
     { 
       to: '/repeat-order', 
       icon: RefreshCcw, 
       label: 'Repeat Order',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'assistant']
     },
     { 
       to: '/attendance', 
       icon: ClipboardCheck, 
       label: 'Attendance',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
     },
     { 
       to: '/resume-to-work', 
       icon: UserCheck, 
       label: 'Resume to Work',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
     },
     { 
       to: '/manpower', 
       icon: Database, 
       label: 'Manpower Database',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr']
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
     },
     // { 
     //   to: '/store-visit-schedule', 
