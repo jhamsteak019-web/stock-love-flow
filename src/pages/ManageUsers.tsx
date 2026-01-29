@@ -308,6 +308,12 @@ const ManageUsers = () => {
                                 Encoder
                               </div>
                             </SelectItem>
+                            <SelectItem value="assistant">
+                              <div className="flex items-center gap-2">
+                                <UserCog className="h-3 w-3" />
+                                Assistant
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       )}
