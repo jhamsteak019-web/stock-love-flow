@@ -60,6 +60,7 @@ const defaultAttendanceColumns: GenericColumnConfig[] = [
   { key: 'date', label: 'Date', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'day_off', label: 'Day Off', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
   { key: 'shift', label: 'Shift', visible: true, width: 100, minWidth: 80, maxWidth: 140 },
+  { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 200 },
   { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
 ];
 
@@ -313,6 +314,39 @@ const Attendance = () => {
     const late = filteredRecords.filter(r => r.status === 'late').length;
     return { total, present, absent, late };
   }, [filteredRecords]);
+
+  // Calculate present count per branch for today
+  const presentByBranch = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayRecords = attendanceRecords.filter(r => r.attendance_date === today);
+    const branchCounts: Record<string, number> = {};
+    
+    todayRecords.forEach(record => {
+      if (record.status === 'present') {
+        const branchName = record.employees?.branch || record.employees?.branches?.name || 'No Branch';
+        branchCounts[branchName] = (branchCounts[branchName] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(branchCounts)
+      .map(([branch, count]) => ({ branch, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [attendanceRecords]);
+
+  // Calculate employees without attendance recorded for today
+  const unrecordedToday = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === today)
+      .map(r => r.employee_id);
+    
+    // Filter employees by global branch
+    const branchEmployees = globalBranchId 
+      ? employees.filter(e => e.branch_id === globalBranchId)
+      : employees;
+    
+    return branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id)).length;
+  }, [attendanceRecords, employees, globalBranchId]);
 
   // Get unique branch names from employees (Manpower database)
   const uniqueManpowerBranches = useMemo(() => {
@@ -1017,7 +1051,7 @@ const Attendance = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -1059,6 +1093,39 @@ const Attendance = () => {
                 <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
               </div>
               <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Present Today by Branch</p>
+              {presentByBranch.length > 0 ? (
+                <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
+                  {presentByBranch.slice(0, 3).map(({ branch, count }) => (
+                    <div key={branch} className="flex justify-between text-sm">
+                      <span className="truncate text-xs">{branch}</span>
+                      <Badge variant="secondary" className="ml-1 text-xs">{count}</Badge>
+                    </div>
+                  ))}
+                  {presentByBranch.length > 3 && (
+                    <p className="text-xs text-muted-foreground">+{presentByBranch.length - 3} more</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-lg font-bold text-muted-foreground">-</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Unrecorded Today</p>
+                <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
+              </div>
+              <UserPlus className="h-8 w-8 text-orange-600" />
             </div>
           </CardContent>
         </Card>
@@ -1624,17 +1691,18 @@ const Attendance = () => {
                   {columns.find(c => c.key === 'date')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date')?.width }}>Date</TableHead>}
                   {columns.find(c => c.key === 'day_off')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'day_off')?.width }}>Day Off</TableHead>}
                   {columns.find(c => c.key === 'shift')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'shift')?.width }}>Shift</TableHead>}
+                  {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">Loading...</TableCell>
+                    <TableCell colSpan={11} className="text-center py-8">Loading...</TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No attendance records found
                     </TableCell>
                   </TableRow>
@@ -1677,6 +1745,11 @@ const Attendance = () => {
                       )}
                       {columns.find(c => c.key === 'shift')?.visible && (
                         <TableCell>{record.shift || '-'}</TableCell>
+                      )}
+                      {columns.find(c => c.key === 'remarks')?.visible && (
+                        <TableCell className="max-w-[150px] truncate" title={record.remarks || ''}>
+                          {record.remarks || '-'}
+                        </TableCell>
                       )}
                       {columns.find(c => c.key === 'actions')?.visible && (
                         <TableCell className="text-right">
