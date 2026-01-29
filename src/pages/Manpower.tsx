@@ -772,7 +772,7 @@ const Manpower = () => {
     // Group by branch
     const branchGroups: Record<string, Employee[]> = {};
     filtered.forEach(emp => {
-      const branchName = emp.branch || 'Unassigned';
+      const branchName = emp.branches?.name || emp.branch || 'Unassigned';
       if (!branchGroups[branchName]) {
         branchGroups[branchName] = [];
       }
@@ -845,7 +845,7 @@ const Manpower = () => {
     // Data rows
     manpowerSummaryData.allFilteredEmployees.forEach((emp, idx) => {
       const row = worksheet.addRow([
-        emp.branch || '-',
+        emp.branches?.name || emp.branch || '-',
         emp.full_name,
         emp.position || '-',
         emp.category || '-',
@@ -902,7 +902,7 @@ const Manpower = () => {
       startY: 35,
       head: [['Branch', 'Employee Name', 'Position', 'Category', 'Status', 'Date Hired']],
       body: manpowerSummaryData.allFilteredEmployees.map(emp => [
-        emp.branch || '-',
+        emp.branches?.name || emp.branch || '-',
         emp.full_name,
         emp.position || '-',
         emp.category || '-',
@@ -980,7 +980,7 @@ const Manpower = () => {
             <tbody>
               ${manpowerSummaryData.allFilteredEmployees.map(emp => `
                 <tr>
-                  <td>${emp.branch || '-'}</td>
+                  <td>${emp.branches?.name || emp.branch || '-'}</td>
                   <td>${emp.full_name}</td>
                   <td>${emp.position || '-'}</td>
                   <td>${emp.category || '-'}</td>
