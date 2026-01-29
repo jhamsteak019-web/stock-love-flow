@@ -62,7 +62,7 @@ const StoreVisitSchedule = () => {
   const [formRemarks, setFormRemarks] = useState('');
 
   const isAdmin = userRole === 'admin';
-  const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'teamleader' || userRole === 'oic';
+  const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'teamleader' || userRole === 'oic' || userRole === 'assistant';
 
   // Fetch schedules for the year
   const { data: schedules = [], isLoading } = useQuery({

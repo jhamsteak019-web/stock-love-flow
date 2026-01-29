@@ -103,7 +103,7 @@ const Container = () => {
     remarks: ''
   });
 
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
   const canExport = userRole !== 'uploader';
 

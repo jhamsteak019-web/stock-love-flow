@@ -57,7 +57,7 @@ export function TaskCalendar() {
   const { selectedBranch } = useBranch();
   const queryClient = useQueryClient();
   
-  const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader';
+  const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
 
   // Fetch tasks

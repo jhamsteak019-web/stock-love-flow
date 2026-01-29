@@ -28,7 +28,7 @@ export const ResumePhotoUploadCell = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userRole } = useAuth();
   
-  const canUpload = userRole === 'admin' || userRole === 'staff';
+  const canUpload = userRole === 'admin' || userRole === 'staff' || userRole === 'assistant';
   const currentPhotos = photos || [];
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

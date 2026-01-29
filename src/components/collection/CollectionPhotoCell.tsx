@@ -81,7 +81,7 @@ export const CollectionPhotoCell = ({ itemId, photoUrl, itemName, onPhotoUpdate 
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { userRole } = useAuth();
   
-  const canEdit = userRole === 'admin' || userRole === 'staff';
+  const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'assistant';
   
   // Filter colors based on search
   const filteredColors = useMemo(() => {

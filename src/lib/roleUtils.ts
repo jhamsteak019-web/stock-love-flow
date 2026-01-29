@@ -18,3 +18,10 @@ export const getRoleDisplayName = (role: string | null | undefined): string => {
   if (!role) return 'Unknown';
   return roleDisplayNames[role] || role;
 };
+
+// Helper function to check if a role can edit (has add/edit permissions)
+export const canRoleEdit = (role: string | null | undefined): boolean => {
+  if (!role) return false;
+  const editableRoles = ['admin', 'staff', 'hr', 'assistant', 'encoder'];
+  return editableRoles.includes(role);
+};
