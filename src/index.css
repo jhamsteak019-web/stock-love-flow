@@ -631,3 +631,102 @@ aside {
 .animate-glow {
   animation: glow-pulse 2s ease-in-out infinite;
 }
+
+/* Mobile-friendly utilities */
+@layer utilities {
+  /* Touch-friendly tap targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Mobile table wrapper */
+  .mobile-table-wrapper {
+    @apply overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
+  }
+  
+  /* Responsive text */
+  .text-responsive {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-sm {
+    @apply text-xs sm:text-sm;
+  }
+  
+  /* Mobile card spacing */
+  .mobile-card {
+    @apply p-3 sm:p-4 lg:p-6;
+  }
+  
+  /* Safe area padding for mobile */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
+
+/* Mobile-optimized table styles */
+@media (max-width: 640px) {
+  .mobile-table th,
+  .mobile-table td {
+    @apply px-2 py-2 text-xs;
+  }
+  
+  .mobile-table th:first-child,
+  .mobile-table td:first-child {
+    @apply pl-3;
+  }
+  
+  .mobile-table th:last-child,
+  .mobile-table td:last-child {
+    @apply pr-3;
+  }
+}
+
+/* Responsive stat cards grid */
+.stat-cards-grid {
+  @apply grid gap-3 sm:gap-4;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 640px) {
+  .stat-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .stat-cards-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .stat-cards-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Mobile-friendly buttons */
+@media (max-width: 640px) {
+  .mobile-btn-group {
+    @apply flex flex-wrap gap-2;
+  }
+  
+  .mobile-btn-group > button {
+    @apply flex-1 min-w-[80px] text-xs px-2;
+  }
+}

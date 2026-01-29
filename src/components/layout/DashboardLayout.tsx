@@ -94,7 +94,7 @@ export const DashboardLayout = () => {
           title={title}
         />
         
-        <main className="p-4 lg:p-6">
+        <main className="p-3 sm:p-4 lg:p-6">
           <div className="page-transition">
             <Outlet />
           </div>

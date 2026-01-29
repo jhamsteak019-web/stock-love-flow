@@ -40,29 +40,29 @@ export const StatCard = ({
   return (
     <div 
       className={cn(
-        "stat-card animate-fade-in",
+        "stat-card animate-fade-in p-3 sm:p-4",
         variantStyles[variant],
         className
       )}
     >
       <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</p>
             <div className={cn(
-              "flex h-6 w-6 items-center justify-center rounded-lg",
+              "flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-lg flex-shrink-0",
               iconVariantStyles[variant]
             )}>
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </div>
           </div>
-          <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+          <p className="mt-1 text-lg sm:text-2xl font-bold text-foreground truncate">{value}</p>
           {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(
-              "mt-1 text-sm font-medium",
+              "mt-1 text-xs sm:text-sm font-medium",
               trend.isPositive ? "text-status-delivered" : "text-destructive"
             )}>
               {trend.isPositive ? '+' : ''}{trend.value}% from last month
