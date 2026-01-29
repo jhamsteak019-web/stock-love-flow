@@ -169,10 +169,10 @@ const Attendance = () => {
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
   const [bulkBranchFilter, setBulkBranchFilter] = useState<string>('all');
   const [bulkEmployeeDayOffs, setBulkEmployeeDayOffs] = useState<Record<string, string>>({});
+  const [bulkEmployeeShifts, setBulkEmployeeShifts] = useState<Record<string, string>>({});
   const [bulkForm, setBulkForm] = useState({
     attendance_date: format(new Date(), 'yyyy-MM-dd'),
     status: 'present',
-    shift: '',
     reason: '',
     remarks: '',
     notes: ''
@@ -526,7 +526,7 @@ const Attendance = () => {
 
   // Bulk create attendance mutation
   const bulkCreateAttendanceMutation = useMutation({
-    mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm; dayOffs: Record<string, string> }) => {
+    mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm; dayOffs: Record<string, string>; shifts: Record<string, string> }) => {
       const records = data.employeeIds.map(employeeId => {
         const employee = employees.find(e => e.id === employeeId);
         return {
@@ -534,7 +534,7 @@ const Attendance = () => {
           attendance_date: data.form.attendance_date,
           status: data.form.status,
           day_off: data.dayOffs[employeeId] || null,
-          shift: data.form.shift || null,
+          shift: data.shifts[employeeId] || null,
           reason: data.form.reason || null,
           remarks: data.form.remarks || null,
           notes: data.form.notes || null,
@@ -559,10 +559,10 @@ const Attendance = () => {
       setBulkSelectedEmployees([]);
       setBulkSearchQuery('');
       setBulkEmployeeDayOffs({});
+      setBulkEmployeeShifts({});
       setBulkForm({
         attendance_date: format(new Date(), 'yyyy-MM-dd'),
         status: 'present',
-        shift: '',
         reason: '',
         remarks: '',
         notes: ''
@@ -1451,10 +1451,10 @@ const Attendance = () => {
                     setBulkSearchQuery('');
                     setBulkBranchFilter('all');
                     setBulkEmployeeDayOffs({});
+                    setBulkEmployeeShifts({});
                     setBulkForm({
                       attendance_date: format(new Date(), 'yyyy-MM-dd'),
                       status: 'present',
-                      shift: '',
                       reason: '',
                       remarks: '',
                       notes: ''
@@ -1503,19 +1503,6 @@ const Attendance = () => {
                               <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                               <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                               <SelectItem value="other_concern">Other Concern</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Shift</Label>
-                          <Select value={bulkForm.shift} onValueChange={(v) => setBulkForm({ ...bulkForm, shift: v })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select shift" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Opening">Opening</SelectItem>
-                              <SelectItem value="Midshift">Midshift</SelectItem>
-                              <SelectItem value="Closing">Closing</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1590,7 +1577,10 @@ const Attendance = () => {
                                 Select All ({bulkAvailableEmployees.length} employees)
                               </Label>
                             </div>
-                            <span className="text-xs font-medium text-muted-foreground w-28 text-center">Day Off</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-muted-foreground w-28 text-center">Day Off</span>
+                              <span className="text-xs font-medium text-muted-foreground w-24 text-center">Shift</span>
+                            </div>
                           </div>
                         </div>
                         <ScrollArea className="flex-1 max-h-[300px]">
@@ -1649,6 +1639,27 @@ const Attendance = () => {
                                     onClick={(e) => e.stopPropagation()}
                                     className="w-28 h-8 text-xs"
                                   />
+                                  <Select 
+                                    value={bulkEmployeeShifts[emp.id] || ''} 
+                                    onValueChange={(v) => {
+                                      setBulkEmployeeShifts(prev => ({
+                                        ...prev,
+                                        [emp.id]: v
+                                      }));
+                                    }}
+                                  >
+                                    <SelectTrigger 
+                                      className="w-24 h-8 text-xs"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <SelectValue placeholder="Shift" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Opening">Opening</SelectItem>
+                                      <SelectItem value="Midshift">Midshift</SelectItem>
+                                      <SelectItem value="Closing">Closing</SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               ))}
                             {bulkAvailableEmployees.length === 0 && (
@@ -1669,7 +1680,8 @@ const Attendance = () => {
                           bulkCreateAttendanceMutation.mutate({
                             employeeIds: bulkSelectedEmployees,
                             form: bulkForm,
-                            dayOffs: bulkEmployeeDayOffs
+                            dayOffs: bulkEmployeeDayOffs,
+                            shifts: bulkEmployeeShifts
                           });
                         }}
                         disabled={bulkSelectedEmployees.length === 0 || !bulkForm.attendance_date || bulkCreateAttendanceMutation.isPending}
