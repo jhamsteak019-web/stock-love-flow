@@ -168,10 +168,10 @@ const Attendance = () => {
   const [bulkSelectedEmployees, setBulkSelectedEmployees] = useState<string[]>([]);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
   const [bulkBranchFilter, setBulkBranchFilter] = useState<string>('all');
+  const [bulkEmployeeDayOffs, setBulkEmployeeDayOffs] = useState<Record<string, string>>({});
   const [bulkForm, setBulkForm] = useState({
     attendance_date: format(new Date(), 'yyyy-MM-dd'),
     status: 'present',
-    day_off: '',
     shift: '',
     reason: '',
     remarks: '',
@@ -526,14 +526,14 @@ const Attendance = () => {
 
   // Bulk create attendance mutation
   const bulkCreateAttendanceMutation = useMutation({
-    mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm }) => {
+    mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm; dayOffs: Record<string, string> }) => {
       const records = data.employeeIds.map(employeeId => {
         const employee = employees.find(e => e.id === employeeId);
         return {
           employee_id: employeeId,
           attendance_date: data.form.attendance_date,
           status: data.form.status,
-          day_off: data.form.day_off || null,
+          day_off: data.dayOffs[employeeId] || null,
           shift: data.form.shift || null,
           reason: data.form.reason || null,
           remarks: data.form.remarks || null,
@@ -558,10 +558,10 @@ const Attendance = () => {
       setIsBulkModalOpen(false);
       setBulkSelectedEmployees([]);
       setBulkSearchQuery('');
+      setBulkEmployeeDayOffs({});
       setBulkForm({
         attendance_date: format(new Date(), 'yyyy-MM-dd'),
         status: 'present',
-        day_off: '',
         shift: '',
         reason: '',
         remarks: '',
@@ -1450,10 +1450,10 @@ const Attendance = () => {
                     setBulkSelectedEmployees([]);
                     setBulkSearchQuery('');
                     setBulkBranchFilter('all');
+                    setBulkEmployeeDayOffs({});
                     setBulkForm({
                       attendance_date: format(new Date(), 'yyyy-MM-dd'),
                       status: 'present',
-                      day_off: '',
                       shift: '',
                       reason: '',
                       remarks: '',
@@ -1505,14 +1505,6 @@ const Attendance = () => {
                               <SelectItem value="other_concern">Other Concern</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div>
-                          <Label>Day Off</Label>
-                          <Input
-                            value={bulkForm.day_off}
-                            onChange={(e) => setBulkForm({ ...bulkForm, day_off: e.target.value })}
-                            placeholder="e.g., Sunday"
-                          />
                         </div>
                         <div>
                           <Label>Shift</Label>
@@ -1581,21 +1573,24 @@ const Attendance = () => {
                           </div>
                         </div>
                         <div className="p-2 border-b bg-muted/30">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="select-all"
-                              checked={bulkSelectedEmployees.length === bulkAvailableEmployees.length && bulkAvailableEmployees.length > 0}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setBulkSelectedEmployees(bulkAvailableEmployees.map(e => e.id));
-                                } else {
-                                  setBulkSelectedEmployees([]);
-                                }
-                              }}
-                            />
-                            <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                              Select All ({bulkAvailableEmployees.length} employees)
-                            </Label>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="select-all"
+                                checked={bulkSelectedEmployees.length === bulkAvailableEmployees.length && bulkAvailableEmployees.length > 0}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setBulkSelectedEmployees(bulkAvailableEmployees.map(e => e.id));
+                                  } else {
+                                    setBulkSelectedEmployees([]);
+                                  }
+                                }}
+                              />
+                              <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                                Select All ({bulkAvailableEmployees.length} employees)
+                              </Label>
+                            </div>
+                            <span className="text-xs font-medium text-muted-foreground w-28 text-center">Day Off</span>
                           </div>
                         </div>
                         <ScrollArea className="flex-1 max-h-[300px]">
@@ -1604,39 +1599,56 @@ const Attendance = () => {
                                 <div
                                   key={emp.id}
                                   className={cn(
-                                    "flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
+                                    "flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors",
                                     bulkSelectedEmployees.includes(emp.id) && "bg-primary/10"
                                   )}
-                                  onClick={() => {
-                                    setBulkSelectedEmployees(prev => 
-                                      prev.includes(emp.id) 
-                                        ? prev.filter(id => id !== emp.id)
-                                        : [...prev, emp.id]
-                                    );
-                                  }}
                                 >
-                                  <Checkbox
-                                    checked={bulkSelectedEmployees.includes(emp.id)}
-                                    onCheckedChange={(checked) => {
+                                  <div 
+                                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                                    onClick={() => {
                                       setBulkSelectedEmployees(prev => 
-                                        checked 
-                                          ? [...prev, emp.id]
-                                          : prev.filter(id => id !== emp.id)
+                                        prev.includes(emp.id) 
+                                          ? prev.filter(id => id !== emp.id)
+                                          : [...prev, emp.id]
                                       );
                                     }}
-                                  />
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage src={emp.photo_url || ''} />
-                                    <AvatarFallback className="text-xs">
-                                      {emp.full_name?.charAt(0) || '?'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{emp.full_name}</p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {emp.branch || emp.branches?.name || 'No branch'} • {emp.employment_status?.replace(/_/g, ' ')}
-                                    </p>
+                                  >
+                                    <Checkbox
+                                      checked={bulkSelectedEmployees.includes(emp.id)}
+                                      onCheckedChange={(checked) => {
+                                        setBulkSelectedEmployees(prev => 
+                                          checked 
+                                            ? [...prev, emp.id]
+                                            : prev.filter(id => id !== emp.id)
+                                        );
+                                      }}
+                                    />
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarImage src={emp.photo_url || ''} />
+                                      <AvatarFallback className="text-xs">
+                                        {emp.full_name?.charAt(0) || '?'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">{emp.full_name}</p>
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        {emp.branch || emp.branches?.name || 'No branch'} • {emp.employment_status?.replace(/_/g, ' ')}
+                                      </p>
+                                    </div>
                                   </div>
+                                  <Input
+                                    placeholder="Day Off"
+                                    value={bulkEmployeeDayOffs[emp.id] || ''}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      setBulkEmployeeDayOffs(prev => ({
+                                        ...prev,
+                                        [emp.id]: e.target.value
+                                      }));
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-28 h-8 text-xs"
+                                  />
                                 </div>
                               ))}
                             {bulkAvailableEmployees.length === 0 && (
@@ -1656,7 +1668,8 @@ const Attendance = () => {
                         onClick={() => {
                           bulkCreateAttendanceMutation.mutate({
                             employeeIds: bulkSelectedEmployees,
-                            form: bulkForm
+                            form: bulkForm,
+                            dayOffs: bulkEmployeeDayOffs
                           });
                         }}
                         disabled={bulkSelectedEmployees.length === 0 || !bulkForm.attendance_date || bulkCreateAttendanceMutation.isPending}
