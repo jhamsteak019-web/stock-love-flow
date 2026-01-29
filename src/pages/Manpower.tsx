@@ -460,8 +460,8 @@ const Manpower = () => {
   };
 
   // Position category mapping
-  const storePositions = ['Demo', 'OIC', 'AOIC', 'Key Person', 'Sales Assistant', 'Stock Merchandising'];
-  const officePositions = ['Manager', 'Assistant Manager', 'Encoder Inventory', 'Stock Support Event'];
+  const storePositions = ['Demo', 'OIC', 'AOIC', 'Key Person'];
+  const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
   const teamLeaderPositions = ['Team Leader'];
 
   // Attendance summary data with employee details by status
