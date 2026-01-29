@@ -165,6 +165,18 @@ const Manpower = () => {
     remarks: ''
   });
 
+  // Office Attendance Edit/View modal states
+  const [isOfficeEditModalOpen, setIsOfficeEditModalOpen] = useState(false);
+  const [isOfficeViewModalOpen, setIsOfficeViewModalOpen] = useState(false);
+  const [editingOfficeAttendance, setEditingOfficeAttendance] = useState<any>(null);
+  const [viewingOfficeAttendance, setViewingOfficeAttendance] = useState<any>(null);
+  const [officeEditForm, setOfficeEditForm] = useState({
+    status: 'present',
+    day_off: '',
+    shift: '',
+    remarks: ''
+  });
+
   const [form, setForm] = useState({
     employee_id: '',
     full_name: '',
@@ -657,7 +669,84 @@ const Manpower = () => {
     }
   });
 
-  // Manpower Summary data - group employees by store/branch with filters
+  // Update office attendance mutation
+  const updateOfficeAttendanceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof officeEditForm }) => {
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({
+          status: data.status,
+          day_off: data.day_off || null,
+          shift: data.shift || null,
+          remarks: data.remarks || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+      toast({ title: 'Attendance record updated successfully!' });
+      setIsOfficeEditModalOpen(false);
+      setEditingOfficeAttendance(null);
+      logActivity({ actionType: 'update', module: 'attendance', description: 'Updated office attendance record' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error updating attendance', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Delete office attendance mutation
+  const deleteOfficeAttendanceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('attendance_records')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+      toast({ title: 'Attendance record deleted successfully!' });
+      logActivity({ actionType: 'delete', module: 'attendance', description: 'Deleted office attendance record' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error deleting attendance', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Get office attendance records for table display
+  const officeAttendanceRecordsList = useMemo(() => {
+    const officePositionsLower = officePositions.map(p => p.toLowerCase());
+    
+    return attendanceRecords
+      .filter((record: any) => {
+        const emp = record.employees;
+        if (!emp || emp.is_active !== true || emp.deleted_at) return false;
+        return emp.position && officePositionsLower.includes(emp.position.toLowerCase());
+      })
+      .sort((a: any, b: any) => new Date(b.attendance_date).getTime() - new Date(a.attendance_date).getTime());
+  }, [attendanceRecords]);
+
+  // Handle opening edit modal
+  const handleEditOfficeAttendance = (record: any) => {
+    setEditingOfficeAttendance(record);
+    setOfficeEditForm({
+      status: record.status || 'present',
+      day_off: record.day_off || '',
+      shift: record.shift || '',
+      remarks: record.remarks || ''
+    });
+    setIsOfficeEditModalOpen(true);
+  };
+
+  // Handle opening view modal
+  const handleViewOfficeAttendance = (record: any) => {
+    setViewingOfficeAttendance(record);
+    setIsOfficeViewModalOpen(true);
+  };
+
+
   const manpowerSummaryData = useMemo(() => {
     // Apply filters first
     let filtered = employees.filter(emp => {
@@ -3155,6 +3244,302 @@ const Manpower = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Office Attendance Records Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" />
+                Office Attendance Records
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {officeAttendanceRecordsList.length > 0 ? (
+                <ScrollArea className="h-[500px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Branch</TableHead>
+                        <TableHead className="w-[50px]">Photo</TableHead>
+                        <TableHead>Employee Name</TableHead>
+                        <TableHead>Date Hired</TableHead>
+                        <TableHead>Emp. Status</TableHead>
+                        <TableHead>Att. Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Day Off</TableHead>
+                        <TableHead>Shift</TableHead>
+                        <TableHead>Remarks</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {officeAttendanceRecordsList.map((record: any) => {
+                        const emp = record.employees;
+                        return (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">{emp?.branch || '-'}</TableCell>
+                            <TableCell>
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={emp?.photo_url || ''} />
+                                <AvatarFallback className="text-xs">
+                                  {emp?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                                </AvatarFallback>
+                              </Avatar>
+                            </TableCell>
+                            <TableCell>{emp?.full_name || '-'}</TableCell>
+                            <TableCell>
+                              {emp?.date_hired ? format(new Date(emp.date_hired), 'MM-dd-yyyy') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {emp?.employment_status || '-'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                className={cn(
+                                  "capitalize text-xs",
+                                  record.status === 'present' && "bg-green-500 hover:bg-green-600",
+                                  record.status === 'absent' && "bg-destructive hover:bg-destructive/90",
+                                  record.status === 'late' && "bg-amber-500 hover:bg-amber-600",
+                                  record.status === 'day_off' && "bg-blue-500 hover:bg-blue-600",
+                                  !['present', 'absent', 'late', 'day_off'].includes(record.status) && "bg-secondary"
+                                )}
+                              >
+                                {record.status?.replace(/_/g, ' ') || '-'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {record.attendance_date ? format(new Date(record.attendance_date), 'MM-dd-yyyy') : '-'}
+                            </TableCell>
+                            <TableCell>{record.day_off || '-'}</TableCell>
+                            <TableCell>{record.shift || '-'}</TableCell>
+                            <TableCell className="max-w-[150px] truncate">{record.remarks || '-'}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewOfficeAttendance(record)}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {canEdit && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditOfficeAttendance(record)}
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      if (confirm('Delete this attendance record?')) {
+                                        deleteOfficeAttendanceMutation.mutate(record.id);
+                                      }
+                                    }}
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <ClipboardList className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No office attendance records</h3>
+                  <p className="text-muted-foreground">Add attendance records for office staff to see them here</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* View Office Attendance Dialog */}
+          <Dialog open={isOfficeViewModalOpen} onOpenChange={setIsOfficeViewModalOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Attendance Details</DialogTitle>
+              </DialogHeader>
+              {viewingOfficeAttendance && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={viewingOfficeAttendance.employees?.photo_url || ''} />
+                      <AvatarFallback>
+                        {viewingOfficeAttendance.employees?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{viewingOfficeAttendance.employees?.full_name}</p>
+                      <p className="text-sm text-muted-foreground">{viewingOfficeAttendance.employees?.position}</p>
+                      <p className="text-sm text-muted-foreground">{viewingOfficeAttendance.employees?.branch}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground">Date</Label>
+                      <p className="font-medium">{viewingOfficeAttendance.attendance_date ? format(new Date(viewingOfficeAttendance.attendance_date), 'MMM dd, yyyy') : '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Status</Label>
+                      <p className="font-medium capitalize">{viewingOfficeAttendance.status?.replace(/_/g, ' ')}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Day Off</Label>
+                      <p className="font-medium">{viewingOfficeAttendance.day_off || '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Shift</Label>
+                      <p className="font-medium">{viewingOfficeAttendance.shift || '-'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Remarks</Label>
+                    <p className="font-medium">{viewingOfficeAttendance.remarks || '-'}</p>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsOfficeViewModalOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Office Attendance Dialog */}
+          <Dialog open={isOfficeEditModalOpen} onOpenChange={setIsOfficeEditModalOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Attendance</DialogTitle>
+              </DialogHeader>
+              {editingOfficeAttendance && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 pb-4 border-b">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={editingOfficeAttendance.employees?.photo_url || ''} />
+                      <AvatarFallback>
+                        {editingOfficeAttendance.employees?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{editingOfficeAttendance.employees?.full_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {editingOfficeAttendance.attendance_date ? format(new Date(editingOfficeAttendance.attendance_date), 'MMM dd, yyyy') : '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <Label>Status *</Label>
+                    <Select 
+                      value={officeEditForm.status} 
+                      onValueChange={(val) => setOfficeEditForm(prev => ({ ...prev, status: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="present">Present</SelectItem>
+                        <SelectItem value="absent">Absent</SelectItem>
+                        <SelectItem value="late">Late</SelectItem>
+                        <SelectItem value="day_off">Day Off</SelectItem>
+                        <SelectItem value="half_day">Half day</SelectItem>
+                        <SelectItem value="undertime">Undertime</SelectItem>
+                        <SelectItem value="suspension">Suspension</SelectItem>
+                        <SelectItem value="unauthorized_absent">Unauthorized absent</SelectItem>
+                        <SelectItem value="sil">SIL</SelectItem>
+                        <SelectItem value="vl">VL</SelectItem>
+                        <SelectItem value="change_day_off">Change Day off</SelectItem>
+                        <SelectItem value="change_schedule">Change of Schedule</SelectItem>
+                        <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
+                        <SelectItem value="other">Other Concern</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Day Off */}
+                  <div className="space-y-2">
+                    <Label>Day Off</Label>
+                    <Select 
+                      value={officeEditForm.day_off} 
+                      onValueChange={(val) => setOfficeEditForm(prev => ({ ...prev, day_off: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select day off" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="Monday">Monday</SelectItem>
+                        <SelectItem value="Tuesday">Tuesday</SelectItem>
+                        <SelectItem value="Wednesday">Wednesday</SelectItem>
+                        <SelectItem value="Thursday">Thursday</SelectItem>
+                        <SelectItem value="Friday">Friday</SelectItem>
+                        <SelectItem value="Saturday">Saturday</SelectItem>
+                        <SelectItem value="Sunday">Sunday</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Shift */}
+                  <div className="space-y-2">
+                    <Label>Shift</Label>
+                    <Select 
+                      value={officeEditForm.shift} 
+                      onValueChange={(val) => setOfficeEditForm(prev => ({ ...prev, shift: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select shift" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="Opening">Opening</SelectItem>
+                        <SelectItem value="Midshift">Midshift</SelectItem>
+                        <SelectItem value="Closing">Closing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Remarks */}
+                  <div className="space-y-2">
+                    <Label>Remarks</Label>
+                    <Textarea
+                      placeholder="Optional remarks..."
+                      value={officeEditForm.remarks}
+                      onChange={(e) => setOfficeEditForm(prev => ({ ...prev, remarks: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsOfficeEditModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => updateOfficeAttendanceMutation.mutate({ 
+                    id: editingOfficeAttendance?.id, 
+                    data: officeEditForm 
+                  })}
+                  disabled={updateOfficeAttendanceMutation.isPending}
+                >
+                  {updateOfficeAttendanceMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Recently Deleted Tab */}
