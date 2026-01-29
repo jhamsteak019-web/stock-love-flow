@@ -28,6 +28,7 @@ const roleRestrictedRoutes: Record<string, string[]> = {
   staff: ['/import', '/users', '/inventory', '/container'],
   uploader: ['/users'], // Can view everything except user management
   encoder: ['/import', '/users', '/notes', '/inventory', '/collections', '/container', '/repeat-order', '/allocation', '/attendance', '/resume-to-work', '/manpower', '/summary', '/task-calendar', '/store-visit-schedule'], // Only Dashboard, Monitoring (Deliveries), History
+  assistant: ['/users'], // Full access except user management - can view and edit but not delete
 };
 
 export const DashboardLayout = () => {

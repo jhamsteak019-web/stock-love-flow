@@ -11,6 +11,7 @@ export const roleDisplayNames: Record<string, string> = {
   pending: 'Pending',
   hr: 'HR',
   encoder: 'Encoder',
+  assistant: 'Assistant',
 };
 
 export const getRoleDisplayName = (role: string | null | undefined): string => {
