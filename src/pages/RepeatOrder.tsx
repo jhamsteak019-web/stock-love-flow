@@ -1019,23 +1019,23 @@ const RepeatOrder = () => {
                           {canEdit && isColumnVisible('action') && (
                             <TableCell style={{ width: getColumnWidth('action') }}>
                               <div className="flex items-center gap-1">
-                                {isAdmin && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openEditDialog(order)}
-                                  >
-                                    <Pencil className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => softDeleteMutation.mutate(order.id)}
-                                  disabled={softDeleteMutation.isPending}
+                                  onClick={() => openEditDialog(order)}
                                 >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                  <Pencil className="h-4 w-4 text-blue-600" />
                                 </Button>
+                                {canDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => softDeleteMutation.mutate(order.id)}
+                                    disabled={softDeleteMutation.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           )}
