@@ -78,7 +78,8 @@ const Deliveries = () => {
   
   const isViewer = userRole === 'viewer';
   const isEncoder = userRole === 'encoder';
-  const canEdit = isAdmin || isEncoder; // Admin and encoder can edit
+  const isAssistant = userRole === 'assistant';
+  const canEdit = isAdmin || isEncoder || isAssistant; // Admin, encoder, and assistant can edit
   const canExport = userRole !== 'uploader';
 
   const getColumnWidth = (key: ColumnKey) => {

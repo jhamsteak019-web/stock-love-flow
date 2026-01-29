@@ -70,9 +70,10 @@ const Notes = () => {
   const [saving, setSaving] = useState(false);
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
+  const isAssistant = userRole === 'assistant';
   const canExport = userRole !== 'uploader';
-  const canAdd = isAdmin || isStaff; // Staff can input
-  const canEdit = isAdmin; // Only admin can edit
+  const canAdd = isAdmin || isStaff || isAssistant; // Staff and Assistant can input
+  const canEdit = isAdmin || isAssistant; // Admin and Assistant can edit
   const canDelete = isAdmin; // Only admin can delete
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);

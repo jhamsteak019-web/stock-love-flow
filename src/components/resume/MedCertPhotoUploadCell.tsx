@@ -26,7 +26,7 @@ export const MedCertPhotoUploadCell = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userRole } = useAuth();
   
-  const canUpload = userRole === 'admin' || userRole === 'staff' || userRole === 'hr';
+  const canUpload = userRole === 'admin' || userRole === 'staff' || userRole === 'hr' || userRole === 'assistant';
   const currentPhotos = photos || [];
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

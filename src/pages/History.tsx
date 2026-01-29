@@ -130,7 +130,8 @@ const History = () => {
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
   const isViewer = userRole === 'viewer';
   const isEncoder = userRole === 'encoder';
-  const canEdit = isAdmin || isEncoder; // Admin and encoder can edit
+  const isAssistant = userRole === 'assistant';
+  const canEdit = isAdmin || isEncoder || isAssistant; // Admin, encoder, and assistant can edit
   const canDelete = isAdmin; // Only admin can delete
   const canExport = userRole !== 'uploader';
 
