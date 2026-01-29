@@ -524,6 +524,81 @@ const Manpower = () => {
     };
   }, [attendanceRecords, filteredEmployees, positionCategoryFilter]);
 
+  // Office-only Attendance Summary (filtered to office positions only)
+  const officeAttendanceSummary = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    const branchCounts: Record<string, { total: number; statuses: Record<string, number> }> = {};
+    const employeesByStatus: Record<string, Array<{ name: string; branch: string; date: string; photo_url?: string; position?: string }>> = {};
+
+    const normalizeEmployee = (emp: any) => (Array.isArray(emp) ? emp[0] : emp);
+    
+    // Filter ONLY office positions
+    const filterOfficeOnly = (position: string | null): boolean => {
+      if (!position) return false;
+      return officePositions.some(p => p.toLowerCase() === position.toLowerCase());
+    };
+    
+    const officeAttendanceRecords = attendanceRecords.filter((record: any) => {
+      const emp = normalizeEmployee(record.employees);
+      if (!emp || emp.is_active !== true || emp.deleted_at) return false;
+      return filterOfficeOnly(emp.position);
+    });
+    
+    officeAttendanceRecords.forEach((record: any) => {
+      const emp = normalizeEmployee(record.employees);
+      const status = record.status || 'unknown';
+      const branch = emp?.branch || 'Unknown';
+      const employeeName = emp?.full_name || 'Unknown';
+      const photoUrl = emp?.photo_url;
+      const position = emp?.position;
+      const attendanceDate = record.attendance_date;
+      
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      
+      if (!branchCounts[branch]) {
+        branchCounts[branch] = { total: 0, statuses: {} };
+      }
+      branchCounts[branch].total += 1;
+      branchCounts[branch].statuses[status] = (branchCounts[branch].statuses[status] || 0) + 1;
+      
+      // Track employees by status
+      if (!employeesByStatus[status]) {
+        employeesByStatus[status] = [];
+      }
+      employeesByStatus[status].push({ 
+        name: employeeName, 
+        branch, 
+        date: attendanceDate,
+        photo_url: photoUrl,
+        position
+      });
+    });
+    
+    const statusData = Object.entries(statusCounts)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+    
+    const branchData = Object.entries(branchCounts)
+      .map(([branch, data]) => ({ branch, ...data }))
+      .sort((a, b) => b.total - a.total);
+    
+    const resumeRecords = officeAttendanceRecords.filter((r: any) => r.date_of_resume);
+    
+    // Count office employees only
+    const officeEmployees = filteredEmployees.filter(emp => 
+      emp.position && officePositions.some(p => p.toLowerCase() === emp.position?.toLowerCase())
+    );
+    
+    return {
+      totalRecords: officeAttendanceRecords.length,
+      statusData,
+      branchData,
+      resumeCount: resumeRecords.length,
+      totalEmployees: officeEmployees.length,
+      employeesByStatus,
+    };
+  }, [attendanceRecords, filteredEmployees]);
+
   // Manpower Summary data - group employees by store/branch with filters
   const manpowerSummaryData = useMemo(() => {
     // Apply filters first
@@ -1359,7 +1434,7 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-3xl grid-cols-4">
+        <TabsList className="grid w-full max-w-4xl grid-cols-5">
           <TabsTrigger value="manpower" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Manpower Database
@@ -1371,6 +1446,10 @@ const Manpower = () => {
           <TabsTrigger value="attendance-summary" className="flex items-center gap-2">
             <ClipboardList className="h-4 w-4" />
             Attendance Summary
+          </TabsTrigger>
+          <TabsTrigger value="office-attendance" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Office Attendance
           </TabsTrigger>
           <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
             <Trash2 className="h-4 w-4" />
@@ -2377,6 +2456,487 @@ const Manpower = () => {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs font-medium truncate">{emp.name}</p>
                                       <p className="text-[10px] text-muted-foreground truncate">{emp.branch}</p>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                      {format(new Date(emp.date), 'MMM dd')}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          </CardContent>
+                        </Card>
+                      )
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Office Attendance Tab */}
+        <TabsContent value="office-attendance" className="space-y-6">
+          {/* Date Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-card border rounded-lg p-2 w-fit">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={attendanceMonth} onValueChange={(val) => { setAttendanceMonth(val); setAttendanceDate(''); }}>
+                <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {MONTHS.map((month, index) => (
+                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={attendanceYear} onValueChange={(val) => { setAttendanceYear(val); setAttendanceDate(''); }}>
+                <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Specific Date Picker */}
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                className="w-[160px] h-9"
+                placeholder="Pick a date"
+              />
+              {attendanceDate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAttendanceDate('')}
+                  className="h-8 px-2"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 py-1.5 px-3">
+              <Building2 className="h-3.5 w-3.5 mr-1.5" />
+              Office Only
+            </Badge>
+          </div>
+
+          {/* Overview Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Records</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{officeAttendanceSummary.totalRecords}</div>
+                <p className="text-xs text-muted-foreground">
+                  {attendanceDate ? `Office records for ${format(new Date(attendanceDate), 'MMM dd, yyyy')}` : 'Office attendance this month'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Office Employees</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{officeAttendanceSummary.totalEmployees}</div>
+                <p className="text-xs text-muted-foreground">Active office staff</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Resume to Work</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{officeAttendanceSummary.resumeCount}</div>
+                <p className="text-xs text-muted-foreground">Office returned from absence</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Unique Statuses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{officeAttendanceSummary.statusData.length}</div>
+                <p className="text-xs text-muted-foreground">Different status types</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Office Attendance Status - {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {officeAttendanceSummary.statusData.length > 0 ? (
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={officeAttendanceSummary.statusData.slice(0, 8)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="count"
+                          nameKey="status"
+                        >
+                          {officeAttendanceSummary.statusData.slice(0, 8).map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <p className="text-muted-foreground">No office attendance records for this period</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Office Status Count Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {officeAttendanceSummary.statusData.length > 0 ? (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {officeAttendanceSummary.statusData.map((item, index) => (
+                      <div key={item.status} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                          />
+                          <span className="font-medium capitalize">{item.status.replace(/_/g, ' ')}</span>
+                        </div>
+                        <Badge variant="secondary">{item.count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <p className="text-muted-foreground">No data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Branch Breakdown Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Office Attendance by Branch - {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {officeAttendanceSummary.branchData.length > 0 ? (
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px] text-center">#</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead className="text-center">Total Records</TableHead>
+                        <TableHead className="text-center">Present</TableHead>
+                        <TableHead className="text-center">Absent</TableHead>
+                        <TableHead className="text-center">Late</TableHead>
+                        <TableHead className="text-center">Day Off</TableHead>
+                        <TableHead className="text-center">Others</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {officeAttendanceSummary.branchData.map((branch, index) => {
+                        const present = branch.statuses['present'] || 0;
+                        const absent = branch.statuses['absent'] || 0;
+                        const late = branch.statuses['late'] || 0;
+                        const dayOff = branch.statuses['day_off'] || 0;
+                        const others = branch.total - present - absent - late - dayOff;
+                        
+                        return (
+                          <TableRow key={branch.branch}>
+                            <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
+                            <TableCell className="font-medium">{branch.branch}</TableCell>
+                            <TableCell className="text-center font-bold">{branch.total}</TableCell>
+                            <TableCell className="text-center">
+                              {present > 0 ? (
+                                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                  {present}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {absent > 0 ? (
+                                <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                  {absent}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {late > 0 ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                  {late}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {dayOff > 0 ? (
+                                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                  {dayOff}
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {others > 0 ? (
+                                <Badge variant="secondary">{others}</Badge>
+                              ) : '-'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {/* Totals Row */}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell></TableCell>
+                        <TableCell>TOTAL</TableCell>
+                        <TableCell className="text-center">{officeAttendanceSummary.totalRecords}</TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['present'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['absent'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['late'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['day_off'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => {
+                            const present = b.statuses['present'] || 0;
+                            const absent = b.statuses['absent'] || 0;
+                            const late = b.statuses['late'] || 0;
+                            const dayOff = b.statuses['day_off'] || 0;
+                            return sum + (b.total - present - absent - late - dayOff);
+                          }, 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No office attendance records found</h3>
+                  <p className="text-muted-foreground">No office attendance data for {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Office Employee Details by Status */}
+          {officeAttendanceSummary.totalRecords > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Office Employee Details by Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Present Employees */}
+                  {(officeAttendanceSummary.employeesByStatus['present'] || []).length > 0 && (
+                    <Card className="border-green-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
+                          <span className="text-muted-foreground">
+                            ({officeAttendanceSummary.employeesByStatus['present'].length})
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
+                          <div className="space-y-2">
+                            {officeAttendanceSummary.employeesByStatus['present'].map((emp, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={emp.photo_url || ''} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{emp.name}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{emp.position}</p>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(emp.date), 'MMM dd')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Absent Employees */}
+                  {(officeAttendanceSummary.employeesByStatus['absent'] || []).length > 0 && (
+                    <Card className="border-destructive/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge variant="destructive" className="text-xs">Absent</Badge>
+                          <span className="text-muted-foreground">
+                            ({officeAttendanceSummary.employeesByStatus['absent'].length})
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
+                          <div className="space-y-2">
+                            {officeAttendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={emp.photo_url || ''} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{emp.name}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{emp.position}</p>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(emp.date), 'MMM dd')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Late Employees */}
+                  {(officeAttendanceSummary.employeesByStatus['late'] || []).length > 0 && (
+                    <Card className="border-amber-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
+                          <span className="text-muted-foreground">
+                            ({officeAttendanceSummary.employeesByStatus['late'].length})
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
+                          <div className="space-y-2">
+                            {officeAttendanceSummary.employeesByStatus['late'].map((emp, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={emp.photo_url || ''} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{emp.name}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{emp.position}</p>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(emp.date), 'MMM dd')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Day Off Employees */}
+                  {(officeAttendanceSummary.employeesByStatus['day_off'] || []).length > 0 && (
+                    <Card className="border-blue-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
+                          <span className="text-muted-foreground">
+                            ({officeAttendanceSummary.employeesByStatus['day_off'].length})
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
+                          <div className="space-y-2">
+                            {officeAttendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={emp.photo_url || ''} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{emp.name}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{emp.position}</p>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(emp.date), 'MMM dd')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Other Statuses */}
+                  {Object.entries(officeAttendanceSummary.employeesByStatus)
+                    .filter(([status]) => !['present', 'absent', 'late', 'day_off'].includes(status))
+                    .map(([status, employees]) => (
+                      employees.length > 0 && (
+                        <Card key={status} className="border-secondary/50">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                              <span className="text-muted-foreground">
+                                ({employees.length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ScrollArea className="h-[200px]">
+                              <div className="space-y-2">
+                                {employees.map((emp, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarImage src={emp.photo_url || ''} />
+                                      <AvatarFallback className="text-[10px]">
+                                        {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium truncate">{emp.name}</p>
+                                      <p className="text-[10px] text-muted-foreground truncate">{emp.position}</p>
                                     </div>
                                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                                       {format(new Date(emp.date), 'MMM dd')}
