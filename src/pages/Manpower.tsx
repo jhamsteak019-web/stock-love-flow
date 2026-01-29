@@ -154,6 +154,17 @@ const Manpower = () => {
   const [summaryMaternity, setSummaryMaternity] = useState<string>('all');
   const [summarySortOrder, setSummarySortOrder] = useState<'newest' | 'oldest'>('newest');
 
+  // Office Attendance Add modal states
+  const [isOfficeAttendanceModalOpen, setIsOfficeAttendanceModalOpen] = useState(false);
+  const [officeAttendanceForm, setOfficeAttendanceForm] = useState({
+    employee_id: '',
+    attendance_date: format(new Date(), 'yyyy-MM-dd'),
+    status: 'present',
+    day_off: '',
+    shift: '',
+    remarks: ''
+  });
+
   const [form, setForm] = useState({
     employee_id: '',
     full_name: '',
@@ -598,6 +609,53 @@ const Manpower = () => {
       employeesByStatus,
     };
   }, [attendanceRecords, filteredEmployees]);
+
+  // Office employees for Add Attendance modal (only office positions)
+  const officeEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      // Global branch filter
+      if (globalBranchId && emp.branch_id !== globalBranchId) {
+        return false;
+      }
+      // Only office positions
+      return emp.position && officePositions.some(p => p.toLowerCase() === emp.position?.toLowerCase());
+    });
+  }, [employees, globalBranchId]);
+
+  // Create office attendance mutation
+  const createOfficeAttendanceMutation = useMutation({
+    mutationFn: async (data: typeof officeAttendanceForm) => {
+      const selectedEmployee = officeEmployees.find(e => e.id === data.employee_id);
+      const { error } = await supabase.from('attendance_records').insert({
+        employee_id: data.employee_id,
+        attendance_date: data.attendance_date,
+        status: data.status,
+        day_off: data.day_off || null,
+        shift: data.shift || null,
+        remarks: data.remarks || null,
+        branch_id: selectedEmployee?.branch_id || selectedBranch?.id || null,
+        created_by: user?.id
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manpower-attendance-summary'] });
+      toast({ title: 'Attendance record added successfully!' });
+      setIsOfficeAttendanceModalOpen(false);
+      setOfficeAttendanceForm({
+        employee_id: '',
+        attendance_date: format(new Date(), 'yyyy-MM-dd'),
+        status: 'present',
+        day_off: '',
+        shift: '',
+        remarks: ''
+      });
+      logActivity({ actionType: 'create', module: 'attendance', description: 'Added office attendance record' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error adding attendance', description: error.message, variant: 'destructive' });
+    }
+  });
 
   // Manpower Summary data - group employees by store/branch with filters
   const manpowerSummaryData = useMemo(() => {
@@ -2527,6 +2585,150 @@ const Manpower = () => {
               <Building2 className="h-3.5 w-3.5 mr-1.5" />
               Office Only
             </Badge>
+
+            {/* Add Attendance Button */}
+            {canAdd && (
+              <Dialog open={isOfficeAttendanceModalOpen} onOpenChange={setIsOfficeAttendanceModalOpen}>
+                <Button 
+                  size="sm" 
+                  className="gap-2"
+                  onClick={() => setIsOfficeAttendanceModalOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Attendance
+                </Button>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add Office Attendance</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    {/* Employee Select */}
+                    <div className="space-y-2">
+                      <Label>Employee *</Label>
+                      <Select 
+                        value={officeAttendanceForm.employee_id} 
+                        onValueChange={(val) => setOfficeAttendanceForm(prev => ({ ...prev, employee_id: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select office employee" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover z-50 max-h-60">
+                          {officeEmployees.map((emp) => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.full_name} - {emp.position}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Date */}
+                    <div className="space-y-2">
+                      <Label>Date *</Label>
+                      <Input
+                        type="date"
+                        value={officeAttendanceForm.attendance_date}
+                        onChange={(e) => setOfficeAttendanceForm(prev => ({ ...prev, attendance_date: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Status */}
+                    <div className="space-y-2">
+                      <Label>Status *</Label>
+                      <Select 
+                        value={officeAttendanceForm.status} 
+                        onValueChange={(val) => setOfficeAttendanceForm(prev => ({ ...prev, status: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="present">Present</SelectItem>
+                          <SelectItem value="absent">Absent</SelectItem>
+                          <SelectItem value="late">Late</SelectItem>
+                          <SelectItem value="day_off">Day Off</SelectItem>
+                          <SelectItem value="half_day">Half day</SelectItem>
+                          <SelectItem value="undertime">Undertime</SelectItem>
+                          <SelectItem value="suspension">Suspension</SelectItem>
+                          <SelectItem value="unauthorized_absent">Unauthorized absent</SelectItem>
+                          <SelectItem value="sil">SIL</SelectItem>
+                          <SelectItem value="vl">VL</SelectItem>
+                          <SelectItem value="change_day_off">Change Day off</SelectItem>
+                          <SelectItem value="change_schedule">Change of Schedule</SelectItem>
+                          <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
+                          <SelectItem value="other">Other Concern</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Day Off */}
+                    <div className="space-y-2">
+                      <Label>Day Off</Label>
+                      <Select 
+                        value={officeAttendanceForm.day_off} 
+                        onValueChange={(val) => setOfficeAttendanceForm(prev => ({ ...prev, day_off: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select day off" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="Monday">Monday</SelectItem>
+                          <SelectItem value="Tuesday">Tuesday</SelectItem>
+                          <SelectItem value="Wednesday">Wednesday</SelectItem>
+                          <SelectItem value="Thursday">Thursday</SelectItem>
+                          <SelectItem value="Friday">Friday</SelectItem>
+                          <SelectItem value="Saturday">Saturday</SelectItem>
+                          <SelectItem value="Sunday">Sunday</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Shift */}
+                    <div className="space-y-2">
+                      <Label>Shift</Label>
+                      <Select 
+                        value={officeAttendanceForm.shift} 
+                        onValueChange={(val) => setOfficeAttendanceForm(prev => ({ ...prev, shift: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select shift" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="Opening">Opening</SelectItem>
+                          <SelectItem value="Midshift">Midshift</SelectItem>
+                          <SelectItem value="Closing">Closing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Remarks */}
+                    <div className="space-y-2">
+                      <Label>Remarks</Label>
+                      <Textarea
+                        placeholder="Optional remarks..."
+                        value={officeAttendanceForm.remarks}
+                        onChange={(e) => setOfficeAttendanceForm(prev => ({ ...prev, remarks: e.target.value }))}
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsOfficeAttendanceModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => createOfficeAttendanceMutation.mutate(officeAttendanceForm)}
+                      disabled={!officeAttendanceForm.employee_id || !officeAttendanceForm.attendance_date || createOfficeAttendanceMutation.isPending}
+                    >
+                      {createOfficeAttendanceMutation.isPending ? 'Adding...' : 'Add Attendance'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           {/* Overview Cards */}
