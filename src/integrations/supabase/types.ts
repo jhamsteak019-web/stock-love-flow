@@ -66,6 +66,7 @@ export type Database = {
           employee_id: string
           id: string
           letter_photos: string[] | null
+          med_cert_photos: string[] | null
           notes: string | null
           reason: string | null
           remarks: string | null
@@ -86,6 +87,7 @@ export type Database = {
           employee_id: string
           id?: string
           letter_photos?: string[] | null
+          med_cert_photos?: string[] | null
           notes?: string | null
           reason?: string | null
           remarks?: string | null
@@ -106,6 +108,7 @@ export type Database = {
           employee_id?: string
           id?: string
           letter_photos?: string[] | null
+          med_cert_photos?: string[] | null
           notes?: string | null
           reason?: string | null
           remarks?: string | null

@@ -24,6 +24,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ColumnSettings, { GenericColumnConfig } from '@/components/common/ColumnSettings';
 import { ResumePhotoUploadCell } from '@/components/resume/ResumePhotoUploadCell';
+import { MedCertPhotoUploadCell } from '@/components/resume/MedCertPhotoUploadCell';
 import { useGenericColumnSettings } from '@/hooks/useGenericColumnSettings';
 
 const defaultResumeColumns: GenericColumnConfig[] = [
@@ -34,8 +35,9 @@ const defaultResumeColumns: GenericColumnConfig[] = [
   { key: 'date_of_resume', label: 'Date of Resume', visible: true, width: 130, minWidth: 100, maxWidth: 160 },
   { key: 'reason', label: 'Reason', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
   { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
-  { key: 'letter_photos', label: 'Letter (3 Photos)', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
-  { key: 'resume_letter_photos', label: 'Resume Letter (3 Photos)', visible: true, width: 160, minWidth: 120, maxWidth: 200 },
+  { key: 'letter_photos', label: 'Letter', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
+  { key: 'resume_letter_photos', label: 'Resume Letter', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
+  { key: 'med_cert_photos', label: 'Med Cert Photo', visible: true, width: 140, minWidth: 100, maxWidth: 180 },
   { key: 'actions', label: 'Actions', visible: true, width: 100, minWidth: 80, maxWidth: 130 },
 ];
 
@@ -769,21 +771,22 @@ const ResumeToWork = () => {
                   {columns.find(c => c.key === 'date_of_resume')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'date_of_resume')?.width }}>Date of Resume</TableHead>}
                   {columns.find(c => c.key === 'reason')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'reason')?.width }}>Reason</TableHead>}
                   {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
-                  {columns.find(c => c.key === 'letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'letter_photos')?.width }}>Letter (3 Photos)</TableHead>}
-                  {columns.find(c => c.key === 'resume_letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'resume_letter_photos')?.width }}>Resume Letter (3 Photos)</TableHead>}
+                  {columns.find(c => c.key === 'letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'letter_photos')?.width }}>Letter</TableHead>}
+                  {columns.find(c => c.key === 'resume_letter_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'resume_letter_photos')?.width }}>Resume Letter</TableHead>}
+                  {columns.find(c => c.key === 'med_cert_photos')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'med_cert_photos')?.width }}>Med Cert Photo</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={11} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No resume records found
                     </TableCell>
                   </TableRow>
@@ -860,6 +863,16 @@ const ResumeToWork = () => {
                             recordId={record.id}
                             photos={record.resume_letter_photos || []}
                             fieldName="resume_letter_photos"
+                            maxPhotos={3}
+                            onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['resume-to-work'] })}
+                          />
+                        </TableCell>
+                      )}
+                      {columns.find(c => c.key === 'med_cert_photos')?.visible && (
+                        <TableCell>
+                          <MedCertPhotoUploadCell
+                            recordId={record.id}
+                            photos={(record as any).med_cert_photos || []}
                             maxPhotos={3}
                             onPhotoUpdate={() => queryClient.invalidateQueries({ queryKey: ['resume-to-work'] })}
                           />
