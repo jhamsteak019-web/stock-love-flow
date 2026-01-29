@@ -3,7 +3,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar, FileDown, Loader2 } from 'lucide-react';
+import { Package, CheckCircle, Clock, MapPin, TrendingUp, Store, BarChart3, Calendar, FileDown, Loader2, Banknote } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, 
@@ -131,19 +131,23 @@ const Dashboard = () => {
   const totals = useMemo(() => {
     let totalBoxes = 0;
     let totalQty = 0;
+    let totalAmount = 0;
     let deliveredBoxes = 0;
     let deliveredQty = 0;
+    let deliveredAmount = 0;
 
     filteredReleases.forEach(release => {
       totalBoxes += release.boxes_released || 0;
       totalQty += release.total_qty || 0;
+      totalAmount += release.amount || 0;
       if (release.delivery_status === 'delivered') {
         deliveredBoxes += release.boxes_released || 0;
         deliveredQty += release.total_qty || 0;
+        deliveredAmount += release.amount || 0;
       }
     });
 
-    return { totalBoxes, totalQty, deliveredBoxes, deliveredQty };
+    return { totalBoxes, totalQty, totalAmount, deliveredBoxes, deliveredQty, deliveredAmount };
   }, [filteredReleases]);
 
   const uniqueBranches = useMemo(() => {
@@ -447,12 +451,19 @@ const Dashboard = () => {
 
       <div ref={dashboardRef} className="space-y-6 bg-background">
         {/* Stats Grid */}
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard
             title="Total Boxes"
             value={totals.totalBoxes.toLocaleString()}
             subtitle={`${totals.totalQty.toLocaleString()} total qty/items`}
             icon={Package}
+            variant="default"
+          />
+          <StatCard
+            title="Overall Amount"
+            value={`₱${totals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtitle={`₱${totals.deliveredAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} delivered`}
+            icon={Banknote}
             variant="default"
           />
           <StatCard
