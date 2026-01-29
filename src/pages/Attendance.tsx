@@ -1626,19 +1626,31 @@ const Attendance = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  <Input
-                                    placeholder="Day Off"
-                                    value={bulkEmployeeDayOffs[emp.id] || ''}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
+                                  <Select 
+                                    value={bulkEmployeeDayOffs[emp.id] || ''} 
+                                    onValueChange={(v) => {
                                       setBulkEmployeeDayOffs(prev => ({
                                         ...prev,
-                                        [emp.id]: e.target.value
+                                        [emp.id]: v
                                       }));
                                     }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-28 h-8 text-xs"
-                                  />
+                                  >
+                                    <SelectTrigger 
+                                      className="w-28 h-8 text-xs"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <SelectValue placeholder="Day Off" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Monday">Monday</SelectItem>
+                                      <SelectItem value="Tuesday">Tuesday</SelectItem>
+                                      <SelectItem value="Wednesday">Wednesday</SelectItem>
+                                      <SelectItem value="Thursday">Thursday</SelectItem>
+                                      <SelectItem value="Friday">Friday</SelectItem>
+                                      <SelectItem value="Saturday">Saturday</SelectItem>
+                                      <SelectItem value="Sunday">Sunday</SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                   <Select 
                                     value={bulkEmployeeShifts[emp.id] || ''} 
                                     onValueChange={(v) => {
