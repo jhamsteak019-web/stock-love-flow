@@ -325,15 +325,15 @@ const Deliveries = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="relative flex-1">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search allocation, waybill, destination..."
+            placeholder="Search allocation, waybill, destination, category..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10 pr-10 h-9 sm:h-10 text-sm"
+            className="pl-10 pr-10"
           />
           {searchQuery && (
             <Button
@@ -346,34 +346,31 @@ const Deliveries = () => {
             </Button>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-3">
           {pendingGroups.length > 0 && (
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
               {isPending && (
-                <div className="h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               )}
             </div>
           )}
-          <div className="flex items-center gap-2 ml-auto">
-            {!isViewer && canExport && (
-              <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8 text-xs sm:text-sm px-2 sm:px-3">
-                <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Excel</span>
-              </Button>
-            )}
-            {!isViewer && canExport && (
-              <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)} className="h-8 text-xs sm:text-sm px-2 sm:px-3">
-                <FileDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                <span className="hidden sm:inline">PDF</span>
-              </Button>
-            )}
-            {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_COLUMNS} />}
-          </div>
+          {!isViewer && canExport && (
+            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Save Excel
+            </Button>
+          )}
+          {!isViewer && canExport && (
+            <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Save PDF
+            </Button>
+          )}
+          {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_COLUMNS} />}
         </div>
       </div>
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden overflow-x-auto transition-all duration-300">
         <Table className="table-fixed">
           <TableHeader>
             <TableRow className="transition-all duration-300">
@@ -480,7 +477,6 @@ const Deliveries = () => {
             )}
           </TableBody>
         </Table>
-        </div>
       </div>
 
       {/* Pagination Controls */}

@@ -409,31 +409,31 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Overview of your inventory and deliveries</p>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your inventory and deliveries</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {/* Month/Year Filter */}
-          <div className="flex items-center gap-1 sm:gap-2 bg-muted/50 border border-border rounded-lg px-2 sm:px-3 py-1.5">
-            <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hidden sm:block" />
+          <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
             <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
-              <SelectTrigger className="w-[90px] sm:w-[110px] h-7 sm:h-8 border-0 bg-transparent focus:ring-0 text-xs sm:text-sm px-1 sm:px-2">
+              <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
+              <SelectContent>
                 {MONTHS.map((month, index) => (
                   <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
-              <SelectTrigger className="w-[65px] sm:w-[80px] h-7 sm:h-8 border-0 bg-transparent focus:ring-0 text-xs sm:text-sm px-1 sm:px-2">
+              <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
+              <SelectContent>
                 {[2024, 2025, 2026].map((year) => (
                   <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                 ))}
@@ -441,18 +441,17 @@ const Dashboard = () => {
             </Select>
           </div>
           {canExportPDF && (
-            <Button onClick={handleExportPDF} disabled={isExporting} className="gap-1.5 sm:gap-2 h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-4">
-              {isExporting ? <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /> : <FileDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-              <span className="hidden sm:inline">Save to PDF</span>
-              <span className="sm:hidden">PDF</span>
+            <Button onClick={handleExportPDF} disabled={isExporting} className="gap-2">
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Save to PDF
             </Button>
           )}
         </div>
       </div>
 
-      <div ref={dashboardRef} className="space-y-4 sm:space-y-6 bg-background">
+      <div ref={dashboardRef} className="space-y-6 bg-background">
         {/* Stats Grid */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard
             title="Total Boxes"
             value={totals.totalBoxes.toLocaleString()}
