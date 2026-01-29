@@ -772,7 +772,7 @@ const Manpower = () => {
     // Group by branch
     const branchGroups: Record<string, Employee[]> = {};
     filtered.forEach(emp => {
-      const branchName = emp.branches?.name || emp.branch || 'Unassigned';
+      const branchName = emp.branch || emp.branches?.name || 'Unassigned';
       if (!branchGroups[branchName]) {
         branchGroups[branchName] = [];
       }
@@ -845,7 +845,7 @@ const Manpower = () => {
     // Data rows
     manpowerSummaryData.allFilteredEmployees.forEach((emp, idx) => {
       const row = worksheet.addRow([
-        emp.branches?.name || emp.branch || '-',
+        emp.branch || emp.branches?.name || '-',
         emp.full_name,
         emp.position || '-',
         emp.category || '-',
@@ -902,7 +902,7 @@ const Manpower = () => {
       startY: 35,
       head: [['Branch', 'Employee Name', 'Position', 'Category', 'Status', 'Date Hired']],
       body: manpowerSummaryData.allFilteredEmployees.map(emp => [
-        emp.branches?.name || emp.branch || '-',
+        emp.branch || emp.branches?.name || '-',
         emp.full_name,
         emp.position || '-',
         emp.category || '-',
@@ -980,7 +980,7 @@ const Manpower = () => {
             <tbody>
               ${manpowerSummaryData.allFilteredEmployees.map(emp => `
                 <tr>
-                  <td>${emp.branches?.name || emp.branch || '-'}</td>
+                  <td>${emp.branch || emp.branches?.name || '-'}</td>
                   <td>${emp.full_name}</td>
                   <td>${emp.position || '-'}</td>
                   <td>${emp.category || '-'}</td>
@@ -1352,7 +1352,7 @@ const Manpower = () => {
         dob: emp.date_of_birth || '',
         address: emp.address || '',
         cell_no: emp.cell_no || '',
-        branch: emp.branches?.name || '',
+        branch: emp.branch || emp.branches?.name || '',
         category: emp.category || '',
         position: emp.position || '',
         status: emp.employment_status,
@@ -1385,7 +1385,7 @@ const Manpower = () => {
       emp.employee_id || '',
       emp.full_name,
       emp.gender || '',
-      emp.branches?.name || '',
+      emp.branch || emp.branches?.name || '',
       emp.category || '',
       emp.position || '',
       emp.employment_status,
