@@ -681,6 +681,33 @@ export type Database = {
         }
         Relationships: []
       }
+      page_access_pins: {
+        Row: {
+          created_at: string
+          id: string
+          page_name: string
+          pin: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_name: string
+          pin: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_name?: string
+          pin?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       private_messages: {
         Row: {
           content: string
