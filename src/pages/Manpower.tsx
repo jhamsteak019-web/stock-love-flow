@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PinProtectionDialog } from '@/components/auth/PinProtectionDialog';
 import { 
   Search, 
   Download, 
@@ -39,7 +41,9 @@ import {
   ArrowUp,
   ArrowDown,
   Printer,
-  Building2
+  Building2,
+  Lock,
+  Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -104,6 +108,13 @@ const Manpower = () => {
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  // PIN protection state
+  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [showChangePinDialog, setShowChangePinDialog] = useState(false);
+  const [newPin, setNewPin] = useState('');
 
   // Column settings
   const { columns, setColumns, isAdmin: isColumnAdmin } = useGenericColumnSettings('manpower', defaultManpowerColumns);
@@ -198,7 +209,45 @@ const Manpower = () => {
     };
   }, [queryClient]);
 
-  // Fetch branches
+  // Show PIN dialog for non-admin users
+  useEffect(() => {
+    if (!isAdmin && !isPinVerified) {
+      setShowPinDialog(true);
+    }
+  }, [isAdmin, isPinVerified]);
+
+  // Update PIN mutation (admin only)
+  const updatePinMutation = useMutation({
+    mutationFn: async (pin: string) => {
+      // Try to update first
+      const { data: existing } = await supabase
+        .from('page_access_pins')
+        .select('id')
+        .eq('page_name', 'manpower')
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('page_access_pins')
+          .update({ pin, updated_at: new Date().toISOString(), updated_by: user?.id })
+          .eq('page_name', 'manpower');
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('page_access_pins')
+          .insert({ page_name: 'manpower', pin, updated_by: user?.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: 'PIN updated successfully!' });
+      setShowChangePinDialog(false);
+      setNewPin('');
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error updating PIN', description: error.message, variant: 'destructive' });
+    }
+  });
   const { data: branches = [] } = useQuery({
     queryKey: ['branches'],
     queryFn: async () => {
@@ -1147,6 +1196,63 @@ const Manpower = () => {
   }, []);
 
   return (
+    <>
+      {/* PIN Protection Dialog for non-admin users */}
+      <PinProtectionDialog
+        open={showPinDialog && !isAdmin}
+        pageName="manpower"
+        onSuccess={() => {
+          setIsPinVerified(true);
+          setShowPinDialog(false);
+        }}
+        onCancel={() => {
+          navigate('/dashboard');
+        }}
+      />
+
+      {/* Change PIN Dialog for admin */}
+      <Dialog open={showChangePinDialog} onOpenChange={setShowChangePinDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Change Access PIN
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>New PIN (4-6 digits)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="Enter new PIN"
+                className="mt-1"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This PIN will be required for non-admin users to access this page.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowChangePinDialog(false); setNewPin(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => updatePinMutation.mutate(newPin)}
+              disabled={newPin.length < 4 || updatePinMutation.isPending}
+            >
+              {updatePinMutation.isPending ? 'Saving...' : 'Save PIN'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Main content - only show when admin or PIN verified */}
+      {(isAdmin || isPinVerified) && (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1158,6 +1264,12 @@ const Manpower = () => {
           <p className="text-muted-foreground">Manage employee information and records</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setShowChangePinDialog(true)}>
+              <Lock className="h-4 w-4 mr-2" />
+              Change PIN
+            </Button>
+          )}
           {isColumnAdmin && (
             <ColumnSettings 
               columns={columns} 
@@ -2722,6 +2834,8 @@ const Manpower = () => {
         </DialogContent>
       </Dialog>
     </div>
+      )}
+    </>
   );
 };
 
