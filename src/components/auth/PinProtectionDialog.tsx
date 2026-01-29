@@ -92,16 +92,18 @@ export const PinProtectionDialog = ({
               setPin(value);
               setError('');
             }}
-          >
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
+            textAlign="center"
+            inputMode="numeric"
+            render={({ slots }) => (
+              <InputOTPGroup>
+                {slots.map((slot, index) => (
+                  <InputOTPSlot key={index} {...slot} index={index}>
+                    {slot.char ? '•' : slot.hasFakeCaret ? <div className="animate-caret-blink h-4 w-px bg-foreground" /> : null}
+                  </InputOTPSlot>
+                ))}
+              </InputOTPGroup>
+            )}
+          />
 
           {error && (
             <p className="text-sm text-destructive text-center">{error}</p>
