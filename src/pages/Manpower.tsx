@@ -1477,19 +1477,19 @@ const Manpower = () => {
       {(isAdmin || isPinVerified) && (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Database className="h-6 w-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Database className="h-5 w-5 sm:h-6 sm:w-6" />
             Manpower Database
           </h1>
-          <p className="text-muted-foreground">Manage employee information and records</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage employee information and records</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isAdmin && (
-            <Button variant="outline" size="sm" onClick={() => setShowChangePinDialog(true)}>
-              <Lock className="h-4 w-4 mr-2" />
-              Change PIN
+            <Button variant="outline" size="sm" onClick={() => setShowChangePinDialog(true)} className="h-8 text-xs sm:text-sm px-2 sm:px-3">
+              <Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Change PIN</span>
             </Button>
           )}
           {isColumnAdmin && (
@@ -1501,78 +1501,79 @@ const Manpower = () => {
             />
           )}
           {canAdd && (
-            <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Employee
+            <Button onClick={() => { resetForm(); setIsModalOpen(true); }} size="sm" className="h-8 text-xs sm:text-sm px-2 sm:px-3">
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Employee</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           )}
-          <Button variant="outline" onClick={handleExportExcel}>
-            <Download className="h-4 w-4 mr-2" />
-            Excel
+          <Button variant="outline" onClick={handleExportExcel} size="sm" className="h-8 text-xs sm:text-sm px-2 sm:px-3">
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Excel</span>
           </Button>
-          <Button variant="outline" onClick={handleExportPDF}>
-            <FileText className="h-4 w-4 mr-2" />
-            PDF
+          <Button variant="outline" onClick={handleExportPDF} size="sm" className="h-8 text-xs sm:text-sm px-2 sm:px-3">
+            <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+            <span className="hidden sm:inline">PDF</span>
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Users className="h-5 w-5 text-primary" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <Card className="p-2 sm:p-0">
+          <CardContent className="pt-2 sm:pt-4 pb-2 sm:pb-4 px-2 sm:px-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{filteredEmployees.length}</p>
-                <p className="text-sm text-muted-foreground">Total Employees</p>
+                <p className="text-lg sm:text-2xl font-bold">{filteredEmployees.length}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Users className="h-5 w-5 text-green-500" />
+        <Card className="p-2 sm:p-0">
+          <CardContent className="pt-2 sm:pt-4 pb-2 sm:pb-4 px-2 sm:px-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-green-500/10">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   {filteredEmployees.filter(e => e.employment_status.toLowerCase() === 'regular').length}
                 </p>
-                <p className="text-sm text-muted-foreground">Regular</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Regular</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10">
-                <Users className="h-5 w-5 text-yellow-500" />
+        <Card className="p-2 sm:p-0">
+          <CardContent className="pt-2 sm:pt-4 pb-2 sm:pb-4 px-2 sm:px-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-yellow-500/10">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   {filteredEmployees.filter(e => e.employment_status.toLowerCase() === 'probationary').length}
                 </p>
-                <p className="text-sm text-muted-foreground">Probationary</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Probationary</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Users className="h-5 w-5 text-blue-500" />
+        <Card className="p-2 sm:p-0">
+          <CardContent className="pt-2 sm:pt-4 pb-2 sm:pb-4 px-2 sm:px-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-blue-500/10">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-2xl font-bold">
                   {filteredEmployees.filter(e => e.employment_status.toLowerCase() === 'contractual').length}
                 </p>
-                <p className="text-sm text-muted-foreground">Contractual</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Contractual</p>
               </div>
             </div>
           </CardContent>
@@ -1581,28 +1582,35 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-4xl grid-cols-5">
-          <TabsTrigger value="manpower" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Manpower Database
-          </TabsTrigger>
-          <TabsTrigger value="manpower-summary" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Manpower Summary
-          </TabsTrigger>
-          <TabsTrigger value="attendance-summary" className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" />
-            Attendance Summary
-          </TabsTrigger>
-          <TabsTrigger value="office-attendance" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Office Attendance
-          </TabsTrigger>
-          <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4" />
-            Recently Deleted ({deletedEmployees.length})
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-5">
+            <TabsTrigger value="manpower" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Database className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Manpower Database</span>
+              <span className="sm:hidden">Database</span>
+            </TabsTrigger>
+            <TabsTrigger value="manpower-summary" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Manpower Summary</span>
+              <span className="sm:hidden">Summary</span>
+            </TabsTrigger>
+            <TabsTrigger value="attendance-summary" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Attendance Summary</span>
+              <span className="sm:hidden">Attendance</span>
+            </TabsTrigger>
+            <TabsTrigger value="office-attendance" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Office Attendance</span>
+              <span className="sm:hidden">Office</span>
+            </TabsTrigger>
+            <TabsTrigger value="recently-deleted" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Deleted ({deletedEmployees.length})</span>
+              <span className="sm:hidden">Del ({deletedEmployees.length})</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Manpower Database Tab */}
         <TabsContent value="manpower" className="space-y-6">

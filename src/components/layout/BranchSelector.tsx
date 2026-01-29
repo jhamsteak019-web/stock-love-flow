@@ -29,10 +29,10 @@ export const BranchSelector = () => {
   // Non-admins and non-HR see a read-only badge showing their assigned branch
   if (!canSwitchBranch) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border">
-        <Building2 className="h-4 w-4 text-primary" />
-        <span className="font-medium text-sm">
-          {selectedBranch?.name || 'No Branch Assigned'}
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md bg-muted/50 border border-border">
+        <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+        <span className="font-medium text-xs sm:text-sm truncate max-w-[100px] sm:max-w-[150px]">
+          {selectedBranch?.name || 'No Branch'}
         </span>
       </div>
     );
@@ -44,15 +44,15 @@ export const BranchSelector = () => {
       <DropdownMenuTrigger asChild>
         <Button 
           variant="outline" 
-          className="gap-2 min-w-[140px] justify-between bg-background border-primary/20 hover:border-primary/40 hover:bg-primary/5"
+          className="gap-1.5 sm:gap-2 min-w-[100px] sm:min-w-[140px] justify-between bg-background border-primary/20 hover:border-primary/40 hover:bg-primary/5 h-8 sm:h-9 px-2 sm:px-3"
         >
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" />
-            <span className="font-medium truncate max-w-[120px]">
-              {selectedBranch?.name || 'Select Branch'}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+            <span className="font-medium truncate max-w-[60px] sm:max-w-[120px] text-xs sm:text-sm">
+              {selectedBranch?.name || 'Select'}
             </span>
           </div>
-          <ChevronDown className="h-4 w-4 opacity-50" />
+          <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 opacity-50 flex-shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[200px] bg-popover z-50">
