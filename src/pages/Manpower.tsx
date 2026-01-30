@@ -98,7 +98,12 @@ interface Employee {
 
 const genderOptions = ['Male', 'Female'];
 const categoryOptions = ['MHB', 'MLP', 'MUM', 'MSH'];
-const positionOptions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader', 'OIC', 'AOIC', 'Key Person', 'Demo'];
+// Office positions (for Office Attendance tab)
+const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
+// Store positions
+const storePositions = ['OIC', 'AOIC', 'Key Person', 'Demo'];
+// All positions combined for legacy compatibility
+const positionOptions = [...officePositions, ...storePositions];
 const statusOptions = ['Regular', 'Probationary', 'Seasonal', 'Newly Hired', 'Back Up', 'Support Event', 'Stock Man', 'Resigned'];
 const maternityOptions = ['N/A', 'On Leave', 'Returned'];
 
@@ -1637,7 +1642,12 @@ const Manpower = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Positions</SelectItem>
-                {positionOptions.map(pos => (
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Office Positions</div>
+                {officePositions.map(pos => (
+                  <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                ))}
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-1">Store Positions</div>
+                {storePositions.map(pos => (
                   <SelectItem key={pos} value={pos}>{pos}</SelectItem>
                 ))}
               </SelectContent>
@@ -1904,7 +1914,12 @@ const Manpower = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Positions</SelectItem>
-                      {positionOptions.map(pos => (
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Office Positions</div>
+                      {officePositions.map(pos => (
+                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                      ))}
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-1">Store Positions</div>
+                      {storePositions.map(pos => (
                         <SelectItem key={pos} value={pos}>{pos}</SelectItem>
                       ))}
                     </SelectContent>
@@ -3730,7 +3745,12 @@ const Manpower = () => {
                     <SelectValue placeholder="Select position" />
                   </SelectTrigger>
                   <SelectContent>
-                    {positionOptions.map(pos => (
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">Office Positions</div>
+                    {officePositions.map(pos => (
+                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                    ))}
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-1">Store Positions</div>
+                    {storePositions.map(pos => (
                       <SelectItem key={pos} value={pos}>{pos}</SelectItem>
                     ))}
                   </SelectContent>
