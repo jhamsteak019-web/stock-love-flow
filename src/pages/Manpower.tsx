@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInYears, differenceInMonths, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -1801,87 +1801,126 @@ const Manpower = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredEmployees.map((emp) => (
-                    <TableRow key={emp.id} className="hover:bg-muted/30">
-                      {columns.find(c => c.key === 'branch')?.visible && (
-                        <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'photo')?.visible && (
-                        <TableCell>
-                          <Avatar 
-                            className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
-                            onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
+                  (() => {
+                    // Group employees by branch for visual separation
+                    const groupedByBranch: Record<string, typeof filteredEmployees> = {};
+                    filteredEmployees.forEach(emp => {
+                      const branchName = emp.branch || emp.branches?.name || 'Unknown';
+                      if (!groupedByBranch[branchName]) {
+                        groupedByBranch[branchName] = [];
+                      }
+                      groupedByBranch[branchName].push(emp);
+                    });
+                    
+                    const branchNames = Object.keys(groupedByBranch).sort();
+                    
+                    return branchNames.map((branchName, branchIndex) => (
+                      <React.Fragment key={branchName}>
+                        {/* Branch separator row */}
+                        {branchIndex > 0 && (
+                          <TableRow className="bg-muted/30 border-t-2 border-primary/20">
+                            <TableCell 
+                              colSpan={columns.filter(c => c.visible).length} 
+                              className="py-2"
+                            >
+                              <div className="w-full border-t border-dashed border-muted-foreground/30" />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {/* Branch header row */}
+                        <TableRow className="bg-primary/5 border-l-4 border-l-primary">
+                          <TableCell 
+                            colSpan={columns.filter(c => c.visible).length} 
+                            className="py-2 font-bold text-primary"
                           >
-                            <AvatarImage src={emp.photo_url || ''} />
-                            <AvatarFallback className="text-xs">
-                              {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                      )}
-                      {columns.find(c => c.key === 'name')?.visible && (
-                        <TableCell className="font-medium">{emp.full_name}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'gender')?.visible && (
-                        <TableCell>{emp.gender || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'age')?.visible && (
-                        <TableCell>{emp.age || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'position')?.visible && (
-                        <TableCell>{emp.position || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'category')?.visible && (
-                        <TableCell>{emp.category || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'status')?.visible && (
-                        <TableCell>
-                          <Badge variant="outline" className={cn(
-                            emp.employment_status.toLowerCase() === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
-                            emp.employment_status.toLowerCase() === 'probationary' && 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30',
-                            emp.employment_status.toLowerCase() === 'contractual' && 'bg-blue-500/10 text-blue-700 border-blue-500/30',
-                            emp.employment_status.toLowerCase() === 'resigned' && 'bg-red-500/10 text-red-700 border-red-500/30'
-                          )}>
-                            {emp.employment_status}
-                          </Badge>
-                        </TableCell>
-                      )}
-                      {columns.find(c => c.key === 'date_hired')?.visible && (
-                        <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'service')?.visible && (
-                        <TableCell>{getLengthOfService(emp.date_hired)}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'contact')?.visible && (
-                        <TableCell>{emp.cell_no || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'address')?.visible && (
-                        <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'remarks')?.visible && (
-                        <TableCell className="max-w-[150px] truncate" title={emp.remarks || ''}>{emp.remarks || '-'}</TableCell>
-                      )}
-                      {columns.find(c => c.key === 'actions')?.visible && (
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingEmployee(emp)} title="View Details">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {canEdit && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                            {branchName.toUpperCase()} ({groupedByBranch[branchName].length} employees)
+                          </TableCell>
+                        </TableRow>
+                        {/* Employees in this branch */}
+                        {groupedByBranch[branchName].map((emp) => (
+                          <TableRow key={emp.id} className="hover:bg-muted/30">
+                            {columns.find(c => c.key === 'branch')?.visible && (
+                              <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
                             )}
-                            {canDelete && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            {columns.find(c => c.key === 'photo')?.visible && (
+                              <TableCell>
+                                <Avatar 
+                                  className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
+                                  onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
+                                >
+                                  <AvatarImage src={emp.photo_url || ''} />
+                                  <AvatarFallback className="text-xs">
+                                    {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </TableCell>
                             )}
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))
+                            {columns.find(c => c.key === 'name')?.visible && (
+                              <TableCell className="font-medium">{emp.full_name}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'gender')?.visible && (
+                              <TableCell>{emp.gender || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'age')?.visible && (
+                              <TableCell>{emp.age || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'position')?.visible && (
+                              <TableCell>{emp.position || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'category')?.visible && (
+                              <TableCell>{emp.category || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'status')?.visible && (
+                              <TableCell>
+                                <Badge variant="outline" className={cn(
+                                  emp.employment_status.toLowerCase() === 'regular' && 'bg-green-500/10 text-green-700 border-green-500/30',
+                                  emp.employment_status.toLowerCase() === 'probationary' && 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30',
+                                  emp.employment_status.toLowerCase() === 'contractual' && 'bg-blue-500/10 text-blue-700 border-blue-500/30',
+                                  emp.employment_status.toLowerCase() === 'resigned' && 'bg-red-500/10 text-red-700 border-red-500/30'
+                                )}>
+                                  {emp.employment_status}
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {columns.find(c => c.key === 'date_hired')?.visible && (
+                              <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'service')?.visible && (
+                              <TableCell>{getLengthOfService(emp.date_hired)}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'contact')?.visible && (
+                              <TableCell>{emp.cell_no || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'address')?.visible && (
+                              <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'remarks')?.visible && (
+                              <TableCell className="max-w-[150px] truncate" title={emp.remarks || ''}>{emp.remarks || '-'}</TableCell>
+                            )}
+                            {columns.find(c => c.key === 'actions')?.visible && (
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingEmployee(emp)} title="View Details">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  {canEdit && (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(emp)} title="Edit">
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  {canDelete && (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(emp.id)} title="Delete">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
+                    ));
+                  })()
                 )}
               </TableBody>
             </Table>
