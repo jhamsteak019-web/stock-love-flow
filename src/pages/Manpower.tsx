@@ -1416,6 +1416,38 @@ const Manpower = () => {
     doc.save(`manpower-database${branchSuffix}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
+  // Export specific branch to PDF
+  const handleExportBranchPDF = (branchName: string, employees: typeof filteredEmployees) => {
+    const doc = new jsPDF('landscape');
+    doc.setFontSize(16);
+    doc.text(`Manpower Database - ${branchName.toUpperCase()}`, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy')} | Total: ${employees.length} employees`, 14, 22);
+
+    const tableData = employees.map(emp => [
+      emp.employee_id || '',
+      emp.full_name,
+      emp.gender || '',
+      emp.age || '',
+      emp.position || '',
+      emp.category || '',
+      emp.employment_status,
+      format(new Date(emp.date_hired), 'MMM dd, yyyy'),
+      getLengthOfService(emp.date_hired),
+      emp.cell_no || ''
+    ]);
+
+    autoTable(doc, {
+      head: [['ID', 'Name', 'Gender', 'Age', 'Position', 'Category', 'Status', 'Date Hired', 'Service', 'Contact']],
+      body: tableData,
+      startY: 28,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] }
+    });
+
+    doc.save(`manpower-${branchName.replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  };
+
   const updateFormField = useCallback((field: string, value: string) => {
     setForm(prev => {
       const updated = { ...prev, [field]: value };
@@ -1837,9 +1869,22 @@ const Manpower = () => {
                         <TableRow className="bg-primary/5 border-l-4 border-l-primary">
                           <TableCell 
                             colSpan={columns.filter(c => c.visible).length} 
-                            className="py-2 font-bold text-primary"
+                            className="py-2"
                           >
-                            {branchName.toUpperCase()} ({groupedByBranch[branchName].length} employees)
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-primary">
+                                {branchName.toUpperCase()} ({groupedByBranch[branchName].length} employees)
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 gap-1 text-xs"
+                                onClick={() => handleExportBranchPDF(branchName, groupedByBranch[branchName])}
+                              >
+                                <FileText className="h-3 w-3" />
+                                Save PDF
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                         {/* Employees in this branch */}
