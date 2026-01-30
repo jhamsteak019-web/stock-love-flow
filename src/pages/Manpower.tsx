@@ -2932,111 +2932,123 @@ const Manpower = () => {
             </Card>
           </div>
 
-          {/* Branch Breakdown Table */}
+          {/* Office Attendance Records Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Office Attendance by Branch - {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" />
+                Office Attendance Records
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {officeAttendanceSummary.branchData.length > 0 ? (
-                <div className="rounded-lg border overflow-hidden">
+              {officeAttendanceRecordsList.length > 0 ? (
+                <ScrollArea className="h-[500px]">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[50px] text-center">#</TableHead>
+                      <TableRow className="bg-muted/50">
                         <TableHead>Branch</TableHead>
-                        <TableHead className="text-center">Total Records</TableHead>
-                        <TableHead className="text-center">Present</TableHead>
-                        <TableHead className="text-center">Absent</TableHead>
-                        <TableHead className="text-center">Late</TableHead>
-                        <TableHead className="text-center">Day Off</TableHead>
-                        <TableHead className="text-center">Others</TableHead>
+                        <TableHead className="w-[50px]">Photo</TableHead>
+                        <TableHead>Employee Name</TableHead>
+                        <TableHead>Date Hired</TableHead>
+                        <TableHead>Emp. Status</TableHead>
+                        <TableHead>Att. Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Day Off</TableHead>
+                        <TableHead>Shift</TableHead>
+                        <TableHead>Remarks</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {officeAttendanceSummary.branchData.map((branch, index) => {
-                        const present = branch.statuses['present'] || 0;
-                        const absent = branch.statuses['absent'] || 0;
-                        const late = branch.statuses['late'] || 0;
-                        const dayOff = branch.statuses['day_off'] || 0;
-                        const others = branch.total - present - absent - late - dayOff;
-                        
+                      {officeAttendanceRecordsList.map((record: any) => {
+                        const emp = record.employees;
                         return (
-                          <TableRow key={branch.branch}>
-                            <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
-                            <TableCell className="font-medium">{branch.branch}</TableCell>
-                            <TableCell className="text-center font-bold">{branch.total}</TableCell>
-                            <TableCell className="text-center">
-                              {present > 0 ? (
-                                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                                  {present}
-                                </Badge>
-                              ) : '-'}
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">{emp?.branch || '-'}</TableCell>
+                            <TableCell>
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={emp?.photo_url || ''} />
+                                <AvatarFallback className="text-xs">
+                                  {emp?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                                </AvatarFallback>
+                              </Avatar>
                             </TableCell>
-                            <TableCell className="text-center">
-                              {absent > 0 ? (
-                                <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                                  {absent}
-                                </Badge>
-                              ) : '-'}
+                            <TableCell>{emp?.full_name || '-'}</TableCell>
+                            <TableCell>
+                              {emp?.date_hired ? format(new Date(emp.date_hired), 'MM-dd-yyyy') : '-'}
                             </TableCell>
-                            <TableCell className="text-center">
-                              {late > 0 ? (
-                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                                  {late}
-                                </Badge>
-                              ) : '-'}
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {emp?.employment_status || '-'}
+                              </Badge>
                             </TableCell>
-                            <TableCell className="text-center">
-                              {dayOff > 0 ? (
-                                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                  {dayOff}
-                                </Badge>
-                              ) : '-'}
+                            <TableCell>
+                              <Badge 
+                                className={cn(
+                                  "capitalize text-xs",
+                                  record.status === 'present' && "bg-green-500 hover:bg-green-600",
+                                  record.status === 'absent' && "bg-destructive hover:bg-destructive/90",
+                                  record.status === 'late' && "bg-amber-500 hover:bg-amber-600",
+                                  record.status === 'day_off' && "bg-blue-500 hover:bg-blue-600",
+                                  !['present', 'absent', 'late', 'day_off'].includes(record.status) && "bg-secondary"
+                                )}
+                              >
+                                {record.status?.replace(/_/g, ' ') || '-'}
+                              </Badge>
                             </TableCell>
-                            <TableCell className="text-center">
-                              {others > 0 ? (
-                                <Badge variant="secondary">{others}</Badge>
-                              ) : '-'}
+                            <TableCell>
+                              {record.attendance_date ? format(new Date(record.attendance_date), 'MM-dd-yyyy') : '-'}
+                            </TableCell>
+                            <TableCell>{record.day_off || '-'}</TableCell>
+                            <TableCell>{record.shift || '-'}</TableCell>
+                            <TableCell className="max-w-[150px] truncate">{record.remarks || '-'}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewOfficeAttendance(record)}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {canEdit && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditOfficeAttendance(record)}
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      if (confirm('Delete this attendance record?')) {
+                                        deleteOfficeAttendanceMutation.mutate(record.id);
+                                      }
+                                    }}
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
                       })}
-                      {/* Totals Row */}
-                      <TableRow className="bg-muted/50 font-bold">
-                        <TableCell></TableCell>
-                        <TableCell>TOTAL</TableCell>
-                        <TableCell className="text-center">{officeAttendanceSummary.totalRecords}</TableCell>
-                        <TableCell className="text-center">
-                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['present'] || 0), 0)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['absent'] || 0), 0)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['late'] || 0), 0)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['day_off'] || 0), 0)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {officeAttendanceSummary.branchData.reduce((sum, b) => {
-                            const present = b.statuses['present'] || 0;
-                            const absent = b.statuses['absent'] || 0;
-                            const late = b.statuses['late'] || 0;
-                            const dayOff = b.statuses['day_off'] || 0;
-                            return sum + (b.total - present - absent - late - dayOff);
-                          }, 0)}
-                        </TableCell>
-                      </TableRow>
                     </TableBody>
                   </Table>
-                </div>
+                </ScrollArea>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-medium">No office attendance records found</h3>
-                  <p className="text-muted-foreground">No office attendance data for {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</p>
+                  <ClipboardList className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No office attendance records</h3>
+                  <p className="text-muted-foreground">Add attendance records for office staff to see them here</p>
                 </div>
               )}
             </CardContent>
@@ -3246,123 +3258,111 @@ const Manpower = () => {
             </Card>
           )}
 
-          {/* Office Attendance Records Table */}
+          {/* Branch Breakdown Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5" />
-                Office Attendance Records
-              </CardTitle>
+              <CardTitle>Office Attendance by Branch - {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</CardTitle>
             </CardHeader>
             <CardContent>
-              {officeAttendanceRecordsList.length > 0 ? (
-                <ScrollArea className="h-[500px]">
+              {officeAttendanceSummary.branchData.length > 0 ? (
+                <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="w-[50px] text-center">#</TableHead>
                         <TableHead>Branch</TableHead>
-                        <TableHead className="w-[50px]">Photo</TableHead>
-                        <TableHead>Employee Name</TableHead>
-                        <TableHead>Date Hired</TableHead>
-                        <TableHead>Emp. Status</TableHead>
-                        <TableHead>Att. Status</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Day Off</TableHead>
-                        <TableHead>Shift</TableHead>
-                        <TableHead>Remarks</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
+                        <TableHead className="text-center">Total Records</TableHead>
+                        <TableHead className="text-center">Present</TableHead>
+                        <TableHead className="text-center">Absent</TableHead>
+                        <TableHead className="text-center">Late</TableHead>
+                        <TableHead className="text-center">Day Off</TableHead>
+                        <TableHead className="text-center">Others</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {officeAttendanceRecordsList.map((record: any) => {
-                        const emp = record.employees;
+                      {officeAttendanceSummary.branchData.map((branch, index) => {
+                        const present = branch.statuses['present'] || 0;
+                        const absent = branch.statuses['absent'] || 0;
+                        const late = branch.statuses['late'] || 0;
+                        const dayOff = branch.statuses['day_off'] || 0;
+                        const others = branch.total - present - absent - late - dayOff;
+                        
                         return (
-                          <TableRow key={record.id}>
-                            <TableCell className="font-medium">{emp?.branch || '-'}</TableCell>
-                            <TableCell>
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={emp?.photo_url || ''} />
-                                <AvatarFallback className="text-xs">
-                                  {emp?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
-                                </AvatarFallback>
-                              </Avatar>
+                          <TableRow key={branch.branch}>
+                            <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
+                            <TableCell className="font-medium">{branch.branch}</TableCell>
+                            <TableCell className="text-center font-bold">{branch.total}</TableCell>
+                            <TableCell className="text-center">
+                              {present > 0 ? (
+                                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                  {present}
+                                </Badge>
+                              ) : '-'}
                             </TableCell>
-                            <TableCell>{emp?.full_name || '-'}</TableCell>
-                            <TableCell>
-                              {emp?.date_hired ? format(new Date(emp.date_hired), 'MM-dd-yyyy') : '-'}
+                            <TableCell className="text-center">
+                              {absent > 0 ? (
+                                <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                  {absent}
+                                </Badge>
+                              ) : '-'}
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="capitalize">
-                                {emp?.employment_status || '-'}
-                              </Badge>
+                            <TableCell className="text-center">
+                              {late > 0 ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                  {late}
+                                </Badge>
+                              ) : '-'}
                             </TableCell>
-                            <TableCell>
-                              <Badge 
-                                className={cn(
-                                  "capitalize text-xs",
-                                  record.status === 'present' && "bg-green-500 hover:bg-green-600",
-                                  record.status === 'absent' && "bg-destructive hover:bg-destructive/90",
-                                  record.status === 'late' && "bg-amber-500 hover:bg-amber-600",
-                                  record.status === 'day_off' && "bg-blue-500 hover:bg-blue-600",
-                                  !['present', 'absent', 'late', 'day_off'].includes(record.status) && "bg-secondary"
-                                )}
-                              >
-                                {record.status?.replace(/_/g, ' ') || '-'}
-                              </Badge>
+                            <TableCell className="text-center">
+                              {dayOff > 0 ? (
+                                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                  {dayOff}
+                                </Badge>
+                              ) : '-'}
                             </TableCell>
-                            <TableCell>
-                              {record.attendance_date ? format(new Date(record.attendance_date), 'MM-dd-yyyy') : '-'}
-                            </TableCell>
-                            <TableCell>{record.day_off || '-'}</TableCell>
-                            <TableCell>{record.shift || '-'}</TableCell>
-                            <TableCell className="max-w-[150px] truncate">{record.remarks || '-'}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleViewOfficeAttendance(record)}
-                                  title="View Details"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {canEdit && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEditOfficeAttendance(record)}
-                                    title="Edit"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {canDelete && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      if (confirm('Delete this attendance record?')) {
-                                        deleteOfficeAttendanceMutation.mutate(record.id);
-                                      }
-                                    }}
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
+                            <TableCell className="text-center">
+                              {others > 0 ? (
+                                <Badge variant="secondary">{others}</Badge>
+                              ) : '-'}
                             </TableCell>
                           </TableRow>
                         );
                       })}
+                      {/* Totals Row */}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell></TableCell>
+                        <TableCell>TOTAL</TableCell>
+                        <TableCell className="text-center">{officeAttendanceSummary.totalRecords}</TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['present'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['absent'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['late'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => sum + (b.statuses['day_off'] || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {officeAttendanceSummary.branchData.reduce((sum, b) => {
+                            const present = b.statuses['present'] || 0;
+                            const absent = b.statuses['absent'] || 0;
+                            const late = b.statuses['late'] || 0;
+                            const dayOff = b.statuses['day_off'] || 0;
+                            return sum + (b.total - present - absent - late - dayOff);
+                          }, 0)}
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
-                </ScrollArea>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <ClipboardList className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-medium">No office attendance records</h3>
-                  <p className="text-muted-foreground">Add attendance records for office staff to see them here</p>
+                  <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No office attendance records found</h3>
+                  <p className="text-muted-foreground">No office attendance data for {attendanceDate ? format(new Date(attendanceDate), 'MMM dd, yyyy') : `${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear}`}</p>
                 </div>
               )}
             </CardContent>
