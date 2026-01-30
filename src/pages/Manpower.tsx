@@ -1374,7 +1374,9 @@ const Manpower = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `manpower-database-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    // Include branch filter in filename if filtered
+    const branchSuffix = branchFilter !== 'all' ? `-${branchFilter.replace(/\s+/g, '-')}` : '';
+    a.download = `manpower-database${branchSuffix}-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1383,9 +1385,11 @@ const Manpower = () => {
   const handleExportPDF = () => {
     const doc = new jsPDF('landscape');
     doc.setFontSize(16);
-    doc.text('Manpower Database', 14, 15);
+    // Show branch name in title if filtered
+    const titleSuffix = branchFilter !== 'all' ? ` - ${branchFilter}` : '';
+    doc.text(`Manpower Database${titleSuffix}`, 14, 15);
     doc.setFontSize(10);
-    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy')}`, 14, 22);
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy')} | Total: ${filteredEmployees.length} employees`, 14, 22);
 
     const tableData = filteredEmployees.map(emp => [
       emp.employee_id || '',
@@ -1407,7 +1411,9 @@ const Manpower = () => {
       headStyles: { fillColor: [59, 130, 246] }
     });
 
-    doc.save(`manpower-database-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    // Include branch filter in filename if filtered
+    const branchSuffix = branchFilter !== 'all' ? `-${branchFilter.replace(/\s+/g, '-')}` : '';
+    doc.save(`manpower-database${branchSuffix}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
   const updateFormField = useCallback((field: string, value: string) => {
@@ -1512,13 +1518,13 @@ const Manpower = () => {
               Add Employee
             </Button>
           )}
-          <Button variant="outline" onClick={handleExportExcel}>
+          <Button variant="outline" onClick={handleExportExcel} title={branchFilter !== 'all' ? `Export ${branchFilter} only` : 'Export all employees'}>
             <Download className="h-4 w-4 mr-2" />
-            Excel
+            Excel {branchFilter !== 'all' && <Badge variant="secondary" className="ml-1 text-xs">{branchFilter}</Badge>}
           </Button>
-          <Button variant="outline" onClick={handleExportPDF}>
+          <Button variant="outline" onClick={handleExportPDF} title={branchFilter !== 'all' ? `Export ${branchFilter} only` : 'Export all employees'}>
             <FileText className="h-4 w-4 mr-2" />
-            PDF
+            PDF {branchFilter !== 'all' && <Badge variant="secondary" className="ml-1 text-xs">{branchFilter}</Badge>}
           </Button>
         </div>
       </div>
