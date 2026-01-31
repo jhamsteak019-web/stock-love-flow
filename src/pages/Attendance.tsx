@@ -373,6 +373,47 @@ const Attendance = () => {
     enabled: isBulkModalOpen && !!bulkForm.attendance_date
   });
 
+  // Fetch existing Day Off/Shift for each employee for the current month (set once per month)
+  const { data: existingMonthlySchedules = [] } = useQuery({
+    queryKey: ['attendance-monthly-schedules', bulkForm.attendance_date],
+    queryFn: async () => {
+      if (!bulkForm.attendance_date) return [];
+      const date = new Date(bulkForm.attendance_date);
+      const monthStart = format(startOfMonth(date), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(date), 'yyyy-MM-dd');
+      
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('employee_id, day_off, shift')
+        .gte('attendance_date', monthStart)
+        .lte('attendance_date', monthEnd)
+        .is('deleted_at', null)
+        .or('day_off.neq.null,shift.neq.null');
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: isBulkModalOpen && !!bulkForm.attendance_date
+  });
+
+  // Build a map of employee_id to their existing day_off/shift for the month
+  const employeeMonthlySchedule = useMemo(() => {
+    const scheduleMap: Record<string, { day_off: string | null; shift: string | null }> = {};
+    existingMonthlySchedules.forEach(record => {
+      if (!scheduleMap[record.employee_id]) {
+        scheduleMap[record.employee_id] = { day_off: null, shift: null };
+      }
+      // Use the first non-null value found for this employee in the month
+      if (record.day_off && !scheduleMap[record.employee_id].day_off) {
+        scheduleMap[record.employee_id].day_off = record.day_off;
+      }
+      if (record.shift && !scheduleMap[record.employee_id].shift) {
+        scheduleMap[record.employee_id].shift = record.shift;
+      }
+    });
+    return scheduleMap;
+  }, [existingMonthlySchedules]);
+
   // Filter employees for bulk modal (exclude those with existing attendance, apply branch filter)
   const bulkAvailableEmployees = useMemo(() => {
     return employees.filter(emp => {
@@ -530,12 +571,17 @@ const Attendance = () => {
     mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm; dayOffs: Record<string, string>; shifts: Record<string, string> }) => {
       const records = data.employeeIds.map(employeeId => {
         const employee = employees.find(e => e.id === employeeId);
+        // Use existing monthly schedule if already set, otherwise use new value
+        const existingSchedule = employeeMonthlySchedule[employeeId];
+        const dayOff = existingSchedule?.day_off || data.dayOffs[employeeId] || null;
+        const shift = existingSchedule?.shift || data.shifts[employeeId] || null;
+        
         return {
           employee_id: employeeId,
           attendance_date: data.form.attendance_date,
           status: data.form.status,
-          day_off: data.dayOffs[employeeId] || null,
-          shift: data.shifts[employeeId] || null,
+          day_off: dayOff,
+          shift: shift,
           reason: data.form.reason || null,
           remarks: data.form.remarks || null,
           notes: data.form.notes || null,
@@ -1627,52 +1673,74 @@ const Attendance = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  <Select 
-                                    value={bulkEmployeeDayOffs[emp.id] || ''} 
-                                    onValueChange={(v) => {
-                                      setBulkEmployeeDayOffs(prev => ({
-                                        ...prev,
-                                        [emp.id]: v
-                                      }));
-                                    }}
-                                  >
-                                    <SelectTrigger 
-                                      className="w-28 h-8 text-xs"
+                                  {/* Day Off - locked if already set this month */}
+                                  {employeeMonthlySchedule[emp.id]?.day_off ? (
+                                    <div 
+                                      className="w-28 h-8 px-2 text-xs flex items-center justify-center rounded-md bg-muted border border-input text-muted-foreground cursor-not-allowed"
+                                      title="Day Off already set for this month"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      <SelectValue placeholder="Day Off" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Monday">Monday</SelectItem>
-                                      <SelectItem value="Tuesday">Tuesday</SelectItem>
-                                      <SelectItem value="Wednesday">Wednesday</SelectItem>
-                                      <SelectItem value="Thursday">Thursday</SelectItem>
-                                      <SelectItem value="Friday">Friday</SelectItem>
-                                      <SelectItem value="Saturday">Saturday</SelectItem>
-                                      <SelectItem value="Sunday">Sunday</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Select 
-                                    value={bulkEmployeeShifts[emp.id] || ''} 
-                                    onValueChange={(v) => {
-                                      setBulkEmployeeShifts(prev => ({
-                                        ...prev,
-                                        [emp.id]: v
-                                      }));
-                                    }}
-                                  >
-                                    <SelectTrigger 
-                                      className="w-24 h-8 text-xs"
+                                      🔒 {employeeMonthlySchedule[emp.id].day_off}
+                                    </div>
+                                  ) : (
+                                    <Select 
+                                      value={bulkEmployeeDayOffs[emp.id] || ''} 
+                                      onValueChange={(v) => {
+                                        setBulkEmployeeDayOffs(prev => ({
+                                          ...prev,
+                                          [emp.id]: v
+                                        }));
+                                      }}
+                                    >
+                                      <SelectTrigger 
+                                        className="w-28 h-8 text-xs"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <SelectValue placeholder="Day Off" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Monday">Monday</SelectItem>
+                                        <SelectItem value="Tuesday">Tuesday</SelectItem>
+                                        <SelectItem value="Wednesday">Wednesday</SelectItem>
+                                        <SelectItem value="Thursday">Thursday</SelectItem>
+                                        <SelectItem value="Friday">Friday</SelectItem>
+                                        <SelectItem value="Saturday">Saturday</SelectItem>
+                                        <SelectItem value="Sunday">Sunday</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                  {/* Shift - locked if already set this month */}
+                                  {employeeMonthlySchedule[emp.id]?.shift ? (
+                                    <div 
+                                      className="w-24 h-8 px-2 text-xs flex items-center justify-center rounded-md bg-muted border border-input text-muted-foreground cursor-not-allowed"
+                                      title="Shift already set for this month"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      <SelectValue placeholder="Shift" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Opening">Opening</SelectItem>
-                                      <SelectItem value="Midshift">Midshift</SelectItem>
-                                      <SelectItem value="Closing">Closing</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                      🔒 {employeeMonthlySchedule[emp.id].shift}
+                                    </div>
+                                  ) : (
+                                    <Select 
+                                      value={bulkEmployeeShifts[emp.id] || ''} 
+                                      onValueChange={(v) => {
+                                        setBulkEmployeeShifts(prev => ({
+                                          ...prev,
+                                          [emp.id]: v
+                                        }));
+                                      }}
+                                    >
+                                      <SelectTrigger 
+                                        className="w-24 h-8 text-xs"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <SelectValue placeholder="Shift" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Opening">Opening</SelectItem>
+                                        <SelectItem value="Midshift">Midshift</SelectItem>
+                                        <SelectItem value="Closing">Closing</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
                                 </div>
                               ))}
                             {bulkAvailableEmployees.length === 0 && (
