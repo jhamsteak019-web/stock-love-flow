@@ -170,6 +170,7 @@ const Attendance = () => {
   const [bulkBranchFilter, setBulkBranchFilter] = useState<string>('all');
   const [bulkEmployeeDayOffs, setBulkEmployeeDayOffs] = useState<Record<string, string>>({});
   const [bulkEmployeeShifts, setBulkEmployeeShifts] = useState<Record<string, string>>({});
+  const [unlockedEmployees, setUnlockedEmployees] = useState<Record<string, { dayOff: boolean; shift: boolean }>>({});
   const [bulkForm, setBulkForm] = useState({
     attendance_date: format(new Date(), 'yyyy-MM-dd'),
     status: 'present',
@@ -1673,14 +1674,37 @@ const Attendance = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  {/* Day Off - locked if already set this month */}
-                                  {employeeMonthlySchedule[emp.id]?.day_off ? (
+                                  {/* Day Off - locked if already set this month (unless admin unlocks it) */}
+                                  {employeeMonthlySchedule[emp.id]?.day_off && !unlockedEmployees[emp.id]?.dayOff ? (
                                     <div 
-                                      className="w-28 h-8 px-2 text-xs flex items-center justify-center rounded-md bg-muted border border-input text-muted-foreground cursor-not-allowed"
-                                      title="Day Off already set for this month"
+                                      className="w-28 h-8 px-1 text-xs flex items-center justify-between rounded-md bg-muted border border-input text-muted-foreground"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      🔒 {employeeMonthlySchedule[emp.id].day_off}
+                                      <span className="truncate flex-1 text-center" title={employeeMonthlySchedule[emp.id].day_off || ''}>
+                                        🔒 {employeeMonthlySchedule[emp.id].day_off}
+                                      </span>
+                                      {isAdmin && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 w-5 p-0 hover:bg-destructive/20"
+                                          title="Unlock Day Off (Admin only)"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUnlockedEmployees(prev => ({
+                                              ...prev,
+                                              [emp.id]: { ...prev[emp.id], dayOff: true }
+                                            }));
+                                            // Pre-fill with existing value
+                                            setBulkEmployeeDayOffs(prev => ({
+                                              ...prev,
+                                              [emp.id]: employeeMonthlySchedule[emp.id].day_off || ''
+                                            }));
+                                          }}
+                                        >
+                                          <RotateCcw className="h-3 w-3 text-destructive" />
+                                        </Button>
+                                      )}
                                     </div>
                                   ) : (
                                     <Select 
@@ -1709,14 +1733,37 @@ const Attendance = () => {
                                       </SelectContent>
                                     </Select>
                                   )}
-                                  {/* Shift - locked if already set this month */}
-                                  {employeeMonthlySchedule[emp.id]?.shift ? (
+                                  {/* Shift - locked if already set this month (unless admin unlocks it) */}
+                                  {employeeMonthlySchedule[emp.id]?.shift && !unlockedEmployees[emp.id]?.shift ? (
                                     <div 
-                                      className="w-24 h-8 px-2 text-xs flex items-center justify-center rounded-md bg-muted border border-input text-muted-foreground cursor-not-allowed"
-                                      title="Shift already set for this month"
+                                      className="w-24 h-8 px-1 text-xs flex items-center justify-between rounded-md bg-muted border border-input text-muted-foreground"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      🔒 {employeeMonthlySchedule[emp.id].shift}
+                                      <span className="truncate flex-1 text-center" title={employeeMonthlySchedule[emp.id].shift || ''}>
+                                        🔒 {employeeMonthlySchedule[emp.id].shift}
+                                      </span>
+                                      {isAdmin && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 w-5 p-0 hover:bg-destructive/20"
+                                          title="Unlock Shift (Admin only)"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUnlockedEmployees(prev => ({
+                                              ...prev,
+                                              [emp.id]: { ...prev[emp.id], shift: true }
+                                            }));
+                                            // Pre-fill with existing value
+                                            setBulkEmployeeShifts(prev => ({
+                                              ...prev,
+                                              [emp.id]: employeeMonthlySchedule[emp.id].shift || ''
+                                            }));
+                                          }}
+                                        >
+                                          <RotateCcw className="h-3 w-3 text-destructive" />
+                                        </Button>
+                                      )}
                                     </div>
                                   ) : (
                                     <Select 
