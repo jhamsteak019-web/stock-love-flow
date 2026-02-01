@@ -1707,31 +1707,51 @@ const Attendance = () => {
                                       )}
                                     </div>
                                   ) : (
-                                    <Select 
-                                      value={bulkEmployeeDayOffs[emp.id] || ''} 
-                                      onValueChange={(v) => {
-                                        setBulkEmployeeDayOffs(prev => ({
-                                          ...prev,
-                                          [emp.id]: v
-                                        }));
-                                      }}
-                                    >
-                                      <SelectTrigger 
-                                        className="w-28 h-8 text-xs"
-                                        onClick={(e) => e.stopPropagation()}
+                                    <div className="flex items-center gap-1">
+                                      <Select 
+                                        value={bulkEmployeeDayOffs[emp.id] || ''} 
+                                        onValueChange={(v) => {
+                                          setBulkEmployeeDayOffs(prev => ({
+                                            ...prev,
+                                            [emp.id]: v
+                                          }));
+                                        }}
                                       >
-                                        <SelectValue placeholder="Day Off" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Monday">Monday</SelectItem>
-                                        <SelectItem value="Tuesday">Tuesday</SelectItem>
-                                        <SelectItem value="Wednesday">Wednesday</SelectItem>
-                                        <SelectItem value="Thursday">Thursday</SelectItem>
-                                        <SelectItem value="Friday">Friday</SelectItem>
-                                        <SelectItem value="Saturday">Saturday</SelectItem>
-                                        <SelectItem value="Sunday">Sunday</SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                                        <SelectTrigger 
+                                          className="w-24 h-8 text-xs"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <SelectValue placeholder="Day Off" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Monday">Monday</SelectItem>
+                                          <SelectItem value="Tuesday">Tuesday</SelectItem>
+                                          <SelectItem value="Wednesday">Wednesday</SelectItem>
+                                          <SelectItem value="Thursday">Thursday</SelectItem>
+                                          <SelectItem value="Friday">Friday</SelectItem>
+                                          <SelectItem value="Saturday">Saturday</SelectItem>
+                                          <SelectItem value="Sunday">Sunday</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {/* Show lock button if this was unlocked by admin */}
+                                      {isAdmin && unlockedEmployees[emp.id]?.dayOff && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 w-5 p-0 hover:bg-primary/20"
+                                          title="Lock Day Off"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUnlockedEmployees(prev => ({
+                                              ...prev,
+                                              [emp.id]: { ...prev[emp.id], dayOff: false }
+                                            }));
+                                          }}
+                                        >
+                                          🔒
+                                        </Button>
+                                      )}
+                                    </div>
                                   )}
                                   {/* Shift - locked if already set this month (unless admin unlocks it) */}
                                   {employeeMonthlySchedule[emp.id]?.shift && !unlockedEmployees[emp.id]?.shift ? (
@@ -1766,27 +1786,47 @@ const Attendance = () => {
                                       )}
                                     </div>
                                   ) : (
-                                    <Select 
-                                      value={bulkEmployeeShifts[emp.id] || ''} 
-                                      onValueChange={(v) => {
-                                        setBulkEmployeeShifts(prev => ({
-                                          ...prev,
-                                          [emp.id]: v
-                                        }));
-                                      }}
-                                    >
-                                      <SelectTrigger 
-                                        className="w-24 h-8 text-xs"
-                                        onClick={(e) => e.stopPropagation()}
+                                    <div className="flex items-center gap-1">
+                                      <Select 
+                                        value={bulkEmployeeShifts[emp.id] || ''} 
+                                        onValueChange={(v) => {
+                                          setBulkEmployeeShifts(prev => ({
+                                            ...prev,
+                                            [emp.id]: v
+                                          }));
+                                        }}
                                       >
-                                        <SelectValue placeholder="Shift" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Opening">Opening</SelectItem>
-                                        <SelectItem value="Midshift">Midshift</SelectItem>
-                                        <SelectItem value="Closing">Closing</SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                                        <SelectTrigger 
+                                          className="w-20 h-8 text-xs"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <SelectValue placeholder="Shift" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Opening">Opening</SelectItem>
+                                          <SelectItem value="Midshift">Midshift</SelectItem>
+                                          <SelectItem value="Closing">Closing</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {/* Show lock button if this was unlocked by admin */}
+                                      {isAdmin && unlockedEmployees[emp.id]?.shift && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 w-5 p-0 hover:bg-primary/20"
+                                          title="Lock Shift"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUnlockedEmployees(prev => ({
+                                              ...prev,
+                                              [emp.id]: { ...prev[emp.id], shift: false }
+                                            }));
+                                          }}
+                                        >
+                                          🔒
+                                        </Button>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               ))}
