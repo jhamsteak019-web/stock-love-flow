@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from 'date-fns';
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth, parseISO, isValid, parse } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -107,6 +107,30 @@ const months = [
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
 
+const normalizeDateInputToISO = (value: string): string | null => {
+  if (!value) return null;
+
+  // ISO from <input type="date">
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const d = parseISO(value);
+    if (!isValid(d)) return null;
+    // strict (reject overflow like 2026-02-31)
+    if (format(d, 'yyyy-MM-dd') !== value) return null;
+    return value;
+  }
+
+  // Fallback (some browsers treat type=date as text)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const d = parse(value, 'MM/dd/yyyy', new Date());
+    if (!isValid(d)) return null;
+    // strict (reject overflow like 02/31/2026)
+    if (format(d, 'MM/dd/yyyy') !== value) return null;
+    return format(d, 'yyyy-MM-dd');
+  }
+
+  return null;
+};
+
 const Attendance = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -178,6 +202,11 @@ const Attendance = () => {
     remarks: '',
     notes: ''
   });
+
+  const bulkAttendanceDateISO = useMemo(
+    () => normalizeDateInputToISO(bulkForm.attendance_date),
+    [bulkForm.attendance_date]
+  );
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
@@ -360,26 +389,26 @@ const Attendance = () => {
 
   // Fetch employee IDs who already have attendance for the bulk date
   const { data: existingAttendanceForBulkDate = [] } = useQuery({
-    queryKey: ['attendance-bulk-date', bulkForm.attendance_date],
+    queryKey: ['attendance-bulk-date', bulkAttendanceDateISO],
     queryFn: async () => {
-      if (!bulkForm.attendance_date) return [];
+      if (!bulkAttendanceDateISO) return [];
       const { data, error } = await supabase
         .from('attendance_records')
         .select('employee_id')
-        .eq('attendance_date', bulkForm.attendance_date)
+        .eq('attendance_date', bulkAttendanceDateISO)
         .is('deleted_at', null);
       if (error) throw error;
       return data.map(r => r.employee_id);
     },
-    enabled: isBulkModalOpen && !!bulkForm.attendance_date
+    enabled: isBulkModalOpen && !!bulkAttendanceDateISO
   });
 
   // Fetch existing Day Off/Shift for each employee for the current month (set once per month)
   const { data: existingMonthlySchedules = [] } = useQuery({
-    queryKey: ['attendance-monthly-schedules', bulkForm.attendance_date],
+    queryKey: ['attendance-monthly-schedules', bulkAttendanceDateISO],
     queryFn: async () => {
-      if (!bulkForm.attendance_date) return [];
-      const date = new Date(bulkForm.attendance_date);
+      if (!bulkAttendanceDateISO) return [];
+      const date = parseISO(bulkAttendanceDateISO);
       const monthStart = format(startOfMonth(date), 'yyyy-MM-dd');
       const monthEnd = format(endOfMonth(date), 'yyyy-MM-dd');
       
@@ -394,7 +423,7 @@ const Attendance = () => {
       if (error) throw error;
       return data;
     },
-    enabled: isBulkModalOpen && !!bulkForm.attendance_date
+    enabled: isBulkModalOpen && !!bulkAttendanceDateISO
   });
 
   // Build a map of employee_id to their existing day_off/shift for the month
@@ -572,10 +601,20 @@ const Attendance = () => {
     mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm; dayOffs: Record<string, string>; shifts: Record<string, string> }) => {
       const records = data.employeeIds.map(employeeId => {
         const employee = employees.find(e => e.id === employeeId);
-        // Use existing monthly schedule if already set, otherwise use new value
+
+        // Use existing monthly schedule if already set, otherwise use new value.
+        // If admin unlocked a field, allow override for that field.
         const existingSchedule = employeeMonthlySchedule[employeeId];
-        const dayOff = existingSchedule?.day_off || data.dayOffs[employeeId] || null;
-        const shift = existingSchedule?.shift || data.shifts[employeeId] || null;
+        const dayOffUnlocked = isAdmin && !!unlockedEmployees[employeeId]?.dayOff;
+        const shiftUnlocked = isAdmin && !!unlockedEmployees[employeeId]?.shift;
+
+        const dayOff = dayOffUnlocked
+          ? (data.dayOffs[employeeId] || null)
+          : (existingSchedule?.day_off || data.dayOffs[employeeId] || null);
+
+        const shift = shiftUnlocked
+          ? (data.shifts[employeeId] || null)
+          : (existingSchedule?.shift || data.shifts[employeeId] || null);
         
         return {
           employee_id: employeeId,
@@ -608,6 +647,7 @@ const Attendance = () => {
       setBulkSearchQuery('');
       setBulkEmployeeDayOffs({});
       setBulkEmployeeShifts({});
+      setUnlockedEmployees({});
       setBulkForm({
         attendance_date: format(new Date(), 'yyyy-MM-dd'),
         status: 'present',
@@ -1845,9 +1885,18 @@ const Attendance = () => {
                       <Button
                         className="w-full"
                         onClick={() => {
+                          const dateISO = bulkAttendanceDateISO;
+                          if (!dateISO) {
+                            toast({
+                              title: 'Error',
+                              description: 'Invalid date. Please pick a valid calendar date.',
+                              variant: 'destructive'
+                            });
+                            return;
+                          }
                           bulkCreateAttendanceMutation.mutate({
                             employeeIds: bulkSelectedEmployees,
-                            form: bulkForm,
+                            form: { ...bulkForm, attendance_date: dateISO },
                             dayOffs: bulkEmployeeDayOffs,
                             shifts: bulkEmployeeShifts
                           });
