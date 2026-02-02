@@ -379,6 +379,32 @@ const Attendance = () => {
     return branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id)).length;
   }, [attendanceRecords, employees, globalBranchId]);
 
+  // Calculate unrecorded employees grouped by branch (for popover)
+  const unrecordedByBranch = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === today)
+      .map(r => r.employee_id);
+    
+    // Filter employees by global branch
+    const branchEmployees = globalBranchId 
+      ? employees.filter(e => e.branch_id === globalBranchId)
+      : employees;
+    
+    const unrecordedEmployees = branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id));
+    
+    // Group by branch
+    const branchCounts: Record<string, number> = {};
+    unrecordedEmployees.forEach(emp => {
+      const branchName = emp.branch || emp.branches?.name || 'Unknown';
+      branchCounts[branchName] = (branchCounts[branchName] || 0) + 1;
+    });
+    
+    return Object.entries(branchCounts)
+      .map(([branch, count]) => ({ branch, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [attendanceRecords, employees, globalBranchId]);
+
   // Get unique branch names from employees (Manpower database)
   const uniqueManpowerBranches = useMemo(() => {
     const branchNames = employees
@@ -1206,17 +1232,38 @@ const Attendance = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Unrecorded Today</p>
-                <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
-              </div>
-              <UserPlus className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Unrecorded Today</p>
+                    <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
+                  </div>
+                  <UserPlus className="h-8 w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <p className="text-sm font-semibold mb-2">Unrecorded by Branch</p>
+            {unrecordedByBranch.length > 0 ? (
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {unrecordedByBranch.map(({ branch, count }) => (
+                    <div key={branch} className="flex justify-between text-sm">
+                      <span className="truncate max-w-[160px]">{branch}</span>
+                      <Badge variant="secondary" className="ml-2">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground">All employees recorded</p>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Filters and Actions */}
