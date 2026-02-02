@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -2535,17 +2536,28 @@ const Manpower = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Absent Employees */}
                   {(attendanceSummary.employeesByStatus['absent'] || []).length > 0 && (
-                    <Card className="border-destructive/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-destructive/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge variant="destructive" className="text-xs">Absent</Badge>
+                              <span className="text-muted-foreground">
+                                ({attendanceSummary.employeesByStatus['absent'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
                           <Badge variant="destructive" className="text-xs">Absent</Badge>
-                          <span className="text-muted-foreground">
-                            ({attendanceSummary.employeesByStatus['absent'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                          ({attendanceSummary.employeesByStatus['absent'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2566,23 +2578,34 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Late Employees */}
                   {(attendanceSummary.employeesByStatus['late'] || []).length > 0 && (
-                    <Card className="border-amber-500/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
-                          <span className="text-muted-foreground">
-                            ({attendanceSummary.employeesByStatus['late'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-amber-500/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
+                              <span className="text-muted-foreground">
+                                ({attendanceSummary.employeesByStatus['late'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <Badge className="text-xs bg-amber-500">Late</Badge>
+                          ({attendanceSummary.employeesByStatus['late'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['late'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2603,23 +2626,34 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Day Off Employees */}
                   {(attendanceSummary.employeesByStatus['day_off'] || []).length > 0 && (
-                    <Card className="border-blue-500/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
-                          <span className="text-muted-foreground">
-                            ({attendanceSummary.employeesByStatus['day_off'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-blue-500/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
+                              <span className="text-muted-foreground">
+                                ({attendanceSummary.employeesByStatus['day_off'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <Badge className="text-xs bg-blue-500">Day Off</Badge>
+                          ({attendanceSummary.employeesByStatus['day_off'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2640,23 +2674,34 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Present Employees */}
                   {(attendanceSummary.employeesByStatus['present'] || []).length > 0 && (
-                    <Card className="border-green-500/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
-                          <span className="text-muted-foreground">
-                            ({attendanceSummary.employeesByStatus['present'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-green-500/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
+                              <span className="text-muted-foreground">
+                                ({attendanceSummary.employeesByStatus['present'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <Badge className="text-xs bg-green-500">Present</Badge>
+                          ({attendanceSummary.employeesByStatus['present'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['present'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2677,8 +2722,8 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Other Statuses */}
@@ -2686,17 +2731,28 @@ const Manpower = () => {
                     .filter(([status]) => !['present', 'absent', 'late', 'day_off'].includes(status))
                     .map(([status, employees]) => (
                       employees.length > 0 && (
-                        <Card key={status} className="border-secondary/50">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
+                        <Popover key={status}>
+                          <PopoverTrigger asChild>
+                            <Card className="border-secondary/50 cursor-pointer hover:shadow-md transition-shadow">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                                  <span className="text-muted-foreground">
+                                    ({employees.length})
+                                  </span>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <p className="text-xs text-muted-foreground">Click to view employees</p>
+                              </CardContent>
+                            </Card>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-3" align="start">
+                            <p className="text-sm font-semibold mb-2 flex items-center gap-2">
                               <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
-                              <span className="text-muted-foreground">
-                                ({employees.length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <ScrollArea className="h-[200px]">
+                              ({employees.length})
+                            </p>
+                            <ScrollArea className="h-[250px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
                                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2717,8 +2773,8 @@ const Manpower = () => {
                                 ))}
                               </div>
                             </ScrollArea>
-                          </CardContent>
-                        </Card>
+                          </PopoverContent>
+                        </Popover>
                       )
                     ))}
                 </div>
@@ -3172,17 +3228,28 @@ const Manpower = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Present Employees */}
                   {(officeAttendanceSummary.employeesByStatus['present'] || []).length > 0 && (
-                    <Card className="border-green-500/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
-                          <span className="text-muted-foreground">
-                            ({officeAttendanceSummary.employeesByStatus['present'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-green-500/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
+                              <span className="text-muted-foreground">
+                                ({officeAttendanceSummary.employeesByStatus['present'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <Badge className="text-xs bg-green-500">Present</Badge>
+                          ({officeAttendanceSummary.employeesByStatus['present'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['present'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3203,23 +3270,34 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Absent Employees */}
                   {(officeAttendanceSummary.employeesByStatus['absent'] || []).length > 0 && (
-                    <Card className="border-destructive/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-destructive/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge variant="destructive" className="text-xs">Absent</Badge>
+                              <span className="text-muted-foreground">
+                                ({officeAttendanceSummary.employeesByStatus['absent'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
                           <Badge variant="destructive" className="text-xs">Absent</Badge>
-                          <span className="text-muted-foreground">
-                            ({officeAttendanceSummary.employeesByStatus['absent'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                          ({officeAttendanceSummary.employeesByStatus['absent'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3240,23 +3318,34 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Late Employees */}
                   {(officeAttendanceSummary.employeesByStatus['late'] || []).length > 0 && (
-                    <Card className="border-amber-500/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
-                          <span className="text-muted-foreground">
-                            ({officeAttendanceSummary.employeesByStatus['late'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-amber-500/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
+                              <span className="text-muted-foreground">
+                                ({officeAttendanceSummary.employeesByStatus['late'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <Badge className="text-xs bg-amber-500">Late</Badge>
+                          ({officeAttendanceSummary.employeesByStatus['late'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['late'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3277,23 +3366,34 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Day Off Employees */}
                   {(officeAttendanceSummary.employeesByStatus['day_off'] || []).length > 0 && (
-                    <Card className="border-blue-500/50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
-                          <span className="text-muted-foreground">
-                            ({officeAttendanceSummary.employeesByStatus['day_off'].length})
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Card className="border-blue-500/50 cursor-pointer hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
+                              <span className="text-muted-foreground">
+                                ({officeAttendanceSummary.employeesByStatus['day_off'].length})
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-xs text-muted-foreground">Click to view employees</p>
+                          </CardContent>
+                        </Card>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <Badge className="text-xs bg-blue-500">Day Off</Badge>
+                          ({officeAttendanceSummary.employeesByStatus['day_off'].length})
+                        </p>
+                        <ScrollArea className="h-[250px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3314,8 +3414,8 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
+                      </PopoverContent>
+                    </Popover>
                   )}
 
                   {/* Other Statuses */}
@@ -3323,17 +3423,28 @@ const Manpower = () => {
                     .filter(([status]) => !['present', 'absent', 'late', 'day_off'].includes(status))
                     .map(([status, employees]) => (
                       employees.length > 0 && (
-                        <Card key={status} className="border-secondary/50">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
+                        <Popover key={status}>
+                          <PopoverTrigger asChild>
+                            <Card className="border-secondary/50 cursor-pointer hover:shadow-md transition-shadow">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                                  <span className="text-muted-foreground">
+                                    ({employees.length})
+                                  </span>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <p className="text-xs text-muted-foreground">Click to view employees</p>
+                              </CardContent>
+                            </Card>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-3" align="start">
+                            <p className="text-sm font-semibold mb-2 flex items-center gap-2">
                               <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
-                              <span className="text-muted-foreground">
-                                ({employees.length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <ScrollArea className="h-[200px]">
+                              ({employees.length})
+                            </p>
+                            <ScrollArea className="h-[250px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
                                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3354,8 +3465,8 @@ const Manpower = () => {
                                 ))}
                               </div>
                             </ScrollArea>
-                          </CardContent>
-                        </Card>
+                          </PopoverContent>
+                        </Popover>
                       )
                     ))}
                 </div>
