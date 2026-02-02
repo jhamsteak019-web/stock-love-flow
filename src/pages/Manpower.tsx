@@ -324,7 +324,8 @@ const Manpower = () => {
 
   // Fetch attendance records for summary
   const { data: attendanceRecords = [] } = useQuery({
-    queryKey: ['manpower-attendance-summary', attendanceYear, attendanceMonth, attendanceDate],
+    // NOTE: versioned key so React Query does not keep using an older queryFn/options from cache
+    queryKey: ['manpower-attendance-summary-v2', attendanceYear, attendanceMonth, attendanceDate],
     queryFn: async () => {
       const monthNum = parseInt(attendanceMonth) + 1;
       
