@@ -635,9 +635,7 @@ const Manpower = () => {
       : <ArrowDown className="ml-1 h-3 w-3" />;
   };
 
-  // Position category mapping
-  const storePositions = ['Demo', 'OIC', 'AOIC', 'Key Person'];
-  const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
+  // Position category mapping - using top-level constants officePositions and storePositions
   const teamLeaderPositions = ['Team Leader'];
 
   // Attendance summary data with employee details by status
