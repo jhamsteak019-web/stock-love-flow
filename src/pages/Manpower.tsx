@@ -446,7 +446,176 @@ const Manpower = () => {
     return filtered;
   }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
 
-  // Handle column sort
+  // Filter employees for Office Manpower tab (office positions only)
+  const officeFilteredEmployees = useMemo(() => {
+    let filtered = employees.filter(emp => {
+      const matchesSearch = !searchQuery || 
+        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // First filter by global branch using branch_id
+      if (globalBranchId && emp.branch_id !== globalBranchId) {
+        return false;
+      }
+      
+      // Filter for office positions only
+      const isOfficePosition = officePositions.some(pos => 
+        pos.toLowerCase() === emp.position?.toLowerCase()
+      );
+      if (!isOfficePosition) return false;
+      
+      // Then apply local filters
+      const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
+      const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
+      const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
+      const matchesGender = genderFilter === 'all' || emp.gender === genderFilter;
+      const matchesMaternity = maternityFilter === 'all' || emp.maternity === maternityFilter;
+      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus && matchesGender && matchesMaternity;
+    });
+    
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aVal: any = '';
+        let bVal: any = '';
+        
+        switch (sortColumn) {
+          case 'name':
+            aVal = a.full_name || '';
+            bVal = b.full_name || '';
+            break;
+          case 'position':
+            aVal = a.position || '';
+            bVal = b.position || '';
+            break;
+          case 'branch':
+            aVal = a.branch || '';
+            bVal = b.branch || '';
+            break;
+          case 'category':
+            aVal = a.category || '';
+            bVal = b.category || '';
+            break;
+          case 'status':
+            aVal = a.employment_status || '';
+            bVal = b.employment_status || '';
+            break;
+          case 'date_hired':
+            aVal = new Date(a.date_hired).getTime();
+            bVal = new Date(b.date_hired).getTime();
+            break;
+          case 'age':
+            aVal = a.age || 0;
+            bVal = b.age || 0;
+            break;
+          case 'gender':
+            aVal = a.gender || '';
+            bVal = b.gender || '';
+            break;
+          default:
+            return 0;
+        }
+        
+        if (typeof aVal === 'string') {
+          const comparison = aVal.localeCompare(bVal);
+          return sortDirection === 'asc' ? comparison : -comparison;
+        } else {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+      });
+    }
+    
+    return filtered;
+  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
+
+  // Filter employees for Store Manpower tab (store positions only)
+  const storeFilteredEmployees = useMemo(() => {
+    let filtered = employees.filter(emp => {
+      const matchesSearch = !searchQuery || 
+        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // First filter by global branch using branch_id
+      if (globalBranchId && emp.branch_id !== globalBranchId) {
+        return false;
+      }
+      
+      // Filter for store positions only
+      const isOfficePosition = officePositions.some(pos => 
+        pos.toLowerCase() === emp.position?.toLowerCase()
+      );
+      if (isOfficePosition) return false; // Exclude office positions
+      
+      // Then apply local filters
+      const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
+      const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
+      const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
+      const matchesGender = genderFilter === 'all' || emp.gender === genderFilter;
+      const matchesMaternity = maternityFilter === 'all' || emp.maternity === maternityFilter;
+      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus && matchesGender && matchesMaternity;
+    });
+    
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aVal: any = '';
+        let bVal: any = '';
+        
+        switch (sortColumn) {
+          case 'name':
+            aVal = a.full_name || '';
+            bVal = b.full_name || '';
+            break;
+          case 'position':
+            aVal = a.position || '';
+            bVal = b.position || '';
+            break;
+          case 'branch':
+            aVal = a.branch || '';
+            bVal = b.branch || '';
+            break;
+          case 'category':
+            aVal = a.category || '';
+            bVal = b.category || '';
+            break;
+          case 'status':
+            aVal = a.employment_status || '';
+            bVal = b.employment_status || '';
+            break;
+          case 'date_hired':
+            aVal = new Date(a.date_hired).getTime();
+            bVal = new Date(b.date_hired).getTime();
+            break;
+          case 'age':
+            aVal = a.age || 0;
+            bVal = b.age || 0;
+            break;
+          case 'gender':
+            aVal = a.gender || '';
+            bVal = b.gender || '';
+            break;
+          default:
+            return 0;
+        }
+        
+        if (typeof aVal === 'string') {
+          const comparison = aVal.localeCompare(bVal);
+          return sortDirection === 'asc' ? comparison : -comparison;
+        } else {
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+      });
+    }
+    
+    return filtered;
+  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
+
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -1626,10 +1795,14 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-4xl grid-cols-5">
+        <TabsList className="grid w-full max-w-5xl grid-cols-6">
           <TabsTrigger value="manpower" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Manpower Database
+            Store Manpower
+          </TabsTrigger>
+          <TabsTrigger value="office-manpower" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Office Manpower
           </TabsTrigger>
           <TabsTrigger value="manpower-summary" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
@@ -1645,7 +1818,7 @@ const Manpower = () => {
           </TabsTrigger>
           <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
             <Trash2 className="h-4 w-4" />
-            Recently Deleted ({deletedEmployees.length})
+            Deleted ({deletedEmployees.length})
           </TabsTrigger>
         </TabsList>
 
@@ -1833,17 +2006,17 @@ const Manpower = () => {
                       Loading...
                     </TableCell>
                   </TableRow>
-                ) : filteredEmployees.length === 0 ? (
+                ) : storeFilteredEmployees.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8 text-muted-foreground">
-                      No employees found
+                      No store employees found
                     </TableCell>
                   </TableRow>
                 ) : (
                   (() => {
                     // Group employees by branch for visual separation
-                    const groupedByBranch: Record<string, typeof filteredEmployees> = {};
-                    filteredEmployees.forEach(emp => {
+                    const groupedByBranch: Record<string, typeof storeFilteredEmployees> = {};
+                    storeFilteredEmployees.forEach(emp => {
                       const branchName = emp.branch || emp.branches?.name || 'Unknown';
                       if (!groupedByBranch[branchName]) {
                         groupedByBranch[branchName] = [];
@@ -1979,6 +2152,333 @@ const Manpower = () => {
           </ScrollArea>
         </CardContent>
         </Card>
+        </TabsContent>
+
+        {/* Office Manpower Tab */}
+        <TabsContent value="office-manpower" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-[400px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by Emp ID, Name, Branch, Position..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={branchFilter} onValueChange={setBranchFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {uniqueBranches.map(branch => (
+                      <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={positionFilter} onValueChange={setPositionFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Positions</SelectItem>
+                    {officePositions.map(pos => (
+                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categoryOptions.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {statusOptions.map(status => (
+                      <SelectItem key={status} value={status.toLowerCase()}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={genderFilter} onValueChange={setGenderFilter}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Gender</SelectItem>
+                    {genderOptions.map(gender => (
+                      <SelectItem key={gender} value={gender}>{gender}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Office Employees Table */}
+          <Card>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      {columns.find(c => c.key === 'branch')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'branch')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('branch')}
+                        >
+                          <div className="flex items-center">Branch<SortIcon column="branch" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[50px]">Photo</TableHead>}
+                      {columns.find(c => c.key === 'name')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'name')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('name')}
+                        >
+                          <div className="flex items-center">Employee Name<SortIcon column="name" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'gender')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'gender')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('gender')}
+                        >
+                          <div className="flex items-center">Gender<SortIcon column="gender" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'age')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'age')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('age')}
+                        >
+                          <div className="flex items-center">Age<SortIcon column="age" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'position')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'position')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('position')}
+                        >
+                          <div className="flex items-center">Position<SortIcon column="position" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'category')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'category')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('category')}
+                        >
+                          <div className="flex items-center">Category<SortIcon column="category" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'status')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'status')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('status')}
+                        >
+                          <div className="flex items-center">Status<SortIcon column="status" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'date_hired')?.visible && (
+                        <TableHead 
+                          style={{ width: columns.find(c => c.key === 'date_hired')?.width }} 
+                          className="cursor-pointer hover:bg-muted/80 select-none"
+                          onClick={() => handleSort('date_hired')}
+                        >
+                          <div className="flex items-center">Date Hired<SortIcon column="date_hired" /></div>
+                        </TableHead>
+                      )}
+                      {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
+                      {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
+                      {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
+                      {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
+                      {columns.find(c => c.key === 'actions')?.visible && <TableHead className="w-[120px]">Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8">
+                          Loading...
+                        </TableCell>
+                      </TableRow>
+                    ) : officeFilteredEmployees.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8 text-muted-foreground">
+                          No office employees found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (() => {
+                        // Group employees by branch for visual separation
+                        const groupedByBranch: Record<string, typeof officeFilteredEmployees> = {};
+                        officeFilteredEmployees.forEach(emp => {
+                          const branchName = emp.branch || emp.branches?.name || 'Unknown';
+                          if (!groupedByBranch[branchName]) {
+                            groupedByBranch[branchName] = [];
+                          }
+                          groupedByBranch[branchName].push(emp);
+                        });
+                        
+                        const branchNames = Object.keys(groupedByBranch).sort();
+                        
+                        return branchNames.map((branchName, branchIndex) => (
+                          <React.Fragment key={branchName}>
+                            {/* Branch separator row */}
+                            {branchIndex > 0 && (
+                              <TableRow className="bg-muted/30 border-t-2 border-primary/20">
+                                <TableCell 
+                                  colSpan={columns.filter(c => c.visible).length} 
+                                  className="py-2"
+                                >
+                                  <div className="w-full border-t border-dashed border-muted-foreground/30" />
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {/* Branch header row */}
+                            <TableRow className="bg-primary/5 border-l-4 border-l-primary">
+                              <TableCell 
+                                colSpan={columns.filter(c => c.visible).length} 
+                                className="py-2"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-primary">
+                                    {branchName.toUpperCase()} ({groupedByBranch[branchName].length} office employees)
+                                  </span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 gap-1 text-xs"
+                                    onClick={() => handleExportBranchPDF(branchName, groupedByBranch[branchName])}
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    Save PDF
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {/* Employees in this branch */}
+                            {groupedByBranch[branchName].map((emp) => (
+                              <TableRow key={emp.id} className="hover:bg-muted/30">
+                                {columns.find(c => c.key === 'branch')?.visible && (
+                                  <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'photo')?.visible && (
+                                  <TableCell>
+                                    <Avatar 
+                                      className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
+                                      onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
+                                    >
+                                      <AvatarImage src={emp.photo_url || ''} />
+                                      <AvatarFallback className="text-xs">
+                                        {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </TableCell>
+                                )}
+                                {columns.find(c => c.key === 'name')?.visible && (
+                                  <TableCell className="font-medium">{emp.full_name}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'gender')?.visible && (
+                                  <TableCell>{emp.gender || '-'}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'age')?.visible && (
+                                  <TableCell>{emp.age || '-'}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'position')?.visible && (
+                                  <TableCell>{emp.position || '-'}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'category')?.visible && (
+                                  <TableCell>{emp.category || '-'}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'status')?.visible && (
+                                  <TableCell>
+                                    <Badge variant="outline" className={cn(
+                                      emp.employment_status.toLowerCase() === 'regular' && 'bg-green-100 text-green-700 border-green-300',
+                                      emp.employment_status.toLowerCase() === 'probationary' && 'bg-amber-100 text-amber-700 border-amber-300',
+                                      emp.employment_status.toLowerCase() === 'resigned' && 'bg-red-100 text-red-700 border-red-300'
+                                    )}>
+                                      {emp.employment_status}
+                                    </Badge>
+                                  </TableCell>
+                                )}
+                                {columns.find(c => c.key === 'date_hired')?.visible && (
+                                  <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'service')?.visible && (
+                                  <TableCell>
+                                    {(() => {
+                                      const years = differenceInYears(new Date(), new Date(emp.date_hired));
+                                      const months = differenceInMonths(new Date(), new Date(emp.date_hired)) % 12;
+                                      return `${years}y ${months}m`;
+                                    })()}
+                                  </TableCell>
+                                )}
+                                {columns.find(c => c.key === 'contact')?.visible && (
+                                  <TableCell>{emp.cell_no || '-'}</TableCell>
+                                )}
+                                {columns.find(c => c.key === 'address')?.visible && (
+                                  <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>
+                                    {emp.address || '-'}
+                                  </TableCell>
+                                )}
+                                {columns.find(c => c.key === 'remarks')?.visible && (
+                                  <TableCell className="max-w-[150px] truncate" title={emp.remarks || ''}>
+                                    {emp.remarks || '-'}
+                                  </TableCell>
+                                )}
+                                {columns.find(c => c.key === 'actions')?.visible && (
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setViewingEmployee(emp)}>
+                                        <Eye className="h-3.5 w-3.5" />
+                                      </Button>
+                                      {canEdit && (
+                                        <>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(emp)}>
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </Button>
+                                          {userRole === 'admin' && (
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(emp.id)}>
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))}
+                          </React.Fragment>
+                        ));
+                      })()
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Manpower Summary Tab */}
