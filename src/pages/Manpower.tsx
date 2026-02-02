@@ -1616,6 +1616,33 @@ const Manpower = () => {
     doc.save(`manpower-${branchName.replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
+  // Export status employees to PDF
+  const handleExportStatusPDF = (status: string, employees: Array<{ name: string; branch: string; date: string; photo_url?: string; position?: string }>) => {
+    const doc = new jsPDF('portrait');
+    const statusLabel = status.replace('_', ' ').toUpperCase();
+    doc.setFontSize(16);
+    doc.text(`${statusLabel} Employees`, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Month: ${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear} | Total: ${employees.length} employees`, 14, 22);
+
+    const tableData = employees.map((emp, idx) => [
+      (idx + 1).toString(),
+      emp.name,
+      emp.branch,
+      format(new Date(emp.date), 'MMM dd, yyyy')
+    ]);
+
+    autoTable(doc, {
+      head: [['#', 'Employee Name', 'Branch', 'Date']],
+      body: tableData,
+      startY: 28,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: status === 'absent' ? [239, 68, 68] : status === 'late' ? [245, 158, 11] : status === 'day_off' ? [59, 130, 246] : status === 'present' ? [34, 197, 94] : [107, 114, 128] }
+    });
+
+    doc.save(`${status}-employees-${MONTHS[parseInt(attendanceMonth)]}-${attendanceYear}.pdf`);
+  };
+
   const updateFormField = useCallback((field: string, value: string) => {
     setForm(prev => {
       const updated = { ...prev, [field]: value };
@@ -3051,10 +3078,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge variant="destructive" className="text-xs">Absent</Badge>
-                          ({attendanceSummary.employeesByStatus['absent'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge variant="destructive" className="text-xs">Absent</Badge>
+                            ({attendanceSummary.employeesByStatus['absent'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('absent', attendanceSummary.employeesByStatus['absent']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
@@ -3099,10 +3140,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge className="text-xs bg-amber-500">Late</Badge>
-                          ({attendanceSummary.employeesByStatus['late'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge className="text-xs bg-amber-500">Late</Badge>
+                            ({attendanceSummary.employeesByStatus['late'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('late', attendanceSummary.employeesByStatus['late']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['late'].map((emp, idx) => (
@@ -3147,10 +3202,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge className="text-xs bg-blue-500">Day Off</Badge>
-                          ({attendanceSummary.employeesByStatus['day_off'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge className="text-xs bg-blue-500">Day Off</Badge>
+                            ({attendanceSummary.employeesByStatus['day_off'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('day_off', attendanceSummary.employeesByStatus['day_off']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
@@ -3195,10 +3264,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge className="text-xs bg-green-500">Present</Badge>
-                          ({attendanceSummary.employeesByStatus['present'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge className="text-xs bg-green-500">Present</Badge>
+                            ({attendanceSummary.employeesByStatus['present'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('present', attendanceSummary.employeesByStatus['present']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['present'].map((emp, idx) => (
@@ -3246,10 +3329,24 @@ const Manpower = () => {
                             </Card>
                           </PopoverTrigger>
                           <PopoverContent className="w-96 p-4" align="start">
-                            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                              <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
-                              ({employees.length})
-                            </p>
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-sm font-semibold flex items-center gap-2">
+                                <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                                ({employees.length})
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExportStatusPDF(status, employees);
+                                }}
+                              >
+                                <FileText className="h-3 w-3" />
+                                Save PDF
+                              </Button>
+                            </div>
                             <ScrollArea className="h-[350px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
@@ -3743,10 +3840,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge className="text-xs bg-green-500">Present</Badge>
-                          ({officeAttendanceSummary.employeesByStatus['present'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge className="text-xs bg-green-500">Present</Badge>
+                            ({officeAttendanceSummary.employeesByStatus['present'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('present', officeAttendanceSummary.employeesByStatus['present']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['present'].map((emp, idx) => (
@@ -3791,10 +3902,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge variant="destructive" className="text-xs">Absent</Badge>
-                          ({officeAttendanceSummary.employeesByStatus['absent'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge variant="destructive" className="text-xs">Absent</Badge>
+                            ({officeAttendanceSummary.employeesByStatus['absent'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('absent', officeAttendanceSummary.employeesByStatus['absent']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
@@ -3839,10 +3964,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge className="text-xs bg-amber-500">Late</Badge>
-                          ({officeAttendanceSummary.employeesByStatus['late'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge className="text-xs bg-amber-500">Late</Badge>
+                            ({officeAttendanceSummary.employeesByStatus['late'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('late', officeAttendanceSummary.employeesByStatus['late']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['late'].map((emp, idx) => (
@@ -3887,10 +4026,24 @@ const Manpower = () => {
                         </Card>
                       </PopoverTrigger>
                       <PopoverContent className="w-96 p-4" align="start">
-                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <Badge className="text-xs bg-blue-500">Day Off</Badge>
-                          ({officeAttendanceSummary.employeesByStatus['day_off'].length})
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold flex items-center gap-2">
+                            <Badge className="text-xs bg-blue-500">Day Off</Badge>
+                            ({officeAttendanceSummary.employeesByStatus['day_off'].length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExportStatusPDF('day_off', officeAttendanceSummary.employeesByStatus['day_off']);
+                            }}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Save PDF
+                          </Button>
+                        </div>
                         <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
@@ -3938,10 +4091,24 @@ const Manpower = () => {
                             </Card>
                           </PopoverTrigger>
                           <PopoverContent className="w-96 p-4" align="start">
-                            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                              <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
-                              ({employees.length})
-                            </p>
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-sm font-semibold flex items-center gap-2">
+                                <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                                ({employees.length})
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExportStatusPDF(status, employees);
+                                }}
+                              >
+                                <FileText className="h-3 w-3" />
+                                Save PDF
+                              </Button>
+                            </div>
                             <ScrollArea className="h-[350px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
