@@ -253,91 +253,9 @@ export function TaskCalendar() {
   const selectedDayTasks = sidebarSelectedDate ? getTasksForDay(sidebarSelectedDate) : [];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Left Sidebar - Mini Calendar & Summary */}
-      <div className="lg:w-72 space-y-4 flex-shrink-0">
-        {/* Mini Calendar */}
-        <Card className="overflow-hidden shadow-sm">
-          <CardHeader className="pb-2 bg-muted/50">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              {format(currentDate, 'MMMM yyyy')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 flex justify-center">
-            <Calendar
-              mode="single"
-              selected={sidebarSelectedDate || undefined}
-              onSelect={(date) => {
-                if (date) {
-                  setSidebarSelectedDate(date);
-                  setCurrentDate(date);
-                }
-              }}
-              month={currentDate}
-              onMonthChange={setCurrentDate}
-              className="pointer-events-auto w-full max-w-[260px]"
-              modifiers={{
-                hasTask: datesWithTasks,
-              }}
-              modifiersClassNames={{
-                hasTask: 'bg-primary/20 font-bold',
-              }}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Selected Day's Tasks */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3 bg-muted/50">
-            <CardTitle className="text-sm font-medium">
-              {sidebarSelectedDate 
-                ? format(sidebarSelectedDate, 'MMMM d, yyyy')
-                : 'Select a date'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[200px]">
-              <div className="p-4 space-y-2">
-                {!sidebarSelectedDate ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Click on a date to see tasks
-                  </p>
-                ) : selectedDayTasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No tasks for this day
-                  </p>
-                ) : (
-                  selectedDayTasks.map((task) => {
-                    const colors = getColorClasses(task.color);
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={(e) => openEditModal(task, e)}
-                        className={cn(
-                          "p-3 rounded-lg cursor-pointer transition-all hover:shadow-md border-l-4",
-                          colors.light
-                        )}
-                        style={{ borderLeftColor: colors.hex }}
-                      >
-                        <p className="font-medium text-sm">{task.title}</p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
-
+    <div className="w-full">
       {/* Main Calendar View */}
-      <Card className="flex-1 overflow-hidden shadow-sm">
+      <Card className="w-full overflow-hidden shadow-sm">
         {/* Header */}
         <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 border-b bg-muted/30">
           <div className="flex items-center gap-4">
@@ -416,9 +334,9 @@ export function TaskCalendar() {
                           key={day.toISOString()}
                           onClick={() => openCreateModal(day)}
                           className={cn(
-                            "min-h-[100px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
+                            "min-h-[130px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
                             !isCurrentMonth && "bg-muted/20 opacity-60",
-                            isTodayDate && "bg-blue-50/50 dark:bg-blue-950/20",
+                            isTodayDate && "bg-primary/5 dark:bg-primary/10",
                             !canEdit && "cursor-default"
                           )}
                         >
