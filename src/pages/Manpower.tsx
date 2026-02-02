@@ -2552,12 +2552,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge variant="destructive" className="text-xs">Absent</Badge>
                           ({attendanceSummary.employeesByStatus['absent'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2600,12 +2600,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge className="text-xs bg-amber-500">Late</Badge>
                           ({attendanceSummary.employeesByStatus['late'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['late'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2648,12 +2648,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge className="text-xs bg-blue-500">Day Off</Badge>
                           ({attendanceSummary.employeesByStatus['day_off'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2696,12 +2696,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge className="text-xs bg-green-500">Present</Badge>
                           ({attendanceSummary.employeesByStatus['present'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['present'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -2747,12 +2747,12 @@ const Manpower = () => {
                               </CardContent>
                             </Card>
                           </PopoverTrigger>
-                          <PopoverContent className="w-80 p-3" align="start">
-                            <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <PopoverContent className="w-96 p-4" align="start">
+                            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                               <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
                               ({employees.length})
                             </p>
-                            <ScrollArea className="h-[250px]">
+                            <ScrollArea className="h-[350px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
                                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3244,12 +3244,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge className="text-xs bg-green-500">Present</Badge>
                           ({officeAttendanceSummary.employeesByStatus['present'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['present'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3292,12 +3292,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge variant="destructive" className="text-xs">Absent</Badge>
                           ({officeAttendanceSummary.employeesByStatus['absent'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3340,12 +3340,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge className="text-xs bg-amber-500">Late</Badge>
                           ({officeAttendanceSummary.employeesByStatus['late'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['late'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3388,12 +3388,12 @@ const Manpower = () => {
                           </CardContent>
                         </Card>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <PopoverContent className="w-96 p-4" align="start">
+                        <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                           <Badge className="text-xs bg-blue-500">Day Off</Badge>
                           ({officeAttendanceSummary.employeesByStatus['day_off'].length})
                         </p>
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[350px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3439,12 +3439,12 @@ const Manpower = () => {
                               </CardContent>
                             </Card>
                           </PopoverTrigger>
-                          <PopoverContent className="w-80 p-3" align="start">
-                            <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <PopoverContent className="w-96 p-4" align="start">
+                            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
                               <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
                               ({employees.length})
                             </p>
-                            <ScrollArea className="h-[250px]">
+                            <ScrollArea className="h-[350px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
                                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
