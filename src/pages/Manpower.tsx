@@ -342,7 +342,7 @@ const Manpower = () => {
       
       const { data, error } = await supabase
         .from('attendance_records')
-        .select('*, employees(full_name, branch, category, position, photo_url, is_active, deleted_at)')
+        .select('*, employees(full_name, branch, category, position, photo_url, is_active, deleted_at, date_hired, employment_status)')
         .gte('attendance_date', startDate)
         .lte('attendance_date', endDate);
       
