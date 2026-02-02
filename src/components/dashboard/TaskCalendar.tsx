@@ -334,7 +334,7 @@ export function TaskCalendar() {
                           key={day.toISOString()}
                           onClick={() => openCreateModal(day)}
                           className={cn(
-                            "min-h-[130px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
+                            "min-h-[160px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
                             !isCurrentMonth && "bg-muted/20 opacity-60",
                             isTodayDate && "bg-primary/5 dark:bg-primary/10",
                             !canEdit && "cursor-default"
