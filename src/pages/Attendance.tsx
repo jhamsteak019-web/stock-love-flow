@@ -959,7 +959,9 @@ const Attendance = () => {
         change_day_off: 'Change Day off',
         change_of_schedule: 'Change of Schedule',
         cancel_day_off: 'Cancel Day off',
-        other_concern: 'Other Concern'
+        other_concern: 'Other Concern',
+        awol: 'AWOL',
+        resign: 'Resign'
       };
       return statusMap[status] || status;
     };
@@ -1087,6 +1089,10 @@ const Attendance = () => {
         return <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30">Cancel Day off</Badge>;
       case 'other_concern':
         return <Badge className="bg-gray-500/20 text-gray-700 border-gray-500/30">Other Concern</Badge>;
+      case 'awol':
+        return <Badge className="bg-red-700/20 text-red-800 border-red-700/30">AWOL</Badge>;
+      case 'resign':
+        return <Badge className="bg-stone-500/20 text-stone-700 border-stone-500/30">Resign</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -1331,6 +1337,8 @@ const Attendance = () => {
                 <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                 <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                 <SelectItem value="other_concern">Other Concern</SelectItem>
+                <SelectItem value="awol">AWOL</SelectItem>
+                <SelectItem value="resign">Resign</SelectItem>
               </SelectContent>
             </Select>
             {canAdd && (
@@ -1532,6 +1540,8 @@ const Attendance = () => {
                               <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                               <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                               <SelectItem value="other_concern">Other Concern</SelectItem>
+                              <SelectItem value="awol">AWOL</SelectItem>
+                              <SelectItem value="resign">Resign</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1659,6 +1669,8 @@ const Attendance = () => {
                               <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                               <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                               <SelectItem value="other_concern">Other Concern</SelectItem>
+                              <SelectItem value="awol">AWOL</SelectItem>
+                              <SelectItem value="resign">Resign</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
