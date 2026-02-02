@@ -1215,7 +1215,7 @@ const Attendance = () => {
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Hindi pa nakakapag Attendance</p>
+                  <p className="text-sm text-muted-foreground">Not Yet Recorded</p>
                   {unrecordedByBranch.length > 0 ? (
                     <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
                       {unrecordedByBranch.slice(0, 3).map(({ branch, count }) => (
@@ -1236,7 +1236,7 @@ const Attendance = () => {
             </Card>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3" align="end">
-            <p className="text-sm font-semibold mb-2">Hindi pa nakakapag Attendance by Branch</p>
+            <p className="text-sm font-semibold mb-2">Not Yet Recorded by Branch</p>
             {unrecordedByBranch.length > 0 ? (
               <ScrollArea className="max-h-48">
                 <div className="space-y-1">
@@ -1249,7 +1249,7 @@ const Attendance = () => {
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-sm text-muted-foreground">Lahat ng employees may attendance na</p>
+              <p className="text-sm text-muted-foreground">All employees have attendance recorded</p>
             )}
           </PopoverContent>
         </Popover>
