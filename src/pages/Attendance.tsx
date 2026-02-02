@@ -1210,28 +1210,49 @@ const Attendance = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Present Today by Branch</p>
-              {presentByBranch.length > 0 ? (
-                <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
-                  {presentByBranch.slice(0, 3).map(({ branch, count }) => (
-                    <div key={branch} className="flex justify-between text-sm">
-                      <span className="truncate text-xs">{branch}</span>
-                      <Badge variant="secondary" className="ml-1 text-xs">{count}</Badge>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Hindi pa nakakapag Attendance</p>
+                  {unrecordedByBranch.length > 0 ? (
+                    <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
+                      {unrecordedByBranch.slice(0, 3).map(({ branch, count }) => (
+                        <div key={branch} className="flex justify-between text-sm">
+                          <span className="truncate text-xs">{branch}</span>
+                          <Badge variant="secondary" className="ml-1 text-xs">{count}</Badge>
+                        </div>
+                      ))}
+                      {unrecordedByBranch.length > 3 && (
+                        <p className="text-xs text-muted-foreground">+{unrecordedByBranch.length - 3} more</p>
+                      )}
                     </div>
-                  ))}
-                  {presentByBranch.length > 3 && (
-                    <p className="text-xs text-muted-foreground">+{presentByBranch.length - 3} more</p>
+                  ) : (
+                    <p className="text-lg font-bold text-green-600">All Recorded ✓</p>
                   )}
                 </div>
-              ) : (
-                <p className="text-lg font-bold text-muted-foreground">-</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <p className="text-sm font-semibold mb-2">Hindi pa nakakapag Attendance by Branch</p>
+            {unrecordedByBranch.length > 0 ? (
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {unrecordedByBranch.map(({ branch, count }) => (
+                    <div key={branch} className="flex justify-between text-sm">
+                      <span className="truncate max-w-[160px]">{branch}</span>
+                      <Badge variant="secondary" className="ml-2">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground">Lahat ng employees may attendance na</p>
+            )}
+          </PopoverContent>
+        </Popover>
         <Popover>
           <PopoverTrigger asChild>
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
