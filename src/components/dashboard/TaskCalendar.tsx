@@ -532,10 +532,10 @@ export function TaskCalendar() {
                       onClick={(e) => openEditModal(task, e)}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm">{task.title}</p>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <p className="font-semibold text-sm break-words">{task.title}</p>
                           {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                            <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap break-words overflow-wrap-anywhere">
                               {task.description}
                             </p>
                           )}
