@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,6 +61,161 @@ export function TaskCalendar() {
   
   const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
+
+  // Print to PDF function
+  const handlePrintCalendar = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to print');
+      return;
+    }
+
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calendarStart = startOfWeek(monthStart);
+    const calendarEnd = endOfWeek(monthEnd);
+    const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    
+    // Group days into weeks
+    const printWeeks: Date[][] = [];
+    for (let i = 0; i < allDays.length; i += 7) {
+      printWeeks.push(allDays.slice(i, i + 7));
+    }
+
+    const tasksHtml = printWeeks.map((week) => {
+      const weekCells = week.map((day, dayIndex) => {
+        const dayTasks = getTasksForDay(day);
+        const isCurrentMonth = isSameMonth(day, currentDate);
+        const isTodayDate = isToday(day);
+        
+        const dayColor = dayIndex === 0 ? '#ef4444' : dayIndex === 6 ? '#3b82f6' : '#000';
+        
+        const tasksListHtml = dayTasks.map(task => {
+          const colorClass = getColorClasses(task.color);
+          return `
+            <div style="background: ${colorClass.hex}; color: white; padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 11px;">
+              <div style="font-weight: 600;">${task.title}</div>
+              ${task.description ? `<div style="font-size: 10px; opacity: 0.9; margin-top: 2px;">${task.description}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <td style="
+            border: 1px solid #e5e7eb; 
+            padding: 8px; 
+            vertical-align: top; 
+            width: 14.28%; 
+            height: 120px;
+            ${!isCurrentMonth ? 'background: #f9fafb; opacity: 0.6;' : ''}
+            ${isTodayDate ? 'background: #eff6ff;' : ''}
+          ">
+            <div style="display: flex; justify-content: flex-start; margin-bottom: 6px;">
+              <span style="
+                font-weight: 600; 
+                font-size: 14px; 
+                color: ${dayColor};
+                ${isTodayDate ? 'background: #3b82f6; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;' : ''}
+              ">
+                ${format(day, 'd')}
+              </span>
+            </div>
+            <div>${tasksListHtml}</div>
+          </td>
+        `;
+      }).join('');
+
+      return `<tr>${weekCells}</tr>`;
+    }).join('');
+
+    const headerCells = dayHeaders.map((day, index) => {
+      const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#374151';
+      return `<th style="padding: 12px; text-align: center; font-weight: 600; font-size: 13px; color: ${color}; background: #f3f4f6; border: 1px solid #e5e7eb;">${day}</th>`;
+    }).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Task Calendar - ${format(currentDate, 'MMMM yyyy')}</title>
+          <style>
+            @page { 
+              size: landscape; 
+              margin: 15mm;
+            }
+            * { 
+              margin: 0; 
+              padding: 0; 
+              box-sizing: border-box; 
+            }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+              padding: 20px; 
+              color: #000; 
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 20px; 
+              padding-bottom: 15px;
+              border-bottom: 2px solid #3b82f6;
+            }
+            .header h1 { 
+              font-size: 28px; 
+              font-weight: 700; 
+              color: #1f2937;
+              margin-bottom: 5px;
+            }
+            .header p {
+              font-size: 12px;
+              color: #6b7280;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              table-layout: fixed;
+            }
+            .footer {
+              margin-top: 15px;
+              text-align: center;
+              font-size: 10px;
+              color: #9ca3af;
+            }
+            @media print {
+              body { padding: 0; }
+              .header { margin-bottom: 15px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📅 Task Calendar</h1>
+            <p>${format(currentDate, 'MMMM yyyy')}${selectedBranch ? ` • ${selectedBranch.name}` : ''}</p>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>${headerCells}</tr>
+            </thead>
+            <tbody>
+              ${tasksHtml}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            Printed on ${format(new Date(), 'MMMM d, yyyy h:mm a')}
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery({
@@ -313,6 +468,10 @@ export function TaskCalendar() {
             </div>
             <Button variant="outline" size="sm" onClick={goToToday}>
               Today
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrintCalendar}>
+              <Printer className="h-4 w-4 mr-1" />
+              Print PDF
             </Button>
             {canEdit && (
               <Button size="sm" onClick={() => openCreateModal(new Date())}>
