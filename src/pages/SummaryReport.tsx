@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
+import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { format, differenceInDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
@@ -23,7 +24,7 @@ const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const SummaryReport = () => {
-  const { releases, items, loading } = useInventory();
+  const { items, loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const currentYear = new Date().getFullYear();
