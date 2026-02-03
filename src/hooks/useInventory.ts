@@ -55,6 +55,9 @@ export const useInventory = () => {
           inventory_item:inventory_items(*)
         `)
         .is('deleted_at', null)
+        // PostgREST default limit is 1000 rows; Dashboard totals become incomplete when dataset grows.
+        // Fetch a larger range to ensure totals and charts have complete data.
+        .range(0, 4999)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -73,6 +76,7 @@ export const useInventory = () => {
           inventory_item:inventory_items(*)
         `)
         .not('deleted_at', 'is', null)
+        .range(0, 4999)
         .order('deleted_at', { ascending: false });
 
       if (error) throw error;
