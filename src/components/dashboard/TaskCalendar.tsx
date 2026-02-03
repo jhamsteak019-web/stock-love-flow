@@ -503,11 +503,16 @@ export function TaskCalendar() {
 
       {/* View Tasks Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh]">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <CalendarDays className="h-5 w-5" />
               {viewingDate ? format(viewingDate, 'EEEE, MMMM d, yyyy') : 'Tasks'}
+              {viewingDate && getTasksForDay(viewingDate).length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {getTasksForDay(viewingDate).length} {getTasksForDay(viewingDate).length === 1 ? 'task' : 'tasks'}
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
           
