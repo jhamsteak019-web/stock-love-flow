@@ -503,7 +503,7 @@ export function TaskCalendar() {
 
       {/* View Tasks Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh]">
+        <DialogContent className="sm:max-w-6xl w-[95vw] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <CalendarDays className="h-5 w-5" />
