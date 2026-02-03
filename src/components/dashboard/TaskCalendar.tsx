@@ -49,6 +49,8 @@ export function TaskCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingDate, setViewingDate] = useState<Date | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState({ title: '', description: '', color: 'blue' });
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -182,11 +184,30 @@ export function TaskCalendar() {
     return result;
   }, [calendarDays]);
 
+  const openViewModal = (date: Date) => {
+    setViewingDate(date);
+    setIsViewModalOpen(true);
+  };
+
+  const closeViewModal = () => {
+    setIsViewModalOpen(false);
+    setViewingDate(null);
+  };
+
   const openCreateModal = (date: Date) => {
     if (!canEdit) return;
     setSelectedDate(date);
     setEditingTask(null);
     setFormData({ title: '', description: '', color: 'blue' });
+    setIsModalOpen(true);
+  };
+
+  const openCreateFromViewModal = () => {
+    if (!canEdit || !viewingDate) return;
+    setSelectedDate(viewingDate);
+    setEditingTask(null);
+    setFormData({ title: '', description: '', color: 'blue' });
+    setIsViewModalOpen(false);
     setIsModalOpen(true);
   };
 
@@ -199,6 +220,7 @@ export function TaskCalendar() {
       description: task.description || '',
       color: task.color,
     });
+    setIsViewModalOpen(false);
     setIsModalOpen(true);
   };
 
@@ -332,12 +354,11 @@ export function TaskCalendar() {
                       return (
                         <div
                           key={day.toISOString()}
-                          onClick={() => openCreateModal(day)}
+                          onClick={() => openViewModal(day)}
                           className={cn(
                             "min-h-[160px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
                             !isCurrentMonth && "bg-muted/20 opacity-60",
-                            isTodayDate && "bg-primary/5 dark:bg-primary/10",
-                            !canEdit && "cursor-default"
+                            isTodayDate && "bg-primary/5 dark:bg-primary/10"
                           )}
                         >
                           <div className="flex justify-between items-start mb-1">
@@ -422,18 +443,17 @@ export function TaskCalendar() {
                   return (
                     <div
                       key={day.toISOString()}
-                      onClick={() => openCreateModal(day)}
+                      onClick={() => openViewModal(day)}
                       className={cn(
                         "p-2 transition-all cursor-pointer hover:bg-accent/30 group",
-                        isTodayDate && "bg-blue-50/50 dark:bg-blue-950/20",
-                        !canEdit && "cursor-default"
+                        isTodayDate && "bg-primary/5 dark:bg-primary/10"
                       )}
                     >
                       <ScrollArea className="h-[360px]">
                         <div className="space-y-2 pr-2">
                           {dayTasks.length === 0 ? (
                             <p className="text-xs text-muted-foreground text-center py-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                              Click to add task
+                              Click to view
                             </p>
                           ) : (
                             dayTasks.map((task) => {
@@ -480,6 +500,75 @@ export function TaskCalendar() {
           )}
         </CardContent>
       </Card>
+
+      {/* View Tasks Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" />
+              {viewingDate ? format(viewingDate, 'EEEE, MMMM d, yyyy') : 'Tasks'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[50vh] pr-4">
+            {viewingDate && getTasksForDay(viewingDate).length === 0 ? (
+              <div className="text-center py-8">
+                <ListTodo className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">No tasks for this day</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {viewingDate && getTasksForDay(viewingDate).map((task) => {
+                  const colors = getColorClasses(task.color);
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "p-3 rounded-lg border-l-4 transition-all hover:shadow-md cursor-pointer",
+                        colors.light
+                      )}
+                      style={{ borderLeftColor: colors.hex }}
+                      onClick={(e) => openEditModal(task, e)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm">{task.title}</p>
+                          {task.description && (
+                            <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+                        {canDelete && (
+                          <button
+                            onClick={(e) => handleDelete(task.id, e)}
+                            className="p-1 hover:bg-destructive/10 rounded transition-all flex-shrink-0"
+                          >
+                            <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={closeViewModal}>
+              Close
+            </Button>
+            {canEdit && (
+              <Button onClick={openCreateFromViewModal}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Task
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Task Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
