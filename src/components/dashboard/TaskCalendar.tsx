@@ -503,7 +503,7 @@ export function TaskCalendar() {
 
       {/* View Tasks Modal */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="sm:max-w-6xl w-[95vw] max-h-[90vh]">
+        <DialogContent className="sm:max-w-6xl w-[95vw] h-[85vh] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <CalendarDays className="h-5 w-5" />
@@ -516,7 +516,7 @@ export function TaskCalendar() {
             </DialogTitle>
           </DialogHeader>
           
-          <ScrollArea className="max-h-[50vh] pr-4">
+          <ScrollArea className="flex-1 pr-4">
             {viewingDate && getTasksForDay(viewingDate).length === 0 ? (
               <div className="text-center py-8">
                 <ListTodo className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
