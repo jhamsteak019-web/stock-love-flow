@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth } from 'date-fns';
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth, parseISO, isValid, parse } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -107,6 +107,30 @@ const months = [
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
 
+const normalizeDateInputToISO = (value: string): string | null => {
+  if (!value) return null;
+
+  // ISO from <input type="date">
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const d = parseISO(value);
+    if (!isValid(d)) return null;
+    // strict (reject overflow like 2026-02-31)
+    if (format(d, 'yyyy-MM-dd') !== value) return null;
+    return value;
+  }
+
+  // Fallback (some browsers treat type=date as text)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const d = parse(value, 'MM/dd/yyyy', new Date());
+    if (!isValid(d)) return null;
+    // strict (reject overflow like 02/31/2026)
+    if (format(d, 'MM/dd/yyyy') !== value) return null;
+    return format(d, 'yyyy-MM-dd');
+  }
+
+  return null;
+};
+
 const Attendance = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -178,6 +202,11 @@ const Attendance = () => {
     remarks: '',
     notes: ''
   });
+
+  const bulkAttendanceDateISO = useMemo(
+    () => normalizeDateInputToISO(bulkForm.attendance_date),
+    [bulkForm.attendance_date]
+  );
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
@@ -350,6 +379,32 @@ const Attendance = () => {
     return branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id)).length;
   }, [attendanceRecords, employees, globalBranchId]);
 
+  // Calculate unrecorded employees grouped by branch (for popover)
+  const unrecordedByBranch = useMemo(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === today)
+      .map(r => r.employee_id);
+    
+    // Filter employees by global branch
+    const branchEmployees = globalBranchId 
+      ? employees.filter(e => e.branch_id === globalBranchId)
+      : employees;
+    
+    const unrecordedEmployees = branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id));
+    
+    // Group by branch
+    const branchCounts: Record<string, number> = {};
+    unrecordedEmployees.forEach(emp => {
+      const branchName = emp.branch || emp.branches?.name || 'Unknown';
+      branchCounts[branchName] = (branchCounts[branchName] || 0) + 1;
+    });
+    
+    return Object.entries(branchCounts)
+      .map(([branch, count]) => ({ branch, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [attendanceRecords, employees, globalBranchId]);
+
   // Get unique branch names from employees (Manpower database)
   const uniqueManpowerBranches = useMemo(() => {
     const branchNames = employees
@@ -360,26 +415,26 @@ const Attendance = () => {
 
   // Fetch employee IDs who already have attendance for the bulk date
   const { data: existingAttendanceForBulkDate = [] } = useQuery({
-    queryKey: ['attendance-bulk-date', bulkForm.attendance_date],
+    queryKey: ['attendance-bulk-date', bulkAttendanceDateISO],
     queryFn: async () => {
-      if (!bulkForm.attendance_date) return [];
+      if (!bulkAttendanceDateISO) return [];
       const { data, error } = await supabase
         .from('attendance_records')
         .select('employee_id')
-        .eq('attendance_date', bulkForm.attendance_date)
+        .eq('attendance_date', bulkAttendanceDateISO)
         .is('deleted_at', null);
       if (error) throw error;
       return data.map(r => r.employee_id);
     },
-    enabled: isBulkModalOpen && !!bulkForm.attendance_date
+    enabled: isBulkModalOpen && !!bulkAttendanceDateISO
   });
 
   // Fetch existing Day Off/Shift for each employee for the current month (set once per month)
   const { data: existingMonthlySchedules = [] } = useQuery({
-    queryKey: ['attendance-monthly-schedules', bulkForm.attendance_date],
+    queryKey: ['attendance-monthly-schedules', bulkAttendanceDateISO],
     queryFn: async () => {
-      if (!bulkForm.attendance_date) return [];
-      const date = new Date(bulkForm.attendance_date);
+      if (!bulkAttendanceDateISO) return [];
+      const date = parseISO(bulkAttendanceDateISO);
       const monthStart = format(startOfMonth(date), 'yyyy-MM-dd');
       const monthEnd = format(endOfMonth(date), 'yyyy-MM-dd');
       
@@ -394,7 +449,7 @@ const Attendance = () => {
       if (error) throw error;
       return data;
     },
-    enabled: isBulkModalOpen && !!bulkForm.attendance_date
+    enabled: isBulkModalOpen && !!bulkAttendanceDateISO
   });
 
   // Build a map of employee_id to their existing day_off/shift for the month
@@ -572,10 +627,20 @@ const Attendance = () => {
     mutationFn: async (data: { employeeIds: string[]; form: typeof bulkForm; dayOffs: Record<string, string>; shifts: Record<string, string> }) => {
       const records = data.employeeIds.map(employeeId => {
         const employee = employees.find(e => e.id === employeeId);
-        // Use existing monthly schedule if already set, otherwise use new value
+
+        // Use existing monthly schedule if already set, otherwise use new value.
+        // If admin unlocked a field, allow override for that field.
         const existingSchedule = employeeMonthlySchedule[employeeId];
-        const dayOff = existingSchedule?.day_off || data.dayOffs[employeeId] || null;
-        const shift = existingSchedule?.shift || data.shifts[employeeId] || null;
+        const dayOffUnlocked = isAdmin && !!unlockedEmployees[employeeId]?.dayOff;
+        const shiftUnlocked = isAdmin && !!unlockedEmployees[employeeId]?.shift;
+
+        const dayOff = dayOffUnlocked
+          ? (data.dayOffs[employeeId] || null)
+          : (existingSchedule?.day_off || data.dayOffs[employeeId] || null);
+
+        const shift = shiftUnlocked
+          ? (data.shifts[employeeId] || null)
+          : (existingSchedule?.shift || data.shifts[employeeId] || null);
         
         return {
           employee_id: employeeId,
@@ -608,6 +673,7 @@ const Attendance = () => {
       setBulkSearchQuery('');
       setBulkEmployeeDayOffs({});
       setBulkEmployeeShifts({});
+      setUnlockedEmployees({});
       setBulkForm({
         attendance_date: format(new Date(), 'yyyy-MM-dd'),
         status: 'present',
@@ -893,7 +959,9 @@ const Attendance = () => {
         change_day_off: 'Change Day off',
         change_of_schedule: 'Change of Schedule',
         cancel_day_off: 'Cancel Day off',
-        other_concern: 'Other Concern'
+        other_concern: 'Other Concern',
+        awol: 'AWOL',
+        resign: 'Resign'
       };
       return statusMap[status] || status;
     };
@@ -1021,6 +1089,10 @@ const Attendance = () => {
         return <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30">Cancel Day off</Badge>;
       case 'other_concern':
         return <Badge className="bg-gray-500/20 text-gray-700 border-gray-500/30">Other Concern</Badge>;
+      case 'awol':
+        return <Badge className="bg-red-700/20 text-red-800 border-red-700/30">AWOL</Badge>;
+      case 'resign':
+        return <Badge className="bg-stone-500/20 text-stone-700 border-stone-500/30">Resign</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -1144,39 +1216,81 @@ const Attendance = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Present Today by Branch</p>
-              {presentByBranch.length > 0 ? (
-                <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
-                  {presentByBranch.slice(0, 3).map(({ branch, count }) => (
-                    <div key={branch} className="flex justify-between text-sm">
-                      <span className="truncate text-xs">{branch}</span>
-                      <Badge variant="secondary" className="ml-1 text-xs">{count}</Badge>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Not Yet Recorded</p>
+                  {unrecordedByBranch.length > 0 ? (
+                    <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
+                      {unrecordedByBranch.slice(0, 3).map(({ branch, count }) => (
+                        <div key={branch} className="flex justify-between text-sm">
+                          <span className="truncate text-xs">{branch}</span>
+                          <Badge variant="secondary" className="ml-1 text-xs">{count}</Badge>
+                        </div>
+                      ))}
+                      {unrecordedByBranch.length > 3 && (
+                        <p className="text-xs text-muted-foreground">+{unrecordedByBranch.length - 3} more</p>
+                      )}
                     </div>
-                  ))}
-                  {presentByBranch.length > 3 && (
-                    <p className="text-xs text-muted-foreground">+{presentByBranch.length - 3} more</p>
+                  ) : (
+                    <p className="text-lg font-bold text-green-600">All Recorded ✓</p>
                   )}
                 </div>
-              ) : (
-                <p className="text-lg font-bold text-muted-foreground">-</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Unrecorded Today</p>
-                <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
-              </div>
-              <UserPlus className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <p className="text-sm font-semibold mb-2">Not Yet Recorded by Branch</p>
+            {unrecordedByBranch.length > 0 ? (
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {unrecordedByBranch.map(({ branch, count }) => (
+                    <div key={branch} className="flex justify-between text-sm">
+                      <span className="truncate max-w-[160px]">{branch}</span>
+                      <Badge variant="secondary" className="ml-2">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground">All employees have attendance recorded</p>
+            )}
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Unrecorded Today</p>
+                    <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
+                  </div>
+                  <UserPlus className="h-8 w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <p className="text-sm font-semibold mb-2">Unrecorded by Branch</p>
+            {unrecordedByBranch.length > 0 ? (
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {unrecordedByBranch.map(({ branch, count }) => (
+                    <div key={branch} className="flex justify-between text-sm">
+                      <span className="truncate max-w-[160px]">{branch}</span>
+                      <Badge variant="secondary" className="ml-2">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground">All employees recorded</p>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Filters and Actions */}
@@ -1223,6 +1337,8 @@ const Attendance = () => {
                 <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                 <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                 <SelectItem value="other_concern">Other Concern</SelectItem>
+                <SelectItem value="awol">AWOL</SelectItem>
+                <SelectItem value="resign">Resign</SelectItem>
               </SelectContent>
             </Select>
             {canAdd && (
@@ -1424,6 +1540,8 @@ const Attendance = () => {
                               <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                               <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                               <SelectItem value="other_concern">Other Concern</SelectItem>
+                              <SelectItem value="awol">AWOL</SelectItem>
+                              <SelectItem value="resign">Resign</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1551,6 +1669,8 @@ const Attendance = () => {
                               <SelectItem value="change_of_schedule">Change of Schedule</SelectItem>
                               <SelectItem value="cancel_day_off">Cancel Day off</SelectItem>
                               <SelectItem value="other_concern">Other Concern</SelectItem>
+                              <SelectItem value="awol">AWOL</SelectItem>
+                              <SelectItem value="resign">Resign</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1845,9 +1965,18 @@ const Attendance = () => {
                       <Button
                         className="w-full"
                         onClick={() => {
+                          const dateISO = bulkAttendanceDateISO;
+                          if (!dateISO) {
+                            toast({
+                              title: 'Error',
+                              description: 'Invalid date. Please pick a valid calendar date.',
+                              variant: 'destructive'
+                            });
+                            return;
+                          }
                           bulkCreateAttendanceMutation.mutate({
                             employeeIds: bulkSelectedEmployees,
-                            form: bulkForm,
+                            form: { ...bulkForm, attendance_date: dateISO },
                             dayOffs: bulkEmployeeDayOffs,
                             shifts: bulkEmployeeShifts
                           });
