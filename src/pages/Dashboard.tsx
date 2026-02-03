@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useInventory } from '@/hooks/useInventory';
+import { useStockReleasesForPeriod } from "@/hooks/useStockReleasesForPeriod";
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -27,7 +28,7 @@ const MONTHS = [
 const STORAGE_KEY = 'dashboard_filter';
 
 const Dashboard = () => {
-  const { releases, loading, getStats } = useInventory();
+  const { releases: allReleases, loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -59,26 +60,13 @@ const Dashboard = () => {
   
   const canExportPDF = userRole === 'admin' || userRole === 'staff';
 
-  // Filter releases by selected month, year, AND branch
-  const filteredReleases = useMemo(() => {
-    return releases.filter(release => {
-      // Filter by branch
-      if (selectedBranch && release.branch_id !== selectedBranch.id) {
-        return false;
-      }
-      // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
-      // Use timezone-agnostic string parsing (YYYY-MM-DD normalization) to avoid timezone issues
-      const dateToUse = release.set_date || release.date_released;
-      const dateStr = typeof dateToUse === 'string' ? dateToUse.split('T')[0] : '';
-      if (!dateStr) return false;
-      
-      const [yearStr, monthStr] = dateStr.split('-');
-      const releaseYear = parseInt(yearStr, 10);
-      const releaseMonth = parseInt(monthStr, 10) - 1; // Convert to 0-indexed month
-      
-      return releaseMonth === selectedMonth && releaseYear === selectedYear;
-    });
-  }, [releases, selectedMonth, selectedYear, selectedBranch]);
+  // IMPORTANT: Do NOT rely on useInventory() releases for month totals.
+  // useInventory() intentionally fetches only the newest N rows; older months become incomplete.
+  const { releases: filteredReleases, loading: periodLoading } = useStockReleasesForPeriod({
+    month: selectedMonth,
+    year: selectedYear,
+    branchId: selectedBranch?.id ?? null,
+  });
 
   // Use filtered releases for stats
   const stats = useMemo(() => {
@@ -313,7 +301,7 @@ const Dashboard = () => {
       totalQty: 0
     }));
 
-    releases.forEach(release => {
+    allReleases.forEach(release => {
       const releaseDate = new Date(release.date_released);
       if (releaseDate.getFullYear() === 2025) {
         const monthIndex = releaseDate.getMonth();
@@ -338,7 +326,7 @@ const Dashboard = () => {
     });
 
     return monthlyData;
-  }, [releases]);
+  }, [allReleases]);
 
   // Data for pie chart - store distribution by boxes
   const storePieData = useMemo(() => {
@@ -378,7 +366,7 @@ const Dashboard = () => {
     const categories = new Set<string>();
     
     // Get all unique categories
-    releases.forEach(release => {
+    allReleases.forEach(release => {
       const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
       categories.add(category);
     });
@@ -393,7 +381,7 @@ const Dashboard = () => {
       return data;
     });
 
-    releases.forEach(release => {
+    allReleases.forEach(release => {
       const releaseDate = new Date(release.date_released);
       if (releaseDate.getFullYear() === 2025) {
         const monthIndex = releaseDate.getMonth();
@@ -405,9 +393,9 @@ const Dashboard = () => {
     });
 
     return { data: monthlyData, categories: categoryList };
-  }, [releases]);
+  }, [allReleases]);
 
-  if (loading) {
+  if (inventoryLoading || periodLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
