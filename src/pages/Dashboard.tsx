@@ -68,9 +68,10 @@ const Dashboard = () => {
         return false;
       }
       // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
-      // Parse date as UTC to avoid timezone issues
+      // Parse date properly - handle both ISO format (with T) and space-separated format
       const dateToUse = release.set_date || release.date_released;
-      const dateStr = dateToUse.split('T')[0]; // Get just the date part (YYYY-MM-DD)
+      // Handle both "2026-01-04T16:00:00" and "2026-01-04 16:00:00" formats
+      const dateStr = dateToUse.replace(' ', 'T').split('T')[0]; // Normalize and get just the date part (YYYY-MM-DD)
       const [year, month] = dateStr.split('-').map(Number);
       
       // If showing all year, only filter by year
