@@ -67,9 +67,11 @@ const Dashboard = () => {
         return false;
       }
       // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
+      // Parse date as UTC to avoid timezone issues
       const dateToUse = release.set_date || release.date_released;
-      const releaseDate = new Date(dateToUse);
-      return releaseDate.getMonth() === selectedMonth && releaseDate.getFullYear() === selectedYear;
+      const dateStr = dateToUse.split('T')[0]; // Get just the date part (YYYY-MM-DD)
+      const [year, month] = dateStr.split('-').map(Number);
+      return (month - 1) === selectedMonth && year === selectedYear;
     });
   }, [releases, selectedMonth, selectedYear, selectedBranch]);
 
