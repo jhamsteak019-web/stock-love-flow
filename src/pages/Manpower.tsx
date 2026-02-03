@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -324,8 +323,7 @@ const Manpower = () => {
 
   // Fetch attendance records for summary
   const { data: attendanceRecords = [] } = useQuery({
-    // NOTE: versioned key so React Query does not keep using an older queryFn/options from cache
-    queryKey: ['manpower-attendance-summary-v2', attendanceYear, attendanceMonth, attendanceDate],
+    queryKey: ['manpower-attendance-summary', attendanceYear, attendanceMonth, attendanceDate],
     queryFn: async () => {
       const monthNum = parseInt(attendanceMonth) + 1;
       
@@ -343,7 +341,7 @@ const Manpower = () => {
       
       const { data, error } = await supabase
         .from('attendance_records')
-        .select('*, employees(full_name, branch, category, position, photo_url, is_active, deleted_at, date_hired, employment_status)')
+        .select('*, employees(full_name, branch, category, position, photo_url, is_active, deleted_at)')
         .gte('attendance_date', startDate)
         .lte('attendance_date', endDate);
       
@@ -447,176 +445,7 @@ const Manpower = () => {
     return filtered;
   }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
 
-  // Filter employees for Office Manpower tab (office positions only)
-  const officeFilteredEmployees = useMemo(() => {
-    let filtered = employees.filter(emp => {
-      const matchesSearch = !searchQuery || 
-        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // First filter by global branch using branch_id
-      if (globalBranchId && emp.branch_id !== globalBranchId) {
-        return false;
-      }
-      
-      // Filter for office positions only
-      const isOfficePosition = officePositions.some(pos => 
-        pos.toLowerCase() === emp.position?.toLowerCase()
-      );
-      if (!isOfficePosition) return false;
-      
-      // Then apply local filters
-      const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
-      const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
-      const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
-      const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
-      const matchesGender = genderFilter === 'all' || emp.gender === genderFilter;
-      const matchesMaternity = maternityFilter === 'all' || emp.maternity === maternityFilter;
-      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus && matchesGender && matchesMaternity;
-    });
-    
-    // Apply sorting
-    if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
-        let aVal: any = '';
-        let bVal: any = '';
-        
-        switch (sortColumn) {
-          case 'name':
-            aVal = a.full_name || '';
-            bVal = b.full_name || '';
-            break;
-          case 'position':
-            aVal = a.position || '';
-            bVal = b.position || '';
-            break;
-          case 'branch':
-            aVal = a.branch || '';
-            bVal = b.branch || '';
-            break;
-          case 'category':
-            aVal = a.category || '';
-            bVal = b.category || '';
-            break;
-          case 'status':
-            aVal = a.employment_status || '';
-            bVal = b.employment_status || '';
-            break;
-          case 'date_hired':
-            aVal = new Date(a.date_hired).getTime();
-            bVal = new Date(b.date_hired).getTime();
-            break;
-          case 'age':
-            aVal = a.age || 0;
-            bVal = b.age || 0;
-            break;
-          case 'gender':
-            aVal = a.gender || '';
-            bVal = b.gender || '';
-            break;
-          default:
-            return 0;
-        }
-        
-        if (typeof aVal === 'string') {
-          const comparison = aVal.localeCompare(bVal);
-          return sortDirection === 'asc' ? comparison : -comparison;
-        } else {
-          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-      });
-    }
-    
-    return filtered;
-  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
-
-  // Filter employees for Store Manpower tab (store positions only)
-  const storeFilteredEmployees = useMemo(() => {
-    let filtered = employees.filter(emp => {
-      const matchesSearch = !searchQuery || 
-        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.position?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // First filter by global branch using branch_id
-      if (globalBranchId && emp.branch_id !== globalBranchId) {
-        return false;
-      }
-      
-      // Filter for store positions only
-      const isOfficePosition = officePositions.some(pos => 
-        pos.toLowerCase() === emp.position?.toLowerCase()
-      );
-      if (isOfficePosition) return false; // Exclude office positions
-      
-      // Then apply local filters
-      const matchesBranch = branchFilter === 'all' || emp.branch === branchFilter;
-      const matchesPosition = positionFilter === 'all' || emp.position === positionFilter;
-      const matchesCategory = categoryFilter === 'all' || emp.category === categoryFilter;
-      const matchesStatus = statusFilter === 'all' || emp.employment_status.toLowerCase() === statusFilter.toLowerCase();
-      const matchesGender = genderFilter === 'all' || emp.gender === genderFilter;
-      const matchesMaternity = maternityFilter === 'all' || emp.maternity === maternityFilter;
-      return matchesSearch && matchesBranch && matchesPosition && matchesCategory && matchesStatus && matchesGender && matchesMaternity;
-    });
-    
-    // Apply sorting
-    if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
-        let aVal: any = '';
-        let bVal: any = '';
-        
-        switch (sortColumn) {
-          case 'name':
-            aVal = a.full_name || '';
-            bVal = b.full_name || '';
-            break;
-          case 'position':
-            aVal = a.position || '';
-            bVal = b.position || '';
-            break;
-          case 'branch':
-            aVal = a.branch || '';
-            bVal = b.branch || '';
-            break;
-          case 'category':
-            aVal = a.category || '';
-            bVal = b.category || '';
-            break;
-          case 'status':
-            aVal = a.employment_status || '';
-            bVal = b.employment_status || '';
-            break;
-          case 'date_hired':
-            aVal = new Date(a.date_hired).getTime();
-            bVal = new Date(b.date_hired).getTime();
-            break;
-          case 'age':
-            aVal = a.age || 0;
-            bVal = b.age || 0;
-            break;
-          case 'gender':
-            aVal = a.gender || '';
-            bVal = b.gender || '';
-            break;
-          default:
-            return 0;
-        }
-        
-        if (typeof aVal === 'string') {
-          const comparison = aVal.localeCompare(bVal);
-          return sortDirection === 'asc' ? comparison : -comparison;
-        } else {
-          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-      });
-    }
-    
-    return filtered;
-  }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
-
+  // Handle column sort
   const handleSort = (column: string) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -636,7 +465,9 @@ const Manpower = () => {
       : <ArrowDown className="ml-1 h-3 w-3" />;
   };
 
-  // Position category mapping - using top-level constants officePositions and storePositions
+  // Position category mapping
+  const storePositions = ['Demo', 'OIC', 'AOIC', 'Key Person'];
+  const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
   const teamLeaderPositions = ['Team Leader'];
 
   // Attendance summary data with employee details by status
@@ -1617,33 +1448,6 @@ const Manpower = () => {
     doc.save(`manpower-${branchName.replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
-  // Export status employees to PDF
-  const handleExportStatusPDF = (status: string, employees: Array<{ name: string; branch: string; date: string; photo_url?: string; position?: string }>) => {
-    const doc = new jsPDF('portrait');
-    const statusLabel = status.replace('_', ' ').toUpperCase();
-    doc.setFontSize(16);
-    doc.text(`${statusLabel} Employees`, 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Month: ${MONTHS[parseInt(attendanceMonth)]} ${attendanceYear} | Total: ${employees.length} employees`, 14, 22);
-
-    const tableData = employees.map((emp, idx) => [
-      (idx + 1).toString(),
-      emp.name,
-      emp.branch,
-      format(new Date(emp.date), 'MMM dd, yyyy')
-    ]);
-
-    autoTable(doc, {
-      head: [['#', 'Employee Name', 'Branch', 'Date']],
-      body: tableData,
-      startY: 28,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: status === 'absent' ? [239, 68, 68] : status === 'late' ? [245, 158, 11] : status === 'day_off' ? [59, 130, 246] : status === 'present' ? [34, 197, 94] : [107, 114, 128] }
-    });
-
-    doc.save(`${status}-employees-${MONTHS[parseInt(attendanceMonth)]}-${attendanceYear}.pdf`);
-  };
-
   const updateFormField = useCallback((field: string, value: string) => {
     setForm(prev => {
       const updated = { ...prev, [field]: value };
@@ -1821,14 +1625,10 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-5xl grid-cols-6">
+        <TabsList className="grid w-full max-w-4xl grid-cols-5">
           <TabsTrigger value="manpower" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Store Manpower
-          </TabsTrigger>
-          <TabsTrigger value="office-manpower" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Office Manpower
+            Manpower Database
           </TabsTrigger>
           <TabsTrigger value="manpower-summary" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
@@ -1844,7 +1644,7 @@ const Manpower = () => {
           </TabsTrigger>
           <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
             <Trash2 className="h-4 w-4" />
-            Deleted ({deletedEmployees.length})
+            Recently Deleted ({deletedEmployees.length})
           </TabsTrigger>
         </TabsList>
 
@@ -2032,17 +1832,17 @@ const Manpower = () => {
                       Loading...
                     </TableCell>
                   </TableRow>
-                ) : storeFilteredEmployees.length === 0 ? (
+                ) : filteredEmployees.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8 text-muted-foreground">
-                      No store employees found
+                      No employees found
                     </TableCell>
                   </TableRow>
                 ) : (
                   (() => {
                     // Group employees by branch for visual separation
-                    const groupedByBranch: Record<string, typeof storeFilteredEmployees> = {};
-                    storeFilteredEmployees.forEach(emp => {
+                    const groupedByBranch: Record<string, typeof filteredEmployees> = {};
+                    filteredEmployees.forEach(emp => {
                       const branchName = emp.branch || emp.branches?.name || 'Unknown';
                       if (!groupedByBranch[branchName]) {
                         groupedByBranch[branchName] = [];
@@ -2178,333 +1978,6 @@ const Manpower = () => {
           </ScrollArea>
         </CardContent>
         </Card>
-        </TabsContent>
-
-        {/* Office Manpower Tab */}
-        <TabsContent value="office-manpower" className="space-y-6">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px] max-w-[400px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by Emp ID, Name, Branch, Position..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <Select value={branchFilter} onValueChange={setBranchFilter}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Branches</SelectItem>
-                    {uniqueBranches.map(branch => (
-                      <SelectItem key={branch} value={branch}>{branch}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={positionFilter} onValueChange={setPositionFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Positions</SelectItem>
-                    {officePositions.map(pos => (
-                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[130px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categoryOptions.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[130px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    {statusOptions.map(status => (
-                      <SelectItem key={status} value={status.toLowerCase()}>{status}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={genderFilter} onValueChange={setGenderFilter}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Gender</SelectItem>
-                    {genderOptions.map(gender => (
-                      <SelectItem key={gender} value={gender}>{gender}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Office Employees Table */}
-          <Card>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[500px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      {columns.find(c => c.key === 'branch')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'branch')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('branch')}
-                        >
-                          <div className="flex items-center">Branch<SortIcon column="branch" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'photo')?.visible && <TableHead className="w-[50px]">Photo</TableHead>}
-                      {columns.find(c => c.key === 'name')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'name')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('name')}
-                        >
-                          <div className="flex items-center">Employee Name<SortIcon column="name" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'gender')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'gender')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('gender')}
-                        >
-                          <div className="flex items-center">Gender<SortIcon column="gender" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'age')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'age')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('age')}
-                        >
-                          <div className="flex items-center">Age<SortIcon column="age" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'position')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'position')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('position')}
-                        >
-                          <div className="flex items-center">Position<SortIcon column="position" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'category')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'category')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('category')}
-                        >
-                          <div className="flex items-center">Category<SortIcon column="category" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'status')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'status')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('status')}
-                        >
-                          <div className="flex items-center">Status<SortIcon column="status" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'date_hired')?.visible && (
-                        <TableHead 
-                          style={{ width: columns.find(c => c.key === 'date_hired')?.width }} 
-                          className="cursor-pointer hover:bg-muted/80 select-none"
-                          onClick={() => handleSort('date_hired')}
-                        >
-                          <div className="flex items-center">Date Hired<SortIcon column="date_hired" /></div>
-                        </TableHead>
-                      )}
-                      {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
-                      {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
-                      {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
-                      {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
-                      {columns.find(c => c.key === 'actions')?.visible && <TableHead className="w-[120px]">Actions</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8">
-                          Loading...
-                        </TableCell>
-                      </TableRow>
-                    ) : officeFilteredEmployees.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={columns.filter(c => c.visible).length} className="text-center py-8 text-muted-foreground">
-                          No office employees found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      (() => {
-                        // Group employees by branch for visual separation
-                        const groupedByBranch: Record<string, typeof officeFilteredEmployees> = {};
-                        officeFilteredEmployees.forEach(emp => {
-                          const branchName = emp.branch || emp.branches?.name || 'Unknown';
-                          if (!groupedByBranch[branchName]) {
-                            groupedByBranch[branchName] = [];
-                          }
-                          groupedByBranch[branchName].push(emp);
-                        });
-                        
-                        const branchNames = Object.keys(groupedByBranch).sort();
-                        
-                        return branchNames.map((branchName, branchIndex) => (
-                          <React.Fragment key={branchName}>
-                            {/* Branch separator row */}
-                            {branchIndex > 0 && (
-                              <TableRow className="bg-muted/30 border-t-2 border-primary/20">
-                                <TableCell 
-                                  colSpan={columns.filter(c => c.visible).length} 
-                                  className="py-2"
-                                >
-                                  <div className="w-full border-t border-dashed border-muted-foreground/30" />
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {/* Branch header row */}
-                            <TableRow className="bg-primary/5 border-l-4 border-l-primary">
-                              <TableCell 
-                                colSpan={columns.filter(c => c.visible).length} 
-                                className="py-2"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-primary">
-                                    {branchName.toUpperCase()} ({groupedByBranch[branchName].length} office employees)
-                                  </span>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-7 gap-1 text-xs"
-                                    onClick={() => handleExportBranchPDF(branchName, groupedByBranch[branchName])}
-                                  >
-                                    <FileText className="h-3 w-3" />
-                                    Save PDF
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                            {/* Employees in this branch */}
-                            {groupedByBranch[branchName].map((emp) => (
-                              <TableRow key={emp.id} className="hover:bg-muted/30">
-                                {columns.find(c => c.key === 'branch')?.visible && (
-                                  <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'photo')?.visible && (
-                                  <TableCell>
-                                    <Avatar 
-                                      className={cn("h-8 w-8", emp.photo_url && "cursor-pointer hover:ring-2 hover:ring-primary transition-all")}
-                                      onClick={() => emp.photo_url && setViewingPhoto({ url: emp.photo_url, name: emp.full_name })}
-                                    >
-                                      <AvatarImage src={emp.photo_url || ''} />
-                                      <AvatarFallback className="text-xs">
-                                        {emp.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  </TableCell>
-                                )}
-                                {columns.find(c => c.key === 'name')?.visible && (
-                                  <TableCell className="font-medium">{emp.full_name}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'gender')?.visible && (
-                                  <TableCell>{emp.gender || '-'}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'age')?.visible && (
-                                  <TableCell>{emp.age || '-'}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'position')?.visible && (
-                                  <TableCell>{emp.position || '-'}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'category')?.visible && (
-                                  <TableCell>{emp.category || '-'}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'status')?.visible && (
-                                  <TableCell>
-                                    <Badge variant="outline" className={cn(
-                                      emp.employment_status.toLowerCase() === 'regular' && 'bg-green-100 text-green-700 border-green-300',
-                                      emp.employment_status.toLowerCase() === 'probationary' && 'bg-amber-100 text-amber-700 border-amber-300',
-                                      emp.employment_status.toLowerCase() === 'resigned' && 'bg-red-100 text-red-700 border-red-300'
-                                    )}>
-                                      {emp.employment_status}
-                                    </Badge>
-                                  </TableCell>
-                                )}
-                                {columns.find(c => c.key === 'date_hired')?.visible && (
-                                  <TableCell>{format(new Date(emp.date_hired), 'MMM dd, yyyy')}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'service')?.visible && (
-                                  <TableCell>
-                                    {(() => {
-                                      const years = differenceInYears(new Date(), new Date(emp.date_hired));
-                                      const months = differenceInMonths(new Date(), new Date(emp.date_hired)) % 12;
-                                      return `${years}y ${months}m`;
-                                    })()}
-                                  </TableCell>
-                                )}
-                                {columns.find(c => c.key === 'contact')?.visible && (
-                                  <TableCell>{emp.cell_no || '-'}</TableCell>
-                                )}
-                                {columns.find(c => c.key === 'address')?.visible && (
-                                  <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>
-                                    {emp.address || '-'}
-                                  </TableCell>
-                                )}
-                                {columns.find(c => c.key === 'remarks')?.visible && (
-                                  <TableCell className="max-w-[150px] truncate" title={emp.remarks || ''}>
-                                    {emp.remarks || '-'}
-                                  </TableCell>
-                                )}
-                                {columns.find(c => c.key === 'actions')?.visible && (
-                                  <TableCell>
-                                    <div className="flex items-center gap-1">
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setViewingEmployee(emp)}>
-                                        <Eye className="h-3.5 w-3.5" />
-                                      </Button>
-                                      {canEdit && (
-                                        <>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(emp)}>
-                                            <Pencil className="h-3.5 w-3.5" />
-                                          </Button>
-                                          {userRole === 'admin' && (
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(emp.id)}>
-                                              <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            ))}
-                          </React.Fragment>
-                        ));
-                      })()
-                    )}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Manpower Summary Tab */}
@@ -3062,42 +2535,17 @@ const Manpower = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Absent Employees */}
                   {(attendanceSummary.employeesByStatus['absent'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-destructive/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge variant="destructive" className="text-xs">Absent</Badge>
-                              <span className="text-muted-foreground">
-                                ({attendanceSummary.employeesByStatus['absent'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge variant="destructive" className="text-xs">Absent</Badge>
+                    <Card className="border-destructive/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge variant="destructive" className="text-xs">Absent</Badge>
+                          <span className="text-muted-foreground">
                             ({attendanceSummary.employeesByStatus['absent'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('absent', attendanceSummary.employeesByStatus['absent']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3118,48 +2566,23 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Late Employees */}
                   {(attendanceSummary.employeesByStatus['late'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-amber-500/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
-                              <span className="text-muted-foreground">
-                                ({attendanceSummary.employeesByStatus['late'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge className="text-xs bg-amber-500">Late</Badge>
+                    <Card className="border-amber-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
+                          <span className="text-muted-foreground">
                             ({attendanceSummary.employeesByStatus['late'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('late', attendanceSummary.employeesByStatus['late']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['late'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3180,48 +2603,23 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Day Off Employees */}
                   {(attendanceSummary.employeesByStatus['day_off'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-blue-500/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
-                              <span className="text-muted-foreground">
-                                ({attendanceSummary.employeesByStatus['day_off'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge className="text-xs bg-blue-500">Day Off</Badge>
+                    <Card className="border-blue-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
+                          <span className="text-muted-foreground">
                             ({attendanceSummary.employeesByStatus['day_off'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('day_off', attendanceSummary.employeesByStatus['day_off']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3242,48 +2640,23 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Present Employees */}
                   {(attendanceSummary.employeesByStatus['present'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-green-500/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
-                              <span className="text-muted-foreground">
-                                ({attendanceSummary.employeesByStatus['present'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge className="text-xs bg-green-500">Present</Badge>
+                    <Card className="border-green-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
+                          <span className="text-muted-foreground">
                             ({attendanceSummary.employeesByStatus['present'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('present', attendanceSummary.employeesByStatus['present']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {attendanceSummary.employeesByStatus['present'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3304,8 +2677,8 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Other Statuses */}
@@ -3313,42 +2686,17 @@ const Manpower = () => {
                     .filter(([status]) => !['present', 'absent', 'late', 'day_off'].includes(status))
                     .map(([status, employees]) => (
                       employees.length > 0 && (
-                        <Popover key={status}>
-                          <PopoverTrigger asChild>
-                            <Card className="border-secondary/50 cursor-pointer hover:shadow-md transition-shadow">
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
-                                  <span className="text-muted-foreground">
-                                    ({employees.length})
-                                  </span>
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="pt-0">
-                                <p className="text-xs text-muted-foreground">Click to view employees</p>
-                              </CardContent>
-                            </Card>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-96 p-4" align="start">
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-sm font-semibold flex items-center gap-2">
-                                <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                        <Card key={status} className="border-secondary/50">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                              <span className="text-muted-foreground">
                                 ({employees.length})
-                              </p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs gap-1"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleExportStatusPDF(status, employees);
-                                }}
-                              >
-                                <FileText className="h-3 w-3" />
-                                Save PDF
-                              </Button>
-                            </div>
-                            <ScrollArea className="h-[350px]">
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ScrollArea className="h-[200px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
                                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3369,8 +2717,8 @@ const Manpower = () => {
                                 ))}
                               </div>
                             </ScrollArea>
-                          </PopoverContent>
-                        </Popover>
+                          </CardContent>
+                        </Card>
                       )
                     ))}
                 </div>
@@ -3824,42 +3172,17 @@ const Manpower = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Present Employees */}
                   {(officeAttendanceSummary.employeesByStatus['present'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-green-500/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
-                              <span className="text-muted-foreground">
-                                ({officeAttendanceSummary.employeesByStatus['present'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge className="text-xs bg-green-500">Present</Badge>
+                    <Card className="border-green-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-green-500 hover:bg-green-600">Present</Badge>
+                          <span className="text-muted-foreground">
                             ({officeAttendanceSummary.employeesByStatus['present'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('present', officeAttendanceSummary.employeesByStatus['present']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['present'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3880,48 +3203,23 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Absent Employees */}
                   {(officeAttendanceSummary.employeesByStatus['absent'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-destructive/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge variant="destructive" className="text-xs">Absent</Badge>
-                              <span className="text-muted-foreground">
-                                ({officeAttendanceSummary.employeesByStatus['absent'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge variant="destructive" className="text-xs">Absent</Badge>
+                    <Card className="border-destructive/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge variant="destructive" className="text-xs">Absent</Badge>
+                          <span className="text-muted-foreground">
                             ({officeAttendanceSummary.employeesByStatus['absent'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('absent', officeAttendanceSummary.employeesByStatus['absent']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['absent'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -3942,48 +3240,23 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Late Employees */}
                   {(officeAttendanceSummary.employeesByStatus['late'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-amber-500/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
-                              <span className="text-muted-foreground">
-                                ({officeAttendanceSummary.employeesByStatus['late'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge className="text-xs bg-amber-500">Late</Badge>
+                    <Card className="border-amber-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-amber-500 hover:bg-amber-600">Late</Badge>
+                          <span className="text-muted-foreground">
                             ({officeAttendanceSummary.employeesByStatus['late'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('late', officeAttendanceSummary.employeesByStatus['late']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['late'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -4004,48 +3277,23 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Day Off Employees */}
                   {(officeAttendanceSummary.employeesByStatus['day_off'] || []).length > 0 && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Card className="border-blue-500/50 cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
-                              <span className="text-muted-foreground">
-                                ({officeAttendanceSummary.employeesByStatus['day_off'].length})
-                              </span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-xs text-muted-foreground">Click to view employees</p>
-                          </CardContent>
-                        </Card>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-96 p-4" align="start">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold flex items-center gap-2">
-                            <Badge className="text-xs bg-blue-500">Day Off</Badge>
+                    <Card className="border-blue-500/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Badge className="text-xs bg-blue-500 hover:bg-blue-600">Day Off</Badge>
+                          <span className="text-muted-foreground">
                             ({officeAttendanceSummary.employeesByStatus['day_off'].length})
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExportStatusPDF('day_off', officeAttendanceSummary.employeesByStatus['day_off']);
-                            }}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Save PDF
-                          </Button>
-                        </div>
-                        <ScrollArea className="h-[350px]">
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
                             {officeAttendanceSummary.employeesByStatus['day_off'].map((emp, idx) => (
                               <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -4066,8 +3314,8 @@ const Manpower = () => {
                             ))}
                           </div>
                         </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Other Statuses */}
@@ -4075,42 +3323,17 @@ const Manpower = () => {
                     .filter(([status]) => !['present', 'absent', 'late', 'day_off'].includes(status))
                     .map(([status, employees]) => (
                       employees.length > 0 && (
-                        <Popover key={status}>
-                          <PopoverTrigger asChild>
-                            <Card className="border-secondary/50 cursor-pointer hover:shadow-md transition-shadow">
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
-                                  <span className="text-muted-foreground">
-                                    ({employees.length})
-                                  </span>
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="pt-0">
-                                <p className="text-xs text-muted-foreground">Click to view employees</p>
-                              </CardContent>
-                            </Card>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-96 p-4" align="start">
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-sm font-semibold flex items-center gap-2">
-                                <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                        <Card key={status} className="border-secondary/50">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs capitalize">{status.replace('_', ' ')}</Badge>
+                              <span className="text-muted-foreground">
                                 ({employees.length})
-                              </p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs gap-1"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleExportStatusPDF(status, employees);
-                                }}
-                              >
-                                <FileText className="h-3 w-3" />
-                                Save PDF
-                              </Button>
-                            </div>
-                            <ScrollArea className="h-[350px]">
+                              </span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ScrollArea className="h-[200px]">
                               <div className="space-y-2">
                                 {employees.map((emp, idx) => (
                                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted">
@@ -4131,8 +3354,8 @@ const Manpower = () => {
                                 ))}
                               </div>
                             </ScrollArea>
-                          </PopoverContent>
-                        </Popover>
+                          </CardContent>
+                        </Card>
                       )
                     ))}
                 </div>

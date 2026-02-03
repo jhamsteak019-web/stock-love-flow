@@ -413,8 +413,7 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    // Allow boxes >= 0 (0 is valid for import releases)
-    const validItems = parsedItems.filter(p => p.qtyBoxes >= 0 && selectedItems.has(p.id) && p.courier && p.setDate);
+    const validItems = parsedItems.filter(p => p.qtyBoxes > 0 && selectedItems.has(p.id) && p.courier && p.setDate);
     
     if (validItems.length === 0) {
       toast({ title: 'Error', description: 'No selected items to release. Ensure items have Courier and Set Date.', variant: 'destructive' });
