@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInventory } from '@/hooks/useInventory';
+import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { format, differenceInDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
@@ -23,7 +24,7 @@ const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const SummaryReport = () => {
-  const { releases, items, loading } = useInventory();
+  const { items, loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const currentYear = new Date().getFullYear();
@@ -37,10 +38,18 @@ const SummaryReport = () => {
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
 
+  // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
+  const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
+    month: parseInt(selectedMonth),
+    year: parseInt(selectedYear),
+    branchId: selectedBranch?.id ?? null,
+  });
+
   const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
   
   const isViewer = userRole === 'viewer';
   const canExport = userRole !== 'uploader';
+  const loading = inventoryLoading || periodLoading;
 
   // Fetch attendance records
   const { data: attendanceRecords = [] } = useQuery({
@@ -196,41 +205,28 @@ const SummaryReport = () => {
   // Get available years from releases
   const availableYears = useMemo(() => {
     const years = new Set<string>();
-    releases.forEach(release => {
+    periodReleases.forEach(release => {
       const year = new Date(release.date_released).getFullYear().toString();
       years.add(year);
     });
     years.add(currentYear.toString());
+    // Add common years
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+      years.add(y.toString());
+    }
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
-  }, [releases, currentYear]);
+  }, [periodReleases, currentYear]);
 
-  // Filter releases by selected year, month, category, and branch
+  // Filter releases by category only (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
-    return releases.filter(release => {
-      // Filter by branch first
-      if (selectedBranch && release.branch_id !== selectedBranch.id) {
-        return false;
-      }
-      
-      // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
-      const dateToUse = release.set_date || release.date_released;
-      const releaseDate = new Date(dateToUse);
-      const releaseYear = releaseDate.getFullYear().toString();
-      const releaseMonth = releaseDate.getMonth().toString();
-      
-      // Year filter always applies
-      const matchesYear = releaseYear === selectedYear;
-      
-      // Month filter only applies if not showing all year
-      const matchesMonth = showAllYear ? true : releaseMonth === selectedMonth;
-      
+    return periodReleases.filter(release => {
       // Category filter
       const matchesCategory = selectedCategory === 'all' || 
         (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
       
-      return matchesYear && matchesMonth && matchesCategory;
+      return matchesCategory;
     });
-  }, [releases, selectedBranch, selectedYear, selectedMonth, showAllYear, selectedCategory]);
+  }, [periodReleases, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -268,15 +264,15 @@ const SummaryReport = () => {
     return Object.values(batches);
   }, [filteredReleases]);
 
-  // Filter releases by year only (for yearly stats)
+  // Filter releases by year only (for yearly stats) - use periodReleases
   const yearlyReleases = useMemo(() => {
-    return releases.filter(release => {
+    return periodReleases.filter(release => {
       // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
       const dateToUse = release.set_date || release.date_released;
       const releaseYear = new Date(dateToUse).getFullYear().toString();
       return releaseYear === selectedYear;
     });
-  }, [releases, selectedYear]);
+  }, [periodReleases, selectedYear]);
 
   // Branch/Store Report - Pending vs Delivered per branch
   const branchReport = useMemo(() => {
