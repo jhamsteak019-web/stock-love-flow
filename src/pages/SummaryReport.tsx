@@ -38,10 +38,18 @@ const SummaryReport = () => {
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
 
+  // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
+  const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
+    month: parseInt(selectedMonth),
+    year: parseInt(selectedYear),
+    branchId: selectedBranch?.id ?? null,
+  });
+
   const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
   
   const isViewer = userRole === 'viewer';
   const canExport = userRole !== 'uploader';
+  const loading = inventoryLoading || periodLoading;
 
   // Fetch attendance records
   const { data: attendanceRecords = [] } = useQuery({
