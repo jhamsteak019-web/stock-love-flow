@@ -62,7 +62,16 @@ const Dashboard = () => {
 
   // Filter releases by selected month, year, AND branch
   const filteredReleases = useMemo(() => {
-    return releases.filter(release => {
+    console.log('Dashboard Filter Debug:', {
+      totalReleases: releases.length,
+      selectedBranch: selectedBranch?.name,
+      selectedBranchId: selectedBranch?.id,
+      selectedMonth,
+      selectedYear,
+      showAllYear
+    });
+    
+    const filtered = releases.filter(release => {
       // Filter by branch
       if (selectedBranch && release.branch_id !== selectedBranch.id) {
         return false;
@@ -80,6 +89,14 @@ const Dashboard = () => {
       }
       return (month - 1) === selectedMonth && year === selectedYear;
     });
+    
+    const totalAmount = filtered.reduce((sum, r) => sum + (r.amount || 0), 0);
+    console.log('Dashboard Filtered Results:', {
+      filteredCount: filtered.length,
+      totalAmount: totalAmount.toLocaleString()
+    });
+    
+    return filtered;
   }, [releases, selectedMonth, selectedYear, selectedBranch, showAllYear]);
 
   // Use filtered releases for stats
