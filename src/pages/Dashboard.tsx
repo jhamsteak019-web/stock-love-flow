@@ -32,6 +32,7 @@ const Dashboard = () => {
   const { selectedBranch } = useBranch();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showAllYear, setShowAllYear] = useState(false);
   
   // Get saved filter from localStorage or use current date
   const getSavedFilter = () => {
@@ -71,9 +72,14 @@ const Dashboard = () => {
       const dateToUse = release.set_date || release.date_released;
       const dateStr = dateToUse.split('T')[0]; // Get just the date part (YYYY-MM-DD)
       const [year, month] = dateStr.split('-').map(Number);
+      
+      // If showing all year, only filter by year
+      if (showAllYear) {
+        return year === selectedYear;
+      }
       return (month - 1) === selectedMonth && year === selectedYear;
     });
-  }, [releases, selectedMonth, selectedYear, selectedBranch]);
+  }, [releases, selectedMonth, selectedYear, selectedBranch, showAllYear]);
 
   // Use filtered releases for stats
   const stats = useMemo(() => {
@@ -418,19 +424,31 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Overview of your inventory and deliveries</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* All Year Toggle */}
+          <Button
+            variant={showAllYear ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowAllYear(!showAllYear)}
+            className="gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            {showAllYear ? "Showing All Year" : "All Year"}
+          </Button>
           {/* Month/Year Filter */}
           <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
-              <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHS.map((month, index) => (
-                  <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!showAllYear && (
+              <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+                <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((month, index) => (
+                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
               <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
                 <SelectValue placeholder="Year" />
