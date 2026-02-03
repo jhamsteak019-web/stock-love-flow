@@ -205,41 +205,28 @@ const SummaryReport = () => {
   // Get available years from releases
   const availableYears = useMemo(() => {
     const years = new Set<string>();
-    releases.forEach(release => {
+    periodReleases.forEach(release => {
       const year = new Date(release.date_released).getFullYear().toString();
       years.add(year);
     });
     years.add(currentYear.toString());
+    // Add common years
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+      years.add(y.toString());
+    }
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
-  }, [releases, currentYear]);
+  }, [periodReleases, currentYear]);
 
-  // Filter releases by selected year, month, category, and branch
+  // Filter releases by category only (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
-    return releases.filter(release => {
-      // Filter by branch first
-      if (selectedBranch && release.branch_id !== selectedBranch.id) {
-        return false;
-      }
-      
-      // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
-      const dateToUse = release.set_date || release.date_released;
-      const releaseDate = new Date(dateToUse);
-      const releaseYear = releaseDate.getFullYear().toString();
-      const releaseMonth = releaseDate.getMonth().toString();
-      
-      // Year filter always applies
-      const matchesYear = releaseYear === selectedYear;
-      
-      // Month filter only applies if not showing all year
-      const matchesMonth = showAllYear ? true : releaseMonth === selectedMonth;
-      
+    return periodReleases.filter(release => {
       // Category filter
       const matchesCategory = selectedCategory === 'all' || 
         (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
       
-      return matchesYear && matchesMonth && matchesCategory;
+      return matchesCategory;
     });
-  }, [releases, selectedBranch, selectedYear, selectedMonth, showAllYear, selectedCategory]);
+  }, [periodReleases, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
