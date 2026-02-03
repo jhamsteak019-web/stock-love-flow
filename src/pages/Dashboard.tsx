@@ -32,7 +32,6 @@ const Dashboard = () => {
   const { selectedBranch } = useBranch();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [showAllYear, setShowAllYear] = useState(false);
   
   // Get saved filter from localStorage or use current date
   const getSavedFilter = () => {
@@ -62,42 +61,19 @@ const Dashboard = () => {
 
   // Filter releases by selected month, year, AND branch
   const filteredReleases = useMemo(() => {
-    console.log('Dashboard Filter Debug:', {
-      totalReleases: releases.length,
-      selectedBranch: selectedBranch?.name,
-      selectedBranchId: selectedBranch?.id,
-      selectedMonth,
-      selectedYear,
-      showAllYear
-    });
-    
-    const filtered = releases.filter(release => {
+    return releases.filter(release => {
       // Filter by branch
       if (selectedBranch && release.branch_id !== selectedBranch.id) {
         return false;
       }
       // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
-      // Parse date properly - handle both ISO format (with T) and space-separated format
+      // Parse date as UTC to avoid timezone issues
       const dateToUse = release.set_date || release.date_released;
-      // Handle both "2026-01-04T16:00:00" and "2026-01-04 16:00:00" formats
-      const dateStr = dateToUse.replace(' ', 'T').split('T')[0]; // Normalize and get just the date part (YYYY-MM-DD)
+      const dateStr = dateToUse.split('T')[0]; // Get just the date part (YYYY-MM-DD)
       const [year, month] = dateStr.split('-').map(Number);
-      
-      // If showing all year, only filter by year
-      if (showAllYear) {
-        return year === selectedYear;
-      }
       return (month - 1) === selectedMonth && year === selectedYear;
     });
-    
-    const totalAmount = filtered.reduce((sum, r) => sum + (r.amount || 0), 0);
-    console.log('Dashboard Filtered Results:', {
-      filteredCount: filtered.length,
-      totalAmount: totalAmount.toLocaleString()
-    });
-    
-    return filtered;
-  }, [releases, selectedMonth, selectedYear, selectedBranch, showAllYear]);
+  }, [releases, selectedMonth, selectedYear, selectedBranch]);
 
   // Use filtered releases for stats
   const stats = useMemo(() => {
@@ -442,31 +418,19 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Overview of your inventory and deliveries</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* All Year Toggle */}
-          <Button
-            variant={showAllYear ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowAllYear(!showAllYear)}
-            className="gap-2"
-          >
-            <Calendar className="h-4 w-4" />
-            {showAllYear ? "Showing All Year" : "All Year"}
-          </Button>
           {/* Month/Year Filter */}
           <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            {!showAllYear && (
-              <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
-                <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((month, index) => (
-                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+              <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
               <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
                 <SelectValue placeholder="Year" />
