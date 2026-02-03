@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getYear, getMonth, parseISO, isValid, parse } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -131,6 +131,19 @@ const normalizeDateInputToISO = (value: string): string | null => {
   return null;
 };
 
+const isOfficeText = (value?: string | null) => (value ?? '').trim().toLowerCase().includes('office');
+
+const isOfficeEmployee = (
+  emp?: {
+    branch?: string | null;
+    category?: string | null;
+    branches?: { name: string } | null;
+  } | null,
+) => {
+  if (!emp) return false;
+  return isOfficeText(emp.category) || isOfficeText(emp.branch) || isOfficeText(emp.branches?.name ?? null);
+};
+
 const Attendance = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -250,7 +263,8 @@ const Attendance = () => {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as Employee[];
+      // Exclude Office employees - they have separate Office Attendance
+      return (data as Employee[]).filter((emp) => !isOfficeEmployee(emp));
     }
   });
 
@@ -319,6 +333,9 @@ const Attendance = () => {
   // Filter records by search, status, and branch - prioritize global branch using branch_id
   const filteredRecords = useMemo(() => {
     return attendanceRecords.filter(record => {
+      // Exclude Office employees (case-insensitive)
+      if (isOfficeEmployee(record.employees)) return false;
+
       const matchesSearch = !searchQuery || 
         record.employees?.full_name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
@@ -353,10 +370,10 @@ const Attendance = () => {
     const branchCounts: Record<string, number> = {};
     
     todayRecords.forEach(record => {
-      if (record.status === 'present') {
-        const branchName = record.employees?.branch || record.employees?.branches?.name || 'No Branch';
-        branchCounts[branchName] = (branchCounts[branchName] || 0) + 1;
-      }
+      if (record.status !== 'present') return;
+      if (isOfficeEmployee(record.employees)) return;
+      const branchName = record.employees?.branch || record.employees?.branches?.name || 'No Branch';
+      branchCounts[branchName] = (branchCounts[branchName] || 0) + 1;
     });
     
     return Object.entries(branchCounts)
@@ -412,6 +429,13 @@ const Attendance = () => {
       .filter((branch): branch is string => !!branch && branch.trim() !== '');
     return [...new Set(branchNames)].sort();
   }, [employees]);
+
+  // If user previously selected OFFICE but it's now excluded, reset to All
+  useEffect(() => {
+    if (branchFilter !== 'all' && !uniqueManpowerBranches.includes(branchFilter)) {
+      setBranchFilter('all');
+    }
+  }, [branchFilter, uniqueManpowerBranches]);
 
   // Fetch employee IDs who already have attendance for the bulk date
   const { data: existingAttendanceForBulkDate = [] } = useQuery({
