@@ -264,15 +264,15 @@ const SummaryReport = () => {
     return Object.values(batches);
   }, [filteredReleases]);
 
-  // Filter releases by year only (for yearly stats)
+  // Filter releases by year only (for yearly stats) - use periodReleases
   const yearlyReleases = useMemo(() => {
-    return releases.filter(release => {
+    return periodReleases.filter(release => {
       // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
       const dateToUse = release.set_date || release.date_released;
       const releaseYear = new Date(dateToUse).getFullYear().toString();
       return releaseYear === selectedYear;
     });
-  }, [releases, selectedYear]);
+  }, [periodReleases, selectedYear]);
 
   // Branch/Store Report - Pending vs Delivered per branch
   const branchReport = useMemo(() => {
