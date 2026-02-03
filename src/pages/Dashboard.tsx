@@ -67,9 +67,16 @@ const Dashboard = () => {
         return false;
       }
       // Use set_date (Date Out) as primary filter since that's when the item was actually sent out
+      // Use timezone-agnostic string parsing (YYYY-MM-DD normalization) to avoid timezone issues
       const dateToUse = release.set_date || release.date_released;
-      const releaseDate = new Date(dateToUse);
-      return releaseDate.getMonth() === selectedMonth && releaseDate.getFullYear() === selectedYear;
+      const dateStr = typeof dateToUse === 'string' ? dateToUse.split('T')[0] : '';
+      if (!dateStr) return false;
+      
+      const [yearStr, monthStr] = dateStr.split('-');
+      const releaseYear = parseInt(yearStr, 10);
+      const releaseMonth = parseInt(monthStr, 10) - 1; // Convert to 0-indexed month
+      
+      return releaseMonth === selectedMonth && releaseYear === selectedYear;
     });
   }, [releases, selectedMonth, selectedYear, selectedBranch]);
 
