@@ -381,11 +381,22 @@ const Attendance = () => {
       .sort((a, b) => b.count - a.count);
   }, [attendanceRecords]);
 
-  // Calculate employees without attendance recorded for today
+  // Date to use for unrecorded calculations - use selectedDate if picked, otherwise today
+  const unrecordedDateTarget = useMemo(() => {
+    return selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+  }, [selectedDate]);
+
+  const unrecordedDateLabel = useMemo(() => {
+    if (selectedDate) {
+      return format(selectedDate, 'MMM dd, yyyy');
+    }
+    return 'Today';
+  }, [selectedDate]);
+
+  // Calculate employees without attendance recorded for the target date
   const unrecordedToday = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayRecordedIds = attendanceRecords
-      .filter(r => r.attendance_date === today)
+    const targetRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === unrecordedDateTarget)
       .map(r => r.employee_id);
     
     // Filter employees by global branch
@@ -393,14 +404,13 @@ const Attendance = () => {
       ? employees.filter(e => e.branch_id === globalBranchId)
       : employees;
     
-    return branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id)).length;
-  }, [attendanceRecords, employees, globalBranchId]);
+    return branchEmployees.filter(emp => !targetRecordedIds.includes(emp.id)).length;
+  }, [attendanceRecords, employees, globalBranchId, unrecordedDateTarget]);
 
   // Calculate unrecorded employees grouped by branch (for popover)
   const unrecordedByBranch = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayRecordedIds = attendanceRecords
-      .filter(r => r.attendance_date === today)
+    const targetRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === unrecordedDateTarget)
       .map(r => r.employee_id);
     
     // Filter employees by global branch
@@ -408,7 +418,7 @@ const Attendance = () => {
       ? employees.filter(e => e.branch_id === globalBranchId)
       : employees;
     
-    const unrecordedEmployees = branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id));
+    const unrecordedEmployees = branchEmployees.filter(emp => !targetRecordedIds.includes(emp.id));
     
     // Group by branch
     const branchCounts: Record<string, number> = {};
@@ -420,7 +430,7 @@ const Attendance = () => {
     return Object.entries(branchCounts)
       .map(([branch, count]) => ({ branch, count }))
       .sort((a, b) => b.count - a.count);
-  }, [attendanceRecords, employees, globalBranchId]);
+  }, [attendanceRecords, employees, globalBranchId, unrecordedDateTarget]);
 
   // Get unique branch names from employees (Manpower database)
   const uniqueManpowerBranches = useMemo(() => {
@@ -1245,7 +1255,7 @@ const Attendance = () => {
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Not Yet Recorded</p>
+                  <p className="text-sm text-muted-foreground">Not Yet Recorded ({unrecordedDateLabel})</p>
                   {unrecordedByBranch.length > 0 ? (
                     <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
                       {unrecordedByBranch.slice(0, 3).map(({ branch, count }) => (
@@ -1266,7 +1276,7 @@ const Attendance = () => {
             </Card>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3" align="end">
-            <p className="text-sm font-semibold mb-2">Not Yet Recorded by Branch</p>
+            <p className="text-sm font-semibold mb-2">Not Yet Recorded by Branch ({unrecordedDateLabel})</p>
             {unrecordedByBranch.length > 0 ? (
               <ScrollArea className="max-h-48">
                 <div className="space-y-1">
@@ -1289,7 +1299,7 @@ const Attendance = () => {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Unrecorded Today</p>
+                    <p className="text-sm text-muted-foreground">Unrecorded ({unrecordedDateLabel})</p>
                     <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
                   </div>
                   <UserPlus className="h-8 w-8 text-orange-600" />
@@ -1298,7 +1308,7 @@ const Attendance = () => {
             </Card>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3" align="end">
-            <p className="text-sm font-semibold mb-2">Unrecorded by Branch</p>
+            <p className="text-sm font-semibold mb-2">Unrecorded by Branch ({unrecordedDateLabel})</p>
             {unrecordedByBranch.length > 0 ? (
               <ScrollArea className="max-h-48">
                 <div className="space-y-1">
