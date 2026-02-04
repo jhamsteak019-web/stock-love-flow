@@ -381,11 +381,22 @@ const Attendance = () => {
       .sort((a, b) => b.count - a.count);
   }, [attendanceRecords]);
 
-  // Calculate employees without attendance recorded for today
+  // Date to use for unrecorded calculations - use selectedDate if picked, otherwise today
+  const unrecordedDateTarget = useMemo(() => {
+    return selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+  }, [selectedDate]);
+
+  const unrecordedDateLabel = useMemo(() => {
+    if (selectedDate) {
+      return format(selectedDate, 'MMM dd, yyyy');
+    }
+    return 'Today';
+  }, [selectedDate]);
+
+  // Calculate employees without attendance recorded for the target date
   const unrecordedToday = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayRecordedIds = attendanceRecords
-      .filter(r => r.attendance_date === today)
+    const targetRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === unrecordedDateTarget)
       .map(r => r.employee_id);
     
     // Filter employees by global branch
@@ -393,14 +404,13 @@ const Attendance = () => {
       ? employees.filter(e => e.branch_id === globalBranchId)
       : employees;
     
-    return branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id)).length;
-  }, [attendanceRecords, employees, globalBranchId]);
+    return branchEmployees.filter(emp => !targetRecordedIds.includes(emp.id)).length;
+  }, [attendanceRecords, employees, globalBranchId, unrecordedDateTarget]);
 
   // Calculate unrecorded employees grouped by branch (for popover)
   const unrecordedByBranch = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayRecordedIds = attendanceRecords
-      .filter(r => r.attendance_date === today)
+    const targetRecordedIds = attendanceRecords
+      .filter(r => r.attendance_date === unrecordedDateTarget)
       .map(r => r.employee_id);
     
     // Filter employees by global branch
@@ -408,7 +418,7 @@ const Attendance = () => {
       ? employees.filter(e => e.branch_id === globalBranchId)
       : employees;
     
-    const unrecordedEmployees = branchEmployees.filter(emp => !todayRecordedIds.includes(emp.id));
+    const unrecordedEmployees = branchEmployees.filter(emp => !targetRecordedIds.includes(emp.id));
     
     // Group by branch
     const branchCounts: Record<string, number> = {};
@@ -420,7 +430,7 @@ const Attendance = () => {
     return Object.entries(branchCounts)
       .map(([branch, count]) => ({ branch, count }))
       .sort((a, b) => b.count - a.count);
-  }, [attendanceRecords, employees, globalBranchId]);
+  }, [attendanceRecords, employees, globalBranchId, unrecordedDateTarget]);
 
   // Get unique branch names from employees (Manpower database)
   const uniqueManpowerBranches = useMemo(() => {
