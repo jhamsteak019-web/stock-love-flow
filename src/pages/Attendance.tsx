@@ -1255,7 +1255,7 @@ const Attendance = () => {
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Not Yet Recorded</p>
+                  <p className="text-sm text-muted-foreground">Not Yet Recorded ({unrecordedDateLabel})</p>
                   {unrecordedByBranch.length > 0 ? (
                     <div className="mt-1 space-y-0.5 max-h-[60px] overflow-y-auto">
                       {unrecordedByBranch.slice(0, 3).map(({ branch, count }) => (
