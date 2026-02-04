@@ -4673,7 +4673,23 @@ const Manpower = () => {
               <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center min-h-[200px] bg-muted/30">
                 {photoPreview ? (
                   <div className="relative">
-                    <img src={photoPreview} alt="Preview" className="w-40 h-40 object-cover rounded-lg" />
+                    <img 
+                      src={photoPreview} 
+                      alt="Preview" 
+                      className="w-40 h-40 object-cover rounded-lg"
+                      onError={(e) => {
+                        // If image fails to load, show fallback
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.parentElement?.querySelector('.photo-fallback')?.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="photo-fallback hidden w-40 h-40 rounded-lg bg-muted flex items-center justify-center">
+                      <div className="text-center">
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-1" />
+                        <p className="text-xs text-muted-foreground">Image not available</p>
+                      </div>
+                    </div>
                     <Button
                       variant="destructive"
                       size="icon"
