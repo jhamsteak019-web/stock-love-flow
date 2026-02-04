@@ -1276,7 +1276,7 @@ const Attendance = () => {
             </Card>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3" align="end">
-            <p className="text-sm font-semibold mb-2">Not Yet Recorded by Branch</p>
+            <p className="text-sm font-semibold mb-2">Not Yet Recorded by Branch ({unrecordedDateLabel})</p>
             {unrecordedByBranch.length > 0 ? (
               <ScrollArea className="max-h-48">
                 <div className="space-y-1">
