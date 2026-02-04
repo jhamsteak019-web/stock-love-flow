@@ -1299,7 +1299,7 @@ const Attendance = () => {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Unrecorded Today</p>
+                    <p className="text-sm text-muted-foreground">Unrecorded ({unrecordedDateLabel})</p>
                     <p className="text-2xl font-bold text-orange-600">{unrecordedToday}</p>
                   </div>
                   <UserPlus className="h-8 w-8 text-orange-600" />
