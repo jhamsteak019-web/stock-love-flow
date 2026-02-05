@@ -333,7 +333,11 @@ export function TaskCalendar() {
 
   const getTasksForDay = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
-    return tasks.filter(task => task.task_date === dateStr);
+    return tasks.filter(task => {
+      const matchesDate = task.task_date === dateStr;
+      const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter || (!task.category && categoryFilter === 'event');
+      return matchesDate && matchesCategory;
+    });
   };
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -420,6 +424,7 @@ export function TaskCalendar() {
         description: formData.description,
         color: formData.color,
         task_date: format(selectedDate, 'yyyy-MM-dd'),
+        category: formData.category,
       });
     }
   };
