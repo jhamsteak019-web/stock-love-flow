@@ -449,6 +449,12 @@ export function TaskCalendar() {
   const [sidebarSelectedDate, setSidebarSelectedDate] = useState<Date | null>(null);
   const selectedDayTasks = sidebarSelectedDate ? getTasksForDay(sidebarSelectedDate) : [];
 
+  // Get category info for a task
+  const getCategoryInfo = (category?: string | null) => {
+    const cat = scheduleCategories.find(c => c.value === (category || 'event'));
+    return cat || scheduleCategories[1]; // default to event
+  };
+
   return (
     <div className="w-full">
       {/* Main Calendar View */}
