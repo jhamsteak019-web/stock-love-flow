@@ -364,7 +364,7 @@ export function TaskCalendar() {
     if (!canEdit) return;
     setSelectedDate(date);
     setEditingTask(null);
-    setFormData({ title: '', description: '', color: 'blue' });
+    setFormData({ title: '', description: '', color: 'blue', category: categoryFilter === 'all' ? 'event' : categoryFilter });
     setIsModalOpen(true);
   };
 
@@ -372,7 +372,7 @@ export function TaskCalendar() {
     if (!canEdit || !viewingDate) return;
     setSelectedDate(viewingDate);
     setEditingTask(null);
-    setFormData({ title: '', description: '', color: 'blue' });
+    setFormData({ title: '', description: '', color: 'blue', category: categoryFilter === 'all' ? 'event' : categoryFilter });
     setIsViewModalOpen(false);
     setIsModalOpen(true);
   };
@@ -385,6 +385,7 @@ export function TaskCalendar() {
       title: task.title,
       description: task.description || '',
       color: task.color,
+      category: task.category || 'event',
     });
     setIsViewModalOpen(false);
     setIsModalOpen(true);
@@ -394,7 +395,7 @@ export function TaskCalendar() {
     setIsModalOpen(false);
     setEditingTask(null);
     setSelectedDate(null);
-    setFormData({ title: '', description: '', color: 'blue' });
+    setFormData({ title: '', description: '', color: 'blue', category: categoryFilter === 'all' ? 'event' : categoryFilter });
   };
 
   const handleSubmit = () => {
