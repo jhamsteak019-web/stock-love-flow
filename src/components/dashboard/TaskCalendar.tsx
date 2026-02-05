@@ -731,6 +731,7 @@ export function TaskCalendar() {
               <div className="space-y-3">
                 {viewingDate && getTasksForDay(viewingDate).map((task) => {
                   const colors = getColorClasses(task.color);
+                  const catInfo = getCategoryInfo(task.category);
                   return (
                     <div
                       key={task.id}
@@ -743,6 +744,11 @@ export function TaskCalendar() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs py-0 h-5">
+                              {catInfo.emoji} {catInfo.label}
+                            </Badge>
+                          </div>
                           <p className="font-semibold text-sm break-words">{task.title}</p>
                           {task.description && (
                             <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap break-words overflow-wrap-anywhere">
