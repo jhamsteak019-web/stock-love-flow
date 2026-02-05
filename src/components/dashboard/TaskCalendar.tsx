@@ -62,8 +62,9 @@ export function TaskCalendar() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingDate, setViewingDate] = useState<Date | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [formData, setFormData] = useState({ title: '', description: '', color: 'blue' });
+  const [formData, setFormData] = useState({ title: '', description: '', color: 'blue', category: 'event' });
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
