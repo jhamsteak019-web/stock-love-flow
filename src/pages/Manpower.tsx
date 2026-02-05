@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInYears, differenceInMonths, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -136,6 +137,7 @@ const Manpower = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+   const photoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
@@ -1412,11 +1414,9 @@ const Manpower = () => {
     const file = e.target.files?.[0];
     if (file) {
       setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+       // Use URL.createObjectURL for immediate preview - more reliable than FileReader
+       const previewUrl = URL.createObjectURL(file);
+       setPhotoPreview(previewUrl);
     }
   };
 
@@ -4713,14 +4713,14 @@ const Manpower = () => {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  id="photo-upload"
+                   ref={photoInputRef}
                   onChange={handlePhotoChange}
                 />
                 <Button
                   variant="outline"
                   size="sm"
                   className="mt-3"
-                  onClick={() => document.getElementById('photo-upload')?.click()}
+                   onClick={() => photoInputRef.current?.click()}
                 >
                   Browse Photo
                 </Button>
