@@ -1062,6 +1062,7 @@ export type Database = {
       tasks: {
         Row: {
           branch_id: string | null
+          category: string | null
           color: string
           created_at: string
           created_by: string
@@ -1073,6 +1074,7 @@ export type Database = {
         }
         Insert: {
           branch_id?: string | null
+          category?: string | null
           color?: string
           created_at?: string
           created_by: string
@@ -1084,6 +1086,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string | null
+          category?: string | null
           color?: string
           created_at?: string
           created_by?: string
