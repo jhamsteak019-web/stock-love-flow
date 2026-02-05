@@ -25,7 +25,17 @@ interface Task {
   color: string;
   created_by: string;
   branch_id: string | null;
+  category?: string | null;
 }
+
+// Schedule categories with emojis
+const scheduleCategories = [
+  { value: 'all', label: 'All Schedules', emoji: '📋' },
+  { value: 'event', label: 'Event Sched', emoji: '✈️' },
+  { value: 'daily', label: 'Daily Sched', emoji: '📅' },
+  { value: 'roving', label: 'Roving Sched', emoji: '🚗' },
+  { value: 'ccn', label: 'CCN Sched', emoji: '📦' },
+];
 
 const colorOptions = [
   { value: 'blue', label: 'Blue', bg: 'bg-blue-500', text: 'text-blue-700', light: 'bg-blue-50', border: 'border-blue-500', hex: '#3b82f6' },
