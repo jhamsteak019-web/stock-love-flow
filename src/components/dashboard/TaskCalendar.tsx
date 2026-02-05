@@ -508,6 +508,24 @@ export function TaskCalendar() {
           </div>
         </CardHeader>
 
+        {/* Category Tabs */}
+        <div className="px-4 py-3 border-b bg-muted/20">
+          <div className="flex flex-wrap items-center gap-2">
+            {scheduleCategories.map((cat) => (
+              <Button
+                key={cat.value}
+                variant={categoryFilter === cat.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCategoryFilter(cat.value)}
+                className="h-8"
+              >
+                <span className="mr-1.5">{cat.emoji}</span>
+                {cat.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <CardContent className="p-0">
           {viewMode === 'month' ? (
             <>
