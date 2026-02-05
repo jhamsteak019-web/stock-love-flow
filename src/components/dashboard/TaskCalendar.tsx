@@ -579,6 +579,7 @@ export function TaskCalendar() {
                           <div className="space-y-0.5">
                             {dayTasks.slice(0, 3).map((task) => {
                               const colors = getColorClasses(task.color);
+                              const catInfo = getCategoryInfo(task.category);
                               return (
                                 <div
                                   key={task.id}
@@ -587,10 +588,10 @@ export function TaskCalendar() {
                                     colors.bg,
                                     "text-white"
                                   )}
-                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  title={`${catInfo.emoji} ${task.title}${task.description ? ` - ${task.description}` : ''}`}
                                   onClick={(e) => openEditModal(task, e)}
                                 >
-                                  <span className="truncate">{task.title}</span>
+                                  <span className="truncate">{catInfo.emoji} {task.title}</span>
                                 </div>
                               );
                             })}
