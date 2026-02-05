@@ -250,13 +250,15 @@ export function TaskCalendar() {
     const monthEnd = endOfMonth(currentDate);
     return tasks.filter(task => {
       const taskDate = new Date(task.task_date);
-      return taskDate >= monthStart && taskDate <= monthEnd;
+      const inRange = taskDate >= monthStart && taskDate <= monthEnd;
+      const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter || (!task.category && categoryFilter === 'event');
+      return inRange && matchesCategory;
     });
-  }, [tasks, currentDate]);
+  }, [tasks, currentDate, categoryFilter]);
 
   // Create task mutation
   const createMutation = useMutation({
-    mutationFn: async (taskData: { title: string; description: string; color: string; task_date: string }) => {
+    mutationFn: async (taskData: { title: string; description: string; color: string; task_date: string; category: string }) => {
       const { error } = await supabase.from('tasks').insert({
         title: taskData.title,
         description: taskData.description || null,
@@ -264,6 +266,7 @@ export function TaskCalendar() {
         task_date: taskData.task_date,
         created_by: user?.id,
         branch_id: selectedBranch?.id || null,
+        category: taskData.category,
       });
       if (error) throw error;
     },
