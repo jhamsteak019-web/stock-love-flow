@@ -825,6 +825,25 @@ export function TaskCalendar() {
                 ))}
               </div>
             </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Schedule Category</label>
+              <div className="flex gap-2 flex-wrap">
+                {scheduleCategories.filter(c => c.value !== 'all').map((cat) => (
+                  <Button
+                    key={cat.value}
+                    type="button"
+                    variant={formData.category === cat.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, category: cat.value })}
+                    className="h-8"
+                  >
+                    <span className="mr-1.5">{cat.emoji}</span>
+                    {cat.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
