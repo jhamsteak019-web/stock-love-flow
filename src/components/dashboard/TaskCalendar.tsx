@@ -25,7 +25,17 @@ interface Task {
   color: string;
   created_by: string;
   branch_id: string | null;
+  category?: string | null;
 }
+
+// Schedule categories with emojis
+const scheduleCategories = [
+  { value: 'all', label: 'All Schedules', emoji: '📋' },
+  { value: 'event', label: 'Event Sched', emoji: '✈️' },
+  { value: 'daily', label: 'Daily Sched', emoji: '📅' },
+  { value: 'roving', label: 'Roving Sched', emoji: '🚗' },
+  { value: 'ccn', label: 'CCN Sched', emoji: '📦' },
+];
 
 const colorOptions = [
   { value: 'blue', label: 'Blue', bg: 'bg-blue-500', text: 'text-blue-700', light: 'bg-blue-50', border: 'border-blue-500', hex: '#3b82f6' },
@@ -52,8 +62,9 @@ export function TaskCalendar() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingDate, setViewingDate] = useState<Date | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [formData, setFormData] = useState({ title: '', description: '', color: 'blue' });
+  const [formData, setFormData] = useState({ title: '', description: '', color: 'blue', category: 'event' });
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -239,13 +250,15 @@ export function TaskCalendar() {
     const monthEnd = endOfMonth(currentDate);
     return tasks.filter(task => {
       const taskDate = new Date(task.task_date);
-      return taskDate >= monthStart && taskDate <= monthEnd;
+      const inRange = taskDate >= monthStart && taskDate <= monthEnd;
+      const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter || (!task.category && categoryFilter === 'event');
+      return inRange && matchesCategory;
     });
-  }, [tasks, currentDate]);
+  }, [tasks, currentDate, categoryFilter]);
 
   // Create task mutation
   const createMutation = useMutation({
-    mutationFn: async (taskData: { title: string; description: string; color: string; task_date: string }) => {
+    mutationFn: async (taskData: { title: string; description: string; color: string; task_date: string; category: string }) => {
       const { error } = await supabase.from('tasks').insert({
         title: taskData.title,
         description: taskData.description || null,
@@ -253,6 +266,7 @@ export function TaskCalendar() {
         task_date: taskData.task_date,
         created_by: user?.id,
         branch_id: selectedBranch?.id || null,
+        category: taskData.category,
       });
       if (error) throw error;
     },
@@ -319,7 +333,11 @@ export function TaskCalendar() {
 
   const getTasksForDay = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
-    return tasks.filter(task => task.task_date === dateStr);
+    return tasks.filter(task => {
+      const matchesDate = task.task_date === dateStr;
+      const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter || (!task.category && categoryFilter === 'event');
+      return matchesDate && matchesCategory;
+    });
   };
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -353,7 +371,7 @@ export function TaskCalendar() {
     if (!canEdit) return;
     setSelectedDate(date);
     setEditingTask(null);
-    setFormData({ title: '', description: '', color: 'blue' });
+    setFormData({ title: '', description: '', color: 'blue', category: categoryFilter === 'all' ? 'event' : categoryFilter });
     setIsModalOpen(true);
   };
 
@@ -361,7 +379,7 @@ export function TaskCalendar() {
     if (!canEdit || !viewingDate) return;
     setSelectedDate(viewingDate);
     setEditingTask(null);
-    setFormData({ title: '', description: '', color: 'blue' });
+    setFormData({ title: '', description: '', color: 'blue', category: categoryFilter === 'all' ? 'event' : categoryFilter });
     setIsViewModalOpen(false);
     setIsModalOpen(true);
   };
@@ -374,6 +392,7 @@ export function TaskCalendar() {
       title: task.title,
       description: task.description || '',
       color: task.color,
+      category: task.category || 'event',
     });
     setIsViewModalOpen(false);
     setIsModalOpen(true);
@@ -383,7 +402,7 @@ export function TaskCalendar() {
     setIsModalOpen(false);
     setEditingTask(null);
     setSelectedDate(null);
-    setFormData({ title: '', description: '', color: 'blue' });
+    setFormData({ title: '', description: '', color: 'blue', category: categoryFilter === 'all' ? 'event' : categoryFilter });
   };
 
   const handleSubmit = () => {
@@ -405,6 +424,7 @@ export function TaskCalendar() {
         description: formData.description,
         color: formData.color,
         task_date: format(selectedDate, 'yyyy-MM-dd'),
+        category: formData.category,
       });
     }
   };
@@ -428,6 +448,12 @@ export function TaskCalendar() {
   // Get selected sidebar date
   const [sidebarSelectedDate, setSidebarSelectedDate] = useState<Date | null>(null);
   const selectedDayTasks = sidebarSelectedDate ? getTasksForDay(sidebarSelectedDate) : [];
+
+  // Get category info for a task
+  const getCategoryInfo = (category?: string | null) => {
+    const cat = scheduleCategories.find(c => c.value === (category || 'event'));
+    return cat || scheduleCategories[1]; // default to event
+  };
 
   return (
     <div className="w-full">
@@ -482,6 +508,24 @@ export function TaskCalendar() {
           </div>
         </CardHeader>
 
+        {/* Category Tabs */}
+        <div className="px-4 py-3 border-b bg-muted/20">
+          <div className="flex flex-wrap items-center gap-2">
+            {scheduleCategories.map((cat) => (
+              <Button
+                key={cat.value}
+                variant={categoryFilter === cat.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCategoryFilter(cat.value)}
+                className="h-8"
+              >
+                <span className="mr-1.5">{cat.emoji}</span>
+                {cat.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <CardContent className="p-0">
           {viewMode === 'month' ? (
             <>
@@ -535,6 +579,7 @@ export function TaskCalendar() {
                           <div className="space-y-0.5">
                             {dayTasks.slice(0, 3).map((task) => {
                               const colors = getColorClasses(task.color);
+                              const catInfo = getCategoryInfo(task.category);
                               return (
                                 <div
                                   key={task.id}
@@ -543,10 +588,10 @@ export function TaskCalendar() {
                                     colors.bg,
                                     "text-white"
                                   )}
-                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  title={`${catInfo.emoji} ${task.title}${task.description ? ` - ${task.description}` : ''}`}
                                   onClick={(e) => openEditModal(task, e)}
                                 >
-                                  <span className="truncate">{task.title}</span>
+                                  <span className="truncate">{catInfo.emoji} {task.title}</span>
                                 </div>
                               );
                             })}
@@ -617,6 +662,7 @@ export function TaskCalendar() {
                           ) : (
                             dayTasks.map((task) => {
                               const colors = getColorClasses(task.color);
+                              const catInfo = getCategoryInfo(task.category);
                               return (
                                 <div
                                   key={task.id}
@@ -629,7 +675,7 @@ export function TaskCalendar() {
                                 >
                                   <div className="flex items-start justify-between gap-1">
                                     <div className="flex-1 min-w-0">
-                                      <p className="font-medium text-sm leading-tight">{task.title}</p>
+                                      <p className="font-medium text-sm leading-tight">{catInfo.emoji} {task.title}</p>
                                       {task.description && (
                                         <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
                                           {task.description}
@@ -685,6 +731,7 @@ export function TaskCalendar() {
               <div className="space-y-3">
                 {viewingDate && getTasksForDay(viewingDate).map((task) => {
                   const colors = getColorClasses(task.color);
+                  const catInfo = getCategoryInfo(task.category);
                   return (
                     <div
                       key={task.id}
@@ -697,6 +744,11 @@ export function TaskCalendar() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-xs py-0 h-5">
+                              {catInfo.emoji} {catInfo.label}
+                            </Badge>
+                          </div>
                           <p className="font-semibold text-sm break-words">{task.title}</p>
                           {task.description && (
                             <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap break-words overflow-wrap-anywhere">
@@ -778,6 +830,25 @@ export function TaskCalendar() {
                     )}
                     title={color.label}
                   />
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Schedule Category</label>
+              <div className="flex gap-2 flex-wrap">
+                {scheduleCategories.filter(c => c.value !== 'all').map((cat) => (
+                  <Button
+                    key={cat.value}
+                    type="button"
+                    variant={formData.category === cat.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, category: cat.value })}
+                    className="h-8"
+                  >
+                    <span className="mr-1.5">{cat.emoji}</span>
+                    {cat.label}
+                  </Button>
                 ))}
               </div>
             </div>
