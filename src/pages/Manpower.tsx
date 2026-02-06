@@ -4474,8 +4474,8 @@ const Manpower = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {(emp as any).deleted_at 
-                              ? format(new Date((emp as any).deleted_at), 'MMM dd, yyyy hh:mm a')
+                            {emp.deleted_at 
+                              ? format(new Date(emp.deleted_at), 'MMM dd, yyyy hh:mm a')
                               : format(new Date(emp.updated_at || emp.created_at), 'MMM dd, yyyy')}
                           </TableCell>
                           <TableCell>
