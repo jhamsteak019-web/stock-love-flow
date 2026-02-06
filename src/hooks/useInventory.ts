@@ -82,18 +82,32 @@ export const useInventory = () => {
 
   const fetchDeletedReleases = async () => {
     try {
-      const { data, error } = await supabase
-        .from('stock_releases')
-        .select(`
-          *,
-          inventory_item:inventory_items(*)
-        `)
-        .not('deleted_at', 'is', null)
-        .range(0, 4999)
-        .order('deleted_at', { ascending: false });
+      // Paginate to fetch ALL deleted releases without any limit
+      const PAGE_SIZE = 1000;
+      const allDeleted: StockRelease[] = [];
+      let from = 0;
 
-      if (error) throw error;
-      return data || [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select(`
+            *,
+            inventory_item:inventory_items(*)
+          `)
+          .not('deleted_at', 'is', null)
+          .order('deleted_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const chunk = (data ?? []) as StockRelease[];
+        allDeleted.push(...chunk);
+
+        if (chunk.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      return allDeleted;
     } catch (error) {
       console.error('Error fetching deleted releases:', error);
       return [];
