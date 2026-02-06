@@ -4468,9 +4468,9 @@ const Manpower = () => {
                           <TableCell>{emp.position || '-'}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={cn(
-                              (emp as any).deleted_at ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-amber-100 text-amber-700 border-amber-300'
+                              emp.deleted_at ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-amber-100 text-amber-700 border-amber-300'
                             )}>
-                              {(emp as any).deleted_at ? 'Deleted' : 'Inactive'}
+                              {emp.deleted_at ? 'Deleted' : 'Inactive'}
                             </Badge>
                           </TableCell>
                           <TableCell>
