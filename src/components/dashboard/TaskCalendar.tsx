@@ -588,10 +588,10 @@ export function TaskCalendar() {
                                     colors.bg,
                                     "text-white"
                                   )}
-                                  title={`${catInfo.emoji} ${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
                                   onClick={(e) => openEditModal(task, e)}
                                 >
-                                  <span className="truncate">{catInfo.emoji} {task.title}</span>
+                                  <span className="truncate">{task.title}</span>
                                 </div>
                               );
                             })}
@@ -675,7 +675,7 @@ export function TaskCalendar() {
                                 >
                                   <div className="flex items-start justify-between gap-1">
                                     <div className="flex-1 min-w-0">
-                                      <p className="font-medium text-sm leading-tight">{catInfo.emoji} {task.title}</p>
+                                      <p className="font-medium text-sm leading-tight">{task.title}</p>
                                       {task.description && (
                                         <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
                                           {task.description}
