@@ -308,15 +308,16 @@ const Manpower = () => {
     }
   });
 
-  // Fetch deleted employees
+  // Fetch deleted/inactive employees (both soft-deleted and inactive)
   const { data: deletedEmployees = [] } = useQuery({
     queryKey: ['manpower-deleted-employees'],
     queryFn: async () => {
+      // Fetch employees that are either soft-deleted OR inactive
       const { data, error } = await supabase
         .from('employees')
         .select('*, branches(name)')
-        .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false });
+        .or('deleted_at.not.is.null,is_active.eq.false')
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
       return data as Employee[];
