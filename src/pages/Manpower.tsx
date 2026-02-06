@@ -4444,7 +4444,8 @@ const Manpower = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Branch</TableHead>
                         <TableHead>Position</TableHead>
-                        <TableHead>Deleted At</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Removed At</TableHead>
                         <TableHead className="text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -4464,9 +4465,16 @@ const Manpower = () => {
                           <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
                           <TableCell>{emp.position || '-'}</TableCell>
                           <TableCell>
+                            <Badge variant="outline" className={cn(
+                              (emp as any).deleted_at ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-amber-100 text-amber-700 border-amber-300'
+                            )}>
+                              {(emp as any).deleted_at ? 'Deleted' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             {(emp as any).deleted_at 
                               ? format(new Date((emp as any).deleted_at), 'MMM dd, yyyy hh:mm a')
-                              : '-'}
+                              : format(new Date(emp.updated_at || emp.created_at), 'MMM dd, yyyy')}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
