@@ -588,10 +588,10 @@ export function TaskCalendar() {
                                     colors.bg,
                                     "text-white"
                                   )}
-                                  title={`${catInfo.emoji} ${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
                                   onClick={(e) => openEditModal(task, e)}
                                 >
-                                  <span className="truncate">{catInfo.emoji} {task.title}</span>
+                                  <span className="truncate">{task.title}</span>
                                 </div>
                               );
                             })}
