@@ -48,20 +48,33 @@ export const useInventory = () => {
 
   const fetchReleases = async () => {
     try {
-      const { data, error } = await supabase
-        .from('stock_releases')
-        .select(`
-          *,
-          inventory_item:inventory_items(*)
-        `)
-        .is('deleted_at', null)
-        // PostgREST default limit is 1000 rows; Dashboard totals become incomplete when dataset grows.
-        // Fetch a larger range to ensure totals and charts have complete data.
-        .range(0, 4999)
-        .order('created_at', { ascending: false });
+      // Paginate to fetch ALL releases without any limit
+      const PAGE_SIZE = 1000;
+      const allReleases: StockRelease[] = [];
+      let from = 0;
 
-      if (error) throw error;
-      setReleases(data || []);
+      while (true) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select(`
+            *,
+            inventory_item:inventory_items(*)
+          `)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        const chunk = (data ?? []) as StockRelease[];
+        allReleases.push(...chunk);
+
+        // If we got fewer than PAGE_SIZE, we've reached the end
+        if (chunk.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      setReleases(allReleases);
     } catch (error) {
       console.error('Error fetching releases:', error);
     }
