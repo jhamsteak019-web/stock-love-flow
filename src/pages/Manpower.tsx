@@ -94,6 +94,8 @@ interface Employee {
   photo_url: string | null;
   is_active: boolean;
   created_at: string;
+  updated_at?: string;
+  deleted_at?: string | null;
   branches?: { name: string } | null;
 }
 
@@ -308,15 +310,16 @@ const Manpower = () => {
     }
   });
 
-  // Fetch deleted employees
+  // Fetch deleted/inactive employees (both soft-deleted and inactive)
   const { data: deletedEmployees = [] } = useQuery({
     queryKey: ['manpower-deleted-employees'],
     queryFn: async () => {
+      // Fetch employees that are either soft-deleted OR inactive
       const { data, error } = await supabase
         .from('employees')
         .select('*, branches(name)')
-        .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false });
+        .or('deleted_at.not.is.null,is_active.eq.false')
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
       return data as Employee[];
@@ -4443,7 +4446,8 @@ const Manpower = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Branch</TableHead>
                         <TableHead>Position</TableHead>
-                        <TableHead>Deleted At</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Removed At</TableHead>
                         <TableHead className="text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -4463,9 +4467,16 @@ const Manpower = () => {
                           <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
                           <TableCell>{emp.position || '-'}</TableCell>
                           <TableCell>
-                            {(emp as any).deleted_at 
-                              ? format(new Date((emp as any).deleted_at), 'MMM dd, yyyy hh:mm a')
-                              : '-'}
+                            <Badge variant="outline" className={cn(
+                              emp.deleted_at ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-amber-100 text-amber-700 border-amber-300'
+                            )}>
+                              {emp.deleted_at ? 'Deleted' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {emp.deleted_at 
+                              ? format(new Date(emp.deleted_at), 'MMM dd, yyyy hh:mm a')
+                              : format(new Date(emp.updated_at || emp.created_at), 'MMM dd, yyyy')}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
