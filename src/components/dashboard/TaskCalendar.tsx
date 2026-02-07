@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList, Printer } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList, Printer, ImageDown } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,6 +57,7 @@ const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type ViewMode = 'month' | 'week';
 
 export function TaskCalendar() {
+  const calendarRef = React.useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -226,6 +228,35 @@ export function TaskCalendar() {
     setTimeout(() => {
       printWindow.print();
     }, 300);
+  };
+
+  // Save to Image function
+  const handleSaveToImage = async () => {
+    if (!calendarRef.current) {
+      toast.error('Calendar not found');
+      return;
+    }
+
+    try {
+      toast.info('Generating image...');
+      
+      const canvas = await html2canvas(calendarRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      
+      const link = document.createElement('a');
+      link.download = `task-calendar-${format(currentDate, 'yyyy-MM')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      toast.success('Calendar saved as image!');
+    } catch (error) {
+      console.error('Failed to save image:', error);
+      toast.error('Failed to save calendar as image');
+    }
   };
 
   // Fetch tasks
@@ -458,7 +489,7 @@ export function TaskCalendar() {
   return (
     <div className="w-full">
       {/* Main Calendar View */}
-      <Card className="w-full overflow-hidden shadow-sm">
+      <Card ref={calendarRef} className="w-full overflow-hidden shadow-sm">
         {/* Header */}
         <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 border-b bg-muted/30">
           <div className="flex items-center gap-4">
@@ -498,6 +529,10 @@ export function TaskCalendar() {
             <Button variant="outline" size="sm" onClick={handlePrintCalendar}>
               <Printer className="h-4 w-4 mr-1" />
               Print PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSaveToImage}>
+              <ImageDown className="h-4 w-4 mr-1" />
+              Save Image
             </Button>
             {canEdit && (
               <Button size="sm" onClick={() => openCreateModal(new Date())}>
