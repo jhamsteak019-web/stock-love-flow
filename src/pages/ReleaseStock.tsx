@@ -421,15 +421,23 @@ const ReleaseStock = () => {
       return;
     }
 
-    // Check for duplicate allocation bills
+    // Check for duplicate allocation bills - show warning but allow to continue
     const duplicates = validItems.filter(item => isDuplicateAllocationBill(item.sheetNo));
     if (duplicates.length > 0) {
       const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
-      toast({ title: 'Warning', description: `Allocation bill(s) already exist: ${duplicateBills}. Please remove or change them.`, variant: 'destructive' });
-      return;
+      const confirmed = window.confirm(
+        `Warning: Allocation bill(s) already exist:\n${duplicateBills}\n\nDo you still want to continue releasing these items?`
+      );
+      if (!confirmed) {
+        return;
+      }
     }
 
     setSubmitting(true);
+    
+    // Track released allocation bills to prevent double release
+    const releasedBills = new Set<string>();
+    
     try {
       // Release all selected items as ONE BATCH (single batch_id)
       // Use the first item's courier, setDate, and waybillNo for the batch
@@ -437,6 +445,13 @@ const ReleaseStock = () => {
 
       // Release all items together as one batch
       for (const item of validItems) {
+        // Skip if this allocation bill was already released in this batch
+        const billKey = item.sheetNo?.toLowerCase().trim();
+        if (billKey && releasedBills.has(billKey)) {
+          console.log(`Skipping duplicate in batch: ${item.sheetNo}`);
+          continue;
+        }
+        
         await releaseStockBatch(
           [{ itemId: item.matchedItemId || '', boxes: item.qtyBoxes }],
           item.deliverTo || 'Unknown',
@@ -451,9 +466,14 @@ const ReleaseStock = () => {
           selectedBranch?.id || undefined,
           item.amount || undefined
         );
+        
+        // Mark as released
+        if (billKey) {
+          releasedBills.add(billKey);
+        }
       }
 
-      // Remove released items from preview
+      // Remove released items from preview - including any duplicates
       const releasedIds = new Set(validItems.map(i => i.id));
       setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
       setSelectedItems(new Set());
@@ -467,16 +487,16 @@ const ReleaseStock = () => {
       await logActivity({
         actionType: 'import',
         module: 'stock_releases',
-        description: `Imported ${validItems.length} delivery item(s) via Excel`,
+        description: `Imported ${releasedBills.size || validItems.length} delivery item(s) via Excel`,
         metadata: {
-          items_count: validItems.length,
+          items_count: releasedBills.size || validItems.length,
           courier: firstItem.courier,
           branch: selectedBranch?.name,
           allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
         }
       });
 
-      toast({ title: 'Success', description: `${validItems.length} item(s) released as one batch` });
+      toast({ title: 'Success', description: `${releasedBills.size || validItems.length} item(s) released successfully` });
     } catch (error) {
       console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });

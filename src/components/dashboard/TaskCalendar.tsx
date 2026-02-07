@@ -57,7 +57,8 @@ const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type ViewMode = 'month' | 'week';
 
 export function TaskCalendar() {
-  const calendarRef = React.useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const calendarContentRef = useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -230,9 +231,9 @@ export function TaskCalendar() {
     }, 300);
   };
 
-  // Save to Image function
+  // Save to Image function - capture only calendar grid
   const handleSaveToImage = async () => {
-    if (!calendarRef.current) {
+    if (!calendarContentRef.current) {
       toast.error('Calendar not found');
       return;
     }
@@ -240,12 +241,33 @@ export function TaskCalendar() {
     try {
       toast.info('Generating image...');
       
-      const canvas = await html2canvas(calendarRef.current, {
+      // Create a temporary wrapper with white background and title
+      const tempContainer = document.createElement('div');
+      tempContainer.style.cssText = 'position: absolute; left: -9999px; background: white; padding: 20px;';
+      
+      // Add title header
+      const titleDiv = document.createElement('div');
+      titleDiv.style.cssText = 'text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #3b82f6;';
+      titleDiv.innerHTML = `
+        <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">📅 Task Calendar</h1>
+        <p style="font-size: 12px; color: #6b7280;">${format(currentDate, 'MMMM yyyy')}${selectedBranch ? ` • ${selectedBranch.name}` : ''}</p>
+      `;
+      tempContainer.appendChild(titleDiv);
+      
+      // Clone the calendar content
+      const clonedContent = calendarContentRef.current.cloneNode(true) as HTMLElement;
+      tempContainer.appendChild(clonedContent);
+      
+      document.body.appendChild(tempContainer);
+      
+      const canvas = await html2canvas(tempContainer, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
       });
+      
+      document.body.removeChild(tempContainer);
       
       const link = document.createElement('a');
       link.download = `task-calendar-${format(currentDate, 'yyyy-MM')}.png`;
@@ -561,7 +583,7 @@ export function TaskCalendar() {
           </div>
         </div>
 
-        <CardContent className="p-0">
+        <CardContent className="p-0" ref={calendarContentRef}>
           {viewMode === 'month' ? (
             <>
               {/* Day Headers */}
