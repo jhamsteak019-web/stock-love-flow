@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ const MONTHS = [
 ];
 
 const HISTORY_STORAGE_KEY = 'history_filter';
-
+const ITEMS_PER_PAGE = 50;
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'amount' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
@@ -117,6 +117,8 @@ const History = () => {
   const [selectedYear, setSelectedYear] = useState<number>(savedHistoryFilter.year);
   const [showAllYear, setShowAllYear] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deletedCurrentPage, setDeletedCurrentPage] = useState(1);
   
   // Persist filter to localStorage when it changes
   useEffect(() => {
@@ -290,12 +292,49 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, debouncedSearchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear]);
+  }, [groupedReleases, debouncedSearchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
+
+  // Pagination for active releases
+  const totalPages = Math.ceil(filteredReleases.length / ITEMS_PER_PAGE);
+  const paginatedReleases = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredReleases.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredReleases, currentPage]);
+
+  // Pagination for deleted releases
+  const deletedTotalPages = Math.ceil(groupedDeletedReleases.length / ITEMS_PER_PAGE);
+  const paginatedDeletedReleases = useMemo(() => {
+    const start = (deletedCurrentPage - 1) * ITEMS_PER_PAGE;
+    return groupedDeletedReleases.slice(start, start + ITEMS_PER_PAGE);
+  }, [groupedDeletedReleases, deletedCurrentPage]);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = (current: number, total: number) => {
+    const pages: (number | string)[] = [];
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      if (current <= 3) {
+        pages.push(1, 2, 3, 4, '...', total);
+      } else if (current >= total - 2) {
+        pages.push(1, '...', total - 3, total - 2, total - 1, total);
+      } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', total);
+      }
+    }
+    return pages;
+  };
 
   const clearFilters = () => {
     setStartDate(undefined);
     setEndDate(undefined);
     setStatusFilter('all');
+    setCurrentPage(1);
   };
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
@@ -612,15 +651,14 @@ const History = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredReleases.map((group, index) => (
+                  paginatedReleases.map((group, index) => (
                     <TableRow 
                       key={group.batch_id} 
-                      className="cursor-pointer transition-all duration-300 ease-out hover:bg-muted/50" 
+                      className="cursor-pointer transition-colors hover:bg-muted/50" 
                       onClick={() => setSelectedBatch(group)}
-                      style={{ animation: `fade-in 0.3s ease-out ${index * 30}ms forwards`, opacity: 0 }}
                     >
                       {isColumnVisible('allocation') && (
-                        <TableCell className="font-medium transition-all duration-300" style={{ width: getColumnWidth('allocation') }}>
+                        <TableCell className="font-medium" style={{ width: getColumnWidth('allocation') }}>
                           <div className="flex items-center gap-2">
                             <div onClick={(e) => e.stopPropagation()}>
                               <PhotoUploadCell
@@ -635,29 +673,29 @@ const History = () => {
                           </div>
                         </TableCell>
                       )}
-                      {isColumnVisible('destination') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
-                      {isColumnVisible('category') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
-                      {isColumnVisible('totalBoxes') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
-                      {isColumnVisible('amount') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('amount') }}>{formatAmount(group.amount)}</TableCell>}
-                      {isColumnVisible('totalQty') && <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
-                      {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
+                      {isColumnVisible('destination') && <TableCell style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
+                      {isColumnVisible('category') && <TableCell style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
+                      {isColumnVisible('totalBoxes') && <TableCell className="text-center" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                      {isColumnVisible('amount') && <TableCell className="text-center" style={{ width: getColumnWidth('amount') }}>{formatAmount(group.amount)}</TableCell>}
+                      {isColumnVisible('totalQty') && <TableCell className="text-center" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
+                      {isColumnVisible('dateOut') && <TableCell className="text-muted-foreground" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
                       {isColumnVisible('dateReceived') && (
-                        <TableCell className="text-muted-foreground transition-all duration-300" style={{ width: getColumnWidth('dateReceived') }}>
+                        <TableCell className="text-muted-foreground" style={{ width: getColumnWidth('dateReceived') }}>
                           {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
                         </TableCell>
                       )}
                       {isColumnVisible('deliveryTime') && (
-                        <TableCell className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>
+                        <TableCell className="text-center" style={{ width: getColumnWidth('deliveryTime') }}>
                           {group.set_date && group.date_delivered ? (
-                            <span className="font-medium text-green-600">
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
                               {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} day(s)
                             </span>
                           ) : '-'}
                         </TableCell>
                       )}
-                      {isColumnVisible('courier') && <TableCell className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
+                      {isColumnVisible('courier') && <TableCell style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
                       {isColumnVisible('remarks') && (
-                        <TableCell onClick={(e) => e.stopPropagation()} className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>
+                        <TableCell onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('remarks') }}>
                           {isAdmin ? (
                             <Input
                               placeholder="Enter remarks"
@@ -705,6 +743,52 @@ const History = () => {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination for Active Releases */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredReleases.length)} of {filteredReleases.length} items
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 px-3"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                {getPageNumbers(currentPage, totalPages).map((page, idx) => (
+                  typeof page === 'number' ? (
+                    <Button
+                      key={idx}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ) : (
+                    <span key={idx} className="px-2 text-muted-foreground">...</span>
+                  )
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 px-3"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="deleted" className="space-y-4">
@@ -736,7 +820,7 @@ const History = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    groupedDeletedReleases.map((group) => (
+                    paginatedDeletedReleases.map((group) => (
                       <TableRow key={group.batch_id}>
                         <TableCell className="font-medium">{group.allocation_bill || '-'}</TableCell>
                         <TableCell>{group.destination}</TableCell>
@@ -753,7 +837,7 @@ const History = () => {
                               variant="ghost" 
                               size="icon" 
                               onClick={(e) => handleRestore(group, e)}
-                              className="text-green-600 hover:text-green-600"
+                              className="text-emerald-600 hover:text-emerald-600 dark:text-emerald-400"
                               title="Restore"
                             >
                               <RotateCcw className="h-4 w-4" />
@@ -776,6 +860,52 @@ const History = () => {
                   )}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination for Deleted Releases */}
+          {deletedTotalPages > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {((deletedCurrentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(deletedCurrentPage * ITEMS_PER_PAGE, groupedDeletedReleases.length)} of {groupedDeletedReleases.length} items
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeletedCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={deletedCurrentPage === 1}
+                  className="h-8 px-3"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                {getPageNumbers(deletedCurrentPage, deletedTotalPages).map((page, idx) => (
+                  typeof page === 'number' ? (
+                    <Button
+                      key={idx}
+                      variant={deletedCurrentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDeletedCurrentPage(page)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ) : (
+                    <span key={idx} className="px-2 text-muted-foreground">...</span>
+                  )
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeletedCurrentPage(p => Math.min(deletedTotalPages, p + 1))}
+                  disabled={deletedCurrentPage === deletedTotalPages}
+                  className="h-8 px-3"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>
