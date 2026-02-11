@@ -951,7 +951,81 @@ const Manpower = () => {
   };
 
 
-  const manpowerSummaryData = useMemo(() => {
+  // Handle resign letter photo upload (max 3 images)
+  const handleResignPhotoUpload = async (employeeId: string, files: FileList) => {
+    if (!files.length) return;
+    
+    const employee = employees.find(e => e.id === employeeId);
+    const existingPhotos = employee?.resign_letter_photos || [];
+    
+    if (existingPhotos.length + files.length > 3) {
+      toast({ title: 'Maximum 3 photos allowed', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingResignPhotos(employeeId);
+    try {
+      const newUrls: string[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${employeeId}/resign-letter-${Date.now()}-${i}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('resume-letters')
+          .upload(fileName, file);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: urlData } = supabase.storage
+          .from('resume-letters')
+          .getPublicUrl(fileName);
+        
+        newUrls.push(urlData.publicUrl);
+      }
+      
+      const updatedPhotos = [...existingPhotos, ...newUrls];
+      
+      const { error: updateError } = await supabase
+        .from('employees')
+        .update({ resign_letter_photos: updatedPhotos })
+        .eq('id', employeeId);
+      
+      if (updateError) throw updateError;
+      
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      toast({ title: 'Letter photos uploaded successfully!' });
+    } catch (error: any) {
+      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setUploadingResignPhotos(null);
+    }
+  };
+
+  // Remove resign letter photo
+  const handleRemoveResignPhoto = async (employeeId: string, photoIndex: number) => {
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee?.resign_letter_photos) return;
+    
+    const updatedPhotos = employee.resign_letter_photos.filter((_, idx) => idx !== photoIndex);
+    
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({ resign_letter_photos: updatedPhotos })
+        .eq('id', employeeId);
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      toast({ title: 'Photo removed' });
+    } catch (error: any) {
+      toast({ title: 'Failed to remove photo', description: error.message, variant: 'destructive' });
+    }
+  };
+
+
     // Apply filters first
     let filtered = employees.filter(emp => {
       // Global branch filter
