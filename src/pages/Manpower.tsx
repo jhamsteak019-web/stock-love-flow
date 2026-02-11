@@ -5163,6 +5163,27 @@ const Manpower = () => {
                 <p className="font-medium bg-muted p-3 rounded-md">{viewingEmployee.remarks}</p>
               </div>
             )}
+
+            {/* Resign Letter Photos */}
+            {viewingEmployee?.employment_status?.toLowerCase() === 'resigned' && (viewingEmployee?.resign_letter_photos || []).length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3">Resignation Letter</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {(viewingEmployee.resign_letter_photos || []).map((photo, idx) => (
+                    <img
+                      key={idx}
+                      src={photo}
+                      alt={`Resignation Letter ${idx + 1}`}
+                      className="w-full h-40 object-cover rounded-lg border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                      onClick={() => setViewingPhoto({ url: photo, name: `${viewingEmployee.full_name} - Resignation Letter ${idx + 1}` })}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
