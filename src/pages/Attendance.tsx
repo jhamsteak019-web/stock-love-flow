@@ -2079,7 +2079,7 @@ const Attendance = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRecords.map((record) => (
+                  paginatedRecords.map((record) => (
                     <TableRow key={record.id}>
                       {columns.find(c => c.key === 'branch')?.visible && (
                         <TableCell>{record.employees?.branch || record.employees?.branches?.name || '-'}</TableCell>
