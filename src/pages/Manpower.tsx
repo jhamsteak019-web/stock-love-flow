@@ -4553,6 +4553,7 @@ const Manpower = () => {
                         <TableHead>Position</TableHead>
                         <TableHead>Date Hired</TableHead>
                         <TableHead>Remarks</TableHead>
+                        <TableHead className="min-w-[200px]">Letter (Max 3)</TableHead>
                         <TableHead className="text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -4574,6 +4575,56 @@ const Manpower = () => {
                           <TableCell>{emp.position || '-'}</TableCell>
                           <TableCell>{emp.date_hired ? format(new Date(emp.date_hired), 'MMM dd, yyyy') : '-'}</TableCell>
                           <TableCell className="max-w-[200px] truncate" title={emp.remarks || ''}>{emp.remarks || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {(emp.resign_letter_photos || []).map((photo, idx) => (
+                                <div key={idx} className="relative group/photo">
+                                  <img
+                                    src={photo}
+                                    alt={`Letter ${idx + 1}`}
+                                    className="h-10 w-10 rounded object-cover cursor-pointer border hover:ring-2 hover:ring-primary"
+                                    onClick={() => setViewingPhoto({ url: photo, name: `${emp.full_name} - Letter ${idx + 1}` })}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                    }}
+                                  />
+                                  {canEdit && (
+                                    <button
+                                      className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveResignPhoto(emp.id, idx);
+                                      }}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {canEdit && (emp.resign_letter_photos || []).length < 3 && (
+                                <label className="h-10 w-10 rounded border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                                  {uploadingResignPhotos === emp.id ? (
+                                    <span className="text-[10px] text-muted-foreground">...</span>
+                                  ) : (
+                                    <Plus className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    disabled={uploadingResignPhotos === emp.id}
+                                    onChange={(e) => {
+                                      if (e.target.files) {
+                                        handleResignPhotoUpload(emp.id, e.target.files);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
                               <Button
