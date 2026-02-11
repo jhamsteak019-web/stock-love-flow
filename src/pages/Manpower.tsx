@@ -145,6 +145,9 @@ const Manpower = () => {
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState('manpower');
+  const [uploadingResignPhotos, setUploadingResignPhotos] = useState<string | null>(null); // employee id being uploaded to
+  const resignPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [resignPhotoEmployeeId, setResignPhotoEmployeeId] = useState<string | null>(null);
   
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>(null);
