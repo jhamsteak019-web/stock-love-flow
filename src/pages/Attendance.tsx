@@ -42,7 +42,9 @@ import {
   ClipboardList,
   RotateCcw,
   Printer,
-  Database
+  Database,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
@@ -162,6 +164,8 @@ const Attendance = () => {
   const [isAllYear, setIsAllYear] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('attendance');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   // Employee modal states
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
@@ -353,6 +357,18 @@ const Attendance = () => {
       return matchesSearch && matchesStatus && matchesBranch;
     });
   }, [attendanceRecords, searchQuery, statusFilter, globalBranchId, branchFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, branchFilter, globalBranchId, selectedMonth, selectedYear, isAllYear]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredRecords.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredRecords, currentPage, ITEMS_PER_PAGE]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -2063,7 +2079,7 @@ const Attendance = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRecords.map((record) => (
+                  paginatedRecords.map((record) => (
                     <TableRow key={record.id}>
                       {columns.find(c => c.key === 'branch')?.visible && (
                         <TableCell>{record.employees?.branch || record.employees?.branches?.name || '-'}</TableCell>
@@ -2132,6 +2148,60 @@ const Attendance = () => {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 px-2">
+              <p className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredRecords.length)} of {filteredRecords.length} records
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => {
+                    if (totalPages <= 7) return true;
+                    if (page === 1 || page === totalPages) return true;
+                    if (Math.abs(page - currentPage) <= 1) return true;
+                    return false;
+                  })
+                  .map((page, idx, arr) => {
+                    const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                    return (
+                      <span key={page} className="flex items-center">
+                        {showEllipsis && <span className="px-2 text-muted-foreground">...</span>}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          className="min-w-[36px]"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      </span>
+                    );
+                  })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
