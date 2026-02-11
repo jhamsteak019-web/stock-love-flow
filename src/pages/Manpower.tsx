@@ -98,7 +98,6 @@ interface Employee {
   deleted_at?: string | null;
   branches?: { name: string } | null;
   resign_letter_photos?: string[] | null;
-  branches?: { name: string } | null;
 }
 
 const genderOptions = ['Male', 'Female'];
