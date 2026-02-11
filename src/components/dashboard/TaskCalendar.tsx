@@ -768,14 +768,20 @@ export function TaskCalendar() {
                 {weekDays.map((day, dayIndex) => {
                   const dayTasks = getTasksForDay(day);
                   const isTodayDate = isToday(day);
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const isDragOver = dragOverDate === dateStr;
 
                   return (
                     <div
                       key={day.toISOString()}
                       onClick={() => openViewModal(day)}
+                      onDragOver={(e) => handleDragOver(e, dateStr)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, dateStr)}
                       className={cn(
                         "p-2 transition-all cursor-pointer hover:bg-accent/30 group",
-                        isTodayDate && "bg-primary/5 dark:bg-primary/10"
+                        isTodayDate && "bg-primary/5 dark:bg-primary/10",
+                        isDragOver && "bg-primary/20 ring-2 ring-primary/50 ring-inset"
                       )}
                     >
                       <ScrollArea className="h-[360px]">
