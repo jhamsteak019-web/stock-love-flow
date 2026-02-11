@@ -164,6 +164,8 @@ const Attendance = () => {
   const [isAllYear, setIsAllYear] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('attendance');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   // Employee modal states
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
