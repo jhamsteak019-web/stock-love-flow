@@ -358,6 +358,18 @@ const Attendance = () => {
     });
   }, [attendanceRecords, searchQuery, statusFilter, globalBranchId, branchFilter]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, branchFilter, globalBranchId, selectedMonth, selectedYear, isAllYear]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredRecords.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredRecords, currentPage, ITEMS_PER_PAGE]);
+
   // Calculate stats
   const stats = useMemo(() => {
     const total = filteredRecords.length;
