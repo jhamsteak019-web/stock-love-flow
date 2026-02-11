@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList, Printer, ImageDown } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,63 @@ export function TaskCalendar() {
   
   const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
+
+  // Drag and drop state
+  const [draggingTask, setDraggingTask] = useState<Task | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
+  // Move task mutation
+  const moveTaskMutation = useMutation({
+    mutationFn: async ({ id, newDate }: { id: string; newDate: string }) => {
+      const { error } = await supabase.from('tasks').update({
+        task_date: newDate,
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task moved successfully');
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to move task: ' + error.message);
+    },
+  });
+
+  const handleDragStart = useCallback((e: React.DragEvent, task: Task) => {
+    if (!canEdit) return;
+    e.stopPropagation();
+    setDraggingTask(task);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  }, [canEdit]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, dateStr: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(dateStr);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverDate(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, dateStr: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverDate(null);
+    
+    if (draggingTask && draggingTask.task_date !== dateStr && canEdit) {
+      moveTaskMutation.mutate({ id: draggingTask.id, newDate: dateStr });
+    }
+    setDraggingTask(null);
+  }, [draggingTask, canEdit, moveTaskMutation]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingTask(null);
+    setDragOverDate(null);
+  }, []);
 
   // Print to PDF function
   const handlePrintCalendar = () => {
@@ -610,15 +667,21 @@ export function TaskCalendar() {
                       const dayTasks = getTasksForDay(day);
                       const isCurrentMonth = isSameMonth(day, currentDate);
                       const isTodayDate = isToday(day);
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const isDragOver = dragOverDate === dateStr;
 
                       return (
                         <div
                           key={day.toISOString()}
                           onClick={() => openViewModal(day)}
+                          onDragOver={(e) => handleDragOver(e, dateStr)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, dateStr)}
                           className={cn(
                             "min-h-[160px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
                             !isCurrentMonth && "bg-muted/20 opacity-60",
-                            isTodayDate && "bg-primary/5 dark:bg-primary/10"
+                            isTodayDate && "bg-primary/5 dark:bg-primary/10",
+                            isDragOver && "bg-primary/20 ring-2 ring-primary/50 ring-inset"
                           )}
                         >
                           <div className="flex justify-between items-start mb-1">
@@ -640,12 +703,17 @@ export function TaskCalendar() {
                               return (
                                 <div
                                   key={task.id}
+                                  draggable={canEdit}
+                                  onDragStart={(e) => handleDragStart(e, task)}
+                                  onDragEnd={handleDragEnd}
                                   className={cn(
                                     "text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-all font-medium group/task",
                                     colors.bg,
-                                    "text-white"
+                                    "text-white",
+                                    canEdit && "cursor-grab active:cursor-grabbing",
+                                    draggingTask?.id === task.id && "opacity-50"
                                   )}
-                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''} (drag to move)`}
                                   onClick={(e) => openEditModal(task, e)}
                                 >
                                   <span className="truncate">{task.title}</span>
@@ -700,14 +768,20 @@ export function TaskCalendar() {
                 {weekDays.map((day, dayIndex) => {
                   const dayTasks = getTasksForDay(day);
                   const isTodayDate = isToday(day);
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const isDragOver = dragOverDate === dateStr;
 
                   return (
                     <div
                       key={day.toISOString()}
                       onClick={() => openViewModal(day)}
+                      onDragOver={(e) => handleDragOver(e, dateStr)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, dateStr)}
                       className={cn(
                         "p-2 transition-all cursor-pointer hover:bg-accent/30 group",
-                        isTodayDate && "bg-primary/5 dark:bg-primary/10"
+                        isTodayDate && "bg-primary/5 dark:bg-primary/10",
+                        isDragOver && "bg-primary/20 ring-2 ring-primary/50 ring-inset"
                       )}
                     >
                       <ScrollArea className="h-[360px]">
@@ -723,9 +797,14 @@ export function TaskCalendar() {
                               return (
                                 <div
                                   key={task.id}
+                                  draggable={canEdit}
+                                  onDragStart={(e) => handleDragStart(e, task)}
+                                  onDragEnd={handleDragEnd}
                                   className={cn(
                                     "p-2 rounded-lg cursor-pointer hover:shadow-md transition-all border-l-4 group/task",
-                                    colors.light
+                                    colors.light,
+                                    canEdit && "cursor-grab active:cursor-grabbing",
+                                    draggingTask?.id === task.id && "opacity-50"
                                   )}
                                   style={{ borderLeftColor: colors.hex }}
                                   onClick={(e) => openEditModal(task, e)}

@@ -374,6 +374,7 @@ export type Database = {
           photo_url: string | null
           position: string | null
           remarks: string | null
+          resign_letter_photos: string[] | null
           updated_at: string
         }
         Insert: {
@@ -398,6 +399,7 @@ export type Database = {
           photo_url?: string | null
           position?: string | null
           remarks?: string | null
+          resign_letter_photos?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -422,6 +424,7 @@ export type Database = {
           photo_url?: string | null
           position?: string | null
           remarks?: string | null
+          resign_letter_photos?: string[] | null
           updated_at?: string
         }
         Relationships: [

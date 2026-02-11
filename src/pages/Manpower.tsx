@@ -97,6 +97,7 @@ interface Employee {
   updated_at?: string;
   deleted_at?: string | null;
   branches?: { name: string } | null;
+  resign_letter_photos?: string[] | null;
 }
 
 const genderOptions = ['Male', 'Female'];
@@ -144,6 +145,9 @@ const Manpower = () => {
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState('manpower');
+  const [uploadingResignPhotos, setUploadingResignPhotos] = useState<string | null>(null); // employee id being uploaded to
+  const resignPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [resignPhotoEmployeeId, setResignPhotoEmployeeId] = useState<string | null>(null);
   
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -947,7 +951,81 @@ const Manpower = () => {
   };
 
 
-  const manpowerSummaryData = useMemo(() => {
+  // Handle resign letter photo upload (max 3 images)
+  const handleResignPhotoUpload = async (employeeId: string, files: FileList) => {
+    if (!files.length) return;
+    
+    const employee = employees.find(e => e.id === employeeId);
+    const existingPhotos = employee?.resign_letter_photos || [];
+    
+    if (existingPhotos.length + files.length > 3) {
+      toast({ title: 'Maximum 3 photos allowed', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingResignPhotos(employeeId);
+    try {
+      const newUrls: string[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${employeeId}/resign-letter-${Date.now()}-${i}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('resume-letters')
+          .upload(fileName, file);
+        
+        if (uploadError) throw uploadError;
+        
+        const { data: urlData } = supabase.storage
+          .from('resume-letters')
+          .getPublicUrl(fileName);
+        
+        newUrls.push(urlData.publicUrl);
+      }
+      
+      const updatedPhotos = [...existingPhotos, ...newUrls];
+      
+      const { error: updateError } = await supabase
+        .from('employees')
+        .update({ resign_letter_photos: updatedPhotos })
+        .eq('id', employeeId);
+      
+      if (updateError) throw updateError;
+      
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      toast({ title: 'Letter photos uploaded successfully!' });
+    } catch (error: any) {
+      toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setUploadingResignPhotos(null);
+    }
+  };
+
+  // Remove resign letter photo
+  const handleRemoveResignPhoto = async (employeeId: string, photoIndex: number) => {
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee?.resign_letter_photos) return;
+    
+    const updatedPhotos = employee.resign_letter_photos.filter((_, idx) => idx !== photoIndex);
+    
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({ resign_letter_photos: updatedPhotos })
+        .eq('id', employeeId);
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      toast({ title: 'Photo removed' });
+    } catch (error: any) {
+      toast({ title: 'Failed to remove photo', description: error.message, variant: 'destructive' });
+    }
+  };
+
+
     // Apply filters first
     let filtered = employees.filter(emp => {
       // Global branch filter
@@ -4475,6 +4553,7 @@ const Manpower = () => {
                         <TableHead>Position</TableHead>
                         <TableHead>Date Hired</TableHead>
                         <TableHead>Remarks</TableHead>
+                        <TableHead className="min-w-[200px]">Letter (Max 3)</TableHead>
                         <TableHead className="text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -4496,6 +4575,56 @@ const Manpower = () => {
                           <TableCell>{emp.position || '-'}</TableCell>
                           <TableCell>{emp.date_hired ? format(new Date(emp.date_hired), 'MMM dd, yyyy') : '-'}</TableCell>
                           <TableCell className="max-w-[200px] truncate" title={emp.remarks || ''}>{emp.remarks || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {(emp.resign_letter_photos || []).map((photo, idx) => (
+                                <div key={idx} className="relative group/photo">
+                                  <img
+                                    src={photo}
+                                    alt={`Letter ${idx + 1}`}
+                                    className="h-10 w-10 rounded object-cover cursor-pointer border hover:ring-2 hover:ring-primary"
+                                    onClick={() => setViewingPhoto({ url: photo, name: `${emp.full_name} - Letter ${idx + 1}` })}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                    }}
+                                  />
+                                  {canEdit && (
+                                    <button
+                                      className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveResignPhoto(emp.id, idx);
+                                      }}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {canEdit && (emp.resign_letter_photos || []).length < 3 && (
+                                <label className="h-10 w-10 rounded border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                                  {uploadingResignPhotos === emp.id ? (
+                                    <span className="text-[10px] text-muted-foreground">...</span>
+                                  ) : (
+                                    <Plus className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    disabled={uploadingResignPhotos === emp.id}
+                                    onChange={(e) => {
+                                      if (e.target.files) {
+                                        handleResignPhotoUpload(emp.id, e.target.files);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
                               <Button
@@ -5032,6 +5161,27 @@ const Manpower = () => {
               <div>
                 <h4 className="text-sm font-semibold text-muted-foreground mb-3">Remarks</h4>
                 <p className="font-medium bg-muted p-3 rounded-md">{viewingEmployee.remarks}</p>
+              </div>
+            )}
+
+            {/* Resign Letter Photos */}
+            {viewingEmployee?.employment_status?.toLowerCase() === 'resigned' && (viewingEmployee?.resign_letter_photos || []).length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3">Resignation Letter</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {(viewingEmployee.resign_letter_photos || []).map((photo, idx) => (
+                    <img
+                      key={idx}
+                      src={photo}
+                      alt={`Resignation Letter ${idx + 1}`}
+                      className="w-full h-40 object-cover rounded-lg border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                      onClick={() => setViewingPhoto({ url: photo, name: `${viewingEmployee.full_name} - Resignation Letter ${idx + 1}` })}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>
