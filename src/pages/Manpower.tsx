@@ -371,9 +371,28 @@ const Manpower = () => {
     return [...new Set(branchNames)].sort();
   }, [employees, globalBranchId]);
 
-  // Filter employees - prioritize global branch by branch_id
+  // Resigned employees - filtered separately for the Resign tab
+  const resignedEmployees = useMemo(() => {
+    let filtered = employees.filter(emp => {
+      if (emp.employment_status?.toLowerCase() !== 'resigned') return false;
+      if (globalBranchId && emp.branch_id !== globalBranchId) return false;
+      
+      const matchesSearch = !searchQuery || 
+        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesSearch;
+    });
+    return filtered;
+  }, [employees, globalBranchId, searchQuery]);
+
+  // Filter employees - prioritize global branch by branch_id (exclude Resigned)
   const filteredEmployees = useMemo(() => {
     let filtered = employees.filter(emp => {
+      // Exclude resigned employees from Store Manpower
+      if (emp.employment_status?.toLowerCase() === 'resigned') return false;
+      
       const matchesSearch = !searchQuery || 
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -450,9 +469,12 @@ const Manpower = () => {
     return filtered;
   }, [employees, searchQuery, globalBranchId, branchFilter, positionFilter, categoryFilter, statusFilter, genderFilter, maternityFilter, sortColumn, sortDirection]);
 
-  // Filter employees for Office Manpower tab (office positions only)
+  // Filter employees for Office Manpower tab (office positions only, exclude Resigned)
   const officeFilteredEmployees = useMemo(() => {
     let filtered = employees.filter(emp => {
+      // Exclude resigned employees from Office Manpower
+      if (emp.employment_status?.toLowerCase() === 'resigned') return false;
+      
       const matchesSearch = !searchQuery || 
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1822,7 +1844,7 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-5xl grid-cols-6">
+        <TabsList className="grid w-full max-w-6xl grid-cols-7">
           <TabsTrigger value="manpower" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Store Manpower
@@ -1842,6 +1864,10 @@ const Manpower = () => {
           <TabsTrigger value="office-attendance" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Office Attendance
+          </TabsTrigger>
+          <TabsTrigger value="resigned" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Resign ({resignedEmployees.length})
           </TabsTrigger>
           <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
             <Trash2 className="h-4 w-4" />
@@ -4424,6 +4450,124 @@ const Manpower = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        {/* Resign Tab */}
+        <TabsContent value="resigned" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Resigned Employees ({resignedEmployees.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {resignedEmployees.length > 0 ? (
+                <ScrollArea className="h-[500px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-[50px]">Photo</TableHead>
+                        <TableHead>Emp ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Date Hired</TableHead>
+                        <TableHead>Remarks</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {resignedEmployees.map((emp: Employee) => (
+                        <TableRow key={emp.id}>
+                          <TableCell>
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={emp.photo_url || ''} />
+                              <AvatarFallback className="text-xs">
+                                {emp.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell className="font-medium">{emp.employee_id || '-'}</TableCell>
+                          <TableCell>{emp.full_name}</TableCell>
+                          <TableCell>{emp.branch || emp.branches?.name || '-'}</TableCell>
+                          <TableCell>{emp.category || '-'}</TableCell>
+                          <TableCell>{emp.position || '-'}</TableCell>
+                          <TableCell>{emp.date_hired ? format(new Date(emp.date_hired), 'MMM dd, yyyy') : '-'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate" title={emp.remarks || ''}>{emp.remarks || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setViewingEmployee(emp)}
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingEmployee(emp);
+                                    setForm({
+                                      employee_id: emp.employee_id || '',
+                                      full_name: emp.full_name,
+                                      age: emp.age?.toString() || '',
+                                      gender: emp.gender || '',
+                                      date_of_birth: emp.date_of_birth || '',
+                                      address: emp.address || '',
+                                      cell_no: emp.cell_no || '',
+                                      branch_id: emp.branch_id || '',
+                                      branch: emp.branch || '',
+                                      category: emp.category || '',
+                                      position: emp.position || '',
+                                      employment_status: emp.employment_status,
+                                      date_hired: emp.date_hired,
+                                      maternity: emp.maternity || 'N/A',
+                                      remarks: emp.remarks || '',
+                                      photo_url: emp.photo_url || ''
+                                    });
+                                    setPhotoPreview(emp.photo_url || null);
+                                    setIsModalOpen(true);
+                                  }}
+                                  title="Edit"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    if (confirm('Delete this resigned employee?')) {
+                                      deleteMutation.mutate(emp.id);
+                                    }
+                                  }}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No resigned employees</h3>
+                  <p className="text-muted-foreground">Employees with "Resigned" status will appear here</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Recently Deleted Tab */}
