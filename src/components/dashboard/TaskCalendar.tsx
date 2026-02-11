@@ -703,12 +703,17 @@ export function TaskCalendar() {
                               return (
                                 <div
                                   key={task.id}
+                                  draggable={canEdit}
+                                  onDragStart={(e) => handleDragStart(e, task)}
+                                  onDragEnd={handleDragEnd}
                                   className={cn(
                                     "text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-all font-medium group/task",
                                     colors.bg,
-                                    "text-white"
+                                    "text-white",
+                                    canEdit && "cursor-grab active:cursor-grabbing",
+                                    draggingTask?.id === task.id && "opacity-50"
                                   )}
-                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''}`}
+                                  title={`${task.title}${task.description ? ` - ${task.description}` : ''} (drag to move)`}
                                   onClick={(e) => openEditModal(task, e)}
                                 >
                                   <span className="truncate">{task.title}</span>
