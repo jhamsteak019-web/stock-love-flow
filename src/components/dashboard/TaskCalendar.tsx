@@ -76,6 +76,63 @@ export function TaskCalendar() {
   const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
 
+  // Drag and drop state
+  const [draggingTask, setDraggingTask] = useState<Task | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
+  // Move task mutation
+  const moveTaskMutation = useMutation({
+    mutationFn: async ({ id, newDate }: { id: string; newDate: string }) => {
+      const { error } = await supabase.from('tasks').update({
+        task_date: newDate,
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task moved successfully');
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to move task: ' + error.message);
+    },
+  });
+
+  const handleDragStart = useCallback((e: React.DragEvent, task: Task) => {
+    if (!canEdit) return;
+    e.stopPropagation();
+    setDraggingTask(task);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  }, [canEdit]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, dateStr: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(dateStr);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverDate(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, dateStr: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverDate(null);
+    
+    if (draggingTask && draggingTask.task_date !== dateStr && canEdit) {
+      moveTaskMutation.mutate({ id: draggingTask.id, newDate: dateStr });
+    }
+    setDraggingTask(null);
+  }, [draggingTask, canEdit, moveTaskMutation]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingTask(null);
+    setDragOverDate(null);
+  }, []);
+
   // Print to PDF function
   const handlePrintCalendar = () => {
     const printWindow = window.open('', '_blank');
