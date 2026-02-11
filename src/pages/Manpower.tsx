@@ -1025,7 +1025,7 @@ const Manpower = () => {
     }
   };
 
-
+  const manpowerSummaryData = useMemo(() => {
     // Apply filters first
     let filtered = employees.filter(emp => {
       // Global branch filter
