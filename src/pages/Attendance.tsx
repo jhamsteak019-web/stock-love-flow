@@ -42,7 +42,9 @@ import {
   ClipboardList,
   RotateCcw,
   Printer,
-  Database
+  Database,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as ExcelJS from 'exceljs';
