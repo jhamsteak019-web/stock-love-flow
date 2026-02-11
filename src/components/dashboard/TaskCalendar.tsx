@@ -797,9 +797,14 @@ export function TaskCalendar() {
                               return (
                                 <div
                                   key={task.id}
+                                  draggable={canEdit}
+                                  onDragStart={(e) => handleDragStart(e, task)}
+                                  onDragEnd={handleDragEnd}
                                   className={cn(
                                     "p-2 rounded-lg cursor-pointer hover:shadow-md transition-all border-l-4 group/task",
-                                    colors.light
+                                    colors.light,
+                                    canEdit && "cursor-grab active:cursor-grabbing",
+                                    draggingTask?.id === task.id && "opacity-50"
                                   )}
                                   style={{ borderLeftColor: colors.hex }}
                                   onClick={(e) => openEditModal(task, e)}
