@@ -564,6 +564,9 @@ const Manpower = () => {
   // Filter employees for Store Manpower tab (store positions only)
   const storeFilteredEmployees = useMemo(() => {
     let filtered = employees.filter(emp => {
+      // Exclude resigned employees from Store Manpower
+      if (emp.employment_status?.toLowerCase() === 'resigned') return false;
+      
       const matchesSearch = !searchQuery || 
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
