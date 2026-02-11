@@ -667,15 +667,21 @@ export function TaskCalendar() {
                       const dayTasks = getTasksForDay(day);
                       const isCurrentMonth = isSameMonth(day, currentDate);
                       const isTodayDate = isToday(day);
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const isDragOver = dragOverDate === dateStr;
 
                       return (
                         <div
                           key={day.toISOString()}
                           onClick={() => openViewModal(day)}
+                          onDragOver={(e) => handleDragOver(e, dateStr)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, dateStr)}
                           className={cn(
                             "min-h-[160px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
                             !isCurrentMonth && "bg-muted/20 opacity-60",
-                            isTodayDate && "bg-primary/5 dark:bg-primary/10"
+                            isTodayDate && "bg-primary/5 dark:bg-primary/10",
+                            isDragOver && "bg-primary/20 ring-2 ring-primary/50 ring-inset"
                           )}
                         >
                           <div className="flex justify-between items-start mb-1">
