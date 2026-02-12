@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Camera, X, Loader2, Eye, Plus } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Camera, X, Loader2, Eye, Plus, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
