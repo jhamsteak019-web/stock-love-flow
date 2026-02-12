@@ -25,11 +25,16 @@ export const ResumePhotoUploadCell = ({
   const [isUploading, setIsUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userRole } = useAuth();
   
   const canUpload = userRole === 'admin' || userRole === 'staff' || userRole === 'assistant';
   const currentPhotos = photos || [];
+
+  const handleZoomIn = useCallback(() => setZoomLevel(prev => Math.min(prev + 0.5, 5)), []);
+  const handleZoomOut = useCallback(() => setZoomLevel(prev => Math.max(prev - 0.5, 0.5)), []);
+  const handleResetZoom = useCallback(() => setZoomLevel(1), []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
