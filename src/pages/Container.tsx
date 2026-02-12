@@ -1340,18 +1340,25 @@ const Container = () => {
             </DialogTitle>
           </DialogHeader>
           {previewPhotoUrl && (
-            <div className="overflow-auto max-h-[70vh] w-full">
-              <div 
-                className="min-w-max flex justify-center"
-                style={{ width: zoomLevel > 1 ? `${zoomLevel * 100}%` : '100%' }}
-              >
-                <img 
-                  src={previewPhotoUrl} 
-                  alt="Preview" 
-                  className="rounded-lg transition-transform duration-200"
-                  style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
-                />
-              </div>
+            <div 
+              className="overflow-auto max-h-[70vh] w-full bg-muted/30 rounded-lg"
+              style={{ display: 'flex', alignItems: zoomLevel <= 1 ? 'center' : 'flex-start', justifyContent: zoomLevel <= 1 ? 'center' : 'flex-start' }}
+            >
+              <img 
+                src={previewPhotoUrl} 
+                alt="Preview" 
+                className="rounded-lg transition-all duration-200"
+                style={{ 
+                  width: `${zoomLevel * 100}%`,
+                  maxWidth: 'none',
+                  objectFit: 'contain'
+                }}
+                onWheel={(e) => {
+                  e.preventDefault();
+                  if (e.deltaY < 0) handleZoomIn();
+                  else handleZoomOut();
+                }}
+              />
             </div>
           )}
           <DialogFooter>
