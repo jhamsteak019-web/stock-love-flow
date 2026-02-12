@@ -113,6 +113,7 @@ export const ResumePhotoUploadCell = ({
 
   const handlePhotoClick = (url: string) => {
     setSelectedPhoto(url);
+    setZoomLevel(1);
     setPreviewOpen(true);
   };
 
