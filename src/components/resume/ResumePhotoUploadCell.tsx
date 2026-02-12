@@ -196,13 +196,20 @@ export const ResumePhotoUploadCell = ({
             </div>
           </DialogHeader>
           
-          <div className="overflow-auto bg-muted/30 rounded-lg min-h-[300px] max-h-[60vh] flex items-center justify-center">
+          <div 
+            className="overflow-auto bg-muted/30 rounded-lg min-h-[300px] max-h-[60vh]"
+            style={{ display: 'flex', alignItems: zoomLevel <= 1 ? 'center' : 'flex-start', justifyContent: zoomLevel <= 1 ? 'center' : 'flex-start' }}
+          >
             {selectedPhoto && (
               <img 
                 src={selectedPhoto} 
                 alt="Preview" 
-                className="transition-transform duration-200 cursor-grab active:cursor-grabbing"
-                style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
+                className="transition-transform duration-200"
+                style={{ 
+                  width: `${zoomLevel * 100}%`,
+                  maxWidth: 'none',
+                  objectFit: 'contain'
+                }}
                 onWheel={(e) => {
                   e.preventDefault();
                   if (e.deltaY < 0) handleZoomIn();
