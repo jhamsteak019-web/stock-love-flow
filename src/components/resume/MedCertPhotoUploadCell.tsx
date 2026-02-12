@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { X, Loader2, Plus } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { X, Loader2, Plus, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,11 +23,16 @@ export const MedCertPhotoUploadCell = ({
   const [isUploading, setIsUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userRole } = useAuth();
   
   const canUpload = userRole === 'admin' || userRole === 'staff' || userRole === 'hr' || userRole === 'assistant';
   const currentPhotos = photos || [];
+
+  const handleZoomIn = useCallback(() => setZoomLevel(prev => Math.min(prev + 0.5, 5)), []);
+  const handleZoomOut = useCallback(() => setZoomLevel(prev => Math.max(prev - 0.5, 0.5)), []);
+  const handleResetZoom = useCallback(() => setZoomLevel(1), []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -106,6 +111,7 @@ export const MedCertPhotoUploadCell = ({
 
   const handlePhotoClick = (url: string) => {
     setSelectedPhoto(url);
+    setZoomLevel(1);
     setPreviewOpen(true);
   };
 
@@ -123,8 +129,9 @@ export const MedCertPhotoUploadCell = ({
       {currentPhotos.map((photo, index) => (
         <div key={index} className="relative group">
           <button
-            onClick={() => handlePhotoClick(photo)}
-            className="w-8 h-8 rounded overflow-hidden border border-border hover:border-primary transition-all duration-200 hover:scale-105"
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePhotoClick(photo); }}
+            className="w-8 h-8 rounded overflow-hidden border border-border hover:border-primary transition-all duration-200 hover:scale-105 cursor-pointer"
           >
             <img src={photo} alt={`Med Cert ${index + 1}`} className="w-full h-full object-cover" />
           </button>
@@ -164,19 +171,39 @@ export const MedCertPhotoUploadCell = ({
         <span className="text-xs text-muted-foreground">-</span>
       )}
 
-      {/* Photo Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+      {/* Photo Preview Dialog with Zoom */}
+      <Dialog open={previewOpen} onOpenChange={(open) => { setPreviewOpen(open); if (!open) setZoomLevel(1); }}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Med Cert Photo</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Med Cert Photo</DialogTitle>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleZoomOut} disabled={zoomLevel <= 0.5}>
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleZoomIn} disabled={zoomLevel >= 5}>
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleResetZoom}>
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
           
-          <div className="flex items-center justify-center bg-muted/30 rounded-lg p-4 min-h-[300px]">
+          <div className="overflow-auto bg-muted/30 rounded-lg min-h-[300px] max-h-[60vh] flex items-center justify-center">
             {selectedPhoto && (
               <img 
                 src={selectedPhoto} 
                 alt="Preview" 
-                className="max-w-full max-h-[60vh] rounded-lg object-contain"
+                className="transition-transform duration-200 cursor-grab active:cursor-grabbing"
+                style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
+                onWheel={(e) => {
+                  e.preventDefault();
+                  if (e.deltaY < 0) handleZoomIn();
+                  else handleZoomOut();
+                }}
               />
             )}
           </div>
@@ -187,7 +214,7 @@ export const MedCertPhotoUploadCell = ({
               {currentPhotos.map((photo, index) => (
                 <button
                   key={index}
-                  onClick={() => setSelectedPhoto(photo)}
+                  onClick={() => { setSelectedPhoto(photo); setZoomLevel(1); }}
                   className={cn(
                     "w-12 h-12 rounded overflow-hidden border-2 transition-all",
                     selectedPhoto === photo ? "border-primary" : "border-transparent hover:border-muted-foreground"
