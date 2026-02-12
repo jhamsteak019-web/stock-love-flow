@@ -762,7 +762,7 @@ const ResumeToWork = () => {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[1400px]">
               <TableHeader>
                 <TableRow>
                   {columns.find(c => c.key === 'branch')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'branch')?.width }}>Branch</TableHead>}
