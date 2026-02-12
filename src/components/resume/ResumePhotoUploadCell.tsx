@@ -125,8 +125,9 @@ export const ResumePhotoUploadCell = ({
       {currentPhotos.map((photo, index) => (
         <div key={index} className="relative group">
           <button
-            onClick={() => handlePhotoClick(photo)}
-            className="w-8 h-8 rounded overflow-hidden border border-border hover:border-primary transition-all duration-200 hover:scale-105"
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePhotoClick(photo); }}
+            className="w-8 h-8 rounded overflow-hidden border border-border hover:border-primary transition-all duration-200 hover:scale-105 cursor-pointer"
           >
             <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
           </button>
