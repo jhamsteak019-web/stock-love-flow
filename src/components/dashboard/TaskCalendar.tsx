@@ -292,52 +292,77 @@ export function TaskCalendar() {
     }, 300);
   };
 
-  // Save to Image function - capture only calendar grid
+  // Save to Image function - render full calendar table to capture all tasks
   const handleSaveToImage = async () => {
-    if (!calendarContentRef.current) {
-      toast.error('Calendar not found');
-      return;
-    }
-
     try {
       toast.info('Generating image...');
-      
-      // Create a temporary wrapper with white background and title
-      const tempContainer = document.createElement('div');
-      tempContainer.style.cssText = 'position: absolute; left: -9999px; background: white; padding: 20px;';
-      
-      // Add title header
-      const titleDiv = document.createElement('div');
-      titleDiv.style.cssText = 'text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #3b82f6;';
+
       const activeCategory = scheduleCategories.find(c => c.value === categoryFilter);
       const saveTitle = categoryFilter === 'all' ? 'Task Calendar' : (activeCategory?.label || 'Task Calendar');
       const saveEmoji = categoryFilter === 'all' ? '📅' : (activeCategory?.emoji || '📅');
-      titleDiv.innerHTML = `
-        <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${saveEmoji} ${saveTitle}</h1>
-        <p style="font-size: 12px; color: #6b7280;">${format(currentDate, 'MMMM yyyy')}${selectedBranch ? ` • ${selectedBranch.name}` : ''}</p>
+
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      const calendarStart = startOfWeek(monthStart);
+      const calendarEnd = endOfWeek(monthEnd);
+      const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+      const imgWeeks: Date[][] = [];
+      for (let i = 0; i < allDays.length; i += 7) {
+        imgWeeks.push(allDays.slice(i, i + 7));
+      }
+
+      const rowsHtml = imgWeeks.map((week) => {
+        const cells = week.map((day, dayIndex) => {
+          const dayTasks = getTasksForDay(day);
+          const isCurrentMonth = isSameMonth(day, currentDate);
+          const isTodayDate = isToday(day);
+          const dayColor = dayIndex === 0 ? '#ef4444' : dayIndex === 6 ? '#3b82f6' : '#000';
+
+          const tasksHtml = dayTasks.map(task => {
+            const colorClass = getColorClasses(task.color);
+            return `<div style="background:${colorClass.hex};color:white;padding:4px 8px;border-radius:4px;margin-bottom:4px;font-size:11px;word-wrap:break-word;"><div style="font-weight:600;">${task.title}</div>${task.description ? `<div style="font-size:10px;opacity:0.9;margin-top:2px;">${task.description}</div>` : ''}</div>`;
+          }).join('');
+
+          return `<td style="border:1px solid #e5e7eb;padding:8px;vertical-align:top;width:14.28%;${!isCurrentMonth ? 'background:#f9fafb;opacity:0.6;' : ''}${isTodayDate ? 'background:#eff6ff;' : ''}"><div style="margin-bottom:6px;"><span style="font-weight:600;font-size:14px;color:${dayColor};${isTodayDate ? 'background:#3b82f6;color:white;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;' : ''}">${format(day, 'd')}</span></div>${tasksHtml}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+
+      const headerCells = dayHeaders.map((day, index) => {
+        const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#374151';
+        return `<th style="padding:12px;text-align:center;font-weight:600;font-size:13px;color:${color};background:#f3f4f6;border:1px solid #e5e7eb;">${day}</th>`;
+      }).join('');
+
+      const tempContainer = document.createElement('div');
+      tempContainer.style.cssText = 'position:absolute;left:-9999px;background:white;padding:20px;width:1400px;';
+      tempContainer.innerHTML = `
+        <div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #3b82f6;">
+          <h1 style="font-size:24px;font-weight:700;color:#1f2937;margin-bottom:4px;">${saveEmoji} ${saveTitle}</h1>
+          <p style="font-size:12px;color:#6b7280;">${format(currentDate, 'MMMM yyyy')}${selectedBranch ? ` • ${selectedBranch.name}` : ''}</p>
+        </div>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+          <thead><tr>${headerCells}</tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
       `;
-      tempContainer.appendChild(titleDiv);
-      
-      // Clone the calendar content
-      const clonedContent = calendarContentRef.current.cloneNode(true) as HTMLElement;
-      tempContainer.appendChild(clonedContent);
-      
+
       document.body.appendChild(tempContainer);
-      
+
       const canvas = await html2canvas(tempContainer, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
       });
-      
+
       document.body.removeChild(tempContainer);
-      
+
       const link = document.createElement('a');
-      link.download = `task-calendar-${format(currentDate, 'yyyy-MM')}.png`;
+      link.download = `${saveTitle.toLowerCase().replace(/\s+/g, '-')}-${format(currentDate, 'yyyy-MM')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      
+
       toast.success('Calendar saved as image!');
     } catch (error) {
       console.error('Failed to save image:', error);
