@@ -141,6 +141,10 @@ export function TaskCalendar() {
       return;
     }
 
+    const activeCategory = scheduleCategories.find(c => c.value === categoryFilter);
+    const printTitle = categoryFilter === 'all' ? 'Task Calendar' : (activeCategory?.label || 'Task Calendar');
+    const printEmoji = categoryFilter === 'all' ? '📅' : (activeCategory?.emoji || '📅');
+
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     const calendarStart = startOfWeek(monthStart);
@@ -208,7 +212,7 @@ export function TaskCalendar() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Task Calendar - ${format(currentDate, 'MMMM yyyy')}</title>
+          <title>${printTitle} - ${format(currentDate, 'MMMM yyyy')}</title>
           <style>
             @page { 
               size: landscape; 
@@ -261,7 +265,7 @@ export function TaskCalendar() {
         </head>
         <body>
           <div class="header">
-            <h1>📅 Task Calendar</h1>
+            <h1>${printEmoji} ${printTitle}</h1>
             <p>${format(currentDate, 'MMMM yyyy')}${selectedBranch ? ` • ${selectedBranch.name}` : ''}</p>
           </div>
           
@@ -305,8 +309,11 @@ export function TaskCalendar() {
       // Add title header
       const titleDiv = document.createElement('div');
       titleDiv.style.cssText = 'text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #3b82f6;';
+      const activeCategory = scheduleCategories.find(c => c.value === categoryFilter);
+      const saveTitle = categoryFilter === 'all' ? 'Task Calendar' : (activeCategory?.label || 'Task Calendar');
+      const saveEmoji = categoryFilter === 'all' ? '📅' : (activeCategory?.emoji || '📅');
       titleDiv.innerHTML = `
-        <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">📅 Task Calendar</h1>
+        <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${saveEmoji} ${saveTitle}</h1>
         <p style="font-size: 12px; color: #6b7280;">${format(currentDate, 'MMMM yyyy')}${selectedBranch ? ` • ${selectedBranch.name}` : ''}</p>
       `;
       tempContainer.appendChild(titleDiv);
