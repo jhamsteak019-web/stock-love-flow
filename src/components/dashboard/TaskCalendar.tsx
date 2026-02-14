@@ -320,10 +320,10 @@ export function TaskCalendar() {
 
           const tasksHtml = dayTasks.map(task => {
             const colorClass = getColorClasses(task.color);
-            return `<div style="background:${colorClass.hex};color:white;padding:2px 4px;border-radius:3px;margin-bottom:2px;font-size:8px;line-height:1.2;word-wrap:break-word;"><div style="font-weight:600;">${task.title}</div>${task.description ? `<div style="font-size:7px;opacity:0.9;margin-top:1px;">${task.description}</div>` : ''}</div>`;
+            return `<div style="background:${colorClass.hex};color:white;padding:2px 4px;border-radius:3px;margin-bottom:2px;font-size:8px;line-height:1.2;word-break:break-all;overflow-wrap:break-word;overflow:hidden;"><div style="font-weight:600;">${task.title}</div>${task.description ? `<div style="font-size:7px;opacity:0.9;margin-top:1px;">${task.description}</div>` : ''}</div>`;
           }).join('');
 
-          return `<td style="border:1px solid #e5e7eb;padding:4px;vertical-align:top;width:14.28%;${!isCurrentMonth ? 'background:#f9fafb;opacity:0.6;' : ''}${isTodayDate ? 'background:#eff6ff;' : ''}"><div style="margin-bottom:3px;"><span style="font-weight:600;font-size:10px;color:${dayColor};${isTodayDate ? 'background:#3b82f6;color:white;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;' : ''}">${format(day, 'd')}</span></div>${tasksHtml}</td>`;
+          return `<td style="border:1px solid #e5e7eb;padding:4px;vertical-align:top;width:14.28%;overflow:hidden;${!isCurrentMonth ? 'background:#f9fafb;opacity:0.6;' : ''}${isTodayDate ? 'background:#eff6ff;' : ''}"><div style="margin-bottom:3px;"><span style="font-weight:600;font-size:10px;color:${dayColor};${isTodayDate ? 'background:#3b82f6;color:white;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;' : ''}">${format(day, 'd')}</span></div><div style="overflow:hidden;">${tasksHtml}</div></td>`;
         }).join('');
         return `<tr>${cells}</tr>`;
       }).join('');
@@ -334,7 +334,7 @@ export function TaskCalendar() {
       }).join('');
 
       const tempContainer = document.createElement('div');
-      tempContainer.style.cssText = 'position:absolute;left:-9999px;background:white;padding:20px;width:1400px;';
+      tempContainer.style.cssText = 'position:absolute;left:-9999px;background:white;padding:20px;width:1800px;';
       tempContainer.innerHTML = `
         <div style="text-align:center;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid #3b82f6;">
           <h1 style="font-size:18px;font-weight:700;color:#1f2937;margin-bottom:3px;">${saveEmoji} ${saveTitle}</h1>
