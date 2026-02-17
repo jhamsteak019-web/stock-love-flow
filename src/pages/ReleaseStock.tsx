@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useCallback, useTransition, memo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,8 @@ interface ReleaseItem {
 
 
 const ReleaseStock = () => {
-  const { items, releases, releaseStockBatch, loading } = useInventory();
+  const { items, releases, releaseStockBatch, fetchReleases, loading } = useInventory();
+  const isReleasingRef = useRef(false);
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
@@ -162,15 +164,24 @@ const ReleaseStock = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isReleasingRef.current) return;
+    
     // Validate required fields
     if (!allocationBill.trim() || !destination.trim()) {
       toast({ title: 'Error', description: 'Please enter allocation bill and destination', variant: 'destructive' });
       return;
     }
 
-    // Check for duplicate allocation bill
-    if (isDuplicateAllocationBill(allocationBill)) {
-      toast({ title: 'Warning', description: `Allocation bill "${allocationBill}" already exists. Please use a different one.`, variant: 'destructive' });
+    // Fresh DB check for duplicate allocation bill
+    const { data: existing } = await supabase
+      .from('stock_releases')
+      .select('id')
+      .is('deleted_at', null)
+      .ilike('allocation_bill', allocationBill.trim())
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      toast({ title: 'Warning', description: `Allocation bill "${allocationBill}" already exists.`, variant: 'destructive' });
       return;
     }
 
@@ -413,6 +424,12 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
+    // Prevent double-click / rapid re-submission
+    if (isReleasingRef.current) {
+      toast({ title: 'Please wait', description: 'Release is already in progress...', variant: 'default' });
+      return;
+    }
+
     // Allow boxes >= 0 (0 is valid for import releases)
     const validItems = parsedItems.filter(p => p.qtyBoxes >= 0 && selectedItems.has(p.id) && p.courier && p.setDate);
     
@@ -421,12 +438,34 @@ const ReleaseStock = () => {
       return;
     }
 
-    // Check for duplicate allocation bills - show warning but allow to continue
-    const duplicates = validItems.filter(item => isDuplicateAllocationBill(item.sheetNo));
+    // Fresh check from database to prevent double releases
+    const { data: existingReleases, error: checkError } = await supabase
+      .from('stock_releases')
+      .select('allocation_bill')
+      .is('deleted_at', null)
+      .not('allocation_bill', 'is', null);
+
+    if (checkError) {
+      console.error('Error checking existing releases:', checkError);
+      toast({ title: 'Error', description: 'Failed to verify existing releases. Please try again.', variant: 'destructive' });
+      return;
+    }
+
+    const existingBillsDb = new Set(
+      (existingReleases || [])
+        .map(r => r.allocation_bill?.toLowerCase().trim())
+        .filter(Boolean)
+    );
+
+    // Check for duplicate allocation bills against fresh DB data
+    const duplicates = validItems.filter(item => 
+      item.sheetNo && existingBillsDb.has(item.sheetNo.toLowerCase().trim())
+    );
+    
     if (duplicates.length > 0) {
       const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
       const confirmed = window.confirm(
-        `Warning: Allocation bill(s) already exist:\n${duplicateBills}\n\nDo you still want to continue releasing these items?`
+        `Warning: Allocation bill(s) already exist in database:\n${duplicateBills}\n\nDo you still want to continue releasing these items?`
       );
       if (!confirmed) {
         return;
@@ -434,16 +473,14 @@ const ReleaseStock = () => {
     }
 
     setSubmitting(true);
+    isReleasingRef.current = true;
     
-    // Track released allocation bills to prevent double release
+    // Track released allocation bills to prevent double release within this batch
     const releasedBills = new Set<string>();
     
     try {
-      // Release all selected items as ONE BATCH (single batch_id)
-      // Use the first item's courier, setDate, and waybillNo for the batch
       const firstItem = validItems[0];
 
-      // Release all items together as one batch
       for (const item of validItems) {
         // Skip if this allocation bill was already released in this batch
         const billKey = item.sheetNo?.toLowerCase().trim();
@@ -457,33 +494,33 @@ const ReleaseStock = () => {
           item.deliverTo || 'Unknown',
           user!.id,
           item.remarks || undefined,
-          firstItem.courier, // Use first item's courier for all
+          firstItem.courier,
           item.sheetNo || undefined,
           item.category || undefined,
-          undefined, // waybillNo removed
-          firstItem.setDate || undefined, // Use first item's set date for all
+          undefined,
+          firstItem.setDate || undefined,
           item.qtyItem || item.qtyBoxes,
           selectedBranch?.id || undefined,
           item.amount || undefined
         );
         
-        // Mark as released
         if (billKey) {
           releasedBills.add(billKey);
         }
       }
 
-      // Remove released items from preview - including any duplicates
+      // Remove released items from preview
       const releasedIds = new Set(validItems.map(i => i.id));
       setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
       setSelectedItems(new Set());
       
-      // Hide preview if no items left
       if (parsedItems.length - validItems.length === 0) {
         setShowImportPreview(false);
       }
 
-      // Log activity for batch import
+      // Refresh releases state to keep duplicate checks accurate
+      await fetchReleases();
+
       await logActivity({
         actionType: 'import',
         module: 'stock_releases',
@@ -502,6 +539,7 @@ const ReleaseStock = () => {
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
       setSubmitting(false);
+      isReleasingRef.current = false;
     }
   };
 
