@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList, Printer, ImageDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, CalendarDays, ListTodo, Grid3X3, LayoutList, Printer, ImageDown, Copy, ClipboardPaste } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,8 @@ const colorOptions = [
   { value: 'blue', label: 'Blue', bg: 'bg-blue-500', text: 'text-blue-700', light: 'bg-blue-50', border: 'border-blue-500', hex: '#3b82f6' },
   { value: 'green', label: 'Green', bg: 'bg-green-500', text: 'text-green-700', light: 'bg-green-50', border: 'border-green-500', hex: '#22c55e' },
   { value: 'orange', label: 'Orange', bg: 'bg-orange-500', text: 'text-orange-700', light: 'bg-orange-50', border: 'border-orange-500', hex: '#f97316' },
+  { value: 'yellow', label: 'Yellow', bg: 'bg-yellow-400', text: 'text-yellow-700', light: 'bg-yellow-50', border: 'border-yellow-400', hex: '#facc15' },
+  { value: 'white', label: 'White', bg: 'bg-gray-100', text: 'text-gray-700', light: 'bg-gray-50', border: 'border-gray-300', hex: '#f3f4f6' },
   { value: 'purple', label: 'Purple', bg: 'bg-purple-500', text: 'text-purple-700', light: 'bg-purple-50', border: 'border-purple-500', hex: '#a855f7' },
   { value: 'red', label: 'Red', bg: 'bg-red-500', text: 'text-red-700', light: 'bg-red-50', border: 'border-red-500', hex: '#ef4444' },
   { value: 'cyan', label: 'Cyan', bg: 'bg-cyan-500', text: 'text-cyan-700', light: 'bg-cyan-50', border: 'border-cyan-500', hex: '#06b6d4' },
@@ -75,6 +77,9 @@ export function TaskCalendar() {
   
   const canEdit = userRole === 'admin' || userRole === 'staff' || userRole === 'uploader' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
+
+  // Copy/Paste state
+  const [copiedTask, setCopiedTask] = useState<Task | null>(null);
 
   // Drag and drop state
   const [draggingTask, setDraggingTask] = useState<Task | null>(null);
@@ -456,6 +461,48 @@ export function TaskCalendar() {
     },
   });
 
+  // Copy handler
+  const handleCopyTask = (task: Task, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCopiedTask(task);
+    toast.success(`Copied: "${task.title}" — click a date to paste`);
+  };
+
+  // Paste mutation
+  const pasteMutation = useMutation({
+    mutationFn: async (taskData: { title: string; description: string | null; color: string; task_date: string; category: string | null }) => {
+      const { error } = await supabase.from('tasks').insert({
+        title: taskData.title,
+        description: taskData.description || null,
+        color: taskData.color,
+        task_date: taskData.task_date,
+        created_by: user?.id,
+        branch_id: selectedBranch?.id || null,
+        category: taskData.category,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task pasted successfully');
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to paste task: ' + error.message);
+    },
+  });
+
+  const handlePasteToDate = (date: Date, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!copiedTask || !canEdit) return;
+    pasteMutation.mutate({
+      title: copiedTask.title,
+      description: copiedTask.description,
+      color: copiedTask.color,
+      task_date: format(date, 'yyyy-MM-dd'),
+      category: copiedTask.category || null,
+    });
+  };
+
   // Calendar days for month view
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -669,7 +716,21 @@ export function TaskCalendar() {
               </Button>
             ))}
           </div>
-        </div>
+          </div>
+
+        {/* Copy indicator banner */}
+        {copiedTask && canEdit && (
+          <div className="px-4 py-2 bg-primary/10 border-b flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4 text-primary" />
+              <span className="font-medium">Copied: <span className="text-primary">"{copiedTask.title}"</span></span>
+              <span className="text-muted-foreground">— click on any date to paste</span>
+            </div>
+            <button onClick={() => setCopiedTask(null)} className="p-1 hover:bg-accent rounded">
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        )}
 
         <CardContent className="p-0" ref={calendarContentRef}>
           {viewMode === 'month' ? (
@@ -704,7 +765,13 @@ export function TaskCalendar() {
                       return (
                         <div
                           key={day.toISOString()}
-                          onClick={() => openViewModal(day)}
+                          onClick={(e) => {
+                            if (copiedTask && canEdit) {
+                              handlePasteToDate(day, e);
+                            } else {
+                              openViewModal(day);
+                            }
+                          }}
                           onDragOver={(e) => handleDragOver(e, dateStr)}
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(e, dateStr)}
@@ -712,7 +779,8 @@ export function TaskCalendar() {
                             "min-h-[160px] p-2 transition-all cursor-pointer hover:bg-accent/50 group relative",
                             !isCurrentMonth && "bg-muted/20 opacity-60",
                             isTodayDate && "bg-primary/5 dark:bg-primary/10",
-                            isDragOver && "bg-primary/20 ring-2 ring-primary/50 ring-inset"
+                            isDragOver && "bg-primary/20 ring-2 ring-primary/50 ring-inset",
+                            copiedTask && canEdit && "hover:bg-primary/10 cursor-copy"
                           )}
                         >
                           <div className="flex justify-between items-start mb-1">
@@ -923,14 +991,30 @@ export function TaskCalendar() {
                             </p>
                           )}
                         </div>
-                        {canDelete && (
-                          <button
-                            onClick={(e) => handleDelete(task.id, e)}
-                            className="p-1 hover:bg-destructive/10 rounded transition-all flex-shrink-0"
-                          >
-                            <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {canEdit && (
+                            <button
+                              onClick={(e) => handleCopyTask(task, e)}
+                              className={cn(
+                                "p-1 rounded transition-all",
+                                copiedTask?.id === task.id 
+                                  ? "bg-primary/20 text-primary" 
+                                  : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                              )}
+                              title="Copy task"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={(e) => handleDelete(task.id, e)}
+                              className="p-1 hover:bg-destructive/10 rounded transition-all"
+                            >
+                              <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -940,6 +1024,12 @@ export function TaskCalendar() {
           </ScrollArea>
 
           <DialogFooter className="gap-2 sm:gap-0">
+            {copiedTask && canEdit && viewingDate && (
+              <Button variant="secondary" onClick={(e) => handlePasteToDate(viewingDate, e)} disabled={pasteMutation.isPending}>
+                <ClipboardPaste className="h-4 w-4 mr-1" />
+                Paste "{copiedTask.title}"
+              </Button>
+            )}
             <Button variant="outline" onClick={closeViewModal}>
               Close
             </Button>
