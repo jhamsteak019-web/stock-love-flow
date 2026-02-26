@@ -177,6 +177,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Manpower Database',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
     },
+    { 
+      to: '/renewal', 
+      icon: IdCard, 
+      label: 'Renewal',
+      roles: ['admin', 'staff', 'hr', 'assistant']
+    },
     // { 
     //   to: '/store-visit-schedule', 
     //   icon: MapPin, 
