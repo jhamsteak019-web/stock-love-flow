@@ -183,7 +183,7 @@ const Renewal = () => {
     },
     onSuccess: (data) => {
       toast({ title: `Employee ID renewed for ${data.employeeName}`, description: `New ID: ${data.newId}` });
-      logActivity('renew_employee_id', `Renewed employee ID for ${data.employeeName} to ${data.newId}`, 'manpower');
+      logActivity({ actionType: 'update', module: 'manpower', description: `Renewed employee ID for ${data.employeeName} to ${data.newId}` });
       queryClient.invalidateQueries({ queryKey: ['renewal-employees'] });
       queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
       setIsRenewModalOpen(false);
