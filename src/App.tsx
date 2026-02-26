@@ -26,6 +26,7 @@ import TaskCalendar from "./pages/TaskCalendar";
 import Attendance from "./pages/Attendance";
 import ResumeToWork from "./pages/ResumeToWork";
 import Manpower from "./pages/Manpower";
+import Renewal from "./pages/Renewal";
 import StoreVisitSchedule from "./pages/StoreVisitSchedule";
 import ActivityHistory from "./pages/ActivityHistory";
 import NotFound from "./pages/NotFound";
