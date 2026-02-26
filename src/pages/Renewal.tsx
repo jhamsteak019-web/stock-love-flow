@@ -212,35 +212,161 @@ const Renewal = () => {
     return differenceInDays(new Date(), ref);
   };
 
-  const RenewalTable = ({ data, title }: { data: RenewalEmployee[]; title: string }) => (
-    <Card>
-      <CardHeader className="py-3">
-        <CardTitle className="text-base">{title} ({data.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="w-full">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">Photo</TableHead>
-                <TableHead>Employee Name</TableHead>
-                <TableHead>Current ID</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead>Days Since</TableHead>
-                <TableHead>Last Renewal</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
-              ) : data.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No employees need renewal at this time.</TableCell></TableRow>
-              ) : (
-                data.map(emp => {
-                  const days = getDaysSinceRenewal(emp);
-                  return (
+  const ITEMS_PER_PAGE = 20;
+  const [renewalPage, setRenewalPage] = useState(1);
+  const [renewedPage, setRenewedPage] = useState(1);
+
+  // Reset pages when tab or search changes
+  React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); }, [activeTab, searchQuery, globalBranchId]);
+
+  const PaginationControls = ({ currentPage, totalItems, onPageChange }: { currentPage: number; totalItems: number; onPageChange: (p: number) => void }) => {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    if (totalPages <= 1) return null;
+
+    const getPageNumbers = () => {
+      const pages: (number | string)[] = [];
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        const start = Math.max(2, currentPage - 1);
+        const end = Math.min(totalPages - 1, currentPage + 1);
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+      }
+      return pages;
+    };
+
+    return (
+      <div className="flex items-center justify-center gap-1 py-3">
+        <Button variant="ghost" size="sm" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)} className="h-8 text-xs gap-1">
+          Previous
+        </Button>
+        {getPageNumbers().map((page, i) =>
+          typeof page === 'string' ? (
+            <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground text-sm">...</span>
+          ) : (
+            <Button key={page} variant={page === currentPage ? 'default' : 'outline'} size="sm" className="h-8 w-8 text-xs p-0" onClick={() => onPageChange(page)}>
+              {page}
+            </Button>
+          )
+        )}
+        <Button variant="ghost" size="sm" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)} className="h-8 text-xs gap-1">
+          Next
+        </Button>
+      </div>
+    );
+  };
+
+  const RenewalTable = ({ data, title }: { data: RenewalEmployee[]; title: string }) => {
+    const paginatedData = data.slice((renewalPage - 1) * ITEMS_PER_PAGE, renewalPage * ITEMS_PER_PAGE);
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base">{title} ({data.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="w-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Photo</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Current ID</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Days Since</TableHead>
+                  <TableHead>Last Renewal</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                ) : data.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No employees need renewal at this time.</TableCell></TableRow>
+                ) : (
+                  paginatedData.map(emp => {
+                    const days = getDaysSinceRenewal(emp);
+                    return (
+                      <TableRow key={emp.id}>
+                        <TableCell>
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={emp.photo_url || ''} />
+                            <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="font-medium">{emp.full_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono text-xs">{emp.employee_id || 'N/A'}</Badge>
+                        </TableCell>
+                        <TableCell>{emp.branch || '-'}</TableCell>
+                        <TableCell>{emp.position || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={days > 60 ? 'destructive' : 'secondary'} className="text-xs">{days} days</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : 'Never'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {canRenew && (
+                              <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleOpenRenew(emp)}>
+                                <RefreshCcw className="h-3 w-3" /> Renew
+                              </Button>
+                            )}
+                            {emp.renewal_photos && emp.renewal_photos.length > 0 && (
+                              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
+                                <Eye className="h-3 w-3" /> Photos
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+          <PaginationControls currentPage={renewalPage} totalItems={data.length} onPageChange={setRenewalPage} />
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const RenewedTable = ({ data }: { data: RenewalEmployee[] }) => {
+    const paginatedData = data.slice((renewedPage - 1) * ITEMS_PER_PAGE, renewedPage * ITEMS_PER_PAGE);
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Check className="h-4 w-4 text-primary" />
+            Recently Renewed ({data.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="w-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Photo</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>New ID</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Last Renewal</TableHead>
+                  <TableHead>Proof</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
+                ) : (
+                  paginatedData.map(emp => (
                     <TableRow key={emp.id}>
                       <TableCell>
                         <Avatar className="h-8 w-8">
@@ -254,100 +380,30 @@ const Renewal = () => {
                       </TableCell>
                       <TableCell>{emp.branch || '-'}</TableCell>
                       <TableCell>{emp.position || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={days > 60 ? 'destructive' : 'secondary'} className="text-xs">{days} days</Badge>
-                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : 'Never'}
+                        {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          {canRenew && (
-                            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleOpenRenew(emp)}>
-                              <RefreshCcw className="h-3 w-3" /> Renew
-                            </Button>
-                          )}
-                          {emp.renewal_photos && emp.renewal_photos.length > 0 && (
-                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
-                              <Eye className="h-3 w-3" /> Photos
-                            </Button>
-                          )}
-                        </div>
+                        {emp.renewal_photos && emp.renewal_photos.length > 0 ? (
+                          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
+                            <Eye className="h-3 w-3" /> {emp.renewal_photos.length} Photo{emp.renewal_photos.length > 1 ? 's' : ''}
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No photos</span>
+                        )}
                       </TableCell>
                     </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-
-  const RenewedTable = ({ data }: { data: RenewalEmployee[] }) => (
-    <Card>
-      <CardHeader className="py-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Check className="h-4 w-4 text-primary" />
-          Recently Renewed ({data.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="w-full">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">Photo</TableHead>
-                <TableHead>Employee Name</TableHead>
-                <TableHead>New ID</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead>Last Renewal</TableHead>
-                <TableHead>Proof</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
-              ) : (
-                data.map(emp => (
-                  <TableRow key={emp.id}>
-                    <TableCell>
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={emp.photo_url || ''} />
-                        <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell className="font-medium">{emp.full_name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs">{emp.employee_id || 'N/A'}</Badge>
-                    </TableCell>
-                    <TableCell>{emp.branch || '-'}</TableCell>
-                    <TableCell>{emp.position || '-'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {emp.renewal_photos && emp.renewal_photos.length > 0 ? (
-                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
-                          <Eye className="h-3 w-3" /> {emp.renewal_photos.length} Photo{emp.renewal_photos.length > 1 ? 's' : ''}
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No photos</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+          <PaginationControls currentPage={renewedPage} totalItems={data.length} onPageChange={setRenewedPage} />
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-4 p-4 md:p-6">
