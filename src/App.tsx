@@ -26,6 +26,7 @@ import TaskCalendar from "./pages/TaskCalendar";
 import Attendance from "./pages/Attendance";
 import ResumeToWork from "./pages/ResumeToWork";
 import Manpower from "./pages/Manpower";
+import Renewal from "./pages/Renewal";
 import StoreVisitSchedule from "./pages/StoreVisitSchedule";
 import ActivityHistory from "./pages/ActivityHistory";
 import NotFound from "./pages/NotFound";
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/attendance" element={<Attendance />} />
                 <Route path="/resume-to-work" element={<ResumeToWork />} />
                 <Route path="/manpower" element={<Manpower />} />
+                <Route path="/renewal" element={<Renewal />} />
                 <Route path="/store-visit-schedule" element={<StoreVisitSchedule />} />
                 <Route path="/activity-history" element={<ActivityHistory />} />
               </Route>

@@ -370,10 +370,12 @@ export type Database = {
           gender: string | null
           id: string
           is_active: boolean
+          last_renewal_date: string | null
           maternity: string | null
           photo_url: string | null
           position: string | null
           remarks: string | null
+          renewal_photos: string[] | null
           resign_letter_photos: string[] | null
           updated_at: string
         }
@@ -395,10 +397,12 @@ export type Database = {
           gender?: string | null
           id?: string
           is_active?: boolean
+          last_renewal_date?: string | null
           maternity?: string | null
           photo_url?: string | null
           position?: string | null
           remarks?: string | null
+          renewal_photos?: string[] | null
           resign_letter_photos?: string[] | null
           updated_at?: string
         }
@@ -420,10 +424,12 @@ export type Database = {
           gender?: string | null
           id?: string
           is_active?: boolean
+          last_renewal_date?: string | null
           maternity?: string | null
           photo_url?: string | null
           position?: string | null
           remarks?: string | null
+          renewal_photos?: string[] | null
           resign_letter_photos?: string[] | null
           updated_at?: string
         }

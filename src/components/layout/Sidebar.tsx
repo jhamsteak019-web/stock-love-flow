@@ -29,6 +29,7 @@ import {
   History,
   MapPin,
   MessageSquare,
+  IdCard,
   Mail
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -175,6 +176,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: Database, 
       label: 'Manpower Database',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
+    },
+    { 
+      to: '/renewal', 
+      icon: IdCard, 
+      label: 'Renewal',
+      roles: ['admin', 'staff', 'hr', 'assistant']
     },
     // { 
     //   to: '/store-visit-schedule', 
