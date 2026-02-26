@@ -15,7 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface RenewalEmployee {
@@ -41,6 +42,7 @@ const Renewal = () => {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('store');
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<RenewalEmployee | null>(null);
   const [newEmployeeId, setNewEmployeeId] = useState('');
@@ -60,7 +62,6 @@ const Renewal = () => {
 
   const globalBranchId = selectedBranch?.id || null;
 
-  // Fetch employees that need renewal (1+ month since date_hired or last_renewal_date)
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['renewal-employees'],
     queryFn: async () => {
@@ -77,36 +78,38 @@ const Renewal = () => {
     }
   });
 
-  // Filter employees needing renewal: 30+ days since hire or last renewal
+  const filterByCategory = (list: RenewalEmployee[], cat: string) => {
+    if (cat === 'store') return list.filter(e => e.category?.toLowerCase() === 'store manpower');
+    if (cat === 'office') return list.filter(e => e.category?.toLowerCase() === 'office manpower');
+    return list;
+  };
+
   const needsRenewal = useMemo(() => {
     const now = new Date();
     return employees.filter(emp => {
       if (globalBranchId && emp.branch_id !== globalBranchId) return false;
-      
       const referenceDate = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
       const daysSince = differenceInDays(now, referenceDate);
-      
       if (daysSince < 30) return false;
-
       const matchesSearch = !searchQuery ||
         emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.branch?.toLowerCase().includes(searchQuery.toLowerCase());
-
       return matchesSearch;
     });
   }, [employees, globalBranchId, searchQuery]);
 
-  // Recently renewed (last 7 days)
   const recentlyRenewed = useMemo(() => {
-    const now = new Date();
     return employees.filter(emp => {
       if (globalBranchId && emp.branch_id !== globalBranchId) return false;
       if (!emp.last_renewal_date) return false;
-      const daysSince = differenceInDays(now, new Date(emp.last_renewal_date));
-      return daysSince < 7;
-    });
-  }, [employees, globalBranchId]);
+      const matchesSearch = !searchQuery ||
+        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    }).sort((a, b) => new Date(b.last_renewal_date!).getTime() - new Date(a.last_renewal_date!).getTime());
+  }, [employees, globalBranchId, searchQuery]);
 
   const handleOpenRenew = (emp: RenewalEmployee) => {
     setSelectedEmployee(emp);
@@ -124,7 +127,6 @@ const Renewal = () => {
     }
     const newPhotos = [...renewalPhotos, ...files].slice(0, 3);
     setRenewalPhotos(newPhotos);
-    
     const previews = newPhotos.map(f => URL.createObjectURL(f));
     setRenewalPhotoPreviews(previews);
     if (e.target) e.target.value = '';
@@ -134,7 +136,6 @@ const Renewal = () => {
     const newPhotos = [...renewalPhotos];
     newPhotos.splice(index, 1);
     setRenewalPhotos(newPhotos);
-    
     const newPreviews = [...renewalPhotoPreviews];
     URL.revokeObjectURL(newPreviews[index]);
     newPreviews.splice(index, 1);
@@ -145,29 +146,16 @@ const Renewal = () => {
     mutationFn: async () => {
       if (!selectedEmployee || !newEmployeeId.trim()) throw new Error('Employee ID is required');
       if (renewalPhotos.length === 0) throw new Error('At least 1 photo is required as proof');
-
       setUploading(true);
-
-      // Upload photos
       const photoUrls: string[] = [];
       for (const file of renewalPhotos) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${selectedEmployee.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('renewal-photos')
-          .upload(fileName, file);
-        
+        const { error: uploadError } = await supabase.storage.from('renewal-photos').upload(fileName, file);
         if (uploadError) throw uploadError;
-        
-        const { data: urlData } = supabase.storage
-          .from('renewal-photos')
-          .getPublicUrl(fileName);
-        
+        const { data: urlData } = supabase.storage.from('renewal-photos').getPublicUrl(fileName);
         photoUrls.push(urlData.publicUrl);
       }
-
-      // Update employee
       const { error } = await supabase
         .from('employees')
         .update({
@@ -177,7 +165,6 @@ const Renewal = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedEmployee.id);
-
       if (error) throw error;
       return { employeeName: selectedEmployee.full_name, newId: newEmployeeId };
     },
@@ -203,6 +190,151 @@ const Renewal = () => {
     return differenceInDays(new Date(), ref);
   };
 
+  const storeNeedsRenewal = filterByCategory(needsRenewal, 'store');
+  const officeNeedsRenewal = filterByCategory(needsRenewal, 'office');
+  const storeRecentlyRenewed = filterByCategory(recentlyRenewed, 'store');
+  const officeRecentlyRenewed = filterByCategory(recentlyRenewed, 'office');
+
+  const currentNeedsRenewal = activeTab === 'store' ? storeNeedsRenewal : activeTab === 'office' ? officeNeedsRenewal : needsRenewal;
+  const currentRecentlyRenewed = activeTab === 'store' ? storeRecentlyRenewed : activeTab === 'office' ? officeRecentlyRenewed : recentlyRenewed;
+
+  const RenewalTable = ({ data, title }: { data: RenewalEmployee[]; title: string }) => (
+    <Card>
+      <CardHeader className="py-3">
+        <CardTitle className="text-base">{title} ({data.length})</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Photo</TableHead>
+                <TableHead>Employee Name</TableHead>
+                <TableHead>Current ID</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Days Since</TableHead>
+                <TableHead>Last Renewal</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              ) : data.length === 0 ? (
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No employees need renewal at this time.</TableCell></TableRow>
+              ) : (
+                data.map(emp => {
+                  const days = getDaysSinceRenewal(emp);
+                  return (
+                    <TableRow key={emp.id}>
+                      <TableCell>
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={emp.photo_url || ''} />
+                          <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">{emp.full_name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">{emp.employee_id || 'N/A'}</Badge>
+                      </TableCell>
+                      <TableCell>{emp.branch || '-'}</TableCell>
+                      <TableCell>{emp.position || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={days > 60 ? 'destructive' : 'secondary'} className="text-xs">{days} days</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {canRenew && (
+                            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleOpenRenew(emp)}>
+                              <RefreshCcw className="h-3 w-3" /> Renew
+                            </Button>
+                          )}
+                          {emp.renewal_photos && emp.renewal_photos.length > 0 && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
+                              <Eye className="h-3 w-3" /> Photos
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+
+  const RenewedTable = ({ data }: { data: RenewalEmployee[] }) => (
+    <Card>
+      <CardHeader className="py-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Check className="h-4 w-4 text-primary" />
+          Recently Renewed ({data.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Photo</TableHead>
+                <TableHead>Employee Name</TableHead>
+                <TableHead>New ID</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Last Renewal</TableHead>
+                <TableHead>Proof</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
+              ) : (
+                data.map(emp => (
+                  <TableRow key={emp.id}>
+                    <TableCell>
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={emp.photo_url || ''} />
+                        <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    </TableCell>
+                    <TableCell className="font-medium">{emp.full_name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono text-xs">{emp.employee_id || 'N/A'}</Badge>
+                    </TableCell>
+                    <TableCell>{emp.branch || '-'}</TableCell>
+                    <TableCell>{emp.position || '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {emp.renewal_photos && emp.renewal_photos.length > 0 ? (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
+                          <Eye className="h-3 w-3" /> {emp.renewal_photos.length} Photo{emp.renewal_photos.length > 1 ? 's' : ''}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No photos</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       {/* Header */}
@@ -227,7 +359,7 @@ const Renewal = () => {
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{needsRenewal.length}</p>
+                <p className="text-2xl font-bold text-foreground">{currentNeedsRenewal.length}</p>
                 <p className="text-xs text-muted-foreground">Needs Renewal</p>
               </div>
             </div>
@@ -240,8 +372,8 @@ const Renewal = () => {
                 <Check className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{recentlyRenewed.length}</p>
-                <p className="text-xs text-muted-foreground">Recently Renewed (7 days)</p>
+                <p className="text-2xl font-bold text-foreground">{currentRecentlyRenewed.length}</p>
+                <p className="text-xs text-muted-foreground">Recently Renewed</p>
               </div>
             </div>
           </CardContent>
@@ -274,88 +406,29 @@ const Renewal = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base">Employees Needing ID Renewal ({needsRenewal.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Photo</TableHead>
-                  <TableHead>Employee Name</TableHead>
-                  <TableHead>Current ID</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Days Since</TableHead>
-                  <TableHead>Last Renewal</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
-                  </TableRow>
-                ) : needsRenewal.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      No employees need renewal at this time.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  needsRenewal.map(emp => {
-                    const days = getDaysSinceRenewal(emp);
-                    return (
-                      <TableRow key={emp.id}>
-                        <TableCell>
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={emp.photo_url || ''} />
-                            <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                        <TableCell className="font-medium">{emp.full_name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {emp.employee_id || 'N/A'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{emp.branch || '-'}</TableCell>
-                        <TableCell>{emp.position || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={days > 60 ? 'destructive' : 'secondary'} className="text-xs">
-                            {days} days
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : 'Never'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {canRenew && (
-                              <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleOpenRenew(emp)}>
-                                <RefreshCcw className="h-3 w-3" /> Renew
-                              </Button>
-                            )}
-                            {emp.renewal_photos && emp.renewal_photos.length > 0 && (
-                              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
-                                <Eye className="h-3 w-3" /> Photos
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardContent>
-      </Card>
+      {/* Tabs: Store / Office */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="store" className="gap-1.5">
+            <Store className="h-4 w-4" />
+            Store Manpower
+          </TabsTrigger>
+          <TabsTrigger value="office" className="gap-1.5">
+            <Building2 className="h-4 w-4" />
+            Office Manpower
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="store" className="space-y-4 mt-4">
+          <RenewalTable data={storeNeedsRenewal} title="Store Manpower - Needs Renewal" />
+          <RenewedTable data={storeRecentlyRenewed} />
+        </TabsContent>
+
+        <TabsContent value="office" className="space-y-4 mt-4">
+          <RenewalTable data={officeNeedsRenewal} title="Office Manpower - Needs Renewal" />
+          <RenewedTable data={officeRecentlyRenewed} />
+        </TabsContent>
+      </Tabs>
 
       {/* Renew Modal */}
       <Dialog open={isRenewModalOpen} onOpenChange={setIsRenewModalOpen}>
@@ -375,57 +448,34 @@ const Renewal = () => {
                   <p className="text-xs text-muted-foreground">Current ID: {selectedEmployee.employee_id || 'N/A'}</p>
                 </div>
               </div>
-
               <div>
                 <Label>New Employee ID <span className="text-destructive">*</span></Label>
-                <Input
-                  value={newEmployeeId}
-                  onChange={e => setNewEmployeeId(e.target.value)}
-                  placeholder="Enter new employee ID"
-                  className="mt-1"
-                />
+                <Input value={newEmployeeId} onChange={e => setNewEmployeeId(e.target.value)} placeholder="Enter new employee ID" className="mt-1" />
               </div>
-
               <div>
                 <Label>Upload Proof Photos (max 3) <span className="text-destructive">*</span></Label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {renewalPhotoPreviews.map((preview, i) => (
                     <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border">
                       <img src={preview} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => removePhoto(i)}
-                        className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
-                      >
+                      <button onClick={() => removePhoto(i)} className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5">
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
                   {renewalPhotos.length < 3 && (
-                    <button
-                      onClick={() => photoInputRef.current?.click()}
-                      className="w-20 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary flex items-center justify-center transition-colors"
-                    >
+                    <button onClick={() => photoInputRef.current?.click()} className="w-20 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary flex items-center justify-center transition-colors">
                       <Upload className="h-5 w-5 text-muted-foreground" />
                     </button>
                   )}
                 </div>
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handlePhotoSelect}
-                />
+                <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
               </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRenewModalOpen(false)}>Cancel</Button>
-            <Button
-              onClick={() => renewMutation.mutate()}
-              disabled={uploading || !newEmployeeId.trim() || renewalPhotos.length === 0}
-            >
+            <Button onClick={() => renewMutation.mutate()} disabled={uploading || !newEmployeeId.trim() || renewalPhotos.length === 0}>
               {uploading ? 'Renewing...' : 'Confirm Renewal'}
             </Button>
           </DialogFooter>
@@ -440,11 +490,7 @@ const Renewal = () => {
           </DialogHeader>
           <div className="grid grid-cols-3 gap-3">
             {viewingEmployee?.renewal_photos?.map((url, i) => (
-              <div
-                key={i}
-                className="aspect-square rounded-lg overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                onClick={() => setViewingPhoto({ url, name: `Renewal Photo ${i + 1}` })}
-              >
+              <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all" onClick={() => setViewingPhoto({ url, name: `Renewal Photo ${i + 1}` })}>
                 <img src={url} alt={`Renewal ${i + 1}`} className="w-full h-full object-cover" />
               </div>
             ))}
@@ -471,12 +517,7 @@ const Renewal = () => {
           </DialogHeader>
           <div className="overflow-auto max-h-[70vh] flex items-center justify-center">
             {viewingPhoto && (
-              <img
-                src={viewingPhoto.url}
-                alt={viewingPhoto.name}
-                style={{ transform: `scale(${photoZoomLevel})`, transformOrigin: 'center' }}
-                className="max-w-full transition-transform"
-              />
+              <img src={viewingPhoto.url} alt={viewingPhoto.name} style={{ transform: `scale(${photoZoomLevel})`, transformOrigin: 'center' }} className="max-w-full transition-transform" />
             )}
           </div>
         </DialogContent>
