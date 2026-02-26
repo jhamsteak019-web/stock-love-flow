@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
+
 interface RenewalEmployee {
   id: string;
   employee_id: string | null;
@@ -78,38 +80,58 @@ const Renewal = () => {
     }
   });
 
-  const filterByCategory = (list: RenewalEmployee[], cat: string) => {
-    if (cat === 'store') return list.filter(e => e.category?.toLowerCase() === 'store manpower');
-    if (cat === 'office') return list.filter(e => e.category?.toLowerCase() === 'office manpower');
+  const isOfficePosition = (position: string | null) => {
+    if (!position) return false;
+    return officePositions.some(p => p.toLowerCase() === position.toLowerCase());
+  };
+
+  const filterByTab = (list: RenewalEmployee[], tab: string) => {
+    if (tab === 'store') return list.filter(e => !isOfficePosition(e.position));
+    if (tab === 'office') return list.filter(e => isOfficePosition(e.position));
     return list;
   };
 
+  // Filter by branch first
+  const branchFiltered = useMemo(() => {
+    return employees.filter(emp => {
+      if (globalBranchId && emp.branch_id !== globalBranchId) return false;
+      return true;
+    });
+  }, [employees, globalBranchId]);
+
+  // Search filtered
+  const searchFiltered = useMemo(() => {
+    return branchFiltered.filter(emp => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return emp.employee_id?.toLowerCase().includes(q) ||
+        emp.full_name.toLowerCase().includes(q) ||
+        emp.branch?.toLowerCase().includes(q);
+    });
+  }, [branchFiltered, searchQuery]);
+
   const needsRenewal = useMemo(() => {
     const now = new Date();
-    return employees.filter(emp => {
-      if (globalBranchId && emp.branch_id !== globalBranchId) return false;
+    return searchFiltered.filter(emp => {
       const referenceDate = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
       const daysSince = differenceInDays(now, referenceDate);
-      if (daysSince < 30) return false;
-      const matchesSearch = !searchQuery ||
-        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
+      return daysSince >= 30;
     });
-  }, [employees, globalBranchId, searchQuery]);
+  }, [searchFiltered]);
 
   const recentlyRenewed = useMemo(() => {
-    return employees.filter(emp => {
-      if (globalBranchId && emp.branch_id !== globalBranchId) return false;
-      if (!emp.last_renewal_date) return false;
-      const matchesSearch = !searchQuery ||
-        emp.employee_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.branch?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    }).sort((a, b) => new Date(b.last_renewal_date!).getTime() - new Date(a.last_renewal_date!).getTime());
-  }, [employees, globalBranchId, searchQuery]);
+    return searchFiltered.filter(emp => !!emp.last_renewal_date)
+      .sort((a, b) => new Date(b.last_renewal_date!).getTime() - new Date(a.last_renewal_date!).getTime());
+  }, [searchFiltered]);
+
+  const storeNeedsRenewal = filterByTab(needsRenewal, 'store');
+  const officeNeedsRenewal = filterByTab(needsRenewal, 'office');
+  const storeRecentlyRenewed = filterByTab(recentlyRenewed, 'store');
+  const officeRecentlyRenewed = filterByTab(recentlyRenewed, 'office');
+
+  const currentNeedsRenewal = activeTab === 'store' ? storeNeedsRenewal : officeNeedsRenewal;
+  const currentRecentlyRenewed = activeTab === 'store' ? storeRecentlyRenewed : officeRecentlyRenewed;
+  const currentBranchTotal = filterByTab(branchFiltered, activeTab).length;
 
   const handleOpenRenew = (emp: RenewalEmployee) => {
     setSelectedEmployee(emp);
@@ -189,14 +211,6 @@ const Renewal = () => {
     const ref = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
     return differenceInDays(new Date(), ref);
   };
-
-  const storeNeedsRenewal = filterByCategory(needsRenewal, 'store');
-  const officeNeedsRenewal = filterByCategory(needsRenewal, 'office');
-  const storeRecentlyRenewed = filterByCategory(recentlyRenewed, 'store');
-  const officeRecentlyRenewed = filterByCategory(recentlyRenewed, 'office');
-
-  const currentNeedsRenewal = activeTab === 'store' ? storeNeedsRenewal : activeTab === 'office' ? officeNeedsRenewal : needsRenewal;
-  const currentRecentlyRenewed = activeTab === 'store' ? storeRecentlyRenewed : activeTab === 'office' ? officeRecentlyRenewed : recentlyRenewed;
 
   const RenewalTable = ({ data, title }: { data: RenewalEmployee[]; title: string }) => (
     <Card>
@@ -337,7 +351,6 @@ const Renewal = () => {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -350,7 +363,7 @@ const Renewal = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - filtered by branch AND tab */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
@@ -385,7 +398,7 @@ const Renewal = () => {
                 <Clock className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{employees.length}</p>
+                <p className="text-2xl font-bold text-foreground">{currentBranchTotal}</p>
                 <p className="text-xs text-muted-foreground">Total Active Employees</p>
               </div>
             </div>
@@ -393,20 +406,13 @@ const Renewal = () => {
         </Card>
       </div>
 
-      {/* Search */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search employee..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Search employee..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
         </div>
       </div>
 
-      {/* Tabs: Store / Office */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="store" className="gap-1.5">
