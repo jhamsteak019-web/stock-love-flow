@@ -477,6 +477,17 @@ const Renewal = () => {
                           <span className="text-xs text-muted-foreground">No photos</span>
                         )}
                       </TableCell>
+                      {canRenew && (
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => {
+                            if (confirm(`Remove renewal record for ${emp.full_name}?`)) {
+                              deleteRenewalMutation.mutate(emp);
+                            }
+                          }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
