@@ -283,6 +283,76 @@ const Renewal = () => {
   // Reset pages when tab or search changes
   React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); setAllEmployeesPage(1); }, [activeTab, searchQuery, globalBranchId]);
 
+  const handlePrintTable = (data: RenewalEmployee[], title: string, type: 'renewal' | 'renewed') => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const rowsHtml = data.map((emp, i) => {
+      const daysLeft = getDaysUntilExpiry(emp);
+      const isExpired = daysLeft !== null && daysLeft <= 0;
+      
+      if (type === 'renewal') {
+        const statusText = isExpired 
+          ? `Expired ${Math.abs(daysLeft!)} day(s) ago`
+          : `${daysLeft} day(s) before expired`;
+        const statusColor = isExpired ? '#dc2626' : (daysLeft !== null && daysLeft <= 7) ? '#f97316' : '#6b7280';
+        return `<tr>
+          <td style="text-align:center">${i + 1}</td>
+          <td>${emp.full_name}</td>
+          <td>${emp.employee_id || 'N/A'}</td>
+          <td>${emp.branch || '-'}</td>
+          <td>${emp.position || '-'}</td>
+          <td>${emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : '-'}</td>
+          <td style="color:${statusColor};font-weight:bold">${statusText}</td>
+        </tr>`;
+      } else {
+        return `<tr>
+          <td style="text-align:center">${i + 1}</td>
+          <td>${emp.full_name}</td>
+          <td>${emp.employee_id || 'N/A'}</td>
+          <td>${emp.branch || '-'}</td>
+          <td>${emp.position || '-'}</td>
+          <td>${emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : '-'}</td>
+          <td>${emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : 'Not set'}</td>
+        </tr>`;
+      }
+    }).join('');
+
+    const headers = type === 'renewal'
+      ? '<th>#</th><th>Employee Name</th><th>Current ID</th><th>Branch</th><th>Position</th><th>ID Expired</th><th>Status</th>'
+      : '<th>#</th><th>Employee Name</th><th>New ID</th><th>Branch</th><th>Position</th><th>Last Renewal</th><th>Next Expiry</th>';
+
+    printWindow.document.write(`<!DOCTYPE html><html><head>
+      <title>${title}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .header h1 { font-size: 16px; margin-bottom: 4px; }
+        .header p { font-size: 11px; color: #555; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #000; padding: 5px 8px; font-size: 10px; text-align: left; }
+        th { background: #f0f0f0; font-weight: bold; }
+        .footer { margin-top: 20px; text-align: right; font-size: 9px; color: #888; }
+        @media print { body { padding: 10px; } }
+      </style>
+    </head><body>
+      <div class="header">
+        <h1>${title}</h1>
+        <p>Generated: ${format(new Date(), 'MMMM dd, yyyy hh:mm a')} | Total: ${data.length} employee(s)</p>
+      </div>
+      <table>
+        <thead><tr>${headers}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="footer">Employee ID Renewal Report</div>
+    </body></html>`);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
+  };
+
   // All employees for the current tab (to set expiry dates)
   const allEmployeesForTab = filterByTab(searchFiltered, activeTab);
 
