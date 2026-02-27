@@ -4665,7 +4665,8 @@ const Manpower = () => {
                                       date_hired: emp.date_hired,
                                       maternity: emp.maternity || 'N/A',
                                       remarks: emp.remarks || '',
-                                      photo_url: emp.photo_url || ''
+                                      photo_url: emp.photo_url || '',
+                                      id_expired: emp.id_expired || ''
                                     });
                                     setPhotoPreview(emp.photo_url || null);
                                     setIsModalOpen(true);
