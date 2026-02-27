@@ -659,7 +659,34 @@ const Renewal = () => {
                       <Upload className="h-5 w-5 text-muted-foreground" />
                     </button>
                   )}
-                </div>
+              </div>
+              <div>
+                <Label>Next ID Expiry Date <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                <p className="text-xs text-muted-foreground mb-2">Set when the new ID will expire</p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !nextExpiryDate && "text-muted-foreground")}>
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {nextExpiryDate ? format(nextExpiryDate, 'MMM dd, yyyy') : 'Pick next expiry date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={nextExpiryDate}
+                      onSelect={setNextExpiryDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {nextExpiryDate && (
+                  <Button variant="ghost" size="sm" className="mt-1 h-6 text-xs text-muted-foreground" onClick={() => setNextExpiryDate(undefined)}>
+                    Clear date
+                  </Button>
+                )}
+              </div>
                 <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
               </div>
             </div>
