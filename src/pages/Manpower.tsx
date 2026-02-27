@@ -1506,7 +1506,8 @@ const Manpower = () => {
       date_hired: '',
       maternity: 'N/A',
       remarks: '',
-      photo_url: ''
+      photo_url: '',
+      id_expired: ''
     });
     setEditingEmployee(null);
     setPhotoFile(null);
