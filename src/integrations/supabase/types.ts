@@ -369,6 +369,7 @@ export type Database = {
           full_name: string
           gender: string | null
           id: string
+          id_expired: string | null
           is_active: boolean
           last_renewal_date: string | null
           maternity: string | null
@@ -396,6 +397,7 @@ export type Database = {
           full_name: string
           gender?: string | null
           id?: string
+          id_expired?: string | null
           is_active?: boolean
           last_renewal_date?: string | null
           maternity?: string | null
@@ -423,6 +425,7 @@ export type Database = {
           full_name?: string
           gender?: string | null
           id?: string
+          id_expired?: string | null
           is_active?: boolean
           last_renewal_date?: string | null
           maternity?: string | null

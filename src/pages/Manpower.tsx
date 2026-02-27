@@ -70,7 +70,7 @@ const defaultManpowerColumns: GenericColumnConfig[] = [
   { key: 'date_hired', label: 'Date Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'service', label: 'Length of Service', visible: true, width: 120, minWidth: 90, maxWidth: 150 },
   { key: 'contact', label: 'Contact No.', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
-  { key: 'address', label: 'Address', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'id_expired', label: 'ID Expired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
   { key: 'actions', label: 'Actions', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
 ];
@@ -99,6 +99,7 @@ interface Employee {
   deleted_at?: string | null;
   branches?: { name: string } | null;
   resign_letter_photos?: string[] | null;
+  id_expired: string | null;
 }
 
 const genderOptions = ['Male', 'Female'];
@@ -207,7 +208,8 @@ const Manpower = () => {
     date_hired: '',
     maternity: 'N/A',
     remarks: '',
-    photo_url: ''
+    photo_url: '',
+    id_expired: ''
   });
 
   const isAdmin = userRole === 'admin';
@@ -1332,6 +1334,7 @@ const Manpower = () => {
         maternity: data.maternity || null,
         remarks: data.remarks || null,
         photo_url: data.photo_url || null,
+        id_expired: data.id_expired || null,
         created_by: user?.id
       });
       if (error) throw error;
@@ -1372,7 +1375,8 @@ const Manpower = () => {
         date_hired: data.date_hired,
         maternity: data.maternity || null,
         remarks: data.remarks || null,
-        photo_url: data.photo_url || null
+        photo_url: data.photo_url || null,
+        id_expired: data.id_expired || null
       }).eq('id', id);
       if (error) throw error;
     },
@@ -1504,7 +1508,8 @@ const Manpower = () => {
       date_hired: '',
       maternity: 'N/A',
       remarks: '',
-      photo_url: ''
+      photo_url: '',
+      id_expired: ''
     });
     setEditingEmployee(null);
     setPhotoFile(null);
@@ -1587,7 +1592,8 @@ const Manpower = () => {
       date_hired: employee.date_hired,
       maternity: employee.maternity || 'N/A',
       remarks: employee.remarks || '',
-      photo_url: employee.photo_url || ''
+      photo_url: employee.photo_url || '',
+      id_expired: employee.id_expired || ''
     });
     setPhotoPreview(employee.photo_url || null);
     setPhotoFile(null);
@@ -2129,7 +2135,7 @@ const Manpower = () => {
                   )}
                   {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
                   {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
-                  {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
+                  {columns.find(c => c.key === 'id_expired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'id_expired')?.width }}>ID Expired</TableHead>}
                   {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="w-[120px]">Actions</TableHead>}
                 </TableRow>
@@ -2251,8 +2257,8 @@ const Manpower = () => {
                             {columns.find(c => c.key === 'contact')?.visible && (
                               <TableCell>{emp.cell_no || '-'}</TableCell>
                             )}
-                            {columns.find(c => c.key === 'address')?.visible && (
-                              <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>{emp.address || '-'}</TableCell>
+                            {columns.find(c => c.key === 'id_expired')?.visible && (
+                              <TableCell className="text-xs">{emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : '-'}</TableCell>
                             )}
                             {columns.find(c => c.key === 'remarks')?.visible && (
                               <TableCell className="max-w-[150px] truncate" title={emp.remarks || ''}>{emp.remarks || '-'}</TableCell>
@@ -2445,7 +2451,7 @@ const Manpower = () => {
                       )}
                       {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
                       {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
-                      {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
+                      {columns.find(c => c.key === 'id_expired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'id_expired')?.width }}>ID Expired</TableHead>}
                       {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
                       {columns.find(c => c.key === 'actions')?.visible && <TableHead className="w-[120px]">Actions</TableHead>}
                     </TableRow>
@@ -2572,9 +2578,9 @@ const Manpower = () => {
                                 {columns.find(c => c.key === 'contact')?.visible && (
                                   <TableCell>{emp.cell_no || '-'}</TableCell>
                                 )}
-                                {columns.find(c => c.key === 'address')?.visible && (
-                                  <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>
-                                    {emp.address || '-'}
+                                {columns.find(c => c.key === 'id_expired')?.visible && (
+                                  <TableCell className="text-xs">
+                                    {emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : '-'}
                                   </TableCell>
                                 )}
                                 {columns.find(c => c.key === 'remarks')?.visible && (
@@ -4661,7 +4667,8 @@ const Manpower = () => {
                                       date_hired: emp.date_hired,
                                       maternity: emp.maternity || 'N/A',
                                       remarks: emp.remarks || '',
-                                      photo_url: emp.photo_url || ''
+                                      photo_url: emp.photo_url || '',
+                                      id_expired: emp.id_expired || ''
                                     });
                                     setPhotoPreview(emp.photo_url || null);
                                     setIsModalOpen(true);
@@ -4944,6 +4951,14 @@ const Manpower = () => {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>ID Expired</Label>
+                <Input
+                  type="date"
+                  value={form.id_expired}
+                  onChange={(e) => updateFormField('id_expired', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Remarks</Label>
                 <Textarea
                   value={form.remarks}
@@ -5152,6 +5167,10 @@ const Manpower = () => {
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Length of Service</p>
                   <p className="font-medium">{viewingEmployee?.date_hired ? getLengthOfService(viewingEmployee.date_hired) : '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">ID Expired</p>
+                  <p className="font-medium">{viewingEmployee?.id_expired ? format(new Date(viewingEmployee.id_expired), 'MMMM dd, yyyy') : '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Maternity</p>
