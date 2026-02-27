@@ -450,6 +450,72 @@ const Renewal = () => {
     );
   };
 
+  const AllEmployeesTable = ({ data, title }: { data: RenewalEmployee[]; title: string }) => {
+    const paginatedData = data.slice((allEmployeesPage - 1) * ITEMS_PER_PAGE, allEmployeesPage * ITEMS_PER_PAGE);
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            {title} ({data.length})
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Set or update ID expiry dates for employees</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="w-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Photo</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Employee ID</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>ID Expired</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No employees found.</TableCell></TableRow>
+                ) : (
+                  paginatedData.map(emp => (
+                    <TableRow key={emp.id}>
+                      <TableCell>
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={emp.photo_url || ''} />
+                          <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">{emp.full_name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">{emp.employee_id || 'N/A'}</Badge>
+                      </TableCell>
+                      <TableCell>{emp.branch || '-'}</TableCell>
+                      <TableCell>{emp.position || '-'}</TableCell>
+                      <TableCell className="text-xs">
+                        {emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : <span className="text-muted-foreground">Not set</span>}
+                      </TableCell>
+                      <TableCell>
+                        {canRenew && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleOpenSetExpiry(emp)}>
+                            <CalendarDays className="h-3 w-3" /> Set Expiry
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+          <PaginationControls currentPage={allEmployeesPage} totalItems={data.length} onPageChange={setAllEmployeesPage} />
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
