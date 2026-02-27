@@ -258,7 +258,7 @@ const Attendance = () => {
         .select('*, branches(name)')
         .is('deleted_at', null)
         .eq('is_active', true)
-        .neq('employment_status', 'Resigned')
+        .neq('employment_status', 'resigned')
         .order('full_name');
       
       // Filter by global branch
