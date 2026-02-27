@@ -70,7 +70,7 @@ const defaultManpowerColumns: GenericColumnConfig[] = [
   { key: 'date_hired', label: 'Date Hired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'service', label: 'Length of Service', visible: true, width: 120, minWidth: 90, maxWidth: 150 },
   { key: 'contact', label: 'Contact No.', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
-  { key: 'address', label: 'Address', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
+  { key: 'id_expired', label: 'ID Expired', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
   { key: 'remarks', label: 'Remarks', visible: true, width: 150, minWidth: 100, maxWidth: 250 },
   { key: 'actions', label: 'Actions', visible: true, width: 120, minWidth: 100, maxWidth: 150 },
 ];
