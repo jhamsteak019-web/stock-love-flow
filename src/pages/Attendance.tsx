@@ -315,7 +315,7 @@ const Attendance = () => {
       if (error) throw error;
       // Exclude attendance records of resigned employees
       return (data as AttendanceRecord[]).filter(
-        (record) => record.employees?.employment_status !== 'Resigned'
+        (record) => record.employees?.employment_status?.toLowerCase() !== 'resigned'
       );
     }
   });
