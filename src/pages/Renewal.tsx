@@ -449,7 +449,7 @@ const Renewal = () => {
               </TableHeader>
               <TableBody>
                 {data.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={canRenew ? 8 : 7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
                 ) : (
                   paginatedData.map(emp => (
                     <TableRow key={emp.id}>
