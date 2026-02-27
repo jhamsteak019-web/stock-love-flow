@@ -248,8 +248,15 @@ const Renewal = () => {
       toast({ title: 'Failed to set expiry date', description: error.message, variant: 'destructive' });
     }
   });
+  const ITEMS_PER_PAGE = 20;
   const [renewalPage, setRenewalPage] = useState(1);
   const [renewedPage, setRenewedPage] = useState(1);
+
+  // Reset pages when tab or search changes
+  React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); setAllEmployeesPage(1); }, [activeTab, searchQuery, globalBranchId]);
+
+  // All employees for the current tab (to set expiry dates)
+  const allEmployeesForTab = filterByTab(searchFiltered, activeTab);
 
   // Reset pages when tab or search changes
   React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); }, [activeTab, searchQuery, globalBranchId]);
