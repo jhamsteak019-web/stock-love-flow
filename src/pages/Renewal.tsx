@@ -258,8 +258,6 @@ const Renewal = () => {
   // All employees for the current tab (to set expiry dates)
   const allEmployeesForTab = filterByTab(searchFiltered, activeTab);
 
-  // Reset pages when tab or search changes
-  React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); }, [activeTab, searchQuery, globalBranchId]);
 
   const PaginationControls = ({ currentPage, totalItems, onPageChange }: { currentPage: number; totalItems: number; onPageChange: (p: number) => void }) => {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
