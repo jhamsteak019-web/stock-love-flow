@@ -149,6 +149,7 @@ const Renewal = () => {
     setNewEmployeeId(emp.employee_id || '');
     setRenewalPhotos([]);
     setRenewalPhotoPreviews([]);
+    setNextExpiryDate(undefined);
     setIsRenewModalOpen(true);
   };
 
