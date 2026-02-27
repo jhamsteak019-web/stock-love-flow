@@ -529,11 +529,13 @@ const Renewal = () => {
         <TabsContent value="store" className="space-y-4 mt-4">
           <RenewalTable data={storeNeedsRenewal} title="Store Manpower - Needs Renewal" />
           <RenewedTable data={storeRecentlyRenewed} />
+          <AllEmployeesTable data={filterByTab(searchFiltered, 'store')} title="Store Manpower - All Employees" />
         </TabsContent>
 
         <TabsContent value="office" className="space-y-4 mt-4">
           <RenewalTable data={officeNeedsRenewal} title="Office Manpower - Needs Renewal" />
           <RenewedTable data={officeRecentlyRenewed} />
+          <AllEmployeesTable data={filterByTab(searchFiltered, 'office')} title="Office Manpower - All Employees" />
         </TabsContent>
       </Tabs>
 
