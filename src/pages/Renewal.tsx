@@ -220,7 +220,34 @@ const Renewal = () => {
     return differenceInDays(new Date(emp.id_expired), new Date());
   };
 
-  const ITEMS_PER_PAGE = 20;
+  const handleOpenSetExpiry = (emp: RenewalEmployee) => {
+    setExpiryEmployee(emp);
+    setExpiryDate(emp.id_expired || '');
+    setIsSetExpiryOpen(true);
+  };
+
+  const setExpiryMutation = useMutation({
+    mutationFn: async () => {
+      if (!expiryEmployee || !expiryDate) throw new Error('Date is required');
+      const { error } = await supabase
+        .from('employees')
+        .update({ id_expired: expiryDate, updated_at: new Date().toISOString() })
+        .eq('id', expiryEmployee.id);
+      if (error) throw error;
+      return expiryEmployee.full_name;
+    },
+    onSuccess: (name) => {
+      toast({ title: `ID Expiry date set for ${name}` });
+      logActivity({ actionType: 'update', module: 'manpower', description: `Set ID expiry date for ${name} to ${expiryDate}` });
+      queryClient.invalidateQueries({ queryKey: ['renewal-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      setIsSetExpiryOpen(false);
+      setExpiryEmployee(null);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to set expiry date', description: error.message, variant: 'destructive' });
+    }
+  });
   const [renewalPage, setRenewalPage] = useState(1);
   const [renewedPage, setRenewedPage] = useState(1);
 
