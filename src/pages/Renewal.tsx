@@ -257,6 +257,29 @@ const Renewal = () => {
   const [renewalPage, setRenewalPage] = useState(1);
   const [renewedPage, setRenewedPage] = useState(1);
 
+  const deleteRenewalMutation = useMutation({
+    mutationFn: async (emp: RenewalEmployee) => {
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          last_renewal_date: null,
+          renewal_photos: [],
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', emp.id);
+      if (error) throw error;
+      return emp.full_name;
+    },
+    onSuccess: (name) => {
+      toast({ title: `Removed renewal record for ${name}` });
+      logActivity({ actionType: 'delete', module: 'manpower', description: `Removed renewal record for ${name}` });
+      queryClient.invalidateQueries({ queryKey: ['renewal-employees'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to delete', description: error.message, variant: 'destructive' });
+    }
+  });
+
   // Reset pages when tab or search changes
   React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); setAllEmployeesPage(1); }, [activeTab, searchQuery, globalBranchId]);
 
