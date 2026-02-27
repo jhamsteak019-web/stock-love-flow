@@ -34,6 +34,7 @@ interface RenewalEmployee {
   photo_url: string | null;
   last_renewal_date: string | null;
   renewal_photos: string[] | null;
+  id_expired: string | null;
 }
 
 const Renewal = () => {
@@ -69,7 +70,7 @@ const Renewal = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, employee_id, full_name, branch, branch_id, category, position, employment_status, date_hired, photo_url, last_renewal_date, renewal_photos')
+        .select('id, employee_id, full_name, branch, branch_id, category, position, employment_status, date_hired, photo_url, last_renewal_date, renewal_photos, id_expired')
         .is('deleted_at', null)
         .eq('is_active', true)
         .neq('employment_status', 'Resigned')
@@ -113,10 +114,13 @@ const Renewal = () => {
   const needsRenewal = useMemo(() => {
     const now = new Date();
     return searchFiltered.filter(emp => {
-      const referenceDate = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
-      const daysSince = differenceInDays(now, referenceDate);
-      return daysSince >= 30;
-    });
+      // Only show employees that have id_expired set
+      if (!emp.id_expired) return false;
+      const expiryDate = new Date(emp.id_expired);
+      const daysUntilExpiry = differenceInDays(expiryDate, now);
+      // Show if expired or expiring within 30 days
+      return daysUntilExpiry <= 30;
+    }).sort((a, b) => new Date(a.id_expired!).getTime() - new Date(b.id_expired!).getTime());
   }, [searchFiltered]);
 
   const recentlyRenewed = useMemo(() => {
@@ -207,9 +211,9 @@ const Renewal = () => {
     }
   });
 
-  const getDaysSinceRenewal = (emp: RenewalEmployee) => {
-    const ref = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
-    return differenceInDays(new Date(), ref);
+  const getDaysUntilExpiry = (emp: RenewalEmployee) => {
+    if (!emp.id_expired) return null;
+    return differenceInDays(new Date(emp.id_expired), new Date());
   };
 
   const ITEMS_PER_PAGE = 20;
@@ -277,8 +281,8 @@ const Renewal = () => {
                   <TableHead>Current ID</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Days Since</TableHead>
-                  <TableHead>Last Renewal</TableHead>
+                  <TableHead>ID Expired</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -289,7 +293,8 @@ const Renewal = () => {
                   <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No employees need renewal at this time.</TableCell></TableRow>
                 ) : (
                   paginatedData.map(emp => {
-                    const days = getDaysSinceRenewal(emp);
+                    const daysLeft = getDaysUntilExpiry(emp);
+                    const isExpired = daysLeft !== null && daysLeft <= 0;
                     return (
                       <TableRow key={emp.id}>
                         <TableCell>
@@ -304,11 +309,15 @@ const Renewal = () => {
                         </TableCell>
                         <TableCell>{emp.branch || '-'}</TableCell>
                         <TableCell>{emp.position || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={days > 60 ? 'destructive' : 'secondary'} className="text-xs">{days} days</Badge>
+                        <TableCell className="text-xs">
+                          {emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : '-'}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : 'Never'}
+                        <TableCell>
+                          {isExpired ? (
+                            <Badge variant="destructive" className="text-xs">Expired</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">{daysLeft} days left</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -414,7 +423,7 @@ const Renewal = () => {
             Employee ID Renewal
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Employees needing ID renewal (30+ days since last renewal or date hired)
+            Employees with ID expiring within 30 days or already expired
           </p>
         </div>
       </div>
