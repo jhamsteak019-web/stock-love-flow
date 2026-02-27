@@ -444,6 +444,7 @@ const Renewal = () => {
                   <TableHead>Position</TableHead>
                   <TableHead>Last Renewal</TableHead>
                   <TableHead>Proof</TableHead>
+                  {canRenew && <TableHead className="w-12">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
