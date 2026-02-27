@@ -313,7 +313,10 @@ const Attendance = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as AttendanceRecord[];
+      // Exclude attendance records of resigned employees
+      return (data as AttendanceRecord[]).filter(
+        (record) => record.employees?.employment_status !== 'Resigned'
+      );
     }
   });
 
