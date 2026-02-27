@@ -1590,7 +1590,8 @@ const Manpower = () => {
       date_hired: employee.date_hired,
       maternity: employee.maternity || 'N/A',
       remarks: employee.remarks || '',
-      photo_url: employee.photo_url || ''
+      photo_url: employee.photo_url || '',
+      id_expired: employee.id_expired || ''
     });
     setPhotoPreview(employee.photo_url || null);
     setPhotoFile(null);
