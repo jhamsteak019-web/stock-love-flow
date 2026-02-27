@@ -34,6 +34,7 @@ interface RenewalEmployee {
   photo_url: string | null;
   last_renewal_date: string | null;
   renewal_photos: string[] | null;
+  id_expired: string | null;
 }
 
 const Renewal = () => {
