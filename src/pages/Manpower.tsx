@@ -1375,7 +1375,8 @@ const Manpower = () => {
         date_hired: data.date_hired,
         maternity: data.maternity || null,
         remarks: data.remarks || null,
-        photo_url: data.photo_url || null
+        photo_url: data.photo_url || null,
+        id_expired: data.id_expired || null
       }).eq('id', id);
       if (error) throw error;
     },
