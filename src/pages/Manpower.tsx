@@ -2578,9 +2578,9 @@ const Manpower = () => {
                                 {columns.find(c => c.key === 'contact')?.visible && (
                                   <TableCell>{emp.cell_no || '-'}</TableCell>
                                 )}
-                                {columns.find(c => c.key === 'address')?.visible && (
-                                  <TableCell className="max-w-[150px] truncate" title={emp.address || ''}>
-                                    {emp.address || '-'}
+                                {columns.find(c => c.key === 'id_expired')?.visible && (
+                                  <TableCell className="text-xs">
+                                    {emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : '-'}
                                   </TableCell>
                                 )}
                                 {columns.find(c => c.key === 'remarks')?.visible && (
