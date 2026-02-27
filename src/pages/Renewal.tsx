@@ -281,8 +281,8 @@ const Renewal = () => {
                   <TableHead>Current ID</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Days Since</TableHead>
-                  <TableHead>Last Renewal</TableHead>
+                  <TableHead>ID Expired</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -293,7 +293,8 @@ const Renewal = () => {
                   <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No employees need renewal at this time.</TableCell></TableRow>
                 ) : (
                   paginatedData.map(emp => {
-                    const days = getDaysSinceRenewal(emp);
+                    const daysLeft = getDaysUntilExpiry(emp);
+                    const isExpired = daysLeft !== null && daysLeft <= 0;
                     return (
                       <TableRow key={emp.id}>
                         <TableCell>
@@ -308,11 +309,15 @@ const Renewal = () => {
                         </TableCell>
                         <TableCell>{emp.branch || '-'}</TableCell>
                         <TableCell>{emp.position || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={days > 60 ? 'destructive' : 'secondary'} className="text-xs">{days} days</Badge>
+                        <TableCell className="text-xs">
+                          {emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : '-'}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {emp.last_renewal_date ? format(new Date(emp.last_renewal_date), 'MMM dd, yyyy') : 'Never'}
+                        <TableCell>
+                          {isExpired ? (
+                            <Badge variant="destructive" className="text-xs">Expired</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">{daysLeft} days left</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
