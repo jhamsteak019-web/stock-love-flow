@@ -4951,6 +4951,14 @@ const Manpower = () => {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>ID Expired</Label>
+                <Input
+                  type="date"
+                  value={form.id_expired}
+                  onChange={(e) => updateFormField('id_expired', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Remarks</Label>
                 <Textarea
                   value={form.remarks}
