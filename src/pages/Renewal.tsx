@@ -16,7 +16,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2, CalendarDays, Users } from 'lucide-react';
+import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2, CalendarDays, Users, Trash2 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
@@ -52,6 +54,7 @@ const Renewal = () => {
   const [renewalPhotos, setRenewalPhotos] = useState<File[]>([]);
   const [renewalPhotoPreviews, setRenewalPhotoPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [nextExpiryDate, setNextExpiryDate] = useState<Date | undefined>(undefined);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
@@ -146,6 +149,7 @@ const Renewal = () => {
     setNewEmployeeId(emp.employee_id || '');
     setRenewalPhotos([]);
     setRenewalPhotoPreviews([]);
+    setNextExpiryDate(undefined);
     setIsRenewModalOpen(true);
   };
 
@@ -192,7 +196,7 @@ const Renewal = () => {
           employee_id: newEmployeeId.trim(),
           last_renewal_date: new Date().toISOString().split('T')[0],
           renewal_photos: photoUrls,
-          id_expired: null,
+          id_expired: nextExpiryDate ? format(nextExpiryDate, 'yyyy-MM-dd') : null,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedEmployee.id);
@@ -252,6 +256,29 @@ const Renewal = () => {
   const ITEMS_PER_PAGE = 20;
   const [renewalPage, setRenewalPage] = useState(1);
   const [renewedPage, setRenewedPage] = useState(1);
+
+  const deleteRenewalMutation = useMutation({
+    mutationFn: async (emp: RenewalEmployee) => {
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          last_renewal_date: null,
+          renewal_photos: [],
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', emp.id);
+      if (error) throw error;
+      return emp.full_name;
+    },
+    onSuccess: (name) => {
+      toast({ title: `Removed renewal record for ${name}` });
+      logActivity({ actionType: 'delete', module: 'manpower', description: `Removed renewal record for ${name}` });
+      queryClient.invalidateQueries({ queryKey: ['renewal-employees'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to delete', description: error.message, variant: 'destructive' });
+    }
+  });
 
   // Reset pages when tab or search changes
   React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); setAllEmployeesPage(1); }, [activeTab, searchQuery, globalBranchId]);
@@ -417,11 +444,12 @@ const Renewal = () => {
                   <TableHead>Position</TableHead>
                   <TableHead>Last Renewal</TableHead>
                   <TableHead>Proof</TableHead>
+                  {canRenew && <TableHead className="w-12">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={canRenew ? 8 : 7} className="text-center py-8 text-muted-foreground">No recently renewed employees.</TableCell></TableRow>
                 ) : (
                   paginatedData.map(emp => (
                     <TableRow key={emp.id}>
@@ -449,6 +477,17 @@ const Renewal = () => {
                           <span className="text-xs text-muted-foreground">No photos</span>
                         )}
                       </TableCell>
+                      {canRenew && (
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => {
+                            if (confirm(`Remove renewal record for ${emp.full_name}?`)) {
+                              deleteRenewalMutation.mutate(emp);
+                            }
+                          }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -655,7 +694,34 @@ const Renewal = () => {
                       <Upload className="h-5 w-5 text-muted-foreground" />
                     </button>
                   )}
-                </div>
+              </div>
+              <div>
+                <Label>Next ID Expiry Date <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                <p className="text-xs text-muted-foreground mb-2">Set when the new ID will expire</p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !nextExpiryDate && "text-muted-foreground")}>
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {nextExpiryDate ? format(nextExpiryDate, 'MMM dd, yyyy') : 'Pick next expiry date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={nextExpiryDate}
+                      onSelect={setNextExpiryDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {nextExpiryDate && (
+                  <Button variant="ghost" size="sm" className="mt-1 h-6 text-xs text-muted-foreground" onClick={() => setNextExpiryDate(undefined)}>
+                    Clear date
+                  </Button>
+                )}
+              </div>
                 <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
               </div>
             </div>
