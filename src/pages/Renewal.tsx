@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2 } from 'lucide-react';
+import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2, CalendarDays, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
