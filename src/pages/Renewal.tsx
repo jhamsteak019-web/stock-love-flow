@@ -114,10 +114,13 @@ const Renewal = () => {
   const needsRenewal = useMemo(() => {
     const now = new Date();
     return searchFiltered.filter(emp => {
-      const referenceDate = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
-      const daysSince = differenceInDays(now, referenceDate);
-      return daysSince >= 30;
-    });
+      // Only show employees that have id_expired set
+      if (!emp.id_expired) return false;
+      const expiryDate = new Date(emp.id_expired);
+      const daysUntilExpiry = differenceInDays(expiryDate, now);
+      // Show if expired or expiring within 30 days
+      return daysUntilExpiry <= 30;
+    }).sort((a, b) => new Date(a.id_expired!).getTime() - new Date(b.id_expired!).getTime());
   }, [searchFiltered]);
 
   const recentlyRenewed = useMemo(() => {
