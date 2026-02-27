@@ -501,11 +501,16 @@ const Renewal = () => {
     const paginatedData = data.slice((renewedPage - 1) * ITEMS_PER_PAGE, renewedPage * ITEMS_PER_PAGE);
     return (
       <Card>
-        <CardHeader className="py-3">
+        <CardHeader className="py-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <Check className="h-4 w-4 text-primary" />
             Recently Renewed ({data.length})
           </CardTitle>
+          {data.length > 0 && (
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handlePrintTable(data, 'Recently Renewed', 'renewed')}>
+              <Printer className="h-3 w-3" /> Save PDF
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="w-full">
