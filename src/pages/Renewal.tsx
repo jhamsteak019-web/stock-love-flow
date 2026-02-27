@@ -423,7 +423,7 @@ const Renewal = () => {
             Employee ID Renewal
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Employees needing ID renewal (30+ days since last renewal or date hired)
+            Employees with ID expiring within 30 days or already expired
           </p>
         </div>
       </div>
