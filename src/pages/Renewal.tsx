@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2 } from 'lucide-react';
+import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2, CalendarDays, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
@@ -56,6 +56,10 @@ const Renewal = () => {
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [viewingEmployee, setViewingEmployee] = useState<RenewalEmployee | null>(null);
+  const [isSetExpiryOpen, setIsSetExpiryOpen] = useState(false);
+  const [expiryEmployee, setExpiryEmployee] = useState<RenewalEmployee | null>(null);
+  const [expiryDate, setExpiryDate] = useState('');
+  const [allEmployeesPage, setAllEmployeesPage] = useState(1);
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
@@ -216,12 +220,44 @@ const Renewal = () => {
     return differenceInDays(new Date(emp.id_expired), new Date());
   };
 
+  const handleOpenSetExpiry = (emp: RenewalEmployee) => {
+    setExpiryEmployee(emp);
+    setExpiryDate(emp.id_expired || '');
+    setIsSetExpiryOpen(true);
+  };
+
+  const setExpiryMutation = useMutation({
+    mutationFn: async () => {
+      if (!expiryEmployee || !expiryDate) throw new Error('Date is required');
+      const { error } = await supabase
+        .from('employees')
+        .update({ id_expired: expiryDate, updated_at: new Date().toISOString() })
+        .eq('id', expiryEmployee.id);
+      if (error) throw error;
+      return expiryEmployee.full_name;
+    },
+    onSuccess: (name) => {
+      toast({ title: `ID Expiry date set for ${name}` });
+      logActivity({ actionType: 'update', module: 'manpower', description: `Set ID expiry date for ${name} to ${expiryDate}` });
+      queryClient.invalidateQueries({ queryKey: ['renewal-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['manpower-employees'] });
+      setIsSetExpiryOpen(false);
+      setExpiryEmployee(null);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to set expiry date', description: error.message, variant: 'destructive' });
+    }
+  });
   const ITEMS_PER_PAGE = 20;
   const [renewalPage, setRenewalPage] = useState(1);
   const [renewedPage, setRenewedPage] = useState(1);
 
   // Reset pages when tab or search changes
-  React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); }, [activeTab, searchQuery, globalBranchId]);
+  React.useEffect(() => { setRenewalPage(1); setRenewedPage(1); setAllEmployeesPage(1); }, [activeTab, searchQuery, globalBranchId]);
+
+  // All employees for the current tab (to set expiry dates)
+  const allEmployeesForTab = filterByTab(searchFiltered, activeTab);
+
 
   const PaginationControls = ({ currentPage, totalItems, onPageChange }: { currentPage: number; totalItems: number; onPageChange: (p: number) => void }) => {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
@@ -414,6 +450,72 @@ const Renewal = () => {
     );
   };
 
+  const AllEmployeesTable = ({ data, title }: { data: RenewalEmployee[]; title: string }) => {
+    const paginatedData = data.slice((allEmployeesPage - 1) * ITEMS_PER_PAGE, allEmployeesPage * ITEMS_PER_PAGE);
+    return (
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            {title} ({data.length})
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Set or update ID expiry dates for employees</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="w-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Photo</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Employee ID</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>ID Expired</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No employees found.</TableCell></TableRow>
+                ) : (
+                  paginatedData.map(emp => (
+                    <TableRow key={emp.id}>
+                      <TableCell>
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={emp.photo_url || ''} />
+                          <AvatarFallback className="text-xs bg-muted">{emp.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">{emp.full_name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">{emp.employee_id || 'N/A'}</Badge>
+                      </TableCell>
+                      <TableCell>{emp.branch || '-'}</TableCell>
+                      <TableCell>{emp.position || '-'}</TableCell>
+                      <TableCell className="text-xs">
+                        {emp.id_expired ? format(new Date(emp.id_expired), 'MMM dd, yyyy') : <span className="text-muted-foreground">Not set</span>}
+                      </TableCell>
+                      <TableCell>
+                        {canRenew && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleOpenSetExpiry(emp)}>
+                            <CalendarDays className="h-3 w-3" /> Set Expiry
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+          <PaginationControls currentPage={allEmployeesPage} totalItems={data.length} onPageChange={setAllEmployeesPage} />
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -493,11 +595,13 @@ const Renewal = () => {
         <TabsContent value="store" className="space-y-4 mt-4">
           <RenewalTable data={storeNeedsRenewal} title="Store Manpower - Needs Renewal" />
           <RenewedTable data={storeRecentlyRenewed} />
+          <AllEmployeesTable data={filterByTab(searchFiltered, 'store')} title="Store Manpower - All Employees" />
         </TabsContent>
 
         <TabsContent value="office" className="space-y-4 mt-4">
           <RenewalTable data={officeNeedsRenewal} title="Office Manpower - Needs Renewal" />
           <RenewedTable data={officeRecentlyRenewed} />
+          <AllEmployeesTable data={filterByTab(searchFiltered, 'office')} title="Office Manpower - All Employees" />
         </TabsContent>
       </Tabs>
 
@@ -591,6 +695,49 @@ const Renewal = () => {
               <img src={viewingPhoto.url} alt={viewingPhoto.name} style={{ transform: `scale(${photoZoomLevel})`, transformOrigin: 'center' }} className="max-w-full transition-transform" />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set ID Expiry Modal */}
+      <Dialog open={isSetExpiryOpen} onOpenChange={setIsSetExpiryOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set ID Expiry Date</DialogTitle>
+          </DialogHeader>
+          {expiryEmployee && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={expiryEmployee.photo_url || ''} />
+                  <AvatarFallback>{expiryEmployee.full_name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-sm">{expiryEmployee.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{expiryEmployee.branch || 'No branch'}</p>
+                </div>
+              </div>
+              <div>
+                <Label>ID Expiry Date <span className="text-destructive">*</span></Label>
+                <Input
+                  type="date"
+                  value={expiryDate}
+                  onChange={e => setExpiryDate(e.target.value)}
+                  className="mt-1"
+                />
+                {expiryEmployee.id_expired && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current: {format(new Date(expiryEmployee.id_expired), 'MMM dd, yyyy')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSetExpiryOpen(false)}>Cancel</Button>
+            <Button onClick={() => setExpiryMutation.mutate()} disabled={!expiryDate}>
+              Save Expiry Date
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
