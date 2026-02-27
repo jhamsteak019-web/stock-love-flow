@@ -2135,7 +2135,7 @@ const Manpower = () => {
                   )}
                   {columns.find(c => c.key === 'service')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'service')?.width }}>Length of Service</TableHead>}
                   {columns.find(c => c.key === 'contact')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'contact')?.width }}>Contact No.</TableHead>}
-                  {columns.find(c => c.key === 'address')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'address')?.width }}>Address</TableHead>}
+                  {columns.find(c => c.key === 'id_expired')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'id_expired')?.width }}>ID Expired</TableHead>}
                   {columns.find(c => c.key === 'remarks')?.visible && <TableHead style={{ width: columns.find(c => c.key === 'remarks')?.width }}>Remarks</TableHead>}
                   {columns.find(c => c.key === 'actions')?.visible && <TableHead className="w-[120px]">Actions</TableHead>}
                 </TableRow>
