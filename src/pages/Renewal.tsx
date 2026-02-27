@@ -350,9 +350,20 @@ const Renewal = () => {
                         </TableCell>
                         <TableCell>
                           {isExpired ? (
-                            <Badge variant="destructive" className="text-xs">Expired</Badge>
+                            <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Expired {Math.abs(daysLeft!)} {Math.abs(daysLeft!) === 1 ? 'day' : 'days'} ago
+                            </Badge>
+                          ) : daysLeft !== null && daysLeft <= 7 ? (
+                            <Badge variant="destructive" className="text-xs flex items-center gap-1 bg-orange-500 hover:bg-orange-500/80 border-orange-500">
+                              <Clock className="h-3 w-3" />
+                              {daysLeft} {daysLeft === 1 ? 'day' : 'days'} before expired
+                            </Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-xs">{daysLeft} days left</Badge>
+                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {daysLeft} {daysLeft === 1 ? 'day' : 'days'} before expired
+                            </Badge>
                           )}
                         </TableCell>
                         <TableCell>
