@@ -54,6 +54,7 @@ const Renewal = () => {
   const [renewalPhotos, setRenewalPhotos] = useState<File[]>([]);
   const [renewalPhotoPreviews, setRenewalPhotoPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [nextExpiryDate, setNextExpiryDate] = useState<Date | undefined>(undefined);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
