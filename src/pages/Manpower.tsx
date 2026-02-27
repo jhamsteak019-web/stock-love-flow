@@ -1334,6 +1334,7 @@ const Manpower = () => {
         maternity: data.maternity || null,
         remarks: data.remarks || null,
         photo_url: data.photo_url || null,
+        id_expired: data.id_expired || null,
         created_by: user?.id
       });
       if (error) throw error;
