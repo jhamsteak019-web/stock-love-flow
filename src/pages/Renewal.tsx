@@ -697,6 +697,49 @@ const Renewal = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Set ID Expiry Modal */}
+      <Dialog open={isSetExpiryOpen} onOpenChange={setIsSetExpiryOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set ID Expiry Date</DialogTitle>
+          </DialogHeader>
+          {expiryEmployee && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={expiryEmployee.photo_url || ''} />
+                  <AvatarFallback>{expiryEmployee.full_name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-sm">{expiryEmployee.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{expiryEmployee.branch || 'No branch'}</p>
+                </div>
+              </div>
+              <div>
+                <Label>ID Expiry Date <span className="text-destructive">*</span></Label>
+                <Input
+                  type="date"
+                  value={expiryDate}
+                  onChange={e => setExpiryDate(e.target.value)}
+                  className="mt-1"
+                />
+                {expiryEmployee.id_expired && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current: {format(new Date(expiryEmployee.id_expired), 'MMM dd, yyyy')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSetExpiryOpen(false)}>Cancel</Button>
+            <Button onClick={() => setExpiryMutation.mutate()} disabled={!expiryDate}>
+              Save Expiry Date
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
