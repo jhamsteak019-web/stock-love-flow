@@ -5169,6 +5169,10 @@ const Manpower = () => {
                   <p className="font-medium">{viewingEmployee?.date_hired ? getLengthOfService(viewingEmployee.date_hired) : '-'}</p>
                 </div>
                 <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">ID Expired</p>
+                  <p className="font-medium">{viewingEmployee?.id_expired ? format(new Date(viewingEmployee.id_expired), 'MMMM dd, yyyy') : '-'}</p>
+                </div>
+                <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Maternity</p>
                   <p className="font-medium">{viewingEmployee?.maternity || '-'}</p>
                 </div>
