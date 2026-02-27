@@ -192,6 +192,7 @@ const Renewal = () => {
           employee_id: newEmployeeId.trim(),
           last_renewal_date: new Date().toISOString().split('T')[0],
           renewal_photos: photoUrls,
+          id_expired: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedEmployee.id);
