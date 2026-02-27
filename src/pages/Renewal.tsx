@@ -70,7 +70,7 @@ const Renewal = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, employee_id, full_name, branch, branch_id, category, position, employment_status, date_hired, photo_url, last_renewal_date, renewal_photos')
+        .select('id, employee_id, full_name, branch, branch_id, category, position, employment_status, date_hired, photo_url, last_renewal_date, renewal_photos, id_expired')
         .is('deleted_at', null)
         .eq('is_active', true)
         .neq('employment_status', 'Resigned')
