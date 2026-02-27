@@ -211,9 +211,9 @@ const Renewal = () => {
     }
   });
 
-  const getDaysSinceRenewal = (emp: RenewalEmployee) => {
-    const ref = emp.last_renewal_date ? new Date(emp.last_renewal_date) : new Date(emp.date_hired);
-    return differenceInDays(new Date(), ref);
+  const getDaysUntilExpiry = (emp: RenewalEmployee) => {
+    if (!emp.id_expired) return null;
+    return differenceInDays(new Date(emp.id_expired), new Date());
   };
 
   const ITEMS_PER_PAGE = 20;
