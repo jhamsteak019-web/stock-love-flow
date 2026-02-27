@@ -258,7 +258,7 @@ const Attendance = () => {
         .select('*, branches(name)')
         .is('deleted_at', null)
         .eq('is_active', true)
-        .neq('employment_status', 'Resigned')
+        .neq('employment_status', 'resigned')
         .order('full_name');
       
       // Filter by global branch
@@ -313,7 +313,10 @@ const Attendance = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as AttendanceRecord[];
+      // Exclude attendance records of resigned employees
+      return (data as AttendanceRecord[]).filter(
+        (record) => record.employees?.employment_status?.toLowerCase() !== 'resigned'
+      );
     }
   });
 
