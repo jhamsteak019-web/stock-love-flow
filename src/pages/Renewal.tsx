@@ -56,6 +56,10 @@ const Renewal = () => {
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; name: string } | null>(null);
   const [photoZoomLevel, setPhotoZoomLevel] = useState(1);
   const [viewingEmployee, setViewingEmployee] = useState<RenewalEmployee | null>(null);
+  const [isSetExpiryOpen, setIsSetExpiryOpen] = useState(false);
+  const [expiryEmployee, setExpiryEmployee] = useState<RenewalEmployee | null>(null);
+  const [expiryDate, setExpiryDate] = useState('');
+  const [allEmployeesPage, setAllEmployeesPage] = useState(1);
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'staff';
