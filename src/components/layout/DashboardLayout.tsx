@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamChatBox } from '@/components/chat/TeamChatBox';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const pageTitles: Record<string, string> = {
   '/inventory': 'Inventory',
@@ -95,9 +96,11 @@ export const DashboardLayout = () => {
         />
         
         <main className="p-4 lg:p-6">
-          <div className="page-transition">
-            <Outlet />
-          </div>
+          <ErrorBoundary>
+            <div className="page-transition">
+              <Outlet />
+            </div>
+          </ErrorBoundary>
         </main>
       </div>
       
