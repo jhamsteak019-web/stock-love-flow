@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamChatBox } from '@/components/chat/TeamChatBox';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const pageTitles: Record<string, string> = {
   '/inventory': 'Inventory',
