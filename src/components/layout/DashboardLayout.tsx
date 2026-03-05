@@ -96,9 +96,11 @@ export const DashboardLayout = () => {
         />
         
         <main className="p-4 lg:p-6">
-          <div className="page-transition">
-            <Outlet />
-          </div>
+          <ErrorBoundary>
+            <div className="page-transition">
+              <Outlet />
+            </div>
+          </ErrorBoundary>
         </main>
       </div>
       
