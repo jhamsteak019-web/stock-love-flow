@@ -30,7 +30,8 @@ import {
   MapPin,
   MessageSquare,
   IdCard,
-  Mail
+  Mail,
+  Presentation
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
