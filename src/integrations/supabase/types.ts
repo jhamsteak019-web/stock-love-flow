@@ -844,6 +844,53 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          file_name: string
+          file_url: string
+          id: string
+          slides: Json
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          file_name: string
+          file_url: string
+          id?: string
+          slides?: Json
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          id?: string
+          slides?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           branch_name: string

@@ -30,7 +30,8 @@ import {
   MapPin,
   MessageSquare,
   IdCard,
-  Mail
+  Mail,
+  Presentation
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -195,6 +196,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     //   label: 'Allocation',
     //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     // },
+    { 
+      to: '/reports',
+      icon: Presentation, 
+      label: 'Reports',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
+    },
     { 
       to: '/users',
       icon: Users, 
