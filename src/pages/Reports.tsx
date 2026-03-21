@@ -103,14 +103,14 @@ const Reports = () => {
 
       const { data: report, error: insertError } = await supabase
         .from('reports')
-        .insert({
+        .insert([{
           user_id: user.id,
           title,
           file_url: publicUrl,
           file_name: file.name,
           status: 'processing',
-          branch_id: selectedBranch && selectedBranch !== 'all' ? selectedBranch : null,
-        })
+          branch_id: selectedBranch ? selectedBranch.id : null,
+        }])
         .select()
         .single();
 
