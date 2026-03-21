@@ -29,7 +29,6 @@ import Manpower from "./pages/Manpower";
 import Renewal from "./pages/Renewal";
 import StoreVisitSchedule from "./pages/StoreVisitSchedule";
 import ActivityHistory from "./pages/ActivityHistory";
-import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,7 +66,6 @@ const App = () => (
                 <Route path="/renewal" element={<Renewal />} />
                 <Route path="/store-visit-schedule" element={<StoreVisitSchedule />} />
                 <Route path="/activity-history" element={<ActivityHistory />} />
-                <Route path="/reports" element={<Reports />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
