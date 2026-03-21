@@ -29,6 +29,7 @@ import Manpower from "./pages/Manpower";
 import Renewal from "./pages/Renewal";
 import StoreVisitSchedule from "./pages/StoreVisitSchedule";
 import ActivityHistory from "./pages/ActivityHistory";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
