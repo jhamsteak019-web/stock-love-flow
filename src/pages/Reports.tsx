@@ -54,15 +54,15 @@ const Reports = () => {
 
   // Fetch reports
   const { data: reports = [], isLoading } = useQuery({
-    queryKey: ['reports', selectedBranch],
+    queryKey: ['reports', selectedBranch?.id],
     queryFn: async () => {
       let query = supabase
         .from('reports')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (selectedBranch && selectedBranch !== 'all') {
-        query = query.eq('branch_id', selectedBranch);
+      if (selectedBranch) {
+        query = query.eq('branch_id', selectedBranch.id);
       }
 
       const { data, error } = await query;
