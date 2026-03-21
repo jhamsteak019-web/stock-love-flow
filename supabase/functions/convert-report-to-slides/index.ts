@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -46,11 +47,73 @@ Deno.serve(async (req) => {
       throw new Error("Failed to download PDF");
     }
 
+    // Extract text from PDF using a simple approach
     const pdfBytes = await pdfResponse.arrayBuffer();
     const pdfText = extractTextFromPDF(new Uint8Array(pdfBytes));
 
-    // Split text into slides directly - NO summarization, exact content
-    const slides = splitTextIntoSlides(pdfText, report.title);
+    // Use AI to convert text to slides
+    const aiResponse = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: `You are a presentation designer. Convert report text into clean presentation slides.
+              
+Rules:
+- Create 5-15 slides depending on content length
+- First slide is always a title slide with the report title and subtitle
+- Each slide has: title (string), content (array of bullet points as strings), type ("title" | "content" | "summary")
+- Keep bullet points concise (max 15 words each)
+- Max 6 bullet points per slide
+- Summarize long paragraphs into key points
+- Last slide should be a summary/conclusion
+- Return ONLY valid JSON array, no markdown
+
+Format: [{"title": "...", "content": ["point 1", "point 2"], "type": "title|content|summary"}]`,
+            },
+            {
+              role: "user",
+              content: `Convert this report into presentation slides:\n\n${pdfText.substring(0, 15000)}`,
+            },
+          ],
+          temperature: 0.3,
+        }),
+      }
+    );
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("AI Gateway error:", errText);
+      throw new Error("AI processing failed");
+    }
+
+    const aiData = await aiResponse.json();
+    let slidesText = aiData.choices?.[0]?.message?.content || "[]";
+
+    // Clean markdown code fences if present
+    slidesText = slidesText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+    let slides;
+    try {
+      slides = JSON.parse(slidesText);
+    } catch {
+      console.error("Failed to parse AI response:", slidesText);
+      slides = [
+        {
+          title: report.title || "Report",
+          content: ["Could not parse report content. Please try again."],
+          type: "title",
+        },
+      ];
+    }
 
     // Update report with slides
     const { error: updateError } = await supabase
@@ -76,67 +139,7 @@ Deno.serve(async (req) => {
   }
 });
 
-// Split raw text into slides - exact content, no summarization
-function splitTextIntoSlides(text: string, title: string) {
-  const slides: { title: string; content: string[]; type: string }[] = [];
-
-  // Title slide
-  slides.push({
-    title: title || "Report",
-    content: [],
-    type: "title",
-  });
-
-  if (!text || text === "No readable text could be extracted from this PDF.") {
-    slides.push({
-      title: "Content",
-      content: ["No readable text could be extracted from this PDF. The file may be scanned/image-based."],
-      type: "content",
-    });
-    return slides;
-  }
-
-  // Split by double newlines (paragraphs) or long single sections
-  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
-  
-  const MAX_LINES_PER_SLIDE = 8;
-  const MAX_CHARS_PER_SLIDE = 600;
-  
-  let currentLines: string[] = [];
-  let currentChars = 0;
-  let slideNumber = 1;
-
-  for (const line of lines) {
-    // Check if adding this line would exceed limits
-    if (currentLines.length >= MAX_LINES_PER_SLIDE || 
-        (currentChars + line.length > MAX_CHARS_PER_SLIDE && currentLines.length > 0)) {
-      slides.push({
-        title: `Page ${slideNumber}`,
-        content: [...currentLines],
-        type: "content",
-      });
-      slideNumber++;
-      currentLines = [];
-      currentChars = 0;
-    }
-    
-    currentLines.push(line);
-    currentChars += line.length;
-  }
-
-  // Push remaining lines
-  if (currentLines.length > 0) {
-    slides.push({
-      title: `Page ${slideNumber}`,
-      content: [...currentLines],
-      type: "content",
-    });
-  }
-
-  return slides;
-}
-
-// Simple PDF text extraction
+// Simple PDF text extraction - extracts readable text from PDF binary
 function extractTextFromPDF(bytes: Uint8Array): string {
   const text: string[] = [];
   const str = new TextDecoder("latin1").decode(bytes);
@@ -146,6 +149,7 @@ function extractTextFromPDF(bytes: Uint8Array): string {
   let match;
   while ((match = btEtRegex.exec(str)) !== null) {
     const block = match[1];
+    // Extract text from Tj and TJ operators
     const tjRegex = /\(([^)]*)\)\s*Tj/g;
     let tjMatch;
     while ((tjMatch = tjRegex.exec(block)) !== null) {
@@ -158,6 +162,7 @@ function extractTextFromPDF(bytes: Uint8Array): string {
       if (decoded.trim()) text.push(decoded);
     }
     
+    // TJ array operator
     const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
     let tjArrMatch;
     while ((tjArrMatch = tjArrayRegex.exec(block)) !== null) {
@@ -175,11 +180,13 @@ function extractTextFromPDF(bytes: Uint8Array): string {
     }
   }
   
+  // If BT/ET extraction failed, try stream content
   if (text.length === 0) {
     const streamRegex = /stream\s([\s\S]*?)endstream/g;
     let streamMatch;
     while ((streamMatch = streamRegex.exec(str)) !== null) {
       const content = streamMatch[1];
+      // Only grab printable ASCII sections
       const printable = content.replace(/[^\x20-\x7E\n\r\t]/g, " ");
       const words = printable.split(/\s+/).filter(w => w.length > 2);
       if (words.length > 5) {
