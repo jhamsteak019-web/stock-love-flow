@@ -197,6 +197,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     //   roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic']
     // },
     { 
+      to: '/reports',
+      icon: Presentation, 
+      label: 'Reports',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
+    },
+    { 
       to: '/users',
       icon: Users, 
       label: 'Manage Users',
