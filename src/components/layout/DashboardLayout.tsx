@@ -19,6 +19,7 @@ const pageTitles: Record<string, string> = {
   '/repeat-order': 'Repeat Order',
   '/allocation': 'Allocation',
   '/activity-history': 'Activity History',
+  '/reports': 'Reports',
 };
 
 // Role-based route restrictions
