@@ -199,7 +199,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     { 
       to: '/reports',
       icon: Presentation, 
-      label: 'Reports',
+      label: 'Bulletin Report',
       roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
     },
     { 
