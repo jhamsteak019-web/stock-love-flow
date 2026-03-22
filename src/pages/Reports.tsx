@@ -1,4 +1,5 @@
 import { useState } from 'react';
+// Page: Bulletin Report
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -146,7 +147,7 @@ const Reports = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+          <h1 className="text-2xl font-bold text-foreground">Bulletin Report</h1>
           <p className="text-sm text-muted-foreground">Upload PDF reports and view them as presentations</p>
         </div>
         <label className="cursor-pointer">
