@@ -1,123 +1,85 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   ChevronLeft,
   ChevronRight,
   X,
   Maximize,
   Minimize,
-  Download,
-  Loader2,
+  Edit3,
+  Save,
+  Plus,
+  Trash2,
   FileDown,
-  Image,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import * as pdfjsLib from 'pdfjs-dist';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-
-interface PresentationViewerProps {
-  fileUrl: string;
+interface Slide {
   title: string;
-  onClose: () => void;
+  content: string[];
+  type: 'title' | 'content' | 'summary';
 }
 
-export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationViewerProps) => {
+interface PresentationViewerProps {
+  slides: Slide[];
+  title: string;
+  onClose: () => void;
+  onSave: (slides: Slide[]) => void;
+}
+
+export const PresentationViewer = ({ slides: initialSlides, title, onClose, onSave }: PresentationViewerProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [totalPages, setTotalPages] = useState(0);
-  const [pageImages, setPageImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
-  const [animKey, setAnimKey] = useState(0);
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [slides, setSlides] = useState<Slide[]>(initialSlides);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
-  const thumbnailRef = useRef<HTMLDivElement>(null);
 
-  // Load PDF via fetch (to avoid blocked direct URL issues)
-  useEffect(() => {
-    let cancelled = false;
-    const loadPdf = async () => {
-      try {
-        setLoading(true);
-        setLoadingProgress(0);
-
-        // Fetch PDF as blob first
-        const response = await fetch(fileUrl);
-        if (!response.ok) throw new Error('Failed to fetch PDF');
-        const blob = await response.blob();
-        if (cancelled) return;
-        setPdfBlob(blob);
-
-        const arrayBuffer = await blob.arrayBuffer();
-        const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        if (cancelled) return;
-        setTotalPages(doc.numPages);
-
-        // Render pages with high quality
-        const images: string[] = [];
-        for (let i = 1; i <= doc.numPages; i++) {
-          const page = await doc.getPage(i);
-          const viewport = page.getViewport({ scale: 3 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext('2d')!;
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          images.push(canvas.toDataURL('image/png'));
-          if (cancelled) return;
-          setLoadingProgress(Math.round((i / doc.numPages) * 100));
-        }
-        setPageImages(images);
-      } catch (err) {
-        console.error('Failed to load PDF:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    loadPdf();
-    return () => { cancelled = true; };
-  }, [fileUrl]);
-
-  // Auto-scroll active thumbnail
-  useEffect(() => {
-    const el = thumbnailRef.current?.children[currentSlide] as HTMLElement;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [currentSlide]);
+  const totalSlides = slides.length;
 
   const goNext = useCallback(() => {
-    if (currentSlide < totalPages - 1) {
-      setSlideDirection('right');
-      setAnimKey(k => k + 1);
-      setCurrentSlide(prev => prev + 1);
-    }
-  }, [totalPages, currentSlide]);
+    setCurrentSlide(prev => Math.min(prev + 1, totalSlides - 1));
+  }, [totalSlides]);
 
   const goPrev = useCallback(() => {
-    if (currentSlide > 0) {
-      setSlideDirection('left');
-      setAnimKey(k => k + 1);
-      setCurrentSlide(prev => prev - 1);
-    }
-  }, [currentSlide]);
+    setCurrentSlide(prev => Math.max(prev - 1, 0));
+  }, []);
 
+  // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (isEditing) return;
       switch (e.key) {
-        case 'ArrowRight': case ' ': e.preventDefault(); goNext(); break;
-        case 'ArrowLeft': e.preventDefault(); goPrev(); break;
-        case 'Escape':
-          if (isFullscreen) document.exitFullscreen?.();
-          else onClose();
+        case 'ArrowRight':
+        case ' ':
+          e.preventDefault();
+          goNext();
           break;
-        case 'f': case 'F': toggleFullscreen(); break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          goPrev();
+          break;
+        case 'Escape':
+          if (isFullscreen) {
+            document.exitFullscreen?.();
+          } else {
+            onClose();
+          }
+          break;
+        case 'f':
+        case 'F':
+          toggleFullscreen();
+          break;
       }
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [goNext, goPrev, isFullscreen, onClose]);
+  }, [goNext, goPrev, isFullscreen, isEditing, onClose]);
 
+  // Listen for fullscreen changes
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handler);
@@ -125,216 +87,221 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
   }, []);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) containerRef.current?.requestFullscreen();
-    else document.exitFullscreen();
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
   };
 
-  // Download single slide as PNG
-  const downloadSlide = (index: number) => {
-    if (!pageImages[index]) return;
-    const link = document.createElement('a');
-    link.href = pageImages[index];
-    link.download = `${title}_page_${index + 1}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const startEdit = () => {
+    const slide = slides[currentSlide];
+    setEditTitle(slide.title);
+    setEditContent(slide.content.join('\n'));
+    setIsEditing(true);
   };
 
-  // Download entire PDF from blob
-  const downloadAll = () => {
-    if (!pdfBlob) return;
-    const url = URL.createObjectURL(pdfBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${title}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const saveEdit = () => {
+    const updated = [...slides];
+    updated[currentSlide] = {
+      ...updated[currentSlide],
+      title: editTitle,
+      content: editContent.split('\n').filter(l => l.trim()),
+    };
+    setSlides(updated);
+    setIsEditing(false);
+    onSave(updated);
   };
 
-  const progressPercent = totalPages > 0 ? ((currentSlide + 1) / totalPages) * 100 : 0;
+  const addSlide = () => {
+    const newSlide: Slide = { title: 'New Slide', content: ['Add your content here'], type: 'content' };
+    const updated = [...slides];
+    updated.splice(currentSlide + 1, 0, newSlide);
+    setSlides(updated);
+    setCurrentSlide(currentSlide + 1);
+    onSave(updated);
+  };
+
+  const deleteSlide = () => {
+    if (slides.length <= 1) return;
+    const updated = slides.filter((_, i) => i !== currentSlide);
+    setSlides(updated);
+    setCurrentSlide(Math.min(currentSlide, updated.length - 1));
+    onSave(updated);
+  };
+
+  const slide = slides[currentSlide];
+
+  const slideColors = [
+    'from-primary/10 to-primary/5',
+    'from-blue-500/10 to-indigo-500/5',
+    'from-emerald-500/10 to-teal-500/5',
+    'from-amber-500/10 to-orange-500/5',
+    'from-purple-500/10 to-pink-500/5',
+  ];
+
+  const getSlideGradient = (index: number) => slideColors[index % slideColors.length];
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        'fixed inset-0 z-[100] flex flex-col',
-        isFullscreen ? 'bg-black' : 'bg-background'
+        'fixed inset-0 z-[100] flex flex-col bg-background',
+        isFullscreen && 'bg-black'
       )}
     >
       {/* Toolbar */}
       <div className={cn(
-        'flex items-center justify-between px-4 py-2 border-b shrink-0',
-        isFullscreen ? 'bg-black/90 border-white/10' : 'bg-card border-border'
+        'flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm shrink-0',
+        isFullscreen && 'bg-black/80 border-white/10'
       )}>
-        <div className="flex items-center gap-3 min-w-0">
-          <h2 className={cn('text-sm font-semibold truncate max-w-[300px]', isFullscreen ? 'text-white' : 'text-foreground')}>{title}</h2>
-          <span className={cn(
-            'text-xs px-2.5 py-1 rounded-full font-medium',
-            isFullscreen ? 'bg-white/10 text-white/70' : 'bg-primary/10 text-primary'
-          )}>
-            {totalPages > 0 ? `${currentSlide + 1} / ${totalPages}` : '...'}
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className={cn('text-sm font-medium truncate', isFullscreen && 'text-white')}>{title}</h2>
+          <span className={cn('text-xs text-muted-foreground', isFullscreen && 'text-white/60')}>
+            {currentSlide + 1} / {totalSlides}
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => downloadSlide(currentSlide)}
-            disabled={!pageImages[currentSlide]}
-            title="Download this page as image"
-            className={cn('gap-1.5', isFullscreen && 'text-white hover:bg-white/10')}
-          >
-            <Image className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">Page</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={downloadAll}
-            disabled={!pdfBlob}
-            title="Download full PDF"
-            className={cn('gap-1.5', isFullscreen && 'text-white hover:bg-white/10')}
-          >
-            <FileDown className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">PDF</span>
-          </Button>
-          <div className={cn('w-px h-5 mx-1', isFullscreen ? 'bg-white/20' : 'bg-border')} />
-          <Button size="icon" variant="ghost" onClick={toggleFullscreen} className={cn(isFullscreen && 'text-white hover:bg-white/10')}>
+          {!isEditing && (
+            <>
+              <Button size="icon" variant="ghost" onClick={startEdit} title="Edit slide">
+                <Edit3 className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={addSlide} title="Add slide">
+                <Plus className="h-4 w-4" />
+              </Button>
+              {slides.length > 1 && (
+                <Button size="icon" variant="ghost" onClick={deleteSlide} title="Delete slide">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </>
+          )}
+          {isEditing && (
+            <Button size="sm" onClick={saveEdit}>
+              <Save className="h-4 w-4" /> Save
+            </Button>
+          )}
+          <Button size="icon" variant="ghost" onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </Button>
-          <Button size="icon" variant="ghost" onClick={onClose} className={cn(isFullscreen && 'text-white hover:bg-white/10')}>
+          <Button size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className={cn('h-0.5 shrink-0', isFullscreen ? 'bg-white/5' : 'bg-border/50')}>
+      {/* Slide content */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 overflow-hidden relative">
+        {/* Navigation arrows */}
+        <Button
+          size="icon"
+          variant="ghost"
+          className={cn(
+            'absolute left-2 sm:left-6 z-10 h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm shadow-lg',
+            currentSlide === 0 && 'opacity-30 pointer-events-none'
+          )}
+          onClick={goPrev}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+
         <div
-          className="h-full bg-primary transition-all duration-500 ease-out"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className={cn('text-sm font-medium', isFullscreen ? 'text-white/60' : 'text-muted-foreground')}>
-            Loading pages... {loadingProgress}%
-          </p>
-          <div className="w-48 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{ width: `${loadingProgress}%` }} />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* Thumbnails sidebar */}
-          <div
-            ref={thumbnailRef}
-            className={cn(
-              'w-[160px] shrink-0 overflow-y-auto border-r p-2 space-y-2',
-              isFullscreen ? 'bg-black/95 border-white/10' : 'bg-muted/20 border-border'
-            )}
-          >
-            {pageImages.map((img, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setSlideDirection(i > currentSlide ? 'right' : 'left');
-                  setAnimKey(k => k + 1);
-                  setCurrentSlide(i);
-                }}
-                className={cn(
-                  'w-full rounded-md overflow-hidden transition-all duration-200',
-                  i === currentSlide
-                    ? 'ring-2 ring-primary shadow-lg shadow-primary/20'
-                    : 'ring-1 ring-border/40 hover:ring-primary/50 hover:shadow-md'
-                )}
-              >
-                <img src={img} alt={`Page ${i + 1}`} className="w-full" />
-                <div className={cn(
-                  'text-[10px] py-0.5 text-center font-medium',
-                  i === currentSlide
-                    ? 'text-primary-foreground bg-primary'
-                    : isFullscreen ? 'text-white/50 bg-white/5' : 'text-muted-foreground bg-muted/40'
-                )}>
-                  {i + 1}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Main slide area - takes all remaining space */}
-          <div className={cn(
-            'flex-1 flex items-center justify-center relative min-h-0 min-w-0',
-            isFullscreen ? 'bg-neutral-950' : 'bg-muted/5'
-          )}>
-            {/* Nav arrows */}
-            <Button
-              size="icon"
-              variant="secondary"
-              className={cn(
-                'absolute left-3 z-10 h-11 w-11 rounded-full shadow-xl transition-all duration-200',
-                currentSlide === 0 ? 'opacity-0 pointer-events-none scale-90' : 'opacity-70 hover:opacity-100 hover:scale-105',
-                isFullscreen && 'bg-white/10 hover:bg-white/20 text-white'
-              )}
-              onClick={goPrev}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-
-            {/* Slide with animation */}
-            {pageImages[currentSlide] && (
-              <div
-                key={animKey}
-                className="flex items-center justify-center w-full h-full p-4"
-                style={{
-                  animation: 'slidePresentation 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
-                }}
-              >
-                <img
-                  src={pageImages[currentSlide]}
-                  alt={`Page ${currentSlide + 1}`}
-                  className={cn(
-                    'max-w-full max-h-full object-contain rounded-sm',
-                    isFullscreen ? 'shadow-none' : 'shadow-2xl shadow-black/20'
-                  )}
-                  style={{ maxHeight: 'calc(100vh - 56px)' }}
+          className={cn(
+            'w-full max-w-4xl aspect-[16/9] rounded-xl shadow-2xl overflow-hidden transition-all duration-500 ease-out bg-gradient-to-br border',
+            getSlideGradient(currentSlide),
+            isFullscreen && 'max-w-6xl border-white/10'
+          )}
+        >
+          <div className="h-full flex flex-col justify-center p-8 sm:p-12 lg:p-16">
+            {isEditing ? (
+              <div className="space-y-4">
+                <Input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="text-xl font-bold bg-background/50"
+                  placeholder="Slide title"
+                />
+                <Textarea
+                  value={editContent}
+                  onChange={e => setEditContent(e.target.value)}
+                  className="min-h-[200px] bg-background/50"
+                  placeholder="One bullet point per line"
                 />
               </div>
+            ) : (
+              <>
+                {slide?.type === 'title' ? (
+                  <div className="text-center space-y-4">
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+                      {slide.title}
+                    </h1>
+                    {slide.content?.length > 0 && (
+                      <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+                        {slide.content[0]}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <h2 className={cn(
+                      'text-xl sm:text-2xl lg:text-3xl font-bold text-foreground',
+                      slide?.type === 'summary' && 'text-primary'
+                    )}>
+                      {slide?.title}
+                    </h2>
+                    <ul className="space-y-3">
+                      {slide?.content?.map((point, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-3 text-sm sm:text-base lg:text-lg text-foreground/90 animate-in fade-in slide-in-from-left-4"
+                          style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'both' }}
+                        >
+                          <span className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
-
-            <Button
-              size="icon"
-              variant="secondary"
-              className={cn(
-                'absolute right-3 z-10 h-11 w-11 rounded-full shadow-xl transition-all duration-200',
-                currentSlide === totalPages - 1 ? 'opacity-0 pointer-events-none scale-90' : 'opacity-70 hover:opacity-100 hover:scale-105',
-                isFullscreen && 'bg-white/10 hover:bg-white/20 text-white'
-              )}
-              onClick={goNext}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
           </div>
         </div>
-      )}
 
-      {/* CSS animation */}
-      <style>{`
-        @keyframes slidePresentation {
-          from {
-            opacity: 0;
-            transform: scale(0.97) translateY(6px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-      `}</style>
+        <Button
+          size="icon"
+          variant="ghost"
+          className={cn(
+            'absolute right-2 sm:right-6 z-10 h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm shadow-lg',
+            currentSlide === totalSlides - 1 && 'opacity-30 pointer-events-none'
+          )}
+          onClick={goNext}
+        >
+          <ChevronRight className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Slide thumbnails */}
+      <div className={cn(
+        'flex gap-2 px-4 py-3 border-t overflow-x-auto bg-background/95 backdrop-blur-sm shrink-0',
+        isFullscreen && 'bg-black/80 border-white/10'
+      )}>
+        {slides.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrentSlide(i)}
+            className={cn(
+              'shrink-0 w-20 h-12 rounded-md border-2 flex items-center justify-center text-[10px] font-medium transition-all px-1 truncate',
+              i === currentSlide
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-transparent bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            {i + 1}. {s.title?.substring(0, 12)}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
