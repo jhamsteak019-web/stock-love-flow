@@ -217,9 +217,11 @@ const Reports = () => {
                   <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); window.open(report.file_url, '_blank'); }}>
                     <Download className="h-3 w-3" />
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={e => { e.stopPropagation(); setDeleteId(report.id); }}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {canDelete && (
+                    <Button size="sm" variant="destructive" onClick={e => { e.stopPropagation(); setDeleteId(report.id); }}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
