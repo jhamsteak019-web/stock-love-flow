@@ -33,7 +33,6 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
   const [animKey, setAnimKey] = useState(0);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const thumbnailRef = useRef<HTMLDivElement>(null);
 
   // Load PDF via fetch (to avoid blocked direct URL issues)
   useEffect(() => {
