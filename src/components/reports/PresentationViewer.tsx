@@ -247,7 +247,7 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
             {pageImages[currentSlide] && (
               <div
                 key={animKey}
-                className="w-full h-full"
+                className="flex items-center justify-center w-full h-full p-2"
                 style={{
                   animation: 'slidePresentation 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
                 }}
@@ -255,7 +255,8 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
                 <img
                   src={pageImages[currentSlide]}
                   alt={`Page ${currentSlide + 1}`}
-                  className="w-full h-full object-contain"
+                  className="max-w-full max-h-full object-contain"
+                  style={{ maxHeight: 'calc(100vh - 48px)' }}
                 />
               </div>
             )}
