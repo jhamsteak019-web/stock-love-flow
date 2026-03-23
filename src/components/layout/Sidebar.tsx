@@ -89,6 +89,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   const navItems = [
     { 
+      to: '/reports',
+      icon: Presentation, 
+      label: 'Bulletin Report',
+      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
+    },
+    { 
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
