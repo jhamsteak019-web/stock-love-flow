@@ -153,15 +153,17 @@ const Reports = () => {
           <h1 className="text-2xl font-bold text-foreground">Bulletin Report</h1>
           <p className="text-sm text-muted-foreground">Upload PDF reports and view them as presentations</p>
         </div>
-        <label className="cursor-pointer">
-          <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
-          <Button asChild disabled={uploading}>
-            <span>
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {uploading ? 'Uploading...' : 'Upload PDF'}
-            </span>
-          </Button>
-        </label>
+        {canUpload && (
+          <label className="cursor-pointer">
+            <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
+            <Button asChild disabled={uploading}>
+              <span>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {uploading ? 'Uploading...' : 'Upload PDF'}
+              </span>
+            </Button>
+          </label>
+        )}
       </div>
 
       <div className="relative max-w-sm">
