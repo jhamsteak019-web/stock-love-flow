@@ -79,11 +79,6 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
     return () => { cancelled = true; };
   }, [fileUrl]);
 
-  // Auto-scroll active thumbnail
-  useEffect(() => {
-    const el = thumbnailRef.current?.children[currentSlide] as HTMLElement;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [currentSlide]);
 
   const goNext = useCallback(() => {
     if (currentSlide < totalPages - 1) {
