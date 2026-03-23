@@ -36,7 +36,7 @@ interface Report {
 }
 
 const Reports = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -44,6 +44,9 @@ const Reports = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const canUpload = userRole === 'admin' || userRole === 'staff';
+  const canDelete = userRole === 'admin';
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ['reports', selectedBranch?.id],
@@ -150,15 +153,17 @@ const Reports = () => {
           <h1 className="text-2xl font-bold text-foreground">Bulletin Report</h1>
           <p className="text-sm text-muted-foreground">Upload PDF reports and view them as presentations</p>
         </div>
-        <label className="cursor-pointer">
-          <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
-          <Button asChild disabled={uploading}>
-            <span>
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {uploading ? 'Uploading...' : 'Upload PDF'}
-            </span>
-          </Button>
-        </label>
+        {canUpload && (
+          <label className="cursor-pointer">
+            <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
+            <Button asChild disabled={uploading}>
+              <span>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {uploading ? 'Uploading...' : 'Upload PDF'}
+              </span>
+            </Button>
+          </label>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -176,10 +181,12 @@ const Reports = () => {
             <Presentation className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-1">No reports yet</h3>
             <p className="text-sm text-muted-foreground mb-4">Upload a PDF to view it as a presentation</p>
-            <label className="cursor-pointer">
-              <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
-              <Button variant="outline" asChild><span><Plus className="h-4 w-4" /> Upload your first report</span></Button>
-            </label>
+            {canUpload && (
+              <label className="cursor-pointer">
+                <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
+                <Button variant="outline" asChild><span><Plus className="h-4 w-4" /> Upload your first report</span></Button>
+              </label>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -210,9 +217,11 @@ const Reports = () => {
                   <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); window.open(report.file_url, '_blank'); }}>
                     <Download className="h-3 w-3" />
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={e => { e.stopPropagation(); setDeleteId(report.id); }}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {canDelete && (
+                    <Button size="sm" variant="destructive" onClick={e => { e.stopPropagation(); setDeleteId(report.id); }}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

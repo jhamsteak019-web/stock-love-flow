@@ -33,7 +33,6 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
   const [animKey, setAnimKey] = useState(0);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const thumbnailRef = useRef<HTMLDivElement>(null);
 
   // Load PDF via fetch (to avoid blocked direct URL issues)
   useEffect(() => {
@@ -80,11 +79,6 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
     return () => { cancelled = true; };
   }, [fileUrl]);
 
-  // Auto-scroll active thumbnail
-  useEffect(() => {
-    const el = thumbnailRef.current?.children[currentSlide] as HTMLElement;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [currentSlide]);
 
   const goNext = useCallback(() => {
     if (currentSlide < totalPages - 1) {
@@ -230,43 +224,7 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
         </div>
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* Thumbnails sidebar */}
-          <div
-            ref={thumbnailRef}
-            className={cn(
-              'w-[160px] shrink-0 overflow-y-auto border-r p-2 space-y-2',
-              isFullscreen ? 'bg-black/95 border-white/10' : 'bg-muted/20 border-border'
-            )}
-          >
-            {pageImages.map((img, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setSlideDirection(i > currentSlide ? 'right' : 'left');
-                  setAnimKey(k => k + 1);
-                  setCurrentSlide(i);
-                }}
-                className={cn(
-                  'w-full rounded-md overflow-hidden transition-all duration-200',
-                  i === currentSlide
-                    ? 'ring-2 ring-primary shadow-lg shadow-primary/20'
-                    : 'ring-1 ring-border/40 hover:ring-primary/50 hover:shadow-md'
-                )}
-              >
-                <img src={img} alt={`Page ${i + 1}`} className="w-full" />
-                <div className={cn(
-                  'text-[10px] py-0.5 text-center font-medium',
-                  i === currentSlide
-                    ? 'text-primary-foreground bg-primary'
-                    : isFullscreen ? 'text-white/50 bg-white/5' : 'text-muted-foreground bg-muted/40'
-                )}>
-                  {i + 1}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Main slide area - takes all remaining space */}
+          {/* Full-width slide area */}
           <div className={cn(
             'flex-1 flex items-center justify-center relative min-h-0 min-w-0',
             isFullscreen ? 'bg-neutral-950' : 'bg-muted/5'
@@ -276,20 +234,20 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
               size="icon"
               variant="secondary"
               className={cn(
-                'absolute left-3 z-10 h-11 w-11 rounded-full shadow-xl transition-all duration-200',
+                'absolute left-4 z-10 h-12 w-12 rounded-full shadow-xl transition-all duration-200',
                 currentSlide === 0 ? 'opacity-0 pointer-events-none scale-90' : 'opacity-70 hover:opacity-100 hover:scale-105',
                 isFullscreen && 'bg-white/10 hover:bg-white/20 text-white'
               )}
               onClick={goPrev}
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-6 w-6" />
             </Button>
 
             {/* Slide with animation */}
             {pageImages[currentSlide] && (
               <div
                 key={animKey}
-                className="flex items-center justify-center w-full h-full p-4"
+                className="flex items-center justify-center w-full h-full p-2"
                 style={{
                   animation: 'slidePresentation 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
                 }}
@@ -297,11 +255,8 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
                 <img
                   src={pageImages[currentSlide]}
                   alt={`Page ${currentSlide + 1}`}
-                  className={cn(
-                    'max-w-full max-h-full object-contain rounded-sm',
-                    isFullscreen ? 'shadow-none' : 'shadow-2xl shadow-black/20'
-                  )}
-                  style={{ maxHeight: 'calc(100vh - 56px)' }}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ maxHeight: 'calc(100vh - 48px)' }}
                 />
               </div>
             )}
@@ -310,13 +265,13 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
               size="icon"
               variant="secondary"
               className={cn(
-                'absolute right-3 z-10 h-11 w-11 rounded-full shadow-xl transition-all duration-200',
+                'absolute right-4 z-10 h-12 w-12 rounded-full shadow-xl transition-all duration-200',
                 currentSlide === totalPages - 1 ? 'opacity-0 pointer-events-none scale-90' : 'opacity-70 hover:opacity-100 hover:scale-105',
                 isFullscreen && 'bg-white/10 hover:bg-white/20 text-white'
               )}
               onClick={goNext}
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-6 w-6" />
             </Button>
           </div>
         </div>
