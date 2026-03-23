@@ -45,7 +45,7 @@ const Reports = () => {
   const [showPresentation, setShowPresentation] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const canUpload = userRole === 'admin' || userRole === 'staff';
+  const canUpload = userRole === 'admin' || userRole === 'staff' || userRole === 'assistant';
   const canDelete = userRole === 'admin';
 
   const { data: reports = [], isLoading } = useQuery({
