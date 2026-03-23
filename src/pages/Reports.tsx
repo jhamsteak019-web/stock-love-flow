@@ -181,10 +181,12 @@ const Reports = () => {
             <Presentation className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-1">No reports yet</h3>
             <p className="text-sm text-muted-foreground mb-4">Upload a PDF to view it as a presentation</p>
-            <label className="cursor-pointer">
-              <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
-              <Button variant="outline" asChild><span><Plus className="h-4 w-4" /> Upload your first report</span></Button>
-            </label>
+            {canUpload && (
+              <label className="cursor-pointer">
+                <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
+                <Button variant="outline" asChild><span><Plus className="h-4 w-4" /> Upload your first report</span></Button>
+              </label>
+            )}
           </CardContent>
         </Card>
       ) : (
