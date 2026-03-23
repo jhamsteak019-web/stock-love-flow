@@ -226,7 +226,7 @@ export const PresentationViewer = ({ fileUrl, title, onClose }: PresentationView
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Full-width slide area */}
           <div className={cn(
-            'flex-1 flex items-center justify-center relative min-h-0 min-w-0',
+            'flex-1 flex items-center justify-center relative min-h-0 min-w-0 p-0',
             isFullscreen ? 'bg-neutral-950' : 'bg-muted/5'
           )}>
             {/* Nav arrows */}
