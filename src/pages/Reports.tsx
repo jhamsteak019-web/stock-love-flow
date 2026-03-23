@@ -36,7 +36,7 @@ interface Report {
 }
 
 const Reports = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -44,6 +44,9 @@ const Reports = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const canUpload = userRole === 'admin' || userRole === 'staff';
+  const canDelete = userRole === 'admin';
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ['reports', selectedBranch?.id],
