@@ -147,7 +147,7 @@ export const TeamChatBox = () => {
       if (error) throw error;
 
       // Fetch user profiles for the messages
-      const userIds = [...new Set(messagesData.map(m => m.user_id))];
+      const userIds = [...new Set(sortedMessages.map(m => m.user_id))];
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name, email')
@@ -155,7 +155,7 @@ export const TeamChatBox = () => {
 
       const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
 
-      return messagesData.map(msg => ({
+      return sortedMessages.map(msg => ({
         ...msg,
         profiles: profilesMap.get(msg.user_id) || null,
       })) as ChatMessage[];
