@@ -132,11 +132,17 @@ export const TeamChatBox = () => {
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['team-chat-messages'],
     queryFn: async () => {
+      // Fetch latest 100 messages (descending) then reverse for display order
       const { data: messagesData, error } = await supabase
         .from('team_chat_messages')
         .select('*')
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(100);
+      
+      if (error) throw error;
+
+      // Reverse to show oldest first in chat view
+      const sortedMessages = (messagesData || []).reverse();
       
       if (error) throw error;
 
