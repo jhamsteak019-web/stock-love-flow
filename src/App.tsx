@@ -30,9 +30,19 @@ import Renewal from "./pages/Renewal";
 import StoreVisitSchedule from "./pages/StoreVisitSchedule";
 import ActivityHistory from "./pages/ActivityHistory";
 import Reports from "./pages/Reports";
+import DamageClaims from "./pages/DamageClaims";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -68,6 +78,7 @@ const App = () => (
                 <Route path="/store-visit-schedule" element={<StoreVisitSchedule />} />
                 <Route path="/activity-history" element={<ActivityHistory />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/damage-claims" element={<DamageClaims />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

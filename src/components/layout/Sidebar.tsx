@@ -31,7 +31,8 @@ import {
   MessageSquare,
   IdCard,
   Mail,
-  Presentation
+  Presentation,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -123,6 +124,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: BarChart3, 
       label: 'Summary Report',
       roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'hr', 'assistant']
+    },
+    { 
+      to: '/damage-claims',
+      icon: AlertTriangle, 
+      label: 'Damage Claims',
+      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'uploader', 'oic']
     },
     // { 
     //   to: '/import', 
