@@ -31,7 +31,8 @@ import {
   MessageSquare,
   IdCard,
   Mail,
-  Presentation
+  Presentation,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
