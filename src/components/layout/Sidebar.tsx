@@ -125,6 +125,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       label: 'Summary Report',
       roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'hr', 'assistant']
     },
+    { 
+      to: '/damage-claims',
+      icon: AlertTriangle, 
+      label: 'Damage Claims',
+      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'uploader', 'oic']
+    },
     // { 
     //   to: '/import', 
     //   icon: Archive, 
