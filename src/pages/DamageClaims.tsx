@@ -138,7 +138,25 @@ const DamageClaims = () => {
   const addMutation = useMutation({
     mutationFn: async (items: Partial<DamageClaim>[]) => {
       const inserts = items.map(item => ({
-        ...item,
+        branch_name: item.branch_name || '',
+        sspoa_no: item.sspoa_no || null,
+        sspoa_mhb: item.sspoa_mhb || null,
+        sspoa_mlp: item.sspoa_mlp || null,
+        sspoa_msh: item.sspoa_msh || null,
+        sspoa_mum: item.sspoa_mum || null,
+        cat_mhb: item.cat_mhb || 0,
+        cat_mlp: item.cat_mlp || 0,
+        cat_msh: item.cat_msh || 0,
+        cat_mum: item.cat_mum || 0,
+        total: item.total || 0,
+        damage: item.damage || null,
+        date_sent: item.date_sent || null,
+        status: item.status || null,
+        remarks: item.remarks || null,
+        box_qty: item.box_qty || 0,
+        date_of_backload: item.date_of_backload || null,
+        date_of_received: item.date_of_received || null,
+        remarks2: item.remarks2 || null,
         branch_id: selectedBranch?.id || null,
         created_by: user?.email || null,
       }));
