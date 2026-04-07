@@ -294,7 +294,7 @@ const DamageClaims = () => {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       {/* Header Card */}
       <div className="rounded-xl border bg-card p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -307,7 +307,7 @@ const DamageClaims = () => {
               <p className="text-sm text-muted-foreground mt-0.5">Track and manage product damage reports</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -338,7 +338,7 @@ const DamageClaims = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-2">
             <ClipboardList className="h-4 w-4 text-primary" />
