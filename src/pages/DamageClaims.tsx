@@ -215,6 +215,80 @@ const DamageClaims = () => {
     });
   }, []);
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Damage Claims Report', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy hh:mm a')}  |  Total Records: ${filtered.length}`, pageWidth / 2, 21, { align: 'center' });
+
+    const headers = [['Branch', 'SSPOA No.', 'S-MHB', 'S-MLP', 'S-MSH', 'S-MUM', 'MHB', 'MLP', 'MSH', 'MUM', 'Total', 'Damage', 'Date Sent', 'Status', 'Remarks', 'Box Qty', 'Backload', 'Received', 'Remarks 2']];
+
+    const body = filtered.map(c => [
+      c.branch_name || '',
+      c.sspoa_no || '',
+      c.sspoa_mhb || '',
+      c.sspoa_mlp || '',
+      c.sspoa_msh || '',
+      c.sspoa_mum || '',
+      c.cat_mhb || '',
+      c.cat_mlp || '',
+      c.cat_msh || '',
+      c.cat_mum || '',
+      c.total || 0,
+      c.damage || '',
+      c.date_sent || '',
+      c.status || '',
+      c.remarks || '',
+      c.box_qty || '',
+      c.date_of_backload || '',
+      c.date_of_received || '',
+      c.remarks2 || '',
+    ]);
+
+    // Grand total row
+    body.push([
+      'GRAND TOTAL', '', '', '', '', '',
+      totals.cat_mhb || 0, totals.cat_mlp || 0, totals.cat_msh || 0, totals.cat_mum || 0,
+      totals.total || 0, '', '', '', '', totals.box_qty || 0, '', '', ''
+    ]);
+
+    autoTable(doc, {
+      head: headers,
+      body,
+      startY: 26,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak', lineWidth: 0.1 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        10: { fontStyle: 'bold', halign: 'center' },
+      },
+      didParseCell: (data) => {
+        // Style grand total row
+        if (data.row.index === body.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 255];
+        }
+        // Center number columns
+        if (data.column.index >= 2 && data.column.index <= 10) {
+          data.cell.styles.halign = 'center';
+        }
+        if (data.column.index === 15) {
+          data.cell.styles.halign = 'center';
+        }
+      },
+      margin: { left: 5, right: 5 },
+    });
+
+    doc.save(`Damage_Claims_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast({ title: 'PDF Downloaded', description: 'Damage Claims report saved as PDF' });
+  };
+
   const handleAdd = () => {
     setFormData(emptyForm());
     setEditingItem(null);
