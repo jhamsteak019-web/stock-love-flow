@@ -4,13 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, Plus, Upload, Search, X, Trash2, Pencil, ChevronLeft, ChevronRight, FileWarning, Package, Calendar, ClipboardList } from 'lucide-react';
+import { AlertTriangle, Plus, Upload, Search, X, Trash2, Pencil, ChevronLeft, ChevronRight, FileWarning, Package, Calendar as CalendarIcon, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, parse } from 'date-fns';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
@@ -606,11 +609,50 @@ const DamageClaims = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-xs">Damage</Label><Input value={formData.damage || ''} onChange={e => handleFormChange('damage', e.target.value)} className="mt-1" /></div>
                 <div><Label className="text-xs">Status</Label><Input value={formData.status || ''} onChange={e => handleFormChange('status', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">Date Sent (SM Head Office)</Label><Input value={formData.date_sent || ''} onChange={e => handleFormChange('date_sent', e.target.value)} className="mt-1" /></div>
+                <div>
+                  <Label className="text-xs">Date Sent (SM Head Office)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal h-9 text-sm", !formData.date_sent && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_sent || <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                      <Calendar mode="single" selected={formData.date_sent ? new Date(formData.date_sent) : undefined} onSelect={(date) => handleFormChange('date_sent', date ? format(date, 'yyyy-MM-dd') : '')} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div><Label className="text-xs">Box (qty)</Label><Input type="number" value={formData.box_qty || ''} onChange={e => handleFormChange('box_qty', Number(e.target.value))} className="mt-1" /></div>
                 <div><Label className="text-xs">Remarks</Label><Input value={formData.remarks || ''} onChange={e => handleFormChange('remarks', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">Date of Backload (SM Store)</Label><Input value={formData.date_of_backload || ''} onChange={e => handleFormChange('date_of_backload', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">Date of Received (Warehouse)</Label><Input value={formData.date_of_received || ''} onChange={e => handleFormChange('date_of_received', e.target.value)} className="mt-1" /></div>
+                <div>
+                  <Label className="text-xs">Date of Backload (SM Store)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal h-9 text-sm", !formData.date_of_backload && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_of_backload || <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                      <Calendar mode="single" selected={formData.date_of_backload ? new Date(formData.date_of_backload) : undefined} onSelect={(date) => handleFormChange('date_of_backload', date ? format(date, 'yyyy-MM-dd') : '')} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-xs">Date of Received (Warehouse)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal h-9 text-sm", !formData.date_of_received && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_of_received || <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                      <Calendar mode="single" selected={formData.date_of_received ? new Date(formData.date_of_received) : undefined} onSelect={(date) => handleFormChange('date_of_received', date ? format(date, 'yyyy-MM-dd') : '')} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div><Label className="text-xs">Remarks 2</Label><Input value={formData.remarks2 || ''} onChange={e => handleFormChange('remarks2', e.target.value)} className="mt-1" /></div>
               </div>
             </div>
