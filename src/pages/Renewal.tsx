@@ -752,11 +752,6 @@ const Renewal = () => {
                 <div>
                   <p className="font-medium text-sm">{selectedEmployee.full_name}</p>
                   <p className="text-xs text-muted-foreground">Current ID: {selectedEmployee.employee_id || 'N/A'}</p>
-                  {selectedEmployee.last_renewal_date && (
-                    <p className="text-xs text-primary font-medium mt-0.5">
-                      Last Renewed: {format(new Date(selectedEmployee.last_renewal_date), 'MMM dd, yyyy')}
-                    </p>
-                  )}
                 </div>
               </div>
               <div>
@@ -780,6 +775,15 @@ const Renewal = () => {
                     </button>
                   )}
               </div>
+              {selectedEmployee?.last_renewal_date && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <CalendarDays className="h-4 w-4 text-primary shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Renewed</p>
+                    <p className="text-sm font-semibold text-primary">{format(new Date(selectedEmployee.last_renewal_date), 'MMM dd, yyyy')}</p>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Next ID Expiry Date <span className="text-xs text-muted-foreground">(optional)</span></Label>
                 <p className="text-xs text-muted-foreground mb-2">Set when the new ID will expire</p>
