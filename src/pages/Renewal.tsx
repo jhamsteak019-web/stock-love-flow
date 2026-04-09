@@ -752,11 +752,6 @@ const Renewal = () => {
                 <div>
                   <p className="font-medium text-sm">{selectedEmployee.full_name}</p>
                   <p className="text-xs text-muted-foreground">Current ID: {selectedEmployee.employee_id || 'N/A'}</p>
-                  {selectedEmployee.last_renewal_date && (
-                    <p className="text-xs text-primary font-medium mt-0.5">
-                      Last Renewed: {format(new Date(selectedEmployee.last_renewal_date), 'MMM dd, yyyy')}
-                    </p>
-                  )}
                 </div>
               </div>
               <div>
