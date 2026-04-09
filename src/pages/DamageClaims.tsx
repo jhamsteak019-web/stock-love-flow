@@ -401,6 +401,9 @@ const DamageClaims = () => {
                 </button>
               )}
             </div>
+            <Button size="sm" variant="outline" onClick={handleExportPDF} className="h-9 gap-1.5">
+              <FileDown className="h-4 w-4" /> Save PDF
+            </Button>
             {canUpload && (
               <>
                 <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-9 gap-1.5">
