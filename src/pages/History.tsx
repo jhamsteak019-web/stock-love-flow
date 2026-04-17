@@ -695,7 +695,7 @@ const History = () => {
                   {isColumnVisible('deliveryTime') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Days</TableHead>}
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
-                  <TableHead className="w-[140px]">Actions</TableHead>
+                  <TableHead className="w-[220px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -771,26 +771,56 @@ const History = () => {
                         </TableCell>
                       )}
                       <TableCell>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant={group.action_status === 'yes' ? 'default' : 'outline'}
+                            className={cn(
+                              "h-7 px-2 text-xs gap-1",
+                              group.action_status === 'yes'
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                                : "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:hover:bg-emerald-950"
+                            )}
+                            onClick={(e) => handleActionStatus(group, 'yes', e)}
+                            title="Mark as OK"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Yes
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={group.action_status === 'no' ? 'default' : 'outline'}
+                            className={cn(
+                              "h-7 px-2 text-xs gap-1",
+                              group.action_status === 'no'
+                                ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                                : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950"
+                            )}
+                            onClick={(e) => handleActionStatus(group, 'no', e)}
+                            title="Mark as Not OK (Discrepancy)"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            No
+                          </Button>
                           {canEdit && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={(e) => handleEditDelivery(group, e)}
                               title="Edit delivery"
-                              className="transition-transform hover:scale-110"
+                              className="h-7 w-7"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {canDelete && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={(e) => handleDelete(group, e)}
-                              className="text-destructive hover:text-destructive transition-transform hover:scale-110"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </div>
