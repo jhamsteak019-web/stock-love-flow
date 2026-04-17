@@ -443,75 +443,6 @@ export type Database = {
           },
         ]
       }
-      discrepancies: {
-        Row: {
-          allocation_bill: string | null
-          amount: number | null
-          batch_id: string | null
-          branch_id: string | null
-          category: string | null
-          courier: string | null
-          created_at: string
-          created_by: string | null
-          date_out: string | null
-          date_received: string | null
-          deleted_at: string | null
-          destination: string | null
-          discrepancy_notes: string | null
-          id: string
-          remarks: string | null
-          resolution_status: string | null
-          total_boxes: number | null
-          total_qty: number | null
-          updated_at: string
-          waybill_no: string | null
-        }
-        Insert: {
-          allocation_bill?: string | null
-          amount?: number | null
-          batch_id?: string | null
-          branch_id?: string | null
-          category?: string | null
-          courier?: string | null
-          created_at?: string
-          created_by?: string | null
-          date_out?: string | null
-          date_received?: string | null
-          deleted_at?: string | null
-          destination?: string | null
-          discrepancy_notes?: string | null
-          id?: string
-          remarks?: string | null
-          resolution_status?: string | null
-          total_boxes?: number | null
-          total_qty?: number | null
-          updated_at?: string
-          waybill_no?: string | null
-        }
-        Update: {
-          allocation_bill?: string | null
-          amount?: number | null
-          batch_id?: string | null
-          branch_id?: string | null
-          category?: string | null
-          courier?: string | null
-          created_at?: string
-          created_by?: string | null
-          date_out?: string | null
-          date_received?: string | null
-          deleted_at?: string | null
-          destination?: string | null
-          discrepancy_notes?: string | null
-          id?: string
-          remarks?: string | null
-          resolution_status?: string | null
-          total_boxes?: number | null
-          total_qty?: number | null
-          updated_at?: string
-          waybill_no?: string | null
-        }
-        Relationships: []
-      }
       employees: {
         Row: {
           address: string | null
@@ -1111,7 +1042,6 @@ export type Database = {
       }
       stock_releases: {
         Row: {
-          action_status: string | null
           allocation_bill: string | null
           amount: number | null
           batch_id: string | null
@@ -1137,7 +1067,6 @@ export type Database = {
           waybill_no: string | null
         }
         Insert: {
-          action_status?: string | null
           allocation_bill?: string | null
           amount?: number | null
           batch_id?: string | null
@@ -1163,7 +1092,6 @@ export type Database = {
           waybill_no?: string | null
         }
         Update: {
-          action_status?: string | null
           allocation_bill?: string | null
           amount?: number | null
           batch_id?: string | null

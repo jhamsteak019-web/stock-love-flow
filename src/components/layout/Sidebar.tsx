@@ -32,8 +32,7 @@ import {
   IdCard,
   Mail,
   Presentation,
-  AlertTriangle,
-  FileWarning
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -131,12 +130,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: AlertTriangle, 
       label: 'Damage Claims',
       roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'uploader', 'oic']
-    },
-    { 
-      to: '/discrepancies',
-      icon: FileWarning, 
-      label: 'Discrepancy',
-      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'oic', 'hr']
     },
     // { 
     //   to: '/import', 

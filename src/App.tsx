@@ -31,7 +31,6 @@ import StoreVisitSchedule from "./pages/StoreVisitSchedule";
 import ActivityHistory from "./pages/ActivityHistory";
 import Reports from "./pages/Reports";
 import DamageClaims from "./pages/DamageClaims";
-import Discrepancies from "./pages/Discrepancies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -80,7 +79,6 @@ const App = () => (
                 <Route path="/activity-history" element={<ActivityHistory />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/damage-claims" element={<DamageClaims />} />
-                <Route path="/discrepancies" element={<Discrepancies />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
