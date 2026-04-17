@@ -380,6 +380,62 @@ const History = () => {
     setEditingBatch(group);
   };
 
+  const handleActionStatus = async (group: GroupedRelease, status: 'yes' | 'no', e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // 1) Update stock_releases.action_status for the batch
+      const { error: updErr } = await supabase
+        .from('stock_releases')
+        .update({ action_status: status })
+        .eq('batch_id', group.batch_id);
+      if (updErr) throw updErr;
+
+      // 2) If "no", create a discrepancy record (avoid duplicates by batch_id)
+      if (status === 'no') {
+        const { data: existing } = await supabase
+          .from('discrepancies')
+          .select('id')
+          .eq('batch_id', group.batch_id)
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: insErr } = await supabase.from('discrepancies').insert({
+            batch_id: group.batch_id,
+            allocation_bill: group.allocation_bill,
+            destination: group.destination,
+            category: group.category,
+            courier: group.courier,
+            waybill_no: group.waybill_no,
+            total_boxes: group.totalBoxes,
+            total_qty: group.totalQty,
+            amount: group.amount,
+            date_out: group.set_date,
+            date_received: group.date_delivered,
+            remarks: group.notes,
+            resolution_status: 'unresolved',
+            branch_id: selectedBranch?.id ?? null,
+          });
+          if (insErr) throw insErr;
+        }
+        toast({ title: 'Marked as Not OK', description: 'Idinagdag sa Discrepancy page' });
+      } else {
+        // If "yes", remove any existing discrepancy for this batch (soft delete)
+        await supabase
+          .from('discrepancies')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('batch_id', group.batch_id)
+          .is('deleted_at', null);
+        toast({ title: 'Marked as OK', description: 'Delivery confirmed na maayos' });
+      }
+
+      await fetchReleases();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to update action';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    }
+  };
+
   const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
     try {
       const { error } = await supabase
