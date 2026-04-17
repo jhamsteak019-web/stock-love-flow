@@ -774,12 +774,10 @@ const History = () => {
                         <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"
-                            variant={group.action_status === 'yes' ? 'default' : 'outline'}
+                            variant="default"
                             className={cn(
-                              "h-7 px-2 text-xs gap-1",
-                              group.action_status === 'yes'
-                                ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
-                                : "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:hover:bg-emerald-950"
+                              "h-7 px-2 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600",
+                              group.action_status === 'yes' && "ring-2 ring-emerald-300"
                             )}
                             onClick={(e) => handleActionStatus(group, 'yes', e)}
                             title="Mark as OK"
@@ -789,12 +787,10 @@ const History = () => {
                           </Button>
                           <Button
                             size="sm"
-                            variant={group.action_status === 'no' ? 'default' : 'outline'}
+                            variant="default"
                             className={cn(
-                              "h-7 px-2 text-xs gap-1",
-                              group.action_status === 'no'
-                                ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
-                                : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950"
+                              "h-7 px-2 text-xs gap-1 bg-red-600 hover:bg-red-700 text-white border-red-600",
+                              group.action_status === 'no' && "ring-2 ring-red-300"
                             )}
                             onClick={(e) => handleActionStatus(group, 'no', e)}
                             title="Mark as Not OK (Discrepancy)"
