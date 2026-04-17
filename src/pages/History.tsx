@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight, Check, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ interface GroupedRelease {
   releaseIds: string[];
   photo_url: string | null;
   photo_status: string | null;
+  action_status: string | null;
 }
 
 const History = () => {
@@ -202,6 +203,7 @@ const History = () => {
           releaseIds: [],
           photo_url: release.photo_url,
           photo_status: release.photo_status,
+          action_status: (release as unknown as { action_status?: string | null }).action_status ?? null,
         };
       }
       
