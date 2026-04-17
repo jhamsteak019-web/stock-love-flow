@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight, Check, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ interface GroupedRelease {
   releaseIds: string[];
   photo_url: string | null;
   photo_status: string | null;
+  action_status: string | null;
 }
 
 const History = () => {
@@ -202,6 +203,7 @@ const History = () => {
           releaseIds: [],
           photo_url: release.photo_url,
           photo_status: release.photo_status,
+          action_status: (release as unknown as { action_status?: string | null }).action_status ?? null,
         };
       }
       
@@ -376,6 +378,62 @@ const History = () => {
   const handleEditDelivery = (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingBatch(group);
+  };
+
+  const handleActionStatus = async (group: GroupedRelease, status: 'yes' | 'no', e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // 1) Update stock_releases.action_status for the batch
+      const { error: updErr } = await supabase
+        .from('stock_releases')
+        .update({ action_status: status })
+        .eq('batch_id', group.batch_id);
+      if (updErr) throw updErr;
+
+      // 2) If "no", create a discrepancy record (avoid duplicates by batch_id)
+      if (status === 'no') {
+        const { data: existing } = await supabase
+          .from('discrepancies')
+          .select('id')
+          .eq('batch_id', group.batch_id)
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: insErr } = await supabase.from('discrepancies').insert({
+            batch_id: group.batch_id,
+            allocation_bill: group.allocation_bill,
+            destination: group.destination,
+            category: group.category,
+            courier: group.courier,
+            waybill_no: group.waybill_no,
+            total_boxes: group.totalBoxes,
+            total_qty: group.totalQty,
+            amount: group.amount,
+            date_out: group.set_date,
+            date_received: group.date_delivered,
+            remarks: group.notes,
+            resolution_status: 'unresolved',
+            branch_id: selectedBranch?.id ?? null,
+          });
+          if (insErr) throw insErr;
+        }
+        toast({ title: 'Marked as Not OK', description: 'Idinagdag sa Discrepancy page' });
+      } else {
+        // If "yes", remove any existing discrepancy for this batch (soft delete)
+        await supabase
+          .from('discrepancies')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('batch_id', group.batch_id)
+          .is('deleted_at', null);
+        toast({ title: 'Marked as OK', description: 'Delivery confirmed na maayos' });
+      }
+
+      await fetchReleases();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to update action';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    }
   };
 
   const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
@@ -637,7 +695,7 @@ const History = () => {
                   {isColumnVisible('deliveryTime') && <TableHead className="text-center transition-all duration-300" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Days</TableHead>}
                   {isColumnVisible('courier') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="transition-all duration-300" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
-                  <TableHead className="w-[140px]">Actions</TableHead>
+                  <TableHead className="w-[220px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -713,26 +771,56 @@ const History = () => {
                         </TableCell>
                       )}
                       <TableCell>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant={group.action_status === 'yes' ? 'default' : 'outline'}
+                            className={cn(
+                              "h-7 px-2 text-xs gap-1",
+                              group.action_status === 'yes'
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                                : "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:hover:bg-emerald-950"
+                            )}
+                            onClick={(e) => handleActionStatus(group, 'yes', e)}
+                            title="Mark as OK"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Yes
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={group.action_status === 'no' ? 'default' : 'outline'}
+                            className={cn(
+                              "h-7 px-2 text-xs gap-1",
+                              group.action_status === 'no'
+                                ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                                : "hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-950"
+                            )}
+                            onClick={(e) => handleActionStatus(group, 'no', e)}
+                            title="Mark as Not OK (Discrepancy)"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            No
+                          </Button>
                           {canEdit && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={(e) => handleEditDelivery(group, e)}
                               title="Edit delivery"
-                              className="transition-transform hover:scale-110"
+                              className="h-7 w-7"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {canDelete && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={(e) => handleDelete(group, e)}
-                              className="text-destructive hover:text-destructive transition-transform hover:scale-110"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </div>
