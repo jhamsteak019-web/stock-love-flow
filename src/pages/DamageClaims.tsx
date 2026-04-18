@@ -195,7 +195,7 @@ const DamageClaims = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('damage_claims').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      const { error } = await supabase.from('damage_claims').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
