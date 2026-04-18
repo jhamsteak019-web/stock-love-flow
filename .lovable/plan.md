@@ -1,53 +1,45 @@
 
+Goal: Ayusin ang delete sa Damage Claims.
 
-## Add Emoji Reactions to Team Chat Messages
+What I found
+- Hindi frontend click problem ang sira.
+- Ang actual request ay `PATCH /damage_claims ... { deleted_at: ... }` at bumabalik ng `403` with:
+  `new row violates row-level security policy for table "damage_claims"`.
+- Ibig sabihin: soft-delete ang ginagawa ng UI, pero binablock ng backend policy ang update na nagse-set ng `deleted_at`.
 
-Currently, the emoji picker only allows adding emojis to the message you're typing. This plan will add the ability to **react to specific messages** with emojis (like Slack, Discord, or Facebook Messenger).
+Plan
+1. Fix the backend policy for `damage_claims`
+- Gumawa ng migration para i-drop at i-recreate ang `UPDATE` policy ng `damage_claims`.
+- Siguraduhin na pareho ang `USING` at `WITH CHECK` logic para pumayag sa soft-delete update.
+- I-keep ang access rules na naka-pattern na sa app:
+  - Admin: puwedeng mag-delete
+  - Assistant: puwedeng mag-edit
+- Kung needed, i-recreate rin ang `DELETE` policy para consistent ang permissions.
 
-### What You'll Get
+2. Keep the UI on soft-delete
+- Hindi ko papalitan sa hard delete.
+- Mananatili ang current flow sa `src/pages/DamageClaims.tsx` na nagse-set ng `deleted_at`.
+- Ito ang tama base sa project memory: universal soft-delete dapat.
 
-- A small emoji button (😊) appears when hovering over any chat message
-- Clicking it opens an emoji picker to select a reaction
-- Reactions display below the message bubble (e.g., 👍 2, ❤️ 1)
-- Clicking an existing reaction toggles it on/off (add/remove your reaction)
-- Users can see who reacted by hovering over a reaction
+3. Improve the error handling in Damage Claims
+- Palitan ang generic toast na “Failed to delete”.
+- Ipakita ang tunay na backend error message para mas madaling ma-debug kung may issue ulit.
+- Optional small polish: disable the delete confirm button habang pending para iwas double click.
 
-### Technical Implementation
+4. Verify related consistency
+- Since same soft-delete pattern exists across the app, iche-check ko rin kung may kaparehong policy mismatch sa ibang bagong modules na ginawa recently, lalo na yung gumagamit din ng `deleted_at`.
+- Hindi ko gagalawin ang unrelated pages unless may clear mismatch.
 
-**1. Database Changes**
+Files/touchpoints
+- `supabase/migrations/...sql` — policy fix for `damage_claims`
+- `src/pages/DamageClaims.tsx` — better delete error handling / minor UX polish
 
-Create a new `chat_message_reactions` table:
-- `id` - Primary key
-- `message_id` - Reference to the chat message
-- `user_id` - Who reacted
-- `emoji` - The emoji character (e.g., "👍")
-- `created_at` - Timestamp
+Expected result
+- Kapag pinindot ang trash icon at kinonfirm ang delete, mawawala na ang row sa table.
+- Wala nang red toast na “Failed to delete”.
+- Record will be soft-deleted, not permanently removed.
 
-Add RLS policies:
-- Users can view all reactions (for display)
-- Users can insert/delete their own reactions
-- Admins can delete any reaction
-
-Enable realtime for instant reaction updates across all users.
-
-**2. Frontend Changes**
-
-Update `TeamChatBox.tsx`:
-- Add a Smile button next to Reply/Delete on each message
-- Show emoji picker when clicked
-- Display reaction counts below each message bubble
-- Allow toggling reactions by clicking existing ones
-- Subscribe to realtime updates for reactions
-
-### UI Preview
-
-```text
-┌─────────────────────────────────────┐
-│  [Avatar]  Username   3:45 PM  ↩️  🗑️ 😊 │  ← New emoji button on hover
-│  ┌─────────────────────────┐        │
-│  │ Message content here... │        │
-│  └─────────────────────────┘        │
-│    👍 2  ❤️ 1  😂 3                  │  ← Reactions appear below bubble
-└─────────────────────────────────────┘
-```
-
+Technical details
+- Root cause is RLS, not button wiring.
+- The failing network response already shows `42501` policy violation on update.
+- Because the UI deletes via `UPDATE deleted_at = now()`, the table needs an `UPDATE` policy whose `WITH CHECK` still allows the updated row after `deleted_at` changes.
