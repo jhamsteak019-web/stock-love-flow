@@ -202,7 +202,7 @@ const DamageClaims = () => {
       queryClient.invalidateQueries({ queryKey: ['damage-claims'] });
       toast({ title: 'Deleted', description: 'Damage claim removed' });
     },
-    onError: () => toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' }),
+    onError: (err: any) => toast({ title: 'Error', description: err?.message || 'Failed to delete', variant: 'destructive' }),
   });
 
   const handleFormChange = useCallback((field: string, value: string | number) => {
