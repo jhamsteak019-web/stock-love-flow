@@ -135,6 +135,77 @@ const Discrepancies = () => {
 
   const unresolvedCount = items.filter(i => i.resolution_status !== 'resolved').length;
 
+  const buildExportRows = () => items.map(i => ({
+    created_at: i.created_at ? format(new Date(i.created_at), 'MMM d, yyyy') : '',
+    allocation_bill: i.allocation_bill || '',
+    destination: i.destination || '',
+    category: i.category || '',
+    courier: i.courier || '',
+    waybill_no: i.waybill_no || '',
+    total_boxes: i.total_boxes ?? '',
+    total_qty: i.total_qty ?? '',
+    amount: i.amount ?? '',
+    date_out: i.date_out ? format(new Date(i.date_out), 'MMM d, yyyy') : '',
+    date_received: i.date_received ? format(new Date(i.date_received), 'MMM d, yyyy') : '',
+    discrepancy_notes: i.discrepancy_notes || '',
+    resolution_status: i.resolution_status || '',
+  }));
+
+  const handleExportExcel = async () => {
+    if (items.length === 0) {
+      toast({ title: 'Walang data', description: 'Walang discrepancy records na ie-export.' });
+      return;
+    }
+    await exportToExcel({
+      title: 'Discrepancy Records',
+      subtitle: `Total: ${items.length} records`,
+      filename: `discrepancies-${format(new Date(), 'yyyy-MM-dd')}.xlsx`,
+      columns: [
+        { header: 'Created', key: 'created_at', width: 14 },
+        { header: 'Allocation', key: 'allocation_bill', width: 18 },
+        { header: 'Destination', key: 'destination', width: 20 },
+        { header: 'Category', key: 'category', width: 12 },
+        { header: 'Courier', key: 'courier', width: 14 },
+        { header: 'Waybill', key: 'waybill_no', width: 16 },
+        { header: 'Boxes', key: 'total_boxes', width: 8 },
+        { header: 'Qty', key: 'total_qty', width: 8 },
+        { header: 'Amount', key: 'amount', width: 12 },
+        { header: 'Date Out', key: 'date_out', width: 14 },
+        { header: 'Date Received', key: 'date_received', width: 14 },
+        { header: 'Notes', key: 'discrepancy_notes', width: 30 },
+        { header: 'Status', key: 'resolution_status', width: 12 },
+      ],
+      data: buildExportRows(),
+    });
+    toast({ title: 'Exported', description: 'Excel file downloaded.' });
+  };
+
+  const handleExportPDF = () => {
+    if (items.length === 0) {
+      toast({ title: 'Walang data', description: 'Walang discrepancy records na ie-export.' });
+      return;
+    }
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text('Discrepancy Records', 14, 14);
+    doc.setFontSize(9);
+    doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy')}  |  Total: ${items.length}`, 14, 20);
+    autoTable(doc, {
+      startY: 24,
+      head: [['Created','Allocation','Destination','Category','Courier','Waybill','Boxes','Qty','Amount','Date Out','Date Recv','Notes','Status']],
+      body: buildExportRows().map(r => [
+        r.created_at, r.allocation_bill, r.destination, r.category, r.courier, r.waybill_no,
+        String(r.total_boxes), String(r.total_qty), String(r.amount), r.date_out, r.date_received,
+        r.discrepancy_notes, r.resolution_status,
+      ]),
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [68, 114, 196] },
+      columnStyles: { 11: { cellWidth: 40 } },
+    });
+    doc.save(`discrepancies-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast({ title: 'Exported', description: 'PDF file downloaded.' });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
