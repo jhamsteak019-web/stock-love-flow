@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { AlertTriangle, Pencil, Trash2, Search, Plus, CheckCircle2, FileWarning } from 'lucide-react';
+import { AlertTriangle, Pencil, Trash2, Search, Plus, CheckCircle2, FileWarning, FileSpreadsheet, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { exportToExcel } from '@/lib/excelExport';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Discrepancy {
   id: string;
@@ -47,6 +50,8 @@ const Discrepancies = () => {
   const [editing, setEditing] = useState<Discrepancy | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Discrepancy>>({});
+  const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
 
   const isAdmin = userRole === 'admin';
   const canEdit = ['admin', 'staff', 'assistant', 'encoder'].includes(userRole || '');
@@ -64,16 +69,33 @@ const Discrepancies = () => {
   });
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
-    const s = search.toLowerCase();
-    return items.filter(i =>
-      i.allocation_bill?.toLowerCase().includes(s) ||
-      i.destination?.toLowerCase().includes(s) ||
-      i.courier?.toLowerCase().includes(s) ||
-      i.discrepancy_notes?.toLowerCase().includes(s) ||
-      i.remarks?.toLowerCase().includes(s)
-    );
-  }, [items, search]);
+    let list = items;
+    if (yearFilter !== 'all') {
+      list = list.filter(i => i.created_at && new Date(i.created_at).getFullYear().toString() === yearFilter);
+    }
+    if (monthFilter !== 'all') {
+      list = list.filter(i => i.created_at && (new Date(i.created_at).getMonth() + 1).toString() === monthFilter);
+    }
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      list = list.filter(i =>
+        i.allocation_bill?.toLowerCase().includes(s) ||
+        i.destination?.toLowerCase().includes(s) ||
+        i.courier?.toLowerCase().includes(s) ||
+        i.discrepancy_notes?.toLowerCase().includes(s) ||
+        i.remarks?.toLowerCase().includes(s)
+      );
+    }
+    return list;
+  }, [items, search, yearFilter, monthFilter]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    items.forEach(i => { if (i.created_at) years.add(new Date(i.created_at).getFullYear().toString()); });
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [items]);
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   const updateMutation = useMutation({
     mutationFn: async (payload: Partial<Discrepancy> & { id: string }) => {
@@ -112,6 +134,77 @@ const Discrepancies = () => {
   };
 
   const unresolvedCount = items.filter(i => i.resolution_status !== 'resolved').length;
+
+  const buildExportRows = () => items.map(i => ({
+    created_at: i.created_at ? format(new Date(i.created_at), 'MMM d, yyyy') : '',
+    allocation_bill: i.allocation_bill || '',
+    destination: i.destination || '',
+    category: i.category || '',
+    courier: i.courier || '',
+    waybill_no: i.waybill_no || '',
+    total_boxes: i.total_boxes ?? '',
+    total_qty: i.total_qty ?? '',
+    amount: i.amount ?? '',
+    date_out: i.date_out ? format(new Date(i.date_out), 'MMM d, yyyy') : '',
+    date_received: i.date_received ? format(new Date(i.date_received), 'MMM d, yyyy') : '',
+    discrepancy_notes: i.discrepancy_notes || '',
+    resolution_status: i.resolution_status || '',
+  }));
+
+  const handleExportExcel = async () => {
+    if (items.length === 0) {
+      toast({ title: 'Walang data', description: 'Walang discrepancy records na ie-export.' });
+      return;
+    }
+    await exportToExcel({
+      title: 'Discrepancy Records',
+      subtitle: `Total: ${items.length} records`,
+      filename: `discrepancies-${format(new Date(), 'yyyy-MM-dd')}.xlsx`,
+      columns: [
+        { header: 'Created', key: 'created_at', width: 14 },
+        { header: 'Allocation', key: 'allocation_bill', width: 18 },
+        { header: 'Destination', key: 'destination', width: 20 },
+        { header: 'Category', key: 'category', width: 12 },
+        { header: 'Courier', key: 'courier', width: 14 },
+        { header: 'Waybill', key: 'waybill_no', width: 16 },
+        { header: 'Boxes', key: 'total_boxes', width: 8 },
+        { header: 'Qty', key: 'total_qty', width: 8 },
+        { header: 'Amount', key: 'amount', width: 12 },
+        { header: 'Date Out', key: 'date_out', width: 14 },
+        { header: 'Date Received', key: 'date_received', width: 14 },
+        { header: 'Notes', key: 'discrepancy_notes', width: 30 },
+        { header: 'Status', key: 'resolution_status', width: 12 },
+      ],
+      data: buildExportRows(),
+    });
+    toast({ title: 'Exported', description: 'Excel file downloaded.' });
+  };
+
+  const handleExportPDF = () => {
+    if (items.length === 0) {
+      toast({ title: 'Walang data', description: 'Walang discrepancy records na ie-export.' });
+      return;
+    }
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text('Discrepancy Records', 14, 14);
+    doc.setFontSize(9);
+    doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy')}  |  Total: ${items.length}`, 14, 20);
+    autoTable(doc, {
+      startY: 24,
+      head: [['Created','Allocation','Destination','Category','Courier','Waybill','Boxes','Qty','Amount','Date Out','Date Recv','Notes','Status']],
+      body: buildExportRows().map(r => [
+        r.created_at, r.allocation_bill, r.destination, r.category, r.courier, r.waybill_no,
+        String(r.total_boxes), String(r.total_qty), String(r.amount), r.date_out, r.date_received,
+        r.discrepancy_notes, r.resolution_status,
+      ]),
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [68, 114, 196] },
+      columnStyles: { 11: { cellWidth: 40 } },
+    });
+    doc.save(`discrepancies-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast({ title: 'Exported', description: 'PDF file downloaded.' });
+  };
 
   return (
     <div className="space-y-6">
@@ -163,11 +256,33 @@ const Discrepancies = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between gap-2">
+          <CardTitle className="text-lg flex items-center justify-between gap-2 flex-wrap">
             <span>Discrepancy Records</span>
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="pl-9 h-9" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger className="h-9 w-28"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className="h-9 w-32"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {monthNames.map((m, idx) => <SelectItem key={m} value={String(idx + 1)}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="relative w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="pl-9 h-9" />
+              </div>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+              </Button>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportPDF}>
+                <FileText className="h-4 w-4 mr-1" /> PDF
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
