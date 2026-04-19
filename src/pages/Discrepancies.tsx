@@ -50,6 +50,8 @@ const Discrepancies = () => {
   const [editing, setEditing] = useState<Discrepancy | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Discrepancy>>({});
+  const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
 
   const isAdmin = userRole === 'admin';
   const canEdit = ['admin', 'staff', 'assistant', 'encoder'].includes(userRole || '');
@@ -67,16 +69,33 @@ const Discrepancies = () => {
   });
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
-    const s = search.toLowerCase();
-    return items.filter(i =>
-      i.allocation_bill?.toLowerCase().includes(s) ||
-      i.destination?.toLowerCase().includes(s) ||
-      i.courier?.toLowerCase().includes(s) ||
-      i.discrepancy_notes?.toLowerCase().includes(s) ||
-      i.remarks?.toLowerCase().includes(s)
-    );
-  }, [items, search]);
+    let list = items;
+    if (yearFilter !== 'all') {
+      list = list.filter(i => i.created_at && new Date(i.created_at).getFullYear().toString() === yearFilter);
+    }
+    if (monthFilter !== 'all') {
+      list = list.filter(i => i.created_at && (new Date(i.created_at).getMonth() + 1).toString() === monthFilter);
+    }
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      list = list.filter(i =>
+        i.allocation_bill?.toLowerCase().includes(s) ||
+        i.destination?.toLowerCase().includes(s) ||
+        i.courier?.toLowerCase().includes(s) ||
+        i.discrepancy_notes?.toLowerCase().includes(s) ||
+        i.remarks?.toLowerCase().includes(s)
+      );
+    }
+    return list;
+  }, [items, search, yearFilter, monthFilter]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    items.forEach(i => { if (i.created_at) years.add(new Date(i.created_at).getFullYear().toString()); });
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [items]);
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   const updateMutation = useMutation({
     mutationFn: async (payload: Partial<Discrepancy> & { id: string }) => {
