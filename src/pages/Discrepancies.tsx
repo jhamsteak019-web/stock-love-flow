@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { AlertTriangle, Pencil, Trash2, Search, Plus, CheckCircle2, FileWarning } from 'lucide-react';
+import { AlertTriangle, Pencil, Trash2, Search, Plus, CheckCircle2, FileWarning, FileSpreadsheet, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { exportToExcel } from '@/lib/excelExport';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Discrepancy {
   id: string;
