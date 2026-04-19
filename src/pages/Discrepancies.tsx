@@ -256,11 +256,33 @@ const Discrepancies = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between gap-2">
+          <CardTitle className="text-lg flex items-center justify-between gap-2 flex-wrap">
             <span>Discrepancy Records</span>
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="pl-9 h-9" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger className="h-9 w-28"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className="h-9 w-32"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {monthNames.map((m, idx) => <SelectItem key={m} value={String(idx + 1)}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="relative w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="pl-9 h-9" />
+              </div>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+              </Button>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportPDF}>
+                <FileText className="h-4 w-4 mr-1" /> PDF
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
