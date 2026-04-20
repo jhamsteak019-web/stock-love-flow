@@ -454,26 +454,19 @@ const DamageClaims = () => {
       {/* Table */}
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
-          <table className="w-full text-sm" style={{ minWidth: '2200px' }}>
+          <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/70 border-b">
                 <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 140 }}>Branch Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 120 }}>SSPOA No.</th>
-                <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50" colSpan={4}>
-                  <span className="text-blue-600 dark:text-blue-400">SSPOA Numbers</span>
-                </th>
-                <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50" colSpan={4}>
+                <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50" style={{ minWidth: 100 }}>
                   <span className="text-violet-600 dark:text-violet-400">Category</span>
                 </th>
                 <th className="px-4 py-3 text-center font-bold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50 bg-primary/5" style={{ minWidth: 70 }}>
                   <span className="text-primary">Total</span>
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50" style={{ minWidth: 90 }}>Damage</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 120 }}>
-                  Date Sent<br/><span className="text-[10px] font-normal normal-case text-muted-foreground">(SM Head Office)</span>
-                </th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50" style={{ minWidth: 110 }}>Reason</th>
                 <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 100 }}>Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 100 }}>Remarks</th>
                 <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wider whitespace-nowrap border-l border-border/50" style={{ minWidth: 70 }}>
                   Box<br/><span className="text-[10px] font-normal normal-case text-muted-foreground">(qty)</span>
                 </th>
@@ -483,41 +476,20 @@ const DamageClaims = () => {
                 <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 120 }}>
                   Received<br/><span className="text-[10px] font-normal normal-case text-muted-foreground">(Warehouse)</span>
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 100 }}>Remarks 2</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap" style={{ minWidth: 120 }}>Remarks</th>
                 {(canEdit || canDelete) && <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wider whitespace-nowrap sticky right-0 bg-muted/70" style={{ minWidth: 90 }}>Actions</th>}
-              </tr>
-              {/* Sub-headers */}
-              <tr className="bg-muted/40 border-b">
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5"></th>
-                {['MHB', 'MLP', 'MSH', 'MUM'].map((label, i) => (
-                  <th key={label} className={cn("px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-widest text-blue-600/70 dark:text-blue-400/70", i === 0 && "border-l border-border/50")} style={{ minWidth: 70 }}>{label}</th>
-                ))}
-                {['MHB', 'MLP', 'MSH', 'MUM'].map((label, i) => (
-                  <th key={`cat-${label}`} className={cn("px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-widest text-violet-600/70 dark:text-violet-400/70", i === 0 && "border-l border-border/50")} style={{ minWidth: 70 }}>{label}</th>
-                ))}
-                <th className="px-4 py-1.5 border-l border-border/50"></th>
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5 border-l border-border/50"></th>
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5"></th>
-                <th className="px-4 py-1.5"></th>
-                {(canEdit || canDelete) && <th className="px-4 py-1.5 sticky right-0 bg-muted/40"></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {isLoading ? (
-                <tr><td colSpan={20} className="text-center py-16">
+                <tr><td colSpan={11} className="text-center py-16">
                   <div className="flex flex-col items-center gap-3">
                     <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full spin-smooth" />
                     <span className="text-muted-foreground text-sm">Loading claims...</span>
                   </div>
                 </td></tr>
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={20} className="text-center py-16">
+                <tr><td colSpan={11} className="text-center py-16">
                   <div className="flex flex-col items-center gap-3">
                     <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
                       <FileWarning className="h-7 w-7 text-muted-foreground" />
@@ -537,17 +509,28 @@ const DamageClaims = () => {
                     )}>
                       <td className="px-4 py-2.5 font-semibold whitespace-nowrap text-foreground">{c.branch_name}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap font-mono text-xs">{c.sspoa_no}</td>
-                      <td className="px-4 py-2.5 text-center font-mono text-xs border-l border-border/30">{c.sspoa_mhb}</td>
-                      <td className="px-4 py-2.5 text-center font-mono text-xs">{c.sspoa_mlp}</td>
-                      <td className="px-4 py-2.5 text-center font-mono text-xs">{c.sspoa_msh}</td>
-                      <td className="px-4 py-2.5 text-center font-mono text-xs">{c.sspoa_mum}</td>
-                      <td className="px-4 py-2.5 text-center font-semibold border-l border-border/30 text-blue-600 dark:text-blue-400">{c.cat_mhb || ''}</td>
-                      <td className="px-4 py-2.5 text-center font-semibold text-violet-600 dark:text-violet-400">{c.cat_mlp || ''}</td>
-                      <td className="px-4 py-2.5 text-center font-semibold text-emerald-600 dark:text-emerald-400">{c.cat_msh || ''}</td>
-                      <td className="px-4 py-2.5 text-center font-semibold text-orange-600 dark:text-orange-400">{c.cat_mum || ''}</td>
+                      <td className="px-4 py-2.5 text-center border-l border-border/30">
+                        {(() => {
+                          const cats = [
+                            { label: 'MHB', value: c.cat_mhb, cls: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                            { label: 'MLP', value: c.cat_mlp, cls: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/20' },
+                            { label: 'MSH', value: c.cat_msh, cls: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                            { label: 'MUM', value: c.cat_mum, cls: 'text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/20' },
+                          ].filter(x => (x.value || 0) > 0);
+                          if (cats.length === 0) return <span className="text-muted-foreground">—</span>;
+                          return (
+                            <div className="flex flex-wrap items-center justify-center gap-1">
+                              {cats.map(x => (
+                                <span key={x.label} className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border", x.cls)}>
+                                  {x.label}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-4 py-2.5 text-center font-bold text-primary border-l border-border/30 bg-primary/5">{c.total || 0}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap border-l border-border/30">{c.damage}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{c.date_sent}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap border-l border-border/30 font-medium">{c.damage}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         {c.status ? (
                           <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border", getStatusColor(c.status))}>
@@ -555,11 +538,12 @@ const DamageClaims = () => {
                           </span>
                         ) : ''}
                       </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{c.remarks}</td>
                       <td className="px-4 py-2.5 text-center font-semibold border-l border-border/30">{c.box_qty || ''}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{c.date_of_backload}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{c.date_of_received}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{c.remarks2}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                        {[c.remarks, c.remarks2].filter(Boolean).join(' • ') || ''}
+                      </td>
                       {(canEdit || canDelete) && (
                         <td className="px-4 py-2.5 text-center sticky right-0 bg-card group-hover:bg-muted/40 transition-colors">
                           <div className="flex items-center justify-center gap-0.5">
@@ -582,18 +566,11 @@ const DamageClaims = () => {
                   <tr className="bg-muted/60 font-bold border-t-2 border-primary/20 sticky bottom-0">
                     <td className="px-4 py-3 text-sm uppercase tracking-wider">Grand Total</td>
                     <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3 border-l border-border/30"></td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3 text-center text-blue-600 dark:text-blue-400 border-l border-border/30">{totals.cat_mhb || ''}</td>
-                    <td className="px-4 py-3 text-center text-violet-600 dark:text-violet-400">{totals.cat_mlp || ''}</td>
-                    <td className="px-4 py-3 text-center text-emerald-600 dark:text-emerald-400">{totals.cat_msh || ''}</td>
-                    <td className="px-4 py-3 text-center text-orange-600 dark:text-orange-400">{totals.cat_mum || ''}</td>
+                    <td className="px-4 py-3 text-center border-l border-border/30 text-primary">
+                      {(totals.cat_mhb + totals.cat_mlp + totals.cat_msh + totals.cat_mum) || ''}
+                    </td>
                     <td className="px-4 py-3 text-center text-primary bg-primary/10 border-l border-border/30 text-base">{totals.total}</td>
                     <td className="px-4 py-3 border-l border-border/30"></td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3"></td>
                     <td className="px-4 py-3"></td>
                     <td className="px-4 py-3 text-center border-l border-border/30">{totals.box_qty || ''}</td>
                     <td className="px-4 py-3"></td>
