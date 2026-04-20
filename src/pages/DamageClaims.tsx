@@ -686,7 +686,7 @@ const DamageClaims = () => {
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Claim Details</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs">Damage</Label><Input value={formData.damage || ''} onChange={e => handleFormChange('damage', e.target.value)} className="mt-1" /></div>
+                <div><Label className="text-xs">Reason</Label><Input value={formData.damage || ''} onChange={e => handleFormChange('damage', e.target.value)} className="mt-1" /></div>
                 <div><Label className="text-xs">Status</Label><Input value={formData.status || ''} onChange={e => handleFormChange('status', e.target.value)} className="mt-1" /></div>
                 <div>
                   <Label className="text-xs">Date Sent (SM Head Office)</Label>
