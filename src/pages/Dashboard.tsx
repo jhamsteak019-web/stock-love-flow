@@ -613,8 +613,11 @@ const Dashboard = () => {
             {storeCompletionRates.length === 0 ? (
               <p className="text-sm text-muted-foreground">No store data available</p>
             ) : (
-              <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                {storeCompletionRates.map((store) => (
+              <>
+              <div className="space-y-4">
+                {storeCompletionRates
+                  .slice((completionPage - 1) * PAGE_SIZE, completionPage * PAGE_SIZE)
+                  .map((store) => (
                   <div key={store.store} className="space-y-1.5 border-b border-border/50 pb-3 last:border-0">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-foreground font-medium truncate max-w-[200px]" title={store.store}>
@@ -632,6 +635,13 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
+              <PaginationBar
+                page={completionPage}
+                total={storeCompletionRates.length}
+                pageSize={PAGE_SIZE}
+                onChange={setCompletionPage}
+              />
+              </>
             )}
           </CardContent>
         </Card>
@@ -648,7 +658,8 @@ const Dashboard = () => {
             {branchDeliveryStatus.length === 0 ? (
               <p className="text-sm text-muted-foreground">No branch data available</p>
             ) : (
-              <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <>
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="sticky top-0 bg-card z-10">
                     <tr className="border-b border-border">
@@ -664,7 +675,9 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {branchDeliveryStatus.map((branch) => (
+                    {branchDeliveryStatus
+                      .slice((branchStatusPage - 1) * PAGE_SIZE, branchStatusPage * PAGE_SIZE)
+                      .map((branch) => (
                       <tr key={branch.branch} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                         <td className="py-3 px-2">
                           <span className="text-sm font-medium text-foreground truncate max-w-[180px] block" title={branch.branch}>
@@ -708,6 +721,13 @@ const Dashboard = () => {
                   </tbody>
                 </table>
               </div>
+              <PaginationBar
+                page={branchStatusPage}
+                total={branchDeliveryStatus.length}
+                pageSize={PAGE_SIZE}
+                onChange={setBranchStatusPage}
+              />
+              </>
             )}
           </CardContent>
         </Card>
@@ -724,8 +744,13 @@ const Dashboard = () => {
             {topStoresByCategory.length === 0 ? (
               <p className="text-sm text-muted-foreground">No category data available</p>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 max-h-[600px] overflow-y-auto">
-                {topStoresByCategory.map((cat, catIndex) => (
+              <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                {topStoresByCategory
+                  .slice((topStoresPage - 1) * PAGE_SIZE, topStoresPage * PAGE_SIZE)
+                  .map((cat, idx) => {
+                    const catIndex = (topStoresPage - 1) * PAGE_SIZE + idx;
+                    return (
                   <div key={cat.category} className="rounded-lg border border-border bg-muted/20 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div 
@@ -753,89 +778,20 @@ const Dashboard = () => {
                       ))}
                     </div>
                   </div>
-                ))}
+                    );
+                  })}
               </div>
+              <PaginationBar
+                page={topStoresPage}
+                total={topStoresByCategory.length}
+                pageSize={PAGE_SIZE}
+                onChange={setTopStoresPage}
+              />
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Monthly Delivery Status 2025 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Monthly Delivery Status (2025)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyDeliveryStatus} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                  <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="pending" stackId="a" fill="#F59E0B" name="Pending" />
-                  <Bar dataKey="inTransit" stackId="a" fill="#3B82F6" name="In Transit" />
-                  <Bar dataKey="outForDelivery" stackId="a" fill="#8B5CF6" name="Out for Delivery" />
-                  <Bar dataKey="delivered" stackId="a" fill="#10B981" name="Delivered" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Monthly Summary Table */}
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">Month</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Boxes</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Qty</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Pending</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">In Transit</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Out for Delivery</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Delivered</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthlyDeliveryStatus.filter(m => m.pending + m.inTransit + m.outForDelivery + m.delivered > 0).map((month) => (
-                    <tr key={month.month} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="py-2 px-2 font-medium text-foreground">{month.month}</td>
-                      <td className="text-center py-2 px-2 text-primary font-semibold">{month.totalBoxes.toLocaleString()}</td>
-                      <td className="text-center py-2 px-2 text-muted-foreground">{month.totalQty.toLocaleString()}</td>
-                      <td className="text-center py-2 px-2">
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300">
-                          {month.pending}
-                        </Badge>
-                      </td>
-                      <td className="text-center py-2 px-2">
-                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                          {month.inTransit}
-                        </Badge>
-                      </td>
-                      <td className="text-center py-2 px-2">
-                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                          {month.outForDelivery}
-                        </Badge>
-                      </td>
-                      <td className="text-center py-2 px-2">
-                        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                          {month.delivered}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
