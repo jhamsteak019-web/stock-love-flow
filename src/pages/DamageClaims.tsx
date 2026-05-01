@@ -716,16 +716,6 @@ const DamageClaims = () => {
                 <div><Label className="text-xs">SSPOA No.</Label><Input value={formData.sspoa_no || ''} onChange={e => handleFormChange('sspoa_no', e.target.value)} className="mt-1" /></div>
               </div>
             </div>
-            {/* SSPOA Numbers */}
-            <div>
-              <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">SSPOA Numbers</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div><Label className="text-xs">MHB</Label><Input value={formData.sspoa_mhb || ''} onChange={e => handleFormChange('sspoa_mhb', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">MLP</Label><Input value={formData.sspoa_mlp || ''} onChange={e => handleFormChange('sspoa_mlp', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">MSH</Label><Input value={formData.sspoa_msh || ''} onChange={e => handleFormChange('sspoa_msh', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">MUM</Label><Input value={formData.sspoa_mum || ''} onChange={e => handleFormChange('sspoa_mum', e.target.value)} className="mt-1" /></div>
-              </div>
-            </div>
             {/* Category */}
             <div>
               <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-3">Category Quantities</h3>
@@ -743,20 +733,6 @@ const DamageClaims = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-xs">Reason</Label><Input value={formData.damage || ''} onChange={e => handleFormChange('damage', e.target.value)} className="mt-1" /></div>
                 <div><Label className="text-xs">Status</Label><Input value={formData.status || ''} onChange={e => handleFormChange('status', e.target.value)} className="mt-1" /></div>
-                <div>
-                  <Label className="text-xs">Date Sent (SM Head Office)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal h-9 text-sm", !formData.date_sent && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_sent || <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
-                      <Calendar mode="single" selected={formData.date_sent ? new Date(formData.date_sent) : undefined} onSelect={(date) => handleFormChange('date_sent', date ? format(date, 'yyyy-MM-dd') : '')} initialFocus className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
                 <div><Label className="text-xs">Box (qty)</Label><Input type="number" value={formData.box_qty || ''} onChange={e => handleFormChange('box_qty', Number(e.target.value))} className="mt-1" /></div>
                 <div><Label className="text-xs">Remarks</Label><Input value={formData.remarks || ''} onChange={e => handleFormChange('remarks', e.target.value)} className="mt-1" /></div>
                 <div>
@@ -787,7 +763,6 @@ const DamageClaims = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div><Label className="text-xs">Remarks 2</Label><Input value={formData.remarks2 || ''} onChange={e => handleFormChange('remarks2', e.target.value)} className="mt-1" /></div>
               </div>
             </div>
           </div>
