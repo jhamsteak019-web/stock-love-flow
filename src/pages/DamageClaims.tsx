@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, Plus, Upload, Search, X, Trash2, Pencil, ChevronLeft, ChevronRight, FileWarning, Package, Calendar as CalendarIcon, ClipboardList, FileDown } from 'lucide-react';
+import { AlertTriangle, Plus, Upload, Search, X, Trash2, Pencil, ChevronLeft, ChevronRight, FileWarning, Package, Calendar as CalendarIcon, ClipboardList, FileDown, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parse } from 'date-fns';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
+import { exportToExcel } from '@/lib/excelExport';
 
 interface DamageClaim {
   id: string;
@@ -93,6 +95,8 @@ const DamageClaims = () => {
   const [formData, setFormData] = useState<Partial<DamageClaim>>(emptyForm());
   const [importPreview, setImportPreview] = useState<Partial<DamageClaim>[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [yearFilter, setYearFilter] = useState<string>('all');
 
   const isAdmin = userRole === 'admin';
   const canUpload = ['admin', 'staff', 'encoder', 'assistant'].includes(userRole || '');
@@ -117,16 +121,49 @@ const DamageClaims = () => {
   });
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return claims;
-    const q = searchQuery.toLowerCase();
-    return claims.filter(c =>
+    let list = claims;
+    // Month/Year filter based on date_of_backload OR date_of_received
+    if (monthFilter !== 'all' || yearFilter !== 'all') {
+      list = list.filter(c => {
+        const dates = [c.date_of_backload, c.date_of_received].filter(Boolean) as string[];
+        if (dates.length === 0) return false;
+        return dates.some(ds => {
+          const d = new Date(ds);
+          if (isNaN(d.getTime())) return false;
+          const monthOk = monthFilter === 'all' || d.getMonth() === Number(monthFilter);
+          const yearOk = yearFilter === 'all' || d.getFullYear() === Number(yearFilter);
+          return monthOk && yearOk;
+        });
+      });
+    }
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    // Category quick-filter: MHB, MLP, MSH, MUM
+    const catKey = ({ mhb: 'cat_mhb', mlp: 'cat_mlp', msh: 'cat_msh', mum: 'cat_mum' } as Record<string, keyof DamageClaim>)[q];
+    if (catKey) {
+      return list.filter(c => (Number(c[catKey]) || 0) > 0);
+    }
+    return list.filter(c =>
       c.branch_name.toLowerCase().includes(q) ||
       c.sspoa_no?.toLowerCase().includes(q) ||
       c.damage?.toLowerCase().includes(q) ||
       c.status?.toLowerCase().includes(q) ||
       c.remarks?.toLowerCase().includes(q)
     );
-  }, [claims, searchQuery]);
+  }, [claims, searchQuery, monthFilter, yearFilter]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    claims.forEach(c => {
+      [c.date_of_backload, c.date_of_received].forEach(ds => {
+        if (ds) {
+          const d = new Date(ds);
+          if (!isNaN(d.getTime())) years.add(d.getFullYear());
+        }
+      });
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [claims]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -226,35 +263,29 @@ const DamageClaims = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy hh:mm a')}  |  Total Records: ${filtered.length}`, pageWidth / 2, 21, { align: 'center' });
 
-    const headers = [['Branch', 'SSPOA No.', 'S-MHB', 'S-MLP', 'S-MSH', 'S-MUM', 'MHB', 'MLP', 'MSH', 'MUM', 'Total', 'Damage', 'Date Sent', 'Status', 'Remarks', 'Box Qty', 'Backload', 'Received', 'Remarks 2']];
+    const headers = [['Branch', 'SSPOA No.', 'MHB', 'MLP', 'MSH', 'MUM', 'Total', 'Damage', 'Status', 'Remarks', 'Box Qty', 'Backload', 'Received']];
 
     const body = filtered.map(c => [
       c.branch_name || '',
       c.sspoa_no || '',
-      c.sspoa_mhb || '',
-      c.sspoa_mlp || '',
-      c.sspoa_msh || '',
-      c.sspoa_mum || '',
       c.cat_mhb || '',
       c.cat_mlp || '',
       c.cat_msh || '',
       c.cat_mum || '',
       c.total || 0,
       c.damage || '',
-      c.date_sent || '',
       c.status || '',
       c.remarks || '',
       c.box_qty || '',
       c.date_of_backload || '',
       c.date_of_received || '',
-      c.remarks2 || '',
     ]);
 
     // Grand total row
     body.push([
-      'GRAND TOTAL', '', '', '', '', '',
+      'GRAND TOTAL', '',
       totals.cat_mhb || 0, totals.cat_mlp || 0, totals.cat_msh || 0, totals.cat_mum || 0,
-      totals.total || 0, '', '', '', '', totals.box_qty || 0, '', '', ''
+      totals.total || 0, '', '', '', totals.box_qty || 0, '', ''
     ]);
 
     autoTable(doc, {
@@ -266,7 +297,7 @@ const DamageClaims = () => {
       headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
       columnStyles: {
         0: { cellWidth: 22 },
-        10: { fontStyle: 'bold', halign: 'center' },
+        6: { fontStyle: 'bold', halign: 'center' },
       },
       didParseCell: (data) => {
         // Style grand total row
@@ -275,10 +306,10 @@ const DamageClaims = () => {
           data.cell.styles.fillColor = [240, 240, 255];
         }
         // Center number columns
-        if (data.column.index >= 2 && data.column.index <= 10) {
+        if (data.column.index >= 2 && data.column.index <= 6) {
           data.cell.styles.halign = 'center';
         }
-        if (data.column.index === 15) {
+        if (data.column.index === 10) {
           data.cell.styles.halign = 'center';
         }
       },
@@ -287,6 +318,49 @@ const DamageClaims = () => {
 
     doc.save(`Damage_Claims_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     toast({ title: 'PDF Downloaded', description: 'Damage Claims report saved as PDF' });
+  };
+
+  const handleExportExcel = async () => {
+    const data = filtered.map(c => ({
+      branch_name: c.branch_name || '',
+      sspoa_no: c.sspoa_no || '',
+      cat_mhb: c.cat_mhb || 0,
+      cat_mlp: c.cat_mlp || 0,
+      cat_msh: c.cat_msh || 0,
+      cat_mum: c.cat_mum || 0,
+      total: c.total || 0,
+      damage: c.damage || '',
+      status: c.status || '',
+      remarks: c.remarks || '',
+      box_qty: c.box_qty || 0,
+      date_of_backload: c.date_of_backload || '',
+      date_of_received: c.date_of_received || '',
+    }));
+    await exportToExcel({
+      title: 'Damage Claims Report',
+      subtitle: `Generated: ${format(new Date(), 'MMM dd, yyyy hh:mm a')} | Total Records: ${filtered.length}`,
+      filename: `Damage_Claims_${format(new Date(), 'yyyy-MM-dd')}`,
+      headerColor: '3B82F6',
+      columns: [
+        { header: 'Branch', key: 'branch_name', width: 22 },
+        { header: 'SSPOA No.', key: 'sspoa_no', width: 14 },
+        { header: 'MHB', key: 'cat_mhb', width: 8 },
+        { header: 'MLP', key: 'cat_mlp', width: 8 },
+        { header: 'MSH', key: 'cat_msh', width: 8 },
+        { header: 'MUM', key: 'cat_mum', width: 8 },
+        { header: 'Total', key: 'total', width: 10 },
+        { header: 'Damage', key: 'damage', width: 14 },
+        { header: 'Status', key: 'status', width: 14 },
+        { header: 'Remarks', key: 'remarks', width: 22 },
+        { header: 'Box Qty', key: 'box_qty', width: 10 },
+        { header: 'Backload', key: 'date_of_backload', width: 14 },
+        { header: 'Received', key: 'date_of_received', width: 14 },
+      ],
+      data,
+      showTotals: true,
+      totalColumns: ['cat_mhb', 'cat_mlp', 'cat_msh', 'cat_mum', 'total', 'box_qty'],
+    });
+    toast({ title: 'Excel Downloaded', description: 'Damage Claims report saved as Excel' });
   };
 
   const handleAdd = () => {
@@ -387,13 +461,31 @@ const DamageClaims = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <Select value={monthFilter} onValueChange={(v) => { setMonthFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="All Months" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                  <SelectItem key={m} value={String(i)}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={yearFilter} onValueChange={(v) => { setYearFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 w-[110px]"><SelectValue placeholder="All Years" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search claims..."
+                placeholder="Search or type MHB/MLP/MSH/MUM..."
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="pl-9 w-[220px] h-9"
+                className="pl-9 w-[260px] h-9"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:bg-muted rounded-full p-0.5 transition-colors">
@@ -404,11 +496,11 @@ const DamageClaims = () => {
             <Button size="sm" variant="outline" onClick={handleExportPDF} className="h-9 gap-1.5">
               <FileDown className="h-4 w-4" /> Save PDF
             </Button>
+            <Button size="sm" variant="outline" onClick={handleExportExcel} className="h-9 gap-1.5">
+              <FileSpreadsheet className="h-4 w-4" /> Export Excel
+            </Button>
             {canUpload && (
               <>
-                <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-9 gap-1.5">
-                  <Upload className="h-4 w-4" /> Import
-                </Button>
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
                 <Button size="sm" onClick={handleAdd} className="h-9 gap-1.5">
                   <Plus className="h-4 w-4" /> Add Claim
@@ -420,7 +512,7 @@ const DamageClaims = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-2">
             <ClipboardList className="h-4 w-4 text-primary" />
@@ -428,24 +520,10 @@ const DamageClaims = () => {
           </div>
           <p className="text-2xl font-bold">{filtered.length}</p>
         </div>
-        {[
-          { label: 'MHB', value: totals.cat_mhb, color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'MLP', value: totals.cat_mlp, color: 'text-violet-600 dark:text-violet-400' },
-          { label: 'MSH', value: totals.cat_msh, color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'MUM', value: totals.cat_mum, color: 'text-orange-600 dark:text-orange-400' },
-        ].map(item => (
-          <div key={item.label} className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{item.label}</span>
-            </div>
-            <p className={cn("text-2xl font-bold", item.color)}>{item.value || 0}</p>
-          </div>
-        ))}
         <div className="rounded-xl border bg-primary/5 p-4 shadow-sm hover:shadow-md transition-shadow border-primary/20">
           <div className="flex items-center gap-2 mb-2">
             <FileWarning className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium text-primary uppercase tracking-wider">Total</span>
+            <span className="text-xs font-medium text-primary uppercase tracking-wider">Quantity</span>
           </div>
           <p className="text-2xl font-bold text-primary">{totals.total}</p>
         </div>
@@ -566,9 +644,7 @@ const DamageClaims = () => {
                   <tr className="bg-muted/60 font-bold border-t-2 border-primary/20 sticky bottom-0">
                     <td className="px-4 py-3 text-sm uppercase tracking-wider">Grand Total</td>
                     <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3 text-center border-l border-border/30 text-primary">
-                      {(totals.cat_mhb + totals.cat_mlp + totals.cat_msh + totals.cat_mum) || ''}
-                    </td>
+                    <td className="px-4 py-3 border-l border-border/30"></td>
                     <td className="px-4 py-3 text-center text-primary bg-primary/10 border-l border-border/30 text-base">{totals.total}</td>
                     <td className="px-4 py-3 border-l border-border/30"></td>
                     <td className="px-4 py-3"></td>
@@ -638,16 +714,6 @@ const DamageClaims = () => {
                 <div><Label className="text-xs">SSPOA No.</Label><Input value={formData.sspoa_no || ''} onChange={e => handleFormChange('sspoa_no', e.target.value)} className="mt-1" /></div>
               </div>
             </div>
-            {/* SSPOA Numbers */}
-            <div>
-              <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">SSPOA Numbers</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div><Label className="text-xs">MHB</Label><Input value={formData.sspoa_mhb || ''} onChange={e => handleFormChange('sspoa_mhb', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">MLP</Label><Input value={formData.sspoa_mlp || ''} onChange={e => handleFormChange('sspoa_mlp', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">MSH</Label><Input value={formData.sspoa_msh || ''} onChange={e => handleFormChange('sspoa_msh', e.target.value)} className="mt-1" /></div>
-                <div><Label className="text-xs">MUM</Label><Input value={formData.sspoa_mum || ''} onChange={e => handleFormChange('sspoa_mum', e.target.value)} className="mt-1" /></div>
-              </div>
-            </div>
             {/* Category */}
             <div>
               <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-3">Category Quantities</h3>
@@ -665,20 +731,6 @@ const DamageClaims = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-xs">Reason</Label><Input value={formData.damage || ''} onChange={e => handleFormChange('damage', e.target.value)} className="mt-1" /></div>
                 <div><Label className="text-xs">Status</Label><Input value={formData.status || ''} onChange={e => handleFormChange('status', e.target.value)} className="mt-1" /></div>
-                <div>
-                  <Label className="text-xs">Date Sent (SM Head Office)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full mt-1 justify-start text-left font-normal h-9 text-sm", !formData.date_sent && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_sent || <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
-                      <Calendar mode="single" selected={formData.date_sent ? new Date(formData.date_sent) : undefined} onSelect={(date) => handleFormChange('date_sent', date ? format(date, 'yyyy-MM-dd') : '')} initialFocus className="p-3 pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
                 <div><Label className="text-xs">Box (qty)</Label><Input type="number" value={formData.box_qty || ''} onChange={e => handleFormChange('box_qty', Number(e.target.value))} className="mt-1" /></div>
                 <div><Label className="text-xs">Remarks</Label><Input value={formData.remarks || ''} onChange={e => handleFormChange('remarks', e.target.value)} className="mt-1" /></div>
                 <div>
@@ -709,7 +761,6 @@ const DamageClaims = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div><Label className="text-xs">Remarks 2</Label><Input value={formData.remarks2 || ''} onChange={e => handleFormChange('remarks2', e.target.value)} className="mt-1" /></div>
               </div>
             </div>
           </div>
