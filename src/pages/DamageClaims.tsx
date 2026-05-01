@@ -644,9 +644,7 @@ const DamageClaims = () => {
                   <tr className="bg-muted/60 font-bold border-t-2 border-primary/20 sticky bottom-0">
                     <td className="px-4 py-3 text-sm uppercase tracking-wider">Grand Total</td>
                     <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3 text-center border-l border-border/30 text-primary">
-                      {(totals.cat_mhb + totals.cat_mlp + totals.cat_msh + totals.cat_mum) || ''}
-                    </td>
+                    <td className="px-4 py-3 border-l border-border/30"></td>
                     <td className="px-4 py-3 text-center text-primary bg-primary/10 border-l border-border/30 text-base">{totals.total}</td>
                     <td className="px-4 py-3 border-l border-border/30"></td>
                     <td className="px-4 py-3"></td>
