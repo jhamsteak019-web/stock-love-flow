@@ -461,13 +461,31 @@ const DamageClaims = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <Select value={monthFilter} onValueChange={(v) => { setMonthFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="All Months" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                  <SelectItem key={m} value={String(i)}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={yearFilter} onValueChange={(v) => { setYearFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 w-[110px]"><SelectValue placeholder="All Years" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search claims..."
+                placeholder="Search or type MHB/MLP/MSH/MUM..."
                 value={searchQuery}
                 onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="pl-9 w-[220px] h-9"
+                className="pl-9 w-[260px] h-9"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:bg-muted rounded-full p-0.5 transition-colors">
@@ -478,11 +496,11 @@ const DamageClaims = () => {
             <Button size="sm" variant="outline" onClick={handleExportPDF} className="h-9 gap-1.5">
               <FileDown className="h-4 w-4" /> Save PDF
             </Button>
+            <Button size="sm" variant="outline" onClick={handleExportExcel} className="h-9 gap-1.5">
+              <FileSpreadsheet className="h-4 w-4" /> Export Excel
+            </Button>
             {canUpload && (
               <>
-                <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-9 gap-1.5">
-                  <Upload className="h-4 w-4" /> Import
-                </Button>
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
                 <Button size="sm" onClick={handleAdd} className="h-9 gap-1.5">
                   <Plus className="h-4 w-4" /> Add Claim
