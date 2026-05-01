@@ -53,6 +53,19 @@ const Dashboard = () => {
   const savedFilter = getSavedFilter();
   const [selectedMonth, setSelectedMonth] = useState<number>(savedFilter.month);
   const [selectedYear, setSelectedYear] = useState<number>(savedFilter.year);
+
+  // Pagination state for the three list sections (5 per page)
+  const PAGE_SIZE = 5;
+  const [completionPage, setCompletionPage] = useState(1);
+  const [branchStatusPage, setBranchStatusPage] = useState(1);
+  const [topStoresPage, setTopStoresPage] = useState(1);
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setCompletionPage(1);
+    setBranchStatusPage(1);
+    setTopStoresPage(1);
+  }, [selectedMonth, selectedYear, selectedBranch?.id]);
   
   // Persist filter to localStorage when it changes
   useEffect(() => {
