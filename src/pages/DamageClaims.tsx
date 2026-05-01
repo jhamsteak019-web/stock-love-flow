@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, Plus, Upload, Search, X, Trash2, Pencil, ChevronLeft, ChevronRight, FileWarning, Package, Calendar as CalendarIcon, ClipboardList, FileDown } from 'lucide-react';
+import { AlertTriangle, Plus, Upload, Search, X, Trash2, Pencil, ChevronLeft, ChevronRight, FileWarning, Package, Calendar as CalendarIcon, ClipboardList, FileDown, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parse } from 'date-fns';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
+import { exportToExcel } from '@/lib/excelExport';
 
 interface DamageClaim {
   id: string;
@@ -93,6 +95,8 @@ const DamageClaims = () => {
   const [formData, setFormData] = useState<Partial<DamageClaim>>(emptyForm());
   const [importPreview, setImportPreview] = useState<Partial<DamageClaim>[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [yearFilter, setYearFilter] = useState<string>('all');
 
   const isAdmin = userRole === 'admin';
   const canUpload = ['admin', 'staff', 'encoder', 'assistant'].includes(userRole || '');
@@ -117,16 +121,49 @@ const DamageClaims = () => {
   });
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return claims;
-    const q = searchQuery.toLowerCase();
-    return claims.filter(c =>
+    let list = claims;
+    // Month/Year filter based on date_of_backload OR date_of_received
+    if (monthFilter !== 'all' || yearFilter !== 'all') {
+      list = list.filter(c => {
+        const dates = [c.date_of_backload, c.date_of_received].filter(Boolean) as string[];
+        if (dates.length === 0) return false;
+        return dates.some(ds => {
+          const d = new Date(ds);
+          if (isNaN(d.getTime())) return false;
+          const monthOk = monthFilter === 'all' || d.getMonth() === Number(monthFilter);
+          const yearOk = yearFilter === 'all' || d.getFullYear() === Number(yearFilter);
+          return monthOk && yearOk;
+        });
+      });
+    }
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    // Category quick-filter: MHB, MLP, MSH, MUM
+    const catKey = ({ mhb: 'cat_mhb', mlp: 'cat_mlp', msh: 'cat_msh', mum: 'cat_mum' } as Record<string, keyof DamageClaim>)[q];
+    if (catKey) {
+      return list.filter(c => (Number(c[catKey]) || 0) > 0);
+    }
+    return list.filter(c =>
       c.branch_name.toLowerCase().includes(q) ||
       c.sspoa_no?.toLowerCase().includes(q) ||
       c.damage?.toLowerCase().includes(q) ||
       c.status?.toLowerCase().includes(q) ||
       c.remarks?.toLowerCase().includes(q)
     );
-  }, [claims, searchQuery]);
+  }, [claims, searchQuery, monthFilter, yearFilter]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    claims.forEach(c => {
+      [c.date_of_backload, c.date_of_received].forEach(ds => {
+        if (ds) {
+          const d = new Date(ds);
+          if (!isNaN(d.getTime())) years.add(d.getFullYear());
+        }
+      });
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [claims]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -226,35 +263,29 @@ const DamageClaims = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy hh:mm a')}  |  Total Records: ${filtered.length}`, pageWidth / 2, 21, { align: 'center' });
 
-    const headers = [['Branch', 'SSPOA No.', 'S-MHB', 'S-MLP', 'S-MSH', 'S-MUM', 'MHB', 'MLP', 'MSH', 'MUM', 'Total', 'Damage', 'Date Sent', 'Status', 'Remarks', 'Box Qty', 'Backload', 'Received', 'Remarks 2']];
+    const headers = [['Branch', 'SSPOA No.', 'MHB', 'MLP', 'MSH', 'MUM', 'Total', 'Damage', 'Status', 'Remarks', 'Box Qty', 'Backload', 'Received']];
 
     const body = filtered.map(c => [
       c.branch_name || '',
       c.sspoa_no || '',
-      c.sspoa_mhb || '',
-      c.sspoa_mlp || '',
-      c.sspoa_msh || '',
-      c.sspoa_mum || '',
       c.cat_mhb || '',
       c.cat_mlp || '',
       c.cat_msh || '',
       c.cat_mum || '',
       c.total || 0,
       c.damage || '',
-      c.date_sent || '',
       c.status || '',
       c.remarks || '',
       c.box_qty || '',
       c.date_of_backload || '',
       c.date_of_received || '',
-      c.remarks2 || '',
     ]);
 
     // Grand total row
     body.push([
-      'GRAND TOTAL', '', '', '', '', '',
+      'GRAND TOTAL', '',
       totals.cat_mhb || 0, totals.cat_mlp || 0, totals.cat_msh || 0, totals.cat_mum || 0,
-      totals.total || 0, '', '', '', '', totals.box_qty || 0, '', '', ''
+      totals.total || 0, '', '', '', totals.box_qty || 0, '', ''
     ]);
 
     autoTable(doc, {
@@ -266,7 +297,7 @@ const DamageClaims = () => {
       headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
       columnStyles: {
         0: { cellWidth: 22 },
-        10: { fontStyle: 'bold', halign: 'center' },
+        6: { fontStyle: 'bold', halign: 'center' },
       },
       didParseCell: (data) => {
         // Style grand total row
@@ -275,10 +306,10 @@ const DamageClaims = () => {
           data.cell.styles.fillColor = [240, 240, 255];
         }
         // Center number columns
-        if (data.column.index >= 2 && data.column.index <= 10) {
+        if (data.column.index >= 2 && data.column.index <= 6) {
           data.cell.styles.halign = 'center';
         }
-        if (data.column.index === 15) {
+        if (data.column.index === 10) {
           data.cell.styles.halign = 'center';
         }
       },
@@ -287,6 +318,49 @@ const DamageClaims = () => {
 
     doc.save(`Damage_Claims_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     toast({ title: 'PDF Downloaded', description: 'Damage Claims report saved as PDF' });
+  };
+
+  const handleExportExcel = async () => {
+    const data = filtered.map(c => ({
+      branch_name: c.branch_name || '',
+      sspoa_no: c.sspoa_no || '',
+      cat_mhb: c.cat_mhb || 0,
+      cat_mlp: c.cat_mlp || 0,
+      cat_msh: c.cat_msh || 0,
+      cat_mum: c.cat_mum || 0,
+      total: c.total || 0,
+      damage: c.damage || '',
+      status: c.status || '',
+      remarks: c.remarks || '',
+      box_qty: c.box_qty || 0,
+      date_of_backload: c.date_of_backload || '',
+      date_of_received: c.date_of_received || '',
+    }));
+    await exportToExcel({
+      title: 'Damage Claims Report',
+      subtitle: `Generated: ${format(new Date(), 'MMM dd, yyyy hh:mm a')} | Total Records: ${filtered.length}`,
+      filename: `Damage_Claims_${format(new Date(), 'yyyy-MM-dd')}`,
+      headerColor: '3B82F6',
+      columns: [
+        { header: 'Branch', key: 'branch_name', width: 22 },
+        { header: 'SSPOA No.', key: 'sspoa_no', width: 14 },
+        { header: 'MHB', key: 'cat_mhb', width: 8 },
+        { header: 'MLP', key: 'cat_mlp', width: 8 },
+        { header: 'MSH', key: 'cat_msh', width: 8 },
+        { header: 'MUM', key: 'cat_mum', width: 8 },
+        { header: 'Total', key: 'total', width: 10 },
+        { header: 'Damage', key: 'damage', width: 14 },
+        { header: 'Status', key: 'status', width: 14 },
+        { header: 'Remarks', key: 'remarks', width: 22 },
+        { header: 'Box Qty', key: 'box_qty', width: 10 },
+        { header: 'Backload', key: 'date_of_backload', width: 14 },
+        { header: 'Received', key: 'date_of_received', width: 14 },
+      ],
+      data,
+      showTotals: true,
+      totalColumns: ['cat_mhb', 'cat_mlp', 'cat_msh', 'cat_mum', 'total', 'box_qty'],
+    });
+    toast({ title: 'Excel Downloaded', description: 'Damage Claims report saved as Excel' });
   };
 
   const handleAdd = () => {
