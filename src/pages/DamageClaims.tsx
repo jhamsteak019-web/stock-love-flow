@@ -512,7 +512,7 @@ const DamageClaims = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-2">
             <ClipboardList className="h-4 w-4 text-primary" />
@@ -520,24 +520,10 @@ const DamageClaims = () => {
           </div>
           <p className="text-2xl font-bold">{filtered.length}</p>
         </div>
-        {[
-          { label: 'MHB', value: totals.cat_mhb, color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'MLP', value: totals.cat_mlp, color: 'text-violet-600 dark:text-violet-400' },
-          { label: 'MSH', value: totals.cat_msh, color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'MUM', value: totals.cat_mum, color: 'text-orange-600 dark:text-orange-400' },
-        ].map(item => (
-          <div key={item.label} className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{item.label}</span>
-            </div>
-            <p className={cn("text-2xl font-bold", item.color)}>{item.value || 0}</p>
-          </div>
-        ))}
         <div className="rounded-xl border bg-primary/5 p-4 shadow-sm hover:shadow-md transition-shadow border-primary/20">
           <div className="flex items-center gap-2 mb-2">
             <FileWarning className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium text-primary uppercase tracking-wider">Total</span>
+            <span className="text-xs font-medium text-primary uppercase tracking-wider">Quantity</span>
           </div>
           <p className="text-2xl font-bold text-primary">{totals.total}</p>
         </div>
