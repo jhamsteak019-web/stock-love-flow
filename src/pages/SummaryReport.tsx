@@ -37,12 +37,14 @@ const SummaryReport = () => {
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
+  const [remarksFilter, setRemarksFilter] = useState<'all' | 'ro' | 'new'>('all');
 
   // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
   const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
     month: parseInt(selectedMonth),
     year: parseInt(selectedYear),
     branchId: selectedBranch?.id ?? null,
+    allYear: showAllYear,
   });
 
   const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
@@ -402,34 +404,35 @@ const SummaryReport = () => {
 
   // Filter delivered branches by search (branch name or allocation bill)
   const filteredDeliveredByBranch = useMemo(() => {
-    if (!branchSearch.trim()) return deliveredByBranch;
-    const searchLower = branchSearch.toLowerCase();
-    
+    const searchLower = branchSearch.trim().toLowerCase();
+    const matchesRemarks = (remarks: string | null | undefined) => {
+      if (remarksFilter === 'all') return true;
+      const r = (remarks || '').toLowerCase();
+      if (remarksFilter === 'ro') return r.includes('r.o') || /\bro\b/.test(r) || r.includes('repeat');
+      if (remarksFilter === 'new') return r.includes('new');
+      return true;
+    };
+
     return deliveredByBranch
       .map(branch => {
-        // Check if branch name matches
-        const branchMatches = branch.branch.toLowerCase().includes(searchLower);
-        
-        // Check if any allocation bill matches
-        const filteredItems = branch.items.filter(item => 
-          item.allocation_bill?.toLowerCase().includes(searchLower)
-        );
-        
-        // If branch name matches, return all items; if not, return only matching items
-        if (branchMatches) {
-          return branch;
-        } else if (filteredItems.length > 0) {
-          return {
-            ...branch,
-            items: filteredItems,
-            totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
-            totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
-          };
-        }
-        return null;
+        const branchMatches = !searchLower || branch.branch.toLowerCase().includes(searchLower);
+        const filteredItems = branch.items.filter(item => {
+          const matchesSearch =
+            !searchLower ||
+            branchMatches ||
+            item.allocation_bill?.toLowerCase().includes(searchLower);
+          return matchesSearch && matchesRemarks(item.remarks);
+        });
+        if (filteredItems.length === 0) return null;
+        return {
+          ...branch,
+          items: filteredItems,
+          totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
+          totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
+        };
       })
       .filter((branch): branch is NonNullable<typeof branch> => branch !== null);
-  }, [deliveredByBranch, branchSearch]);
+  }, [deliveredByBranch, branchSearch, remarksFilter]);
 
   // Category breakdown per store (only delivered items = items received)
   const categoryByStore = useMemo(() => {
@@ -1518,6 +1521,30 @@ const SummaryReport = () => {
                     onChange={(e) => setBranchSearch(e.target.value)}
                     className="pl-9"
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Filter:</span>
+                  <Button
+                    variant={remarksFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRemarksFilter('all')}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={remarksFilter === 'ro' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRemarksFilter('ro')}
+                  >
+                    R.O
+                  </Button>
+                  <Button
+                    variant={remarksFilter === 'new' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRemarksFilter('new')}
+                  >
+                    NEW
+                  </Button>
                 </div>
               </div>
             </CardHeader>

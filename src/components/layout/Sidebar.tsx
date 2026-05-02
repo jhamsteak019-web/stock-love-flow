@@ -145,12 +145,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     //   roles: ['admin', 'uploader']
     // },
     { 
-      to: '/notes', 
-      icon: StickyNote, 
-      label: 'Reminder',
-      roles: ['admin', 'staff', 'uploader', 'assistant']
-    },
-    { 
       to: '/task-calendar', 
       icon: CalendarDays, 
       label: 'Task Calendar',
@@ -173,24 +167,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: Container, 
       label: 'Container',
       roles: ['admin', 'uploader', 'assistant']
-    },
-    { 
-      to: '/repeat-order', 
-      icon: RefreshCcw, 
-      label: 'Repeat Order',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'assistant']
-    },
-    { 
-      to: '/attendance', 
-      icon: ClipboardCheck, 
-      label: 'Attendance',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
-    },
-    { 
-      to: '/resume-to-work', 
-      icon: UserCheck, 
-      label: 'Resume to Work',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
     },
     { 
       to: '/manpower', 

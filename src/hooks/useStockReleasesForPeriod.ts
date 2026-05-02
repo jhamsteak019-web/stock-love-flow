@@ -8,6 +8,7 @@ type Params = {
   month: number; // 0-indexed
   year: number;
   branchId?: string | null;
+  allYear?: boolean;
 };
 
 const PAGE_SIZE = 1000;
@@ -18,6 +19,12 @@ const getUtcMonthRange = (month: number, year: number) => {
   return { start, end };
 };
 
+const getUtcYearRange = (year: number) => {
+  const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)).toISOString();
+  const end = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0)).toISOString();
+  return { start, end };
+};
+
 /**
  * Fetches ALL stock releases for a specific month/year + optional branch.
  *
@@ -25,7 +32,7 @@ const getUtcMonthRange = (month: number, year: number) => {
  * - We must paginate because PostgREST limits results (default 1,000).
  * - We mirror Dashboard logic: use set_date when present, otherwise date_released.
  */
-export const useStockReleasesForPeriod = ({ month, year, branchId }: Params) => {
+export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = false }: Params) => {
   const [releases, setReleases] = useState<StockRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -35,7 +42,9 @@ export const useStockReleasesForPeriod = ({ month, year, branchId }: Params) => 
 
     const run = async () => {
       setLoading(true);
-      const { start, end } = getUtcMonthRange(month, year);
+      const { start, end } = allYear
+        ? getUtcYearRange(year)
+        : getUtcMonthRange(month, year);
 
       const all: StockRelease[] = [];
       let from = 0;
@@ -94,7 +103,7 @@ export const useStockReleasesForPeriod = ({ month, year, branchId }: Params) => 
     return () => {
       cancelled = true;
     };
-  }, [month, year, branchId, toast]);
+  }, [month, year, branchId, allYear, toast]);
 
   return { releases, loading };
 };
