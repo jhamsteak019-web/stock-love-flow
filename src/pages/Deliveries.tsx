@@ -208,9 +208,7 @@ const Deliveries = () => {
     }
     
     try {
-      for (const releaseId of group.releaseIds) {
-        await updateDeliveryStatus(releaseId, status);
-      }
+      await bulkUpdateReleases(group.releaseIds, { delivery_status: status });
       toast({ title: 'Success', description: 'Delivery status updated' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
