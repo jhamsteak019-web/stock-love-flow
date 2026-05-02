@@ -1522,6 +1522,30 @@ const SummaryReport = () => {
                     className="pl-9"
                   />
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Filter:</span>
+                  <Button
+                    variant={remarksFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRemarksFilter('all')}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={remarksFilter === 'ro' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRemarksFilter('ro')}
+                  >
+                    R.O
+                  </Button>
+                  <Button
+                    variant={remarksFilter === 'new' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRemarksFilter('new')}
+                  >
+                    NEW
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
