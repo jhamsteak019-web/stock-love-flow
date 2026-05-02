@@ -306,6 +306,22 @@ export const useInventory = () => {
     return data;
   };
 
+  // Fast bulk update: one network call for all release IDs + optimistic local patch (no refetch)
+  const bulkUpdateReleases = async (
+    releaseIds: string[],
+    updates: Record<string, unknown>,
+  ) => {
+    if (releaseIds.length === 0) return;
+    const payload = { ...updates, updated_at: new Date().toISOString() };
+    const { error } = await supabase
+      .from('stock_releases')
+      .update(payload)
+      .in('id', releaseIds);
+    if (error) throw error;
+    const idSet = new Set(releaseIds);
+    setReleases(prev => prev.map(r => (idSet.has(r.id) ? { ...r, ...payload } as StockRelease : r)));
+  };
+
   const getStats = (): DashboardStats => {
     const totalItems = items.length;
     const totalStock = items.reduce((sum, item) => sum + item.available_stock, 0);
@@ -450,6 +466,7 @@ export const useInventory = () => {
     releaseStock,
     releaseStockBatch,
     updateDeliveryStatus,
+    bulkUpdateReleases,
     deleteRelease,
     deleteReleaseBatch,
     deleteAllReleases,
