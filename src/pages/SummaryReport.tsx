@@ -404,34 +404,35 @@ const SummaryReport = () => {
 
   // Filter delivered branches by search (branch name or allocation bill)
   const filteredDeliveredByBranch = useMemo(() => {
-    if (!branchSearch.trim()) return deliveredByBranch;
-    const searchLower = branchSearch.toLowerCase();
-    
+    const searchLower = branchSearch.trim().toLowerCase();
+    const matchesRemarks = (remarks: string | null | undefined) => {
+      if (remarksFilter === 'all') return true;
+      const r = (remarks || '').toLowerCase();
+      if (remarksFilter === 'ro') return r.includes('r.o') || /\bro\b/.test(r) || r.includes('repeat');
+      if (remarksFilter === 'new') return r.includes('new');
+      return true;
+    };
+
     return deliveredByBranch
       .map(branch => {
-        // Check if branch name matches
-        const branchMatches = branch.branch.toLowerCase().includes(searchLower);
-        
-        // Check if any allocation bill matches
-        const filteredItems = branch.items.filter(item => 
-          item.allocation_bill?.toLowerCase().includes(searchLower)
-        );
-        
-        // If branch name matches, return all items; if not, return only matching items
-        if (branchMatches) {
-          return branch;
-        } else if (filteredItems.length > 0) {
-          return {
-            ...branch,
-            items: filteredItems,
-            totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
-            totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
-          };
-        }
-        return null;
+        const branchMatches = !searchLower || branch.branch.toLowerCase().includes(searchLower);
+        const filteredItems = branch.items.filter(item => {
+          const matchesSearch =
+            !searchLower ||
+            branchMatches ||
+            item.allocation_bill?.toLowerCase().includes(searchLower);
+          return matchesSearch && matchesRemarks(item.remarks);
+        });
+        if (filteredItems.length === 0) return null;
+        return {
+          ...branch,
+          items: filteredItems,
+          totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
+          totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
+        };
       })
       .filter((branch): branch is NonNullable<typeof branch> => branch !== null);
-  }, [deliveredByBranch, branchSearch]);
+  }, [deliveredByBranch, branchSearch, remarksFilter]);
 
   // Category breakdown per store (only delivered items = items received)
   const categoryByStore = useMemo(() => {
