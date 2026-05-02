@@ -37,12 +37,14 @@ const SummaryReport = () => {
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
+  const [remarksFilter, setRemarksFilter] = useState<'all' | 'ro' | 'new'>('all');
 
   // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
   const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
     month: parseInt(selectedMonth),
     year: parseInt(selectedYear),
     branchId: selectedBranch?.id ?? null,
+    allYear: showAllYear,
   });
 
   const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
