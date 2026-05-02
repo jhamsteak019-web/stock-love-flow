@@ -466,6 +466,7 @@ export const useInventory = () => {
     releaseStock,
     releaseStockBatch,
     updateDeliveryStatus,
+    bulkUpdateReleases,
     deleteRelease,
     deleteReleaseBatch,
     deleteAllReleases,
