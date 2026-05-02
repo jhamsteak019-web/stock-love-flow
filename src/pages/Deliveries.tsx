@@ -63,7 +63,7 @@ interface GroupedRelease {
 }
 
 const Deliveries = () => {
-  const { releases, loading, updateDeliveryStatus, fetchReleases } = useInventory();
+  const { releases, loading, updateDeliveryStatus, fetchReleases, bulkUpdateReleases } = useInventory();
   const { toast } = useToast();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -217,16 +217,10 @@ const Deliveries = () => {
 
   const handleDeliveredWithDate = async (group: GroupedRelease, date: Date) => {
     try {
-      for (const releaseId of group.releaseIds) {
-        await supabase
-          .from('stock_releases')
-          .update({ 
-            delivery_status: 'delivered' as DeliveryStatus,
-            date_delivered: date.toISOString()
-          })
-          .eq('id', releaseId);
-      }
-      await fetchReleases();
+      await bulkUpdateReleases(group.releaseIds, {
+        delivery_status: 'delivered' as DeliveryStatus,
+        date_delivered: date.toISOString(),
+      });
       setDeliveredDateGroup(null);
       toast({ title: 'Success', description: `Marked as delivered on ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
@@ -236,13 +230,7 @@ const Deliveries = () => {
 
   const handleWaybillChange = async (group: GroupedRelease, waybillNo: string) => {
     try {
-      for (const releaseId of group.releaseIds) {
-        await supabase
-          .from('stock_releases')
-          .update({ waybill_no: waybillNo })
-          .eq('id', releaseId);
-      }
-      await fetchReleases();
+      await bulkUpdateReleases(group.releaseIds, { waybill_no: waybillNo });
       toast({ title: 'Success', description: 'Waybill updated' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update waybill', variant: 'destructive' });
@@ -251,13 +239,7 @@ const Deliveries = () => {
 
   const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
     try {
-      for (const releaseId of group.releaseIds) {
-        await supabase
-          .from('stock_releases')
-          .update({ notes })
-          .eq('id', releaseId);
-      }
-      await fetchReleases();
+      await bulkUpdateReleases(group.releaseIds, { notes });
       toast({ title: 'Success', description: 'Remarks updated' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update remarks', variant: 'destructive' });
@@ -266,13 +248,7 @@ const Deliveries = () => {
 
   const handleSetDateChange = async (group: GroupedRelease, date: Date) => {
     try {
-      for (const releaseId of group.releaseIds) {
-        await supabase
-          .from('stock_releases')
-          .update({ set_date: date.toISOString() })
-          .eq('id', releaseId);
-      }
-      await fetchReleases();
+      await bulkUpdateReleases(group.releaseIds, { set_date: date.toISOString() });
       toast({ title: 'Success', description: `Delivery date set to ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update delivery date', variant: 'destructive' });
