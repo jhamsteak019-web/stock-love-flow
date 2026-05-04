@@ -219,8 +219,13 @@ const History = () => {
       }
     });
     
-    // Sort by set_date (Date Out) ascending - earlier dates first
+    // Sort: pending review (no action_status) first, then by set_date ascending.
     return Object.values(groups).sort((a, b) => {
+      const aPending = !a.action_status;
+      const bPending = !b.action_status;
+      if (aPending && !bPending) return -1;
+      if (!aPending && bPending) return 1;
+
       const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
       const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
       
@@ -243,17 +248,22 @@ const History = () => {
   // Filter grouped releases based on search query, date range, month/year (or all year), and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
+      // Pending review (no action_status yet) ALWAYS shows so user can confirm Yes/No.
+      const isPendingReview = !group.action_status;
+
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
       const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
       
-      // Year filter always applies
-      if (dateToFilter.getFullYear() !== selectedYear) {
-        return false;
-      }
-      
-      // Month filter only applies if not showing all year
-      if (!showAllYear && dateToFilter.getMonth() !== selectedMonth) {
-        return false;
+      if (!isPendingReview) {
+        // Year filter always applies
+        if (dateToFilter.getFullYear() !== selectedYear) {
+          return false;
+        }
+        
+        // Month filter only applies if not showing all year
+        if (!showAllYear && dateToFilter.getMonth() !== selectedMonth) {
+          return false;
+        }
       }
 
       // Date range filter

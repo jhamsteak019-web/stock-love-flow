@@ -66,6 +66,7 @@ const ReleaseStock = () => {
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef2 = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
   const isColumnVisible = (key: string) => {
@@ -73,20 +74,6 @@ const ReleaseStock = () => {
     return col?.visible ?? true;
   };
   
-  const [releaseItems, setReleaseItems] = useState<ReleaseItem[]>([
-    { id: crypto.randomUUID(), itemId: '', boxes: 1 }
-  ]);
-  const [allocationBill, setAllocationBill] = useState('');
-  const [destination, setDestination] = useState('');
-  const [category, setCategory] = useState('');
-  const [boxes, setBoxes] = useState<number>(0);
-  const [qtyItems, setQtyItems] = useState<number>(0);
-  const [remarks, setRemarks] = useState('');
-  const [amount, setAmount] = useState<number>(0);
-  const [billDate, setBillDate] = useState<Date | undefined>(undefined);
-  const [setDate, setSetDate] = useState<Date | undefined>(undefined);
-  const [courier, setCourier] = useState('');
-  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
   
@@ -120,128 +107,6 @@ const ReleaseStock = () => {
       localStorage.removeItem('releaseStock_parsedItems');
     }
   }, [parsedItems]);
-
-  const addReleaseItem = () => {
-    setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
-  };
-
-  const removeReleaseItem = (id: string) => {
-    if (releaseItems.length > 1) {
-      setReleaseItems(releaseItems.filter(item => item.id !== id));
-    }
-  };
-
-  const updateReleaseItem = (id: string, field: 'itemId' | 'boxes', value: string | number) => {
-    setReleaseItems(releaseItems.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-    
-    // Auto-fill remarks and destination when selecting an item
-    if (field === 'itemId' && typeof value === 'string') {
-      const selectedItem = items.find(i => i.id === value);
-      if (selectedItem?.description) {
-        setRemarks(selectedItem.description);
-      }
-      if (selectedItem?.branch) {
-        setDestination(selectedItem.branch);
-      }
-    }
-  };
-
-  const getAvailableItems = (currentItemId: string) => {
-    const selectedIds = releaseItems.map(r => r.itemId).filter(id => id && id !== currentItemId);
-    return items.filter(item => item.available_stock > 0 && !selectedIds.includes(item.id));
-  };
-
-  const getItemData = (itemId: string) => items.find(i => i.id === itemId);
-
-  // Check if allocation bill already exists
-  const isDuplicateAllocationBill = (bill: string) => {
-    if (!bill.trim()) return false;
-    return releases.some(r => r.allocation_bill?.toLowerCase().trim() === bill.toLowerCase().trim());
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isReleasingRef.current) return;
-    
-    // Validate required fields
-    if (!allocationBill.trim() || !destination.trim()) {
-      toast({ title: 'Error', description: 'Please enter allocation bill and destination', variant: 'destructive' });
-      return;
-    }
-
-    // Fresh DB check for duplicate allocation bill
-    const { data: existing } = await supabase
-      .from('stock_releases')
-      .select('id')
-      .is('deleted_at', null)
-      .ilike('allocation_bill', allocationBill.trim())
-      .limit(1);
-
-    if (existing && existing.length > 0) {
-      toast({ title: 'Warning', description: `Allocation bill "${allocationBill}" already exists.`, variant: 'destructive' });
-      return;
-    }
-
-    if (boxes <= 0) {
-      toast({ title: 'Error', description: 'Please enter number of boxes', variant: 'destructive' });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Create a manual release entry (no inventory item linked)
-      await releaseStockBatch(
-        [{ itemId: '', boxes: boxes }],
-        destination,
-        user!.id,
-        remarks || undefined,
-        courier || undefined,
-        allocationBill || undefined,
-        category || undefined,
-        undefined, // waybillNo removed
-        setDate?.toISOString() || undefined,
-        qtyItems || boxes,
-        selectedBranch?.id || undefined,
-        amount || undefined
-      );
-      
-      // Log activity
-      await logActivity({
-        actionType: 'create',
-        module: 'stock_releases',
-        description: `Created delivery: ${allocationBill || 'Manual Entry'} to ${destination}`,
-        metadata: {
-          allocation_bill: allocationBill,
-          destination,
-          category,
-          boxes,
-          amount,
-          branch: selectedBranch?.name
-        }
-      });
-      
-      toast({ title: 'Success', description: 'Stock released successfully' });
-      
-      // Reset form
-      setAllocationBill('');
-      setDestination('');
-      setCategory('');
-      setBoxes(0);
-      setQtyItems(0);
-      setRemarks('');
-      setAmount(0);
-      setBillDate(undefined);
-      setSetDate(undefined);
-      setCourier('');
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   // Excel Import Functions
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
@@ -673,8 +538,115 @@ const ReleaseStock = () => {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
+  // Second importer: direct-to-History (pending review). Headers:
+  // Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
+  const handleFileUpload2 = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+      if (rows.length === 0) {
+        toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
+        return;
+      }
+      type Parsed = { sheetNo: string; branch: string; productName: string; category: string; description: string; qty: number; price: number };
+      const parsed: Parsed[] = rows.map(row => ({
+        sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet'),
+        branch: findColumnValue(row, 'Branch', 'BRANCH'),
+        productName: findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product'),
+        category: findColumnValue(row, 'Category', 'CATEGORY'),
+        description: findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION'),
+        qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity'),
+        price: findNumericValue(row, 'Price', 'PRICE', 'Amount'),
+      })).filter(p => p.sheetNo || p.branch || p.productName);
+
+      if (parsed.length === 0) {
+        toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
+        return;
+      }
+
+      // Group rows by Sheet No. (allocation bill) so multiple lines under one bill = one batch
+      const groups = new Map<string, Parsed[]>();
+      parsed.forEach(p => {
+        const key = p.sheetNo || `__row_${Math.random()}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(p);
+      });
+
+      let created = 0;
+      for (const [sheetNo, rowsInBill] of groups) {
+        const first = rowsInBill[0];
+        const remarks = rowsInBill.map(r => [r.productName, r.description].filter(Boolean).join(' - ')).filter(Boolean).join(' | ');
+        const totalQty = rowsInBill.reduce((s, r) => s + (r.qty || 0), 0);
+        const totalAmount = rowsInBill.reduce((s, r) => s + (r.price || 0), 0);
+        const batchId = crypto.randomUUID();
+        const { error } = await supabase.from('stock_releases').insert([{
+          item_id: null,
+          boxes_released: 1,
+          destination: first.branch || 'Unknown',
+          released_by: user.id,
+          notes: remarks || null,
+          allocation_bill: sheetNo || null,
+          batch_id: batchId,
+          category: first.category || null,
+          total_qty: totalQty || null,
+          branch_id: selectedBranch?.id || null,
+          amount: totalAmount || null,
+          action_status: null, // PENDING REVIEW -> shows in History with Yes/No
+        }]);
+        if (!error) created++;
+      }
+      await fetchReleases();
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `Imported ${created} pending delivery batch(es) for review`,
+        metadata: { items_count: created, branch: selectedBranch?.name, format: 'sheetno_branch_product' }
+      });
+      toast({ title: 'Imported to History', description: `${created} batch(es) added as pending review. Open History page to confirm.` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef2.current) fileInputRef2.current.value = '';
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Import Excel #2 — Direct to History (pending Yes/No) */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold select-none">Import from Excel (Direct to History)</h2>
+              <p className="text-sm text-muted-foreground select-none">Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price</p>
+            </div>
+          </div>
+          <div>
+            <input
+              ref={fileInputRef2}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileUpload2}
+              className="hidden"
+            />
+            <Button variant="outline" onClick={() => fileInputRef2.current?.click()} disabled={importing}>
+              <Upload className="h-4 w-4 mr-2" />
+              {importing ? 'Importing...' : 'Upload File'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
@@ -980,131 +952,6 @@ const ReleaseStock = () => {
           </div>
         )}
       </div>
-
-      {/* Manual Release Form */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <PackagePlus className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold select-none">OUT WAREHOUSE DELIVERY</h2>
-            <p className="text-sm text-muted-foreground select-none">Manual stock release entry</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* 1. Allocation Bill */}
-          <div className="space-y-2">
-            <Label>Allocation Bill *</Label>
-            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Enter allocation bill number" />
-          </div>
-
-          {/* 2. Destination */}
-          <div className="space-y-2">
-            <Label>Destination *</Label>
-            <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Store / Branch / Customer" />
-          </div>
-
-          {/* 3. Category (Manual Input) */}
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Enter category (e.g. BAGS, WALLET, SHOES)" />
-          </div>
-
-          {/* 4. Boxes */}
-          <div className="space-y-2">
-            <Label>Boxes</Label>
-            <Input 
-              type="number" 
-              min={0}
-              value={boxes || ''} 
-              onChange={(e) => setBoxes(parseInt(e.target.value) || 0)} 
-              placeholder="Enter number of boxes" 
-            />
-          </div>
-
-          {/* 5. Amount */}
-          <div className="space-y-2">
-            <Label>Amount</Label>
-            <Input 
-              type="number" 
-              min={0}
-              step="0.01"
-              value={amount || ''} 
-              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)} 
-              placeholder="Enter amount" 
-            />
-          </div>
-
-          {/* 6. Qty/Items */}
-          <div className="space-y-2">
-            <Label>Qty/Items</Label>
-            <Input 
-              type="number" 
-              min={0}
-              value={qtyItems || ''} 
-              onChange={(e) => setQtyItems(parseInt(e.target.value) || 0)} 
-              placeholder="Enter total quantity of items" 
-            />
-          </div>
-
-          {/* 7. Remarks */}
-          <div className="space-y-2">
-            <Label>Remarks</Label>
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks / reference" />
-          </div>
-
-          {/* 8. Set Date */}
-          <div className="space-y-2">
-            <Label>Set Date (Date Out Warehouse)</Label>
-            <Popover modal={true}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Select date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-50" align="start">
-                <Calendar
-                  mode="single"
-                  selected={setDate}
-                  onSelect={setSetDate}
-                  initialFocus
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Courier (Optional) */}
-          <div className="space-y-2">
-            <Label>Courier (Optional)</Label>
-            <Select value={courier} onValueChange={setCourier}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select courier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AP CARGO">AP CARGO</SelectItem>
-                <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
-                <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
-                <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
-                <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
-                <SelectItem value="RDS DC">RDS DC</SelectItem>
-                <SelectItem value="SC DEC TO SM DC">SC DEC TO SM DC</SelectItem>
-                <SelectItem value="SM DC">SM DC</SelectItem>
-                <SelectItem value="PRIETO">PRIETO</SelectItem>
-                <SelectItem value="DIRECT">DIRECT</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? 'Processing...' : 'Release Stock'}
-          </Button>
-        </form>
-      </div>
-
 
     </div>
   );
