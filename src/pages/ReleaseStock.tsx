@@ -560,8 +560,9 @@ const ReleaseStock = () => {
         toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
         return;
       }
+      // Group rows by Sheet No. so multiple product lines under one bill = one preview row
       type Parsed = { sheetNo: string; branch: string; productName: string; category: string; description: string; qty: number; price: number };
-      const parsed: Parsed[] = rows.map(row => ({
+      const parsedRows: Parsed[] = rows.map(row => ({
         sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet'),
         branch: findColumnValue(row, 'Branch', 'BRANCH'),
         productName: findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product'),
@@ -571,50 +572,45 @@ const ReleaseStock = () => {
         price: findNumericValue(row, 'Price', 'PRICE', 'Amount'),
       })).filter(p => p.sheetNo || p.branch || p.productName);
 
-      if (parsed.length === 0) {
+      if (parsedRows.length === 0) {
         toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
         return;
       }
 
-      // Group rows by Sheet No. (allocation bill) so multiple lines under one bill = one batch
       const groups = new Map<string, Parsed[]>();
-      parsed.forEach(p => {
+      parsedRows.forEach(p => {
         const key = p.sheetNo || `__row_${Math.random()}`;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(p);
       });
 
-      let created = 0;
-      for (const [sheetNo, rowsInBill] of groups) {
+      const idx = Date.now();
+      const newParsed: ParsedReleaseItem[] = Array.from(groups.entries()).map(([sheetNo, rowsInBill], i) => {
         const first = rowsInBill[0];
         const remarks = rowsInBill.map(r => [r.productName, r.description].filter(Boolean).join(' - ')).filter(Boolean).join(' | ');
         const totalQty = rowsInBill.reduce((s, r) => s + (r.qty || 0), 0);
         const totalAmount = rowsInBill.reduce((s, r) => s + (r.price || 0), 0);
-        const batchId = crypto.randomUUID();
-        const { error } = await supabase.from('stock_releases').insert([{
-          item_id: null,
-          boxes_released: 1,
-          destination: first.branch || 'Unknown',
-          released_by: user.id,
-          notes: remarks || null,
-          allocation_bill: sheetNo || null,
-          batch_id: batchId,
-          category: first.category || null,
-          total_qty: totalQty || null,
-          branch_id: selectedBranch?.id || null,
-          amount: totalAmount || null,
-          action_status: null, // PENDING REVIEW -> shows in History with Yes/No
-        }]);
-        if (!error) created++;
-      }
-      await fetchReleases();
-      await logActivity({
-        actionType: 'import',
-        module: 'stock_releases',
-        description: `Imported ${created} pending delivery batch(es) for review`,
-        metadata: { items_count: created, branch: selectedBranch?.name, format: 'sheetno_branch_product' }
+        return {
+          id: `parsed2-${i}-${idx}`,
+          sheetNo: sheetNo.startsWith('__row_') ? '' : sheetNo,
+          deliverTo: first.branch,
+          qtyBoxes: 1,
+          amount: totalAmount,
+          qtyItem: totalQty,
+          category: first.category,
+          remarks,
+          billDate: '',
+          setDate: '',
+          courier: '',
+          matchedItemId: null,
+          matchedItemName: null,
+        };
       });
-      toast({ title: 'Imported to History', description: `${created} batch(es) added as pending review. Open History page to confirm.` });
+
+      setImportMode('history');
+      setParsedItems(prev => [...prev, ...newParsed]);
+      setShowImportPreview(true);
+      toast({ title: 'File Parsed', description: `${newParsed.length} batch(es) ready. Set Courier & Date Out, then click "Send to History".` });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
