@@ -219,8 +219,13 @@ const History = () => {
       }
     });
     
-    // Sort by set_date (Date Out) ascending - earlier dates first
+    // Sort: pending review (no action_status) first, then by set_date ascending.
     return Object.values(groups).sort((a, b) => {
+      const aPending = !a.action_status;
+      const bPending = !b.action_status;
+      if (aPending && !bPending) return -1;
+      if (!aPending && bPending) return 1;
+
       const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
       const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
       
