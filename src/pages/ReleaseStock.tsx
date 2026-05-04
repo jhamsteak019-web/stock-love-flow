@@ -538,8 +538,115 @@ const ReleaseStock = () => {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
+  // Second importer: direct-to-History (pending review). Headers:
+  // Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
+  const handleFileUpload2 = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+      if (rows.length === 0) {
+        toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
+        return;
+      }
+      type Parsed = { sheetNo: string; branch: string; productName: string; category: string; description: string; qty: number; price: number };
+      const parsed: Parsed[] = rows.map(row => ({
+        sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet'),
+        branch: findColumnValue(row, 'Branch', 'BRANCH'),
+        productName: findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product'),
+        category: findColumnValue(row, 'Category', 'CATEGORY'),
+        description: findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION'),
+        qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity'),
+        price: findNumericValue(row, 'Price', 'PRICE', 'Amount'),
+      })).filter(p => p.sheetNo || p.branch || p.productName);
+
+      if (parsed.length === 0) {
+        toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
+        return;
+      }
+
+      // Group rows by Sheet No. (allocation bill) so multiple lines under one bill = one batch
+      const groups = new Map<string, Parsed[]>();
+      parsed.forEach(p => {
+        const key = p.sheetNo || `__row_${Math.random()}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(p);
+      });
+
+      let created = 0;
+      for (const [sheetNo, rowsInBill] of groups) {
+        const first = rowsInBill[0];
+        const remarks = rowsInBill.map(r => [r.productName, r.description].filter(Boolean).join(' - ')).filter(Boolean).join(' | ');
+        const totalQty = rowsInBill.reduce((s, r) => s + (r.qty || 0), 0);
+        const totalAmount = rowsInBill.reduce((s, r) => s + (r.price || 0), 0);
+        const batchId = crypto.randomUUID();
+        const { error } = await supabase.from('stock_releases').insert([{
+          item_id: null,
+          boxes_released: 1,
+          destination: first.branch || 'Unknown',
+          released_by: user.id,
+          notes: remarks || null,
+          allocation_bill: sheetNo || null,
+          batch_id: batchId,
+          category: first.category || null,
+          total_qty: totalQty || null,
+          branch_id: selectedBranch?.id || null,
+          amount: totalAmount || null,
+          action_status: null, // PENDING REVIEW -> shows in History with Yes/No
+        }]);
+        if (!error) created++;
+      }
+      await fetchReleases();
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `Imported ${created} pending delivery batch(es) for review`,
+        metadata: { items_count: created, branch: selectedBranch?.name, format: 'sheetno_branch_product' }
+      });
+      toast({ title: 'Imported to History', description: `${created} batch(es) added as pending review. Open History page to confirm.` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef2.current) fileInputRef2.current.value = '';
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Import Excel #2 — Direct to History (pending Yes/No) */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold select-none">Import from Excel (Direct to History)</h2>
+              <p className="text-sm text-muted-foreground select-none">Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price</p>
+            </div>
+          </div>
+          <div>
+            <input
+              ref={fileInputRef2}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileUpload2}
+              className="hidden"
+            />
+            <Button variant="outline" onClick={() => fileInputRef2.current?.click()} disabled={importing}>
+              <Upload className="h-4 w-4 mr-2" />
+              {importing ? 'Importing...' : 'Upload File'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
