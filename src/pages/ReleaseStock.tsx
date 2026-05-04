@@ -87,6 +87,13 @@ const ReleaseStock = () => {
     const saved = localStorage.getItem('releaseStock_parsedItems');
     return saved ? JSON.parse(saved).length > 0 : false;
   });
+  const [importMode, setImportMode] = useState<'deliveries' | 'history'>(() => {
+    const saved = localStorage.getItem('releaseStock_importMode');
+    return (saved === 'history' ? 'history' : 'deliveries');
+  });
+  useEffect(() => {
+    localStorage.setItem('releaseStock_importMode', importMode);
+  }, [importMode]);
   const [importCourier, setImportCourier] = useState('');
   const [importCategory, setImportCategory] = useState('');
   const [importWaybillNo, setImportWaybillNo] = useState('');
