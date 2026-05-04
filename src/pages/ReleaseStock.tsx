@@ -447,6 +447,56 @@ const ReleaseStock = () => {
     setImportMode('deliveries');
   };
 
+  // Send selected parsed items directly to History as pending Yes/No review
+  const handleSendToHistory = async () => {
+    if (isReleasingRef.current) return;
+    const validItems = parsedItems.filter(p => selectedItems.has(p.id) && p.courier && p.setDate);
+    if (validItems.length === 0) {
+      toast({ title: 'Error', description: 'Select items with Courier and Date Out set.', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    isReleasingRef.current = true;
+    try {
+      const inserts = validItems.map(item => ({
+        item_id: null,
+        boxes_released: item.qtyBoxes || 1,
+        destination: item.deliverTo || 'Unknown',
+        released_by: user!.id,
+        notes: item.remarks || null,
+        allocation_bill: item.sheetNo || null,
+        batch_id: crypto.randomUUID(),
+        category: item.category || null,
+        total_qty: item.qtyItem || null,
+        branch_id: selectedBranch?.id || null,
+        amount: item.amount || null,
+        courier: item.courier || null,
+        set_date: item.setDate || null,
+        action_status: null, // pending review in History
+      }));
+      const { error } = await supabase.from('stock_releases').insert(inserts);
+      if (error) throw error;
+      const releasedIds = new Set(validItems.map(i => i.id));
+      setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
+      setSelectedItems(new Set());
+      if (parsedItems.length - validItems.length === 0) setShowImportPreview(false);
+      await fetchReleases();
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `Sent ${validItems.length} item(s) to History for review`,
+        metadata: { items_count: validItems.length, branch: selectedBranch?.name }
+      });
+      toast({ title: 'Sent to History', description: `${validItems.length} item(s) added as pending review.` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to send to History.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+      isReleasingRef.current = false;
+    }
+  };
+
   // Filter parsed items by sheet no or destination search - use debounced value
   // Also sort checked items to the top
   const filteredParsedItems = useMemo(() => {
