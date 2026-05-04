@@ -444,6 +444,7 @@ const ReleaseStock = () => {
     setSelectedItems(new Set());
     setSheetNoSearch('');
     setCurrentPage(1);
+    setImportMode('deliveries');
   };
 
   // Filter parsed items by sheet no or destination search - use debounced value
