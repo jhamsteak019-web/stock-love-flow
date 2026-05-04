@@ -66,6 +66,7 @@ const ReleaseStock = () => {
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef2 = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
   const isColumnVisible = (key: string) => {
@@ -73,20 +74,6 @@ const ReleaseStock = () => {
     return col?.visible ?? true;
   };
   
-  const [releaseItems, setReleaseItems] = useState<ReleaseItem[]>([
-    { id: crypto.randomUUID(), itemId: '', boxes: 1 }
-  ]);
-  const [allocationBill, setAllocationBill] = useState('');
-  const [destination, setDestination] = useState('');
-  const [category, setCategory] = useState('');
-  const [boxes, setBoxes] = useState<number>(0);
-  const [qtyItems, setQtyItems] = useState<number>(0);
-  const [remarks, setRemarks] = useState('');
-  const [amount, setAmount] = useState<number>(0);
-  const [billDate, setBillDate] = useState<Date | undefined>(undefined);
-  const [setDate, setSetDate] = useState<Date | undefined>(undefined);
-  const [courier, setCourier] = useState('');
-  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
   
