@@ -243,17 +243,22 @@ const History = () => {
   // Filter grouped releases based on search query, date range, month/year (or all year), and status
   const filteredReleases = useMemo(() => {
     return groupedReleases.filter(group => {
+      // Pending review (no action_status yet) ALWAYS shows so user can confirm Yes/No.
+      const isPendingReview = !group.action_status;
+
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
       const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
       
-      // Year filter always applies
-      if (dateToFilter.getFullYear() !== selectedYear) {
-        return false;
-      }
-      
-      // Month filter only applies if not showing all year
-      if (!showAllYear && dateToFilter.getMonth() !== selectedMonth) {
-        return false;
+      if (!isPendingReview) {
+        // Year filter always applies
+        if (dateToFilter.getFullYear() !== selectedYear) {
+          return false;
+        }
+        
+        // Month filter only applies if not showing all year
+        if (!showAllYear && dateToFilter.getMonth() !== selectedMonth) {
+          return false;
+        }
       }
 
       // Date range filter
