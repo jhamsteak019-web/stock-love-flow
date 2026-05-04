@@ -996,11 +996,13 @@ const ReleaseStock = () => {
             
             <div className="flex justify-end pt-2 border-t">
               <Button 
-                onClick={handleConfirmImport}
+                onClick={importMode === 'history' ? handleSendToHistory : handleConfirmImport}
                 disabled={submitting || selectedItems.size === 0}
                 className="min-w-[140px]"
               >
-                {submitting ? 'Releasing...' : `Release ${selectedItems.size} Items`}
+                {submitting
+                  ? (importMode === 'history' ? 'Sending...' : 'Releasing...')
+                  : (importMode === 'history' ? `Send ${selectedItems.size} to History` : `Release ${selectedItems.size} Items`)}
               </Button>
             </div>
           </div>
