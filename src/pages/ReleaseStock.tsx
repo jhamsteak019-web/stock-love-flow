@@ -87,13 +87,6 @@ const ReleaseStock = () => {
     const saved = localStorage.getItem('releaseStock_parsedItems');
     return saved ? JSON.parse(saved).length > 0 : false;
   });
-  const [importMode, setImportMode] = useState<'deliveries' | 'history'>(() => {
-    const saved = localStorage.getItem('releaseStock_importMode');
-    return (saved === 'history' ? 'history' : 'deliveries');
-  });
-  useEffect(() => {
-    localStorage.setItem('releaseStock_importMode', importMode);
-  }, [importMode]);
   const [importCourier, setImportCourier] = useState('');
   const [importCategory, setImportCategory] = useState('');
   const [importWaybillNo, setImportWaybillNo] = useState('');
@@ -444,57 +437,6 @@ const ReleaseStock = () => {
     setSelectedItems(new Set());
     setSheetNoSearch('');
     setCurrentPage(1);
-    setImportMode('deliveries');
-  };
-
-  // Send selected parsed items directly to History as pending Yes/No review
-  const handleSendToHistory = async () => {
-    if (isReleasingRef.current) return;
-    const validItems = parsedItems.filter(p => selectedItems.has(p.id) && p.courier && p.setDate);
-    if (validItems.length === 0) {
-      toast({ title: 'Error', description: 'Select items with Courier and Date Out set.', variant: 'destructive' });
-      return;
-    }
-    setSubmitting(true);
-    isReleasingRef.current = true;
-    try {
-      const inserts = validItems.map(item => ({
-        item_id: null,
-        boxes_released: item.qtyBoxes || 1,
-        destination: item.deliverTo || 'Unknown',
-        released_by: user!.id,
-        notes: item.remarks || null,
-        allocation_bill: item.sheetNo || null,
-        batch_id: crypto.randomUUID(),
-        category: item.category || null,
-        total_qty: item.qtyItem || null,
-        branch_id: selectedBranch?.id || null,
-        amount: item.amount || null,
-        courier: item.courier || null,
-        set_date: item.setDate || null,
-        action_status: null, // pending review in History
-      }));
-      const { error } = await supabase.from('stock_releases').insert(inserts);
-      if (error) throw error;
-      const releasedIds = new Set(validItems.map(i => i.id));
-      setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
-      setSelectedItems(new Set());
-      if (parsedItems.length - validItems.length === 0) setShowImportPreview(false);
-      await fetchReleases();
-      await logActivity({
-        actionType: 'import',
-        module: 'stock_releases',
-        description: `Sent ${validItems.length} item(s) to History for review`,
-        metadata: { items_count: validItems.length, branch: selectedBranch?.name }
-      });
-      toast({ title: 'Sent to History', description: `${validItems.length} item(s) added as pending review.` });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to send to History.', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-      isReleasingRef.current = false;
-    }
   };
 
   // Filter parsed items by sheet no or destination search - use debounced value
@@ -611,9 +553,8 @@ const ReleaseStock = () => {
         toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
         return;
       }
-      // Group rows by Sheet No. so multiple product lines under one bill = one preview row
       type Parsed = { sheetNo: string; branch: string; productName: string; category: string; description: string; qty: number; price: number };
-      const parsedRows: Parsed[] = rows.map(row => ({
+      const parsed: Parsed[] = rows.map(row => ({
         sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet'),
         branch: findColumnValue(row, 'Branch', 'BRANCH'),
         productName: findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product'),
@@ -623,45 +564,50 @@ const ReleaseStock = () => {
         price: findNumericValue(row, 'Price', 'PRICE', 'Amount'),
       })).filter(p => p.sheetNo || p.branch || p.productName);
 
-      if (parsedRows.length === 0) {
+      if (parsed.length === 0) {
         toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
         return;
       }
 
+      // Group rows by Sheet No. (allocation bill) so multiple lines under one bill = one batch
       const groups = new Map<string, Parsed[]>();
-      parsedRows.forEach(p => {
+      parsed.forEach(p => {
         const key = p.sheetNo || `__row_${Math.random()}`;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(p);
       });
 
-      const idx = Date.now();
-      const newParsed: ParsedReleaseItem[] = Array.from(groups.entries()).map(([sheetNo, rowsInBill], i) => {
+      let created = 0;
+      for (const [sheetNo, rowsInBill] of groups) {
         const first = rowsInBill[0];
         const remarks = rowsInBill.map(r => [r.productName, r.description].filter(Boolean).join(' - ')).filter(Boolean).join(' | ');
         const totalQty = rowsInBill.reduce((s, r) => s + (r.qty || 0), 0);
         const totalAmount = rowsInBill.reduce((s, r) => s + (r.price || 0), 0);
-        return {
-          id: `parsed2-${i}-${idx}`,
-          sheetNo: sheetNo.startsWith('__row_') ? '' : sheetNo,
-          deliverTo: first.branch,
-          qtyBoxes: 1,
-          amount: totalAmount,
-          qtyItem: totalQty,
-          category: first.category,
-          remarks,
-          billDate: '',
-          setDate: '',
-          courier: '',
-          matchedItemId: null,
-          matchedItemName: null,
-        };
+        const batchId = crypto.randomUUID();
+        const { error } = await supabase.from('stock_releases').insert([{
+          item_id: null,
+          boxes_released: 1,
+          destination: first.branch || 'Unknown',
+          released_by: user.id,
+          notes: remarks || null,
+          allocation_bill: sheetNo || null,
+          batch_id: batchId,
+          category: first.category || null,
+          total_qty: totalQty || null,
+          branch_id: selectedBranch?.id || null,
+          amount: totalAmount || null,
+          action_status: null, // PENDING REVIEW -> shows in History with Yes/No
+        }]);
+        if (!error) created++;
+      }
+      await fetchReleases();
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `Imported ${created} pending delivery batch(es) for review`,
+        metadata: { items_count: created, branch: selectedBranch?.name, format: 'sheetno_branch_product' }
       });
-
-      setImportMode('history');
-      setParsedItems(prev => [...prev, ...newParsed]);
-      setShowImportPreview(true);
-      toast({ title: 'File Parsed', description: `${newParsed.length} batch(es) ready. Set Courier & Date Out, then click "Send to History".` });
+      toast({ title: 'Imported to History', description: `${created} batch(es) added as pending review. Open History page to confirm.` });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
@@ -996,13 +942,11 @@ const ReleaseStock = () => {
             
             <div className="flex justify-end pt-2 border-t">
               <Button 
-                onClick={importMode === 'history' ? handleSendToHistory : handleConfirmImport}
+                onClick={handleConfirmImport}
                 disabled={submitting || selectedItems.size === 0}
                 className="min-w-[140px]"
               >
-                {submitting
-                  ? (importMode === 'history' ? 'Sending...' : 'Releasing...')
-                  : (importMode === 'history' ? `Send ${selectedItems.size} to History` : `Release ${selectedItems.size} Items`)}
+                {submitting ? 'Releasing...' : `Release ${selectedItems.size} Items`}
               </Button>
             </div>
           </div>
