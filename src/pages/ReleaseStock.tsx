@@ -585,17 +585,7 @@ const ReleaseStock = () => {
         return;
       }
 
-      // Block duplicates against existing releases
-      const existingBills = new Set(
-        releases.filter(r => r.allocation_bill).map(r => r.allocation_bill!.toLowerCase().trim())
-      );
-      const duplicates = parsed.filter(p => p.sheetNo && existingBills.has(p.sheetNo.toLowerCase().trim()));
-      if (duplicates.length > 0) {
-        const list = [...new Set(duplicates.map(d => d.sheetNo))].join(', ');
-        toast({ title: 'Duplicate Allocation Bill', description: `Existing na sa database: ${list}`, variant: 'destructive' });
-        return;
-      }
-
+      // Allow duplicates: same Sheet No. = additional products under the same allocation bill
       setParsedItems(prev => [...prev, ...parsed]);
       setShowImportPreview(true);
       toast({ title: 'File Parsed', description: `${parsed.length} item(s) added to preview. I-set ang Courier at Date Out, then Confirm Release.` });
