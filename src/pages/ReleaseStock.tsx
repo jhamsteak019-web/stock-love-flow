@@ -329,12 +329,12 @@ const ReleaseStock = () => {
     
     if (duplicates.length > 0) {
       const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
-      const confirmed = window.confirm(
-        `Warning: Allocation bill(s) already exist in database:\n${duplicateBills}\n\nDo you still want to continue releasing these items?`
-      );
-      if (!confirmed) {
-        return;
-      }
+      toast({
+        title: 'Duplicate Allocation Bill',
+        description: `Hindi pwede mag-import. Existing na sa database: ${duplicateBills}`,
+        variant: 'destructive',
+      });
+      return;
     }
 
     setSubmitting(true);
@@ -538,8 +538,8 @@ const ReleaseStock = () => {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
-  // Second importer: direct-to-History (pending review). Headers:
-  // Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
+  // Second importer: same preview flow as the first (Out Warehouse Delivery).
+  // Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
   const handleFileUpload2 = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -553,61 +553,52 @@ const ReleaseStock = () => {
         toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
         return;
       }
-      type Parsed = { sheetNo: string; branch: string; productName: string; category: string; description: string; qty: number; price: number };
-      const parsed: Parsed[] = rows.map(row => ({
-        sheetNo: findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet'),
-        branch: findColumnValue(row, 'Branch', 'BRANCH'),
-        productName: findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product'),
-        category: findColumnValue(row, 'Category', 'CATEGORY'),
-        description: findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION'),
-        qty: findNumericValue(row, 'Qty', 'QTY', 'Quantity'),
-        price: findNumericValue(row, 'Price', 'PRICE', 'Amount'),
-      })).filter(p => p.sheetNo || p.branch || p.productName);
+
+      const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
+        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet');
+        const branch = findColumnValue(row, 'Branch', 'BRANCH');
+        const productName = findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product');
+        const category = findColumnValue(row, 'Category', 'CATEGORY');
+        const description = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION');
+        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity');
+        const price = findNumericValue(row, 'Price', 'PRICE', 'Amount');
+        const remarks = [productName, description].filter(Boolean).join(' - ');
+        return {
+          id: `parsed2-${index}-${Date.now()}`,
+          sheetNo,
+          deliverTo: branch,
+          qtyBoxes: 1,
+          amount: price,
+          qtyItem: qty,
+          category,
+          remarks,
+          billDate: '',
+          setDate: '',
+          courier: '',
+          matchedItemId: null,
+          matchedItemName: null,
+        };
+      }).filter(p => p.sheetNo || p.deliverTo || p.remarks);
 
       if (parsed.length === 0) {
         toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
         return;
       }
 
-      // Group rows by Sheet No. (allocation bill) so multiple lines under one bill = one batch
-      const groups = new Map<string, Parsed[]>();
-      parsed.forEach(p => {
-        const key = p.sheetNo || `__row_${Math.random()}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(p);
-      });
-
-      let created = 0;
-      for (const [sheetNo, rowsInBill] of groups) {
-        const first = rowsInBill[0];
-        const remarks = rowsInBill.map(r => [r.productName, r.description].filter(Boolean).join(' - ')).filter(Boolean).join(' | ');
-        const totalQty = rowsInBill.reduce((s, r) => s + (r.qty || 0), 0);
-        const totalAmount = rowsInBill.reduce((s, r) => s + (r.price || 0), 0);
-        const batchId = crypto.randomUUID();
-        const { error } = await supabase.from('stock_releases').insert([{
-          item_id: null,
-          boxes_released: 1,
-          destination: first.branch || 'Unknown',
-          released_by: user.id,
-          notes: remarks || null,
-          allocation_bill: sheetNo || null,
-          batch_id: batchId,
-          category: first.category || null,
-          total_qty: totalQty || null,
-          branch_id: selectedBranch?.id || null,
-          amount: totalAmount || null,
-          action_status: null, // PENDING REVIEW -> shows in History with Yes/No
-        }]);
-        if (!error) created++;
+      // Block duplicates against existing releases
+      const existingBills = new Set(
+        releases.filter(r => r.allocation_bill).map(r => r.allocation_bill!.toLowerCase().trim())
+      );
+      const duplicates = parsed.filter(p => p.sheetNo && existingBills.has(p.sheetNo.toLowerCase().trim()));
+      if (duplicates.length > 0) {
+        const list = [...new Set(duplicates.map(d => d.sheetNo))].join(', ');
+        toast({ title: 'Duplicate Allocation Bill', description: `Existing na sa database: ${list}`, variant: 'destructive' });
+        return;
       }
-      await fetchReleases();
-      await logActivity({
-        actionType: 'import',
-        module: 'stock_releases',
-        description: `Imported ${created} pending delivery batch(es) for review`,
-        metadata: { items_count: created, branch: selectedBranch?.name, format: 'sheetno_branch_product' }
-      });
-      toast({ title: 'Imported to History', description: `${created} batch(es) added as pending review. Open History page to confirm.` });
+
+      setParsedItems(prev => [...prev, ...parsed]);
+      setShowImportPreview(true);
+      toast({ title: 'File Parsed', description: `${parsed.length} item(s) added to preview. I-set ang Courier at Date Out, then Confirm Release.` });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
