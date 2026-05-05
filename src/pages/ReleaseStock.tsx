@@ -310,20 +310,36 @@ const ReleaseStock = () => {
     try {
       const firstItem = validItems[0];
 
+      // Group items by Sheet No. so duplicates become products under the same allocation bill
+      const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of validItems) {
+        const key = item.sheetNo?.trim()
+          ? `bill:${item.sheetNo.toLowerCase().trim()}`
+          : `row:${item.id}`;
+        const arr = groups.get(key) || [];
+        arr.push(item);
+        groups.set(key, arr);
+      }
+
+      for (const group of groups.values()) {
+        const head = group[0];
+        const totalQty = group.reduce((s, g) => s + (g.qtyItem || g.qtyBoxes || 0), 0);
+        const totalBoxes = group.reduce((s, g) => s + (g.qtyBoxes || 0), 0);
+        const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || g.qtyBoxes || 0)), 0);
+        const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
         await releaseStockBatch(
-          [{ itemId: item.matchedItemId || '', boxes: item.qtyBoxes }],
-          item.deliverTo || 'Unknown',
+          group.map(g => ({ itemId: g.matchedItemId || '', boxes: g.qtyBoxes })),
+          head.deliverTo || 'Unknown',
           user!.id,
-          item.remarks || undefined,
+          combinedNotes || undefined,
           firstItem.courier,
-          item.sheetNo || undefined,
-          item.category || undefined,
+          head.sheetNo || undefined,
+          head.category || undefined,
           undefined,
           firstItem.setDate || undefined,
-          item.qtyItem || item.qtyBoxes,
+          totalQty || totalBoxes,
           selectedBranch?.id || undefined,
-          item.amount || undefined
+          totalAmount || undefined
         );
       }
 
