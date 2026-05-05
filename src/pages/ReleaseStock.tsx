@@ -303,57 +303,14 @@ const ReleaseStock = () => {
       return;
     }
 
-    // Fresh check from database to prevent double releases
-    const { data: existingReleases, error: checkError } = await supabase
-      .from('stock_releases')
-      .select('allocation_bill')
-      .is('deleted_at', null)
-      .not('allocation_bill', 'is', null);
-
-    if (checkError) {
-      console.error('Error checking existing releases:', checkError);
-      toast({ title: 'Error', description: 'Failed to verify existing releases. Please try again.', variant: 'destructive' });
-      return;
-    }
-
-    const existingBillsDb = new Set(
-      (existingReleases || [])
-        .map(r => r.allocation_bill?.toLowerCase().trim())
-        .filter(Boolean)
-    );
-
-    // Check for duplicate allocation bills against fresh DB data
-    const duplicates = validItems.filter(item => 
-      item.sheetNo && existingBillsDb.has(item.sheetNo.toLowerCase().trim())
-    );
-    
-    if (duplicates.length > 0) {
-      const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
-      toast({
-        title: 'Duplicate Allocation Bill',
-        description: `Hindi pwede mag-import. Existing na sa database: ${duplicateBills}`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
     setSubmitting(true);
     isReleasingRef.current = true;
-    
-    // Track released allocation bills to prevent double release within this batch
-    const releasedBills = new Set<string>();
-    
+
     try {
       const firstItem = validItems[0];
 
       for (const item of validItems) {
-        // Skip if this allocation bill was already released in this batch
-        const billKey = item.sheetNo?.toLowerCase().trim();
-        if (billKey && releasedBills.has(billKey)) {
-          console.log(`Skipping duplicate in batch: ${item.sheetNo}`);
-          continue;
-        }
-        
         await releaseStockBatch(
           [{ itemId: item.matchedItemId || '', boxes: item.qtyBoxes }],
           item.deliverTo || 'Unknown',
@@ -368,10 +325,6 @@ const ReleaseStock = () => {
           selectedBranch?.id || undefined,
           item.amount || undefined
         );
-        
-        if (billKey) {
-          releasedBills.add(billKey);
-        }
       }
 
       // Remove released items from preview
@@ -389,16 +342,16 @@ const ReleaseStock = () => {
       await logActivity({
         actionType: 'import',
         module: 'stock_releases',
-        description: `Imported ${releasedBills.size || validItems.length} delivery item(s) via Excel`,
+        description: `Imported ${validItems.length} delivery item(s) via Excel`,
         metadata: {
-          items_count: releasedBills.size || validItems.length,
+          items_count: validItems.length,
           courier: firstItem.courier,
           branch: selectedBranch?.name,
           allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
         }
       });
 
-      toast({ title: 'Success', description: `${releasedBills.size || validItems.length} item(s) released successfully` });
+      toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
     } catch (error) {
       console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
