@@ -303,75 +303,44 @@ const ReleaseStock = () => {
       return;
     }
 
-    // Fresh check from database to prevent double releases
-    const { data: existingReleases, error: checkError } = await supabase
-      .from('stock_releases')
-      .select('allocation_bill')
-      .is('deleted_at', null)
-      .not('allocation_bill', 'is', null);
-
-    if (checkError) {
-      console.error('Error checking existing releases:', checkError);
-      toast({ title: 'Error', description: 'Failed to verify existing releases. Please try again.', variant: 'destructive' });
-      return;
-    }
-
-    const existingBillsDb = new Set(
-      (existingReleases || [])
-        .map(r => r.allocation_bill?.toLowerCase().trim())
-        .filter(Boolean)
-    );
-
-    // Check for duplicate allocation bills against fresh DB data
-    const duplicates = validItems.filter(item => 
-      item.sheetNo && existingBillsDb.has(item.sheetNo.toLowerCase().trim())
-    );
-    
-    if (duplicates.length > 0) {
-      const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
-      toast({
-        title: 'Duplicate Allocation Bill',
-        description: `Hindi pwede mag-import. Existing na sa database: ${duplicateBills}`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
     setSubmitting(true);
     isReleasingRef.current = true;
-    
-    // Track released allocation bills to prevent double release within this batch
-    const releasedBills = new Set<string>();
-    
+
     try {
       const firstItem = validItems[0];
 
+      // Group items by Sheet No. so duplicates become products under the same allocation bill
+      const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of validItems) {
-        // Skip if this allocation bill was already released in this batch
-        const billKey = item.sheetNo?.toLowerCase().trim();
-        if (billKey && releasedBills.has(billKey)) {
-          console.log(`Skipping duplicate in batch: ${item.sheetNo}`);
-          continue;
-        }
-        
+        const key = item.sheetNo?.trim()
+          ? `bill:${item.sheetNo.toLowerCase().trim()}`
+          : `row:${item.id}`;
+        const arr = groups.get(key) || [];
+        arr.push(item);
+        groups.set(key, arr);
+      }
+
+      for (const group of groups.values()) {
+        const head = group[0];
+        const totalQty = group.reduce((s, g) => s + (g.qtyItem || g.qtyBoxes || 0), 0);
+        const totalBoxes = group.reduce((s, g) => s + (g.qtyBoxes || 0), 0);
+        const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || g.qtyBoxes || 0)), 0);
+        const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
         await releaseStockBatch(
-          [{ itemId: item.matchedItemId || '', boxes: item.qtyBoxes }],
-          item.deliverTo || 'Unknown',
+          group.map(g => ({ itemId: g.matchedItemId || '', boxes: g.qtyBoxes })),
+          head.deliverTo || 'Unknown',
           user!.id,
-          item.remarks || undefined,
+          combinedNotes || undefined,
           firstItem.courier,
-          item.sheetNo || undefined,
-          item.category || undefined,
+          head.sheetNo || undefined,
+          head.category || undefined,
           undefined,
           firstItem.setDate || undefined,
-          item.qtyItem || item.qtyBoxes,
+          totalQty || totalBoxes,
           selectedBranch?.id || undefined,
-          item.amount || undefined
+          totalAmount || undefined
         );
-        
-        if (billKey) {
-          releasedBills.add(billKey);
-        }
       }
 
       // Remove released items from preview
@@ -389,16 +358,16 @@ const ReleaseStock = () => {
       await logActivity({
         actionType: 'import',
         module: 'stock_releases',
-        description: `Imported ${releasedBills.size || validItems.length} delivery item(s) via Excel`,
+        description: `Imported ${validItems.length} delivery item(s) via Excel`,
         metadata: {
-          items_count: releasedBills.size || validItems.length,
+          items_count: validItems.length,
           courier: firstItem.courier,
           branch: selectedBranch?.name,
           allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
         }
       });
 
-      toast({ title: 'Success', description: `${releasedBills.size || validItems.length} item(s) released successfully` });
+      toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
     } catch (error) {
       console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
@@ -585,17 +554,7 @@ const ReleaseStock = () => {
         return;
       }
 
-      // Block duplicates against existing releases
-      const existingBills = new Set(
-        releases.filter(r => r.allocation_bill).map(r => r.allocation_bill!.toLowerCase().trim())
-      );
-      const duplicates = parsed.filter(p => p.sheetNo && existingBills.has(p.sheetNo.toLowerCase().trim()));
-      if (duplicates.length > 0) {
-        const list = [...new Set(duplicates.map(d => d.sheetNo))].join(', ');
-        toast({ title: 'Duplicate Allocation Bill', description: `Existing na sa database: ${list}`, variant: 'destructive' });
-        return;
-      }
-
+      // Allow duplicates: same Sheet No. = additional products under the same allocation bill
       setParsedItems(prev => [...prev, ...parsed]);
       setShowImportPreview(true);
       toast({ title: 'File Parsed', description: `${parsed.length} item(s) added to preview. I-set ang Courier at Date Out, then Confirm Release.` });
