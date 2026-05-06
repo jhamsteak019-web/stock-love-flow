@@ -24,7 +24,8 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
   const totalBoxes = releases.reduce((sum, r) => sum + r.boxes_released, 0);
   const totalQty = releases.reduce((sum, r) => sum + (r.total_qty || 0), 0);
   const totalAmount = releases.reduce((sum, r) => {
-    const price = r.inventory_item?.price || 0;
+    if (r.amount != null) return sum + Number(r.amount);
+    const price = r.unit_price ?? r.inventory_item?.price ?? 0;
     const qty = r.total_qty || 0;
     return sum + (price * qty);
   }, 0);
@@ -45,11 +46,11 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
     if (!printWindow) return;
 
     const itemsHtml = releases.map((release, index) => {
-      const itemCode = release.inventory_item?.item_code || '-';
-      const description = release.inventory_item?.description || release.inventory_item?.item_name || '-';
+      const itemCode = release.product_code || release.inventory_item?.item_code || '-';
+      const description = release.product_description || release.inventory_item?.description || release.inventory_item?.item_name || '-';
       const qty = release.total_qty || release.boxes_released;
-      const price = release.inventory_item?.price || 0;
-      const amount = price * qty;
+      const price = release.unit_price ?? release.inventory_item?.price ?? 0;
+      const amount = release.amount != null ? Number(release.amount) : price * qty;
       
       return `
         <tr>
@@ -213,11 +214,11 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
               </TableHeader>
               <TableBody>
                 {releases.map((release, index) => {
-                  const itemCode = release.inventory_item?.item_code || '-';
-                  const description = release.inventory_item?.description || release.inventory_item?.item_name || '-';
+                  const itemCode = release.product_code || release.inventory_item?.item_code || '-';
+                  const description = release.product_description || release.inventory_item?.description || release.inventory_item?.item_name || '-';
                   const qty = release.total_qty || release.boxes_released;
-                  const price = release.inventory_item?.price || 0;
-                  const amount = price * qty;
+                  const price = release.unit_price ?? release.inventory_item?.price ?? 0;
+                  const amount = release.amount != null ? Number(release.amount) : price * qty;
                   
                   return (
                     <TableRow key={release.id || index}>
