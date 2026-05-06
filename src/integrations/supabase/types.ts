@@ -1130,9 +1130,12 @@ export type Database = {
           notes: string | null
           photo_status: string | null
           photo_url: string | null
+          product_code: string | null
+          product_description: string | null
           released_by: string
           set_date: string | null
           total_qty: number | null
+          unit_price: number | null
           updated_at: string
           waybill_no: string | null
         }
@@ -1156,9 +1159,12 @@ export type Database = {
           notes?: string | null
           photo_status?: string | null
           photo_url?: string | null
+          product_code?: string | null
+          product_description?: string | null
           released_by: string
           set_date?: string | null
           total_qty?: number | null
+          unit_price?: number | null
           updated_at?: string
           waybill_no?: string | null
         }
@@ -1182,9 +1188,12 @@ export type Database = {
           notes?: string | null
           photo_status?: string | null
           photo_url?: string | null
+          product_code?: string | null
+          product_description?: string | null
           released_by?: string
           set_date?: string | null
           total_qty?: number | null
+          unit_price?: number | null
           updated_at?: string
           waybill_no?: string | null
         }
