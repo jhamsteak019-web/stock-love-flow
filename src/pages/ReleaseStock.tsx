@@ -554,10 +554,55 @@ const ReleaseStock = () => {
         return;
       }
 
-      // Allow duplicates: same Sheet No. = additional products under the same allocation bill
-      setParsedItems(prev => [...prev, ...parsed]);
-      setShowImportPreview(true);
-      toast({ title: 'File Parsed', description: `${parsed.length} item(s) added to preview. I-set ang Courier at Date Out, then Confirm Release.` });
+      // DIRECT TO HISTORY — save immediately as pending (Yes/No) review.
+      // Group by Sheet No. so multiple rows = items inside one allocation bill.
+      const groups = new Map<string, ParsedReleaseItem[]>();
+      for (const item of parsed) {
+        const key = item.sheetNo?.trim()
+          ? `bill:${item.sheetNo.toLowerCase().trim()}`
+          : `row:${item.id}`;
+        const arr = groups.get(key) || [];
+        arr.push(item);
+        groups.set(key, arr);
+      }
+
+      let savedCount = 0;
+      for (const group of groups.values()) {
+        const head = group[0];
+        const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
+        const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || 0)), 0);
+        const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
+        await releaseStockBatch(
+          group.map(g => ({ itemId: g.matchedItemId || '', boxes: g.qtyBoxes || 0 })),
+          head.deliverTo || 'Unknown',
+          user!.id,
+          combinedNotes || undefined,
+          undefined,
+          head.sheetNo || undefined,
+          head.category || undefined,
+          undefined,
+          undefined,
+          totalQty || undefined,
+          selectedBranch?.id || undefined,
+          totalAmount || undefined,
+        );
+        savedCount += group.length;
+      }
+
+      await fetchReleases();
+
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `Imported ${savedCount} item(s) directly to History (pending review)`,
+        metadata: {
+          items_count: savedCount,
+          branch: selectedBranch?.name,
+          allocation_bills: parsed.map(p => p.sheetNo).filter(Boolean),
+        },
+      });
+
+      toast({ title: 'Imported to History', description: `${savedCount} item(s) added to History as pending Yes/No.` });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
