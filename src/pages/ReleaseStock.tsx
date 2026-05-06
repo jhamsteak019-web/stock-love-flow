@@ -571,12 +571,22 @@ const ReleaseStock = () => {
         const head = group[0];
         const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
         const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || 0)), 0);
-        const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
         await releaseStockBatch(
-          group.map(g => ({ itemId: g.matchedItemId || '', boxes: g.qtyBoxes || 0 })),
+          group.map(g => {
+            const [pname, pdesc] = (g.remarks || '').split(' - ');
+            return {
+              itemId: g.matchedItemId || '',
+              boxes: g.qtyBoxes || 0,
+              productCode: pname || undefined,
+              productDescription: pdesc || undefined,
+              unitPrice: g.amount || 0,
+              qty: g.qtyItem || 0,
+              amount: (g.amount || 0) * (g.qtyItem || 0),
+            };
+          }),
           head.deliverTo || 'Unknown',
           user!.id,
-          combinedNotes || undefined,
+          undefined,
           undefined,
           head.sheetNo || undefined,
           head.category || undefined,

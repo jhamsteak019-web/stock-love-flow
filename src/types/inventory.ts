@@ -71,6 +71,9 @@ export interface StockRelease {
   branch_id: string | null;
   created_at: string;
   updated_at: string;
+  product_code?: string | null;
+  product_description?: string | null;
+  unit_price?: number | null;
   inventory_item?: InventoryItem;
   profile?: Profile;
 }

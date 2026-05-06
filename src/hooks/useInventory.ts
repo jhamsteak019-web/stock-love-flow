@@ -235,7 +235,7 @@ export const useInventory = () => {
   };
 
   const releaseStockBatch = async (
-    items: { itemId: string; boxes: number }[],
+    items: { itemId: string; boxes: number; productCode?: string; productDescription?: string; unitPrice?: number; qty?: number; amount?: number }[],
     destination: string,
     releasedBy: string,
     notes?: string,
@@ -262,9 +262,12 @@ export const useInventory = () => {
       category: category || null,
       waybill_no: waybillNo || null,
       set_date: setDate || null,
-      total_qty: totalQty || null,
+      total_qty: item.qty ?? totalQty ?? null,
       branch_id: branchId || null,
-      amount: amount || null,
+      amount: item.amount ?? amount ?? null,
+      product_code: item.productCode || null,
+      product_description: item.productDescription || null,
+      unit_price: item.unitPrice ?? null,
     }));
 
     const { data, error } = await supabase
