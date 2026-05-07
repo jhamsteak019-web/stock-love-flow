@@ -700,21 +700,88 @@ const ReleaseStock = () => {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { cellDates: true });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
-      if (rows.length === 0) {
+      const rawRows = (XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][])
+        .filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
+
+      if (rawRows.length === 0) {
         toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
         return;
       }
 
-      const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL');
-        const branch = findColumnValue(row, 'Branch', 'BRANCH');
-        const productName = findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product');
-        const category = findColumnValue(row, 'Category', 'CATEGORY');
-        const description = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION');
-        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity');
-        const price = findNumericValue(row, 'Price', 'PRICE', 'Amount');
+      const normalizeHeader = (value: unknown) => String(value ?? '')
+        .normalize('NFKC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim()
+        .replace(/[^a-z0-9]/gi, '')
+        .toLowerCase();
+      const directImportHeaders = new Set([
+        'sheetno',
+        'allocation',
+        'allocationbill',
+        'bill',
+        'billno',
+        'branch',
+        'destination',
+        'deliverto',
+        'product',
+        'productname',
+        'productcode',
+        'category',
+        'productdescription',
+        'description',
+        'qty',
+        'quantity',
+        'price',
+        'unitprice',
+      ]);
+      const hasHeader = rawRows[0].some(cell => directImportHeaders.has(normalizeHeader(cell)));
+      const headerRow = hasHeader ? rawRows[0] : [];
+      const dataRows = hasHeader ? rawRows.slice(1) : rawRows;
+      const headerIndex = new Map<string, number>();
+
+      headerRow.forEach((header, index) => {
+        const key = normalizeHeader(header);
+        if (key && !headerIndex.has(key)) headerIndex.set(key, index);
+      });
+
+      const parseDirectNumber = (value: unknown) => {
+        const cleaned = String(value ?? '').replace(/[₱$,]/g, '').trim();
+        const num = Number(cleaned);
+        return Number.isFinite(num) ? num : 0;
+      };
+      const getByHeader = (row: unknown[], possibleHeaders: string[], fallbackIndex: number) => {
+        for (const header of possibleHeaders) {
+          const index = headerIndex.get(normalizeHeader(header));
+          if (index !== undefined) {
+            const value = String(row[index] ?? '').trim();
+            if (value) return value;
+          }
+        }
+
+        return fallbackIndex >= 0 ? String(row[fallbackIndex] ?? '').trim() : '';
+      };
+      const looksLikeCategory = (value: unknown) => /^[A-Z]{2,6}$/.test(String(value ?? '').trim().toUpperCase());
+      const hasBranchColumnFromHeader = ['branch', 'destination', 'deliverto'].some(header => headerIndex.has(header));
+
+      const parsed: ParsedReleaseItem[] = dataRows.map((row, index) => {
+        const hasBranchColumn = hasHeader
+          ? hasBranchColumnFromHeader
+          : !looksLikeCategory(row[2]) && looksLikeCategory(row[3]);
+        const productNameIndex = hasBranchColumn ? 2 : 1;
+        const categoryIndex = hasBranchColumn ? 3 : 2;
+        const descriptionIndex = hasBranchColumn ? 4 : 3;
+        const qtyIndex = hasBranchColumn ? 5 : 4;
+        const priceIndex = hasBranchColumn ? 6 : 5;
+
+        const sheetNo = getByHeader(row, ['Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'Allocation', 'Allocation Bill', 'Bill No', 'Bill'], 0);
+        const branch = getByHeader(row, ['Branch', 'Destination', 'Deliver To'], hasBranchColumn ? 1 : -1);
+        const productName = getByHeader(row, ['Product Name', 'Product Code', 'Product'], productNameIndex);
+        const category = getByHeader(row, ['Category'], categoryIndex);
+        const description = getByHeader(row, ['Product Description', 'Description'], descriptionIndex);
+        const qty = parseDirectNumber(getByHeader(row, ['Qty', 'Quantity'], qtyIndex));
+        const price = parseDirectNumber(getByHeader(row, ['Price', 'Unit Price'], priceIndex));
         const remarks = [productName, description].filter(Boolean).join(' - ');
+
         return {
           id: `parsed2-${index}-${Date.now()}`,
           sheetNo,
