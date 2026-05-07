@@ -38,6 +38,14 @@ interface DeliveredSummaryItem {
   releases: StockRelease[];
 }
 
+const getEffectiveDeliveryStatus = (status?: string | null, dateDelivered?: string | null) => {
+  return status === 'delivered' || Boolean(dateDelivered) ? 'delivered' : (status || 'pending');
+};
+
+const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string | null) => {
+  return getEffectiveDeliveryStatus(status, dateDelivered) === 'delivered';
+};
+
 const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
   const { releases } = useInventory();
   const currentYear = new Date().getFullYear();
@@ -88,6 +96,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
 
     filteredReleases.forEach(release => {
       const branch = release.destination || 'Unknown';
+      const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
 
       if (!branches[branch]) {
         branches[branch] = {
@@ -104,7 +113,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
       branches[branch].totalBoxes += release.boxes_released;
       branches[branch].totalQty += release.total_qty || 0;
 
-      if (release.delivery_status === 'delivered') {
+      if (effectiveStatus === 'delivered') {
         branches[branch].deliveredCount += 1;
       } else {
         branches[branch].pendingCount += 1;
@@ -142,6 +151,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
       const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
       const allocationKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
       const existingItem = branches[branch].allocationMap[allocationKey];
+      const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
 
       if (existingItem) {
         existingItem.releases.push(release);
@@ -162,8 +172,10 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
           existingItem.category = existingItem.categories.join(', ');
         }
 
-        if (release.delivery_status !== 'delivered') {
-          existingItem.delivery_status = release.delivery_status;
+        if (effectiveStatus === 'delivered') {
+          existingItem.delivery_status = 'delivered';
+        } else if (existingItem.delivery_status !== 'delivered') {
+          existingItem.delivery_status = effectiveStatus;
         }
       } else {
         const item: DeliveredSummaryItem = {
@@ -178,7 +190,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
           boxes: release.boxes_released,
           qty: release.total_qty || 0,
           amount: release.amount || 0,
-          delivery_status: release.delivery_status,
+          delivery_status: effectiveStatus,
           remarks: release.notes,
           releases: [release],
         };
@@ -246,7 +258,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
     }> = {};
 
     filteredReleases
-      .filter(release => release.delivery_status === 'delivered')
+      .filter(release => isEffectivelyDelivered(release.delivery_status, release.date_delivered))
       .forEach(release => {
         const store = release.destination || 'Unknown';
         const category = release.category || 'Uncategorized';
@@ -273,7 +285,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     filteredReleases
-      .filter(release => release.delivery_status === 'delivered')
+      .filter(release => isEffectivelyDelivered(release.delivery_status, release.date_delivered))
       .forEach(release => {
         if (release.category) cats.add(release.category);
       });
@@ -284,8 +296,8 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const totalStats = useMemo(() => {
     const totalBoxes = filteredReleases.reduce((sum, r) => sum + r.boxes_released, 0);
     const totalQty = filteredReleases.reduce((sum, r) => sum + (r.total_qty || 0), 0);
-    const deliveredCount = filteredReleases.filter(r => r.delivery_status === 'delivered').length;
-    const pendingCount = filteredReleases.filter(r => r.delivery_status !== 'delivered').length;
+    const deliveredCount = filteredReleases.filter(r => isEffectivelyDelivered(r.delivery_status, r.date_delivered)).length;
+    const pendingCount = filteredReleases.filter(r => !isEffectivelyDelivered(r.delivery_status, r.date_delivered)).length;
     const uniqueDestinations = new Set(filteredReleases.map(r => r.destination)).size;
 
     return { totalBoxes, totalQty, deliveredCount, pendingCount, uniqueDestinations };
@@ -323,7 +335,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                 <td>${item.courier || '-'}</td>
                 <td>${item.waybill_no || '-'}</td>
                 <td>${item.category || '-'}</td>
-                <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
+                <td style="color: ${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? '#16a34a' : '#d97706'}; font-weight: bold;">${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'Delivered' : 'Pending'}</td>
                 <td>${item.remarks || '-'}</td>
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
@@ -445,7 +457,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                   <td>${item.courier || '-'}</td>
                   <td>${item.waybill_no || '-'}</td>
                   <td>${item.category || '-'}</td>
-                  <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
+                  <td style="color: ${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? '#16a34a' : '#d97706'}; font-weight: bold;">${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'Delivered' : 'Pending'}</td>
                   <td>${item.remarks || '-'}</td>
                   <td class="text-center">${item.boxes}</td>
                   <td class="text-center">${item.qty}</td>
@@ -737,8 +749,11 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                   <TableCell>{item.courier || '-'}</TableCell>
                                   <TableCell>{item.category || '-'}</TableCell>
                                   <TableCell>
-                                    <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'} className={item.delivery_status === 'delivered' ? 'bg-green-500' : ''}>
-                                      {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
+                                    <Badge
+                                      variant={isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'default' : 'secondary'}
+                                      className={isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'bg-green-500' : ''}
+                                    >
+                                      {isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'Delivered' : 'Pending'}
                                     </Badge>
                                   </TableCell>
                                   <TableCell>{item.remarks || '-'}</TableCell>

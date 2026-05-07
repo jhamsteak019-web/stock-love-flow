@@ -41,6 +41,14 @@ interface DeliveredSummaryItem {
   releases: StockRelease[];
 }
 
+const getEffectiveDeliveryStatus = (status?: string | null, dateDelivered?: string | null) => {
+  return status === 'delivered' || Boolean(dateDelivered) ? 'delivered' : (status || 'pending');
+};
+
+const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string | null) => {
+  return getEffectiveDeliveryStatus(status, dateDelivered) === 'delivered';
+};
+
 const SummaryReport = () => {
   const { loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
@@ -269,6 +277,7 @@ const SummaryReport = () => {
     filteredReleases.forEach(release => {
       const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
       const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+      const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
       // Normalize category: trim whitespace and convert to uppercase
       const normalizedCategory = release.category?.trim().toUpperCase() || null;
       if (!batches[batchKey]) {
@@ -276,7 +285,7 @@ const SummaryReport = () => {
           batch_id: batchKey,
           destination: release.destination,
           category: normalizedCategory,
-          delivery_status: release.delivery_status,
+          delivery_status: effectiveStatus,
           boxes_released: 0,
           total_qty: 0,
           set_date: release.set_date,
@@ -285,6 +294,9 @@ const SummaryReport = () => {
       }
       batches[batchKey].boxes_released += release.boxes_released;
       batches[batchKey].total_qty += release.total_qty || 0;
+      if (effectiveStatus === 'delivered') {
+        batches[batchKey].delivery_status = 'delivered';
+      }
     });
 
     return Object.values(batches);
@@ -318,6 +330,7 @@ const SummaryReport = () => {
 
     filteredReleases.forEach(release => {
       const branch = release.destination || 'Unknown';
+      const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
       
       if (!branches[branch]) {
         branches[branch] = {
@@ -340,7 +353,7 @@ const SummaryReport = () => {
       branches[branch].totalQty += release.total_qty || 0;
       branches[branch].totalAmount += release.amount || 0;
       
-      switch (release.delivery_status) {
+      switch (effectiveStatus) {
         case 'pending':
           branches[branch].pendingCount += 1;
           break;
@@ -390,6 +403,7 @@ const SummaryReport = () => {
         const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
         const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
         const existingItem = branches[branch].allocationMap[batchKey];
+        const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
         
         if (existingItem) {
           existingItem.releases.push(release);
@@ -404,8 +418,10 @@ const SummaryReport = () => {
             existingItem.categories.push(release.category);
             existingItem.category = existingItem.categories.join(', ');
           }
-          if (release.delivery_status !== 'delivered') {
-            existingItem.delivery_status = release.delivery_status;
+          if (effectiveStatus === 'delivered') {
+            existingItem.delivery_status = 'delivered';
+          } else if (existingItem.delivery_status !== 'delivered') {
+            existingItem.delivery_status = effectiveStatus;
           }
         } else {
           const item: DeliveredSummaryItem = {
@@ -419,7 +435,7 @@ const SummaryReport = () => {
             boxes: release.boxes_released,
             qty: release.total_qty || 0,
             amount: release.amount || 0,
-            delivery_status: release.delivery_status,
+            delivery_status: effectiveStatus,
             remarks: release.notes,
             releases: [release],
           };
@@ -493,7 +509,7 @@ const SummaryReport = () => {
 
     // Only include delivered releases (items that were actually received)
     filteredReleases
-      .filter(release => release.delivery_status === 'delivered')
+      .filter(release => isEffectivelyDelivered(release.delivery_status, release.date_delivered))
       .forEach(release => {
         const store = release.destination || 'Unknown';
         const category = release.category || 'Uncategorized';
@@ -527,7 +543,7 @@ const SummaryReport = () => {
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
     filteredReleases
-      .filter(release => release.delivery_status === 'delivered')
+      .filter(release => isEffectivelyDelivered(release.delivery_status, release.date_delivered))
       .forEach(release => {
         if (release.category) cats.add(release.category);
       });
@@ -596,15 +612,19 @@ const SummaryReport = () => {
     yearlyReleases.forEach(release => {
       const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
       const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+      const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
       if (!yearlyBatches[batchKey]) {
         yearlyBatches[batchKey] = {
           boxes_released: 0,
-          delivery_status: release.delivery_status,
+          delivery_status: effectiveStatus,
           set_date: release.set_date,
           date_released: release.date_released,
         };
       }
       yearlyBatches[batchKey].boxes_released += release.boxes_released;
+      if (effectiveStatus === 'delivered') {
+        yearlyBatches[batchKey].delivery_status = 'delivered';
+      }
     });
 
     Object.values(yearlyBatches).forEach(batch => {
@@ -737,7 +757,7 @@ const SummaryReport = () => {
                 <td style="color: ${deliveryDays !== null ? (deliveryDays <= 3 ? '#16a34a' : deliveryDays <= 7 ? '#d97706' : '#dc2626') : '#666'}; font-weight: ${deliveryDays !== null ? 'bold' : 'normal'};">${deliveryDays !== null ? `${deliveryDays} day(s)` : '-'}</td>
                 <td>${item.courier || '-'}</td>
                 <td>${item.category || '-'}</td>
-                <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
+                <td style="color: ${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? '#16a34a' : '#d97706'}; font-weight: bold;">${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'Delivered' : 'Pending'}</td>
                 <td>${item.remarks || '-'}</td>
                 <td class="text-center">${item.boxes}</td>
                 <td class="text-center">${item.qty}</td>
@@ -878,7 +898,7 @@ const SummaryReport = () => {
                     <td style="color: ${deliveryDays !== null ? (deliveryDays <= 3 ? '#16a34a' : deliveryDays <= 7 ? '#d97706' : '#dc2626') : '#666'}; font-weight: ${deliveryDays !== null ? 'bold' : 'normal'};">${deliveryDays !== null ? `${deliveryDays} day(s)` : '-'}</td>
                     <td>${item.courier || '-'}</td>
                     <td>${item.category || '-'}</td>
-                    <td style="color: ${item.delivery_status === 'delivered' ? '#16a34a' : '#d97706'}; font-weight: bold;">${item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}</td>
+                    <td style="color: ${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? '#16a34a' : '#d97706'}; font-weight: bold;">${isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'Delivered' : 'Pending'}</td>
                     <td>${item.remarks || '-'}</td>
                     <td class="text-center">${item.boxes}</td>
                     <td class="text-center">${item.qty}</td>
@@ -1716,8 +1736,8 @@ const SummaryReport = () => {
                               <TableCell className="whitespace-nowrap">{item.courier || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{item.category || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
-                                <Badge variant={item.delivery_status === 'delivered' ? 'default' : 'secondary'}>
-                                  {item.delivery_status === 'delivered' ? 'Delivered' : 'Pending'}
+                                <Badge variant={isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'default' : 'secondary'}>
+                                  {isEffectivelyDelivered(item.delivery_status, item.date_delivered) ? 'Delivered' : 'Pending'}
                                 </Badge>
                               </TableCell>
                               <TableCell>{item.remarks || '-'}</TableCell>

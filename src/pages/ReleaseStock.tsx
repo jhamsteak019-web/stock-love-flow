@@ -121,9 +121,47 @@ const ReleaseStock = () => {
     }
   }, [parsedItems]);
 
-  const normalizeAllocation = (allocation?: string | null) => {
-    return allocation?.trim().toLowerCase() || '';
-  };
+  const normalizeAllocation = useCallback((allocation?: string | null) => {
+    return String(allocation || '')
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim()
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase();
+  }, []);
+
+  useEffect(() => {
+    if (parsedItems.length === 0) return;
+
+    const seenSheetNos = new Set(
+      releases.map(release => normalizeAllocation(release.allocation_bill)).filter(Boolean)
+    );
+    const dedupedItems: ParsedReleaseItem[] = [];
+    const removedIds = new Set<string>();
+
+    for (const item of parsedItems) {
+      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+      if (normalizedSheetNo && seenSheetNos.has(normalizedSheetNo)) {
+        removedIds.add(item.id);
+        continue;
+      }
+
+      dedupedItems.push(item);
+      if (normalizedSheetNo) seenSheetNos.add(normalizedSheetNo);
+    }
+
+    if (dedupedItems.length !== parsedItems.length) {
+      setParsedItems(dedupedItems);
+      setSelectedItems(prev => {
+        const next = new Set(prev);
+        removedIds.forEach(id => next.delete(id));
+        return next;
+      });
+      if (dedupedItems.length === 0) {
+        setShowImportPreview(false);
+      }
+    }
+  }, [parsedItems, releases, normalizeAllocation]);
 
   const hasExistingAllocation = (allocation?: string | null) => {
     const normalizedAllocation = normalizeAllocation(allocation);
@@ -136,11 +174,14 @@ const ReleaseStock = () => {
     const normalizedAllocation = normalizeAllocation(allocation);
     if (!normalizedAllocation) return null;
 
-    const existingRelease = releases.find(release => {
-      const sameAllocation = normalizeAllocation(release.allocation_bill) === normalizedAllocation;
-      const sameBranch = selectedBranch?.id ? release.branch_id === selectedBranch.id : true;
-      return sameAllocation && sameBranch;
+    const matchingReleases = releases.filter(release => {
+      return normalizeAllocation(release.allocation_bill) === normalizedAllocation;
     });
+
+    const existingRelease =
+      matchingReleases.find(release => selectedBranch?.id && release.branch_id === selectedBranch.id) ||
+      matchingReleases.find(release => !release.branch_id) ||
+      matchingReleases[0];
 
     if (!existingRelease) return null;
 
@@ -167,6 +208,33 @@ const ReleaseStock = () => {
       .eq('id', section.releaseId);
 
     if (error) throw error;
+  };
+
+  const fetchExistingAllocationKeys = async () => {
+    const keys = new Set<string>();
+    const PAGE_SIZE = 1000;
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('stock_releases')
+        .select('allocation_bill')
+        .is('deleted_at', null)
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      const chunk = data || [];
+      chunk.forEach((release) => {
+        const key = normalizeAllocation(release.allocation_bill);
+        if (key) keys.add(key);
+      });
+
+      if (chunk.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+
+    return keys;
   };
 
   // Excel Import Functions
@@ -378,7 +446,11 @@ const ReleaseStock = () => {
     }
 
     // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
-    const existingSheetNos = validItems.filter(item => item.sheetNo && hasExistingAllocation(item.sheetNo));
+    const existingAllocationKeys = await fetchExistingAllocationKeys();
+    const existingSheetNos = validItems.filter(item => {
+      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+      return Boolean(normalizedSheetNo && existingAllocationKeys.has(normalizedSheetNo));
+    });
     if (existingSheetNos.length > 0) {
       toast({
         title: 'Duplicate Sheet No.',
