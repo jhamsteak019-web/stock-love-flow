@@ -751,9 +751,17 @@ const ReleaseStock = () => {
       }
 
       let savedCount = 0;
+      let skippedCount = 0;
+      const skippedBills: string[] = [];
       for (const group of groups.values()) {
         const head = group[0];
         const existingSection = findExistingAllocationSection(head.sheetNo);
+        if (!existingSection) {
+          skippedCount += group.length;
+          if (head.sheetNo) skippedBills.push(head.sheetNo);
+          continue;
+        }
+
         await ensureExistingSectionBatchId(existingSection);
 
         const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
@@ -788,6 +796,15 @@ const ReleaseStock = () => {
         savedCount += group.length;
       }
 
+      if (savedCount === 0) {
+        toast({
+          title: 'No Matching Existing Bills',
+          description: `${skippedCount} item(s) skipped. Direct to History only appends to existing Allocation Bills.`,
+          variant: 'default',
+        });
+        return;
+      }
+
       await fetchReleases();
 
       await logActivity({
@@ -796,12 +813,19 @@ const ReleaseStock = () => {
         description: `Imported ${savedCount} item(s) directly to History (pending review)`,
         metadata: {
           items_count: savedCount,
+          skipped_count: skippedCount,
           branch: selectedBranch?.name,
           allocation_bills: parsed.map(p => p.sheetNo).filter(Boolean),
+          skipped_allocation_bills: skippedBills,
         },
       });
 
-      toast({ title: 'Imported to History', description: `${savedCount} item(s) added to History as pending Yes/No.` });
+      toast({
+        title: 'Imported to History',
+        description: skippedCount > 0
+          ? `${savedCount} item(s) appended. ${skippedCount} item(s) skipped because no existing bill matched.`
+          : `${savedCount} item(s) appended to existing bill(s).`,
+      });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
