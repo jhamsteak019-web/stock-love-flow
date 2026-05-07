@@ -263,7 +263,8 @@ const SummaryReport = () => {
     }> = {};
 
     filteredReleases.forEach(release => {
-      const batchKey = release.batch_id || release.id;
+      const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
+      const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
       // Normalize category: trim whitespace and convert to uppercase
       const normalizedCategory = release.category?.trim().toUpperCase() || null;
       if (!batches[batchKey]) {
@@ -382,7 +383,8 @@ const SummaryReport = () => {
           };
         }
 
-        const batchKey = release.batch_id || release.allocation_bill?.trim().toLowerCase() || release.id;
+        const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
+        const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
         const existingItem = branches[branch].allocationMap[batchKey];
         
         if (existingItem) {
@@ -588,7 +590,8 @@ const SummaryReport = () => {
     }> = {};
 
     yearlyReleases.forEach(release => {
-      const batchKey = release.batch_id || release.id;
+      const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
+      const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
       if (!yearlyBatches[batchKey]) {
         yearlyBatches[batchKey] = {
           boxes_released: 0,

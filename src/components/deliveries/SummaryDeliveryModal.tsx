@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Package, Truck, Store, CheckCircle, Printer, Search, FileDown } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { format } from 'date-fns';
+import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
+import type { StockRelease } from '@/types/inventory';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -17,6 +19,23 @@ interface SummaryDeliveryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isViewer?: boolean;
+}
+
+interface DeliveredSummaryItem {
+  batch_id: string;
+  allocation_bill: string | null;
+  set_date: string | null;
+  date_delivered: string | null;
+  courier: string | null;
+  waybill_no: string | null;
+  category: string | null;
+  categories: string[];
+  boxes: number;
+  qty: number;
+  amount: number;
+  delivery_status: string;
+  remarks: string | null;
+  releases: StockRelease[];
 }
 
 const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
@@ -28,6 +47,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
+  const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
 
   // Get available years from releases
   const availableYears = useMemo(() => {
@@ -94,19 +114,8 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const deliveredByBranch = useMemo(() => {
     const branches: Record<string, {
       branch: string;
-      items: {
-        allocation_bill: string | null;
-        set_date: string | null;
-        date_delivered: string | null;
-        courier: string | null;
-        waybill_no: string | null;
-        category: string | null;
-        boxes: number;
-        qty: number;
-        amount: number;
-        delivery_status: string;
-        remarks: string | null;
-      }[];
+      items: DeliveredSummaryItem[];
+      allocationMap: Record<string, DeliveredSummaryItem>;
       totalBoxes: number;
       totalQty: number;
       totalAmount: number;
@@ -119,25 +128,61 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         branches[branch] = {
           branch,
           items: [],
+          allocationMap: {},
           totalBoxes: 0,
           totalQty: 0,
           totalAmount: 0,
         };
       }
 
-      branches[branch].items.push({
-        allocation_bill: release.allocation_bill,
-        set_date: release.set_date,
-        date_delivered: release.date_delivered,
-        courier: release.courier,
-        waybill_no: release.waybill_no,
-        category: release.category,
-        boxes: release.boxes_released,
-        qty: release.total_qty || 0,
-        amount: release.amount || 0,
-        delivery_status: release.delivery_status,
-        remarks: release.notes,
-      });
+      const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
+      const allocationKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+      const existingItem = branches[branch].allocationMap[allocationKey];
+
+      if (existingItem) {
+        existingItem.releases.push(release);
+        existingItem.boxes += release.boxes_released;
+        existingItem.qty += release.total_qty || 0;
+        existingItem.amount += release.amount || 0;
+        existingItem.set_date = existingItem.set_date || release.set_date;
+        existingItem.date_delivered = existingItem.date_delivered || release.date_delivered;
+        existingItem.courier = existingItem.courier || release.courier;
+        existingItem.waybill_no = existingItem.waybill_no || release.waybill_no;
+        existingItem.remarks = [existingItem.remarks, release.notes]
+          .filter(Boolean)
+          .filter((value, index, values) => values.indexOf(value) === index)
+          .join(' | ') || null;
+
+        if (release.category && !existingItem.categories.includes(release.category)) {
+          existingItem.categories.push(release.category);
+          existingItem.category = existingItem.categories.join(', ');
+        }
+
+        if (release.delivery_status !== 'delivered') {
+          existingItem.delivery_status = release.delivery_status;
+        }
+      } else {
+        const item: DeliveredSummaryItem = {
+          batch_id: allocationKey,
+          allocation_bill: release.allocation_bill,
+          set_date: release.set_date,
+          date_delivered: release.date_delivered,
+          courier: release.courier,
+          waybill_no: release.waybill_no,
+          category: release.category,
+          categories: release.category ? [release.category] : [],
+          boxes: release.boxes_released,
+          qty: release.total_qty || 0,
+          amount: release.amount || 0,
+          delivery_status: release.delivery_status,
+          remarks: release.notes,
+          releases: [release],
+        };
+
+        branches[branch].allocationMap[allocationKey] = item;
+        branches[branch].items.push(item);
+      }
+
       branches[branch].totalBoxes += release.boxes_released;
       branches[branch].totalQty += release.total_qty || 0;
       branches[branch].totalAmount += release.amount || 0;
@@ -145,7 +190,10 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
 
     return Object.values(branches)
       .map(branch => ({
-        ...branch,
+        branch: branch.branch,
+        totalBoxes: branch.totalBoxes,
+        totalQty: branch.totalQty,
+        totalAmount: branch.totalAmount,
         items: branch.items.sort((a, b) => {
           const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
           const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
@@ -418,8 +466,15 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          onOpenChange(nextOpen);
+          if (!nextOpen) setSelectedSummaryItem(null);
+        }}
+      >
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileDown className="h-5 w-5" />
@@ -652,10 +707,14 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                 const receivedDate = new Date(item.date_delivered);
                                 const diffTime = receivedDate.getTime() - outDate.getTime();
                                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                deliveryDays = diffDays >= 0 ? `${diffDays} day${diffDays !== 1 ? 's' : ''}` : '-';
+                                deliveryDays = `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
                               }
                               return (
-                                <TableRow key={idx}>
+                                <TableRow
+                                  key={item.batch_id || idx}
+                                  className="cursor-pointer hover:bg-muted/50"
+                                  onClick={() => setSelectedSummaryItem(item)}
+                                >
                                   <TableCell>{item.allocation_bill || '-'}</TableCell>
                                   <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                                   <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
@@ -694,8 +753,26 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
             </div>
           </TabsContent>
         </Tabs>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {selectedSummaryItem && (
+        <AllocationBillModal
+          open={!!selectedSummaryItem}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setSelectedSummaryItem(null);
+          }}
+          releases={selectedSummaryItem.releases}
+          destination={selectedSummaryItem.releases[0]?.destination || 'Unknown'}
+          courier={selectedSummaryItem.courier}
+          dateReleased={selectedSummaryItem.releases[0]?.date_released || selectedSummaryItem.set_date || ''}
+          dateDelivered={selectedSummaryItem.date_delivered}
+          allocationBill={selectedSummaryItem.allocation_bill}
+          setDate={selectedSummaryItem.set_date}
+          isViewer={isViewer}
+        />
+      )}
+    </>
   );
 };
 
