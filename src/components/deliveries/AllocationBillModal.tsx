@@ -42,11 +42,61 @@ const formatDate = (value?: string | null) => {
   return date ? format(date, 'yyyy-MM-dd') : '-';
 };
 
+const getProductCode = (release: StockRelease) => {
+  return release.product_code || release.inventory_item?.item_code || '-';
+};
+
+const getProductDescription = (release: StockRelease) => {
+  return release.product_description || release.inventory_item?.description || release.inventory_item?.item_name || '-';
+};
+
+const hasProductDetails = (release: StockRelease) => {
+  return Boolean(
+    release.product_code ||
+    release.product_description ||
+    release.inventory_item?.item_code ||
+    release.inventory_item?.item_name ||
+    release.inventory_item?.description
+  );
+};
+
+const getCodeParts = (code: string) => {
+  const match = code.match(/^(.*)-(\d+)$/);
+  return {
+    root: match?.[1] || code,
+    size: match ? Number(match[2]) : Number.MAX_SAFE_INTEGER,
+  };
+};
+
+const getDisplayReleases = (releaseItems: StockRelease[]) => {
+  const detailedItems = releaseItems.filter(hasProductDetails);
+  const displayItems = detailedItems.length > 0 ? detailedItems : releaseItems;
+  const rootOrder = new Map<string, number>();
+
+  displayItems.forEach((release) => {
+    const { root } = getCodeParts(getProductCode(release));
+    if (!rootOrder.has(root)) {
+      rootOrder.set(root, rootOrder.size);
+    }
+  });
+
+  return displayItems
+    .map((release, index) => ({ release, index, parts: getCodeParts(getProductCode(release)) }))
+    .sort((a, b) => {
+      const rootDiff = (rootOrder.get(a.parts.root) ?? a.index) - (rootOrder.get(b.parts.root) ?? b.index);
+      if (rootDiff !== 0) return rootDiff;
+      if (a.parts.size !== b.parts.size) return a.parts.size - b.parts.size;
+      return a.index - b.index;
+    })
+    .map(({ release }) => release);
+};
+
 const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate, isViewer = false }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const totalBoxes = releases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
-  const totalQty = releases.reduce((sum, r) => sum + toNumber(r.total_qty), 0);
-  const totalAmount = releases.reduce((sum, r) => {
+  const displayReleases = getDisplayReleases(releases);
+  const totalBoxes = displayReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
+  const totalQty = displayReleases.reduce((sum, r) => sum + toNumber(r.total_qty), 0);
+  const totalAmount = displayReleases.reduce((sum, r) => {
     if (r.amount != null) return sum + toNumber(r.amount);
     const price = toNumber(r.unit_price ?? r.inventory_item?.price);
     const qty = toNumber(r.total_qty);
@@ -76,9 +126,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsHtml = releases.map((release, index) => {
-      const itemCode = release.product_code || release.inventory_item?.item_code || '-';
-      const description = release.product_description || release.inventory_item?.description || release.inventory_item?.item_name || '-';
+    const itemsHtml = displayReleases.map((release, index) => {
+      const itemCode = getProductCode(release);
+      const description = getProductDescription(release);
       const qty = toNumber(release.total_qty) || toNumber(release.boxes_released);
       const price = toNumber(release.unit_price ?? release.inventory_item?.price);
       const amount = release.amount != null ? toNumber(release.amount) : price * qty;
@@ -244,9 +294,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {releases.map((release, index) => {
-                  const itemCode = release.product_code || release.inventory_item?.item_code || '-';
-                  const description = release.product_description || release.inventory_item?.description || release.inventory_item?.item_name || '-';
+                {displayReleases.map((release, index) => {
+                  const itemCode = getProductCode(release);
+                  const description = getProductDescription(release);
                   const qty = toNumber(release.total_qty) || toNumber(release.boxes_released);
                   const price = toNumber(release.unit_price ?? release.inventory_item?.price);
                   const amount = release.amount != null ? toNumber(release.amount) : price * qty;

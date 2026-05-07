@@ -166,6 +166,28 @@ const History = () => {
     return Array.from(new Set(notes)).join(' | ') || null;
   };
 
+  const hasProductDetails = (release: StockRelease) => {
+    return Boolean(
+      release.product_code ||
+      release.product_description ||
+      release.inventory_item?.item_code ||
+      release.inventory_item?.item_name ||
+      release.inventory_item?.description
+    );
+  };
+
+  const getCountingReleases = (releaseItems: StockRelease[]) => {
+    const detailedItems = releaseItems.filter(hasProductDetails);
+    return detailedItems.length > 0 ? detailedItems : releaseItems;
+  };
+
+  const getReleaseAmount = (release: StockRelease) => {
+    if (release.amount != null) return Number(release.amount) || 0;
+    const price = Number(release.unit_price ?? release.inventory_item?.price ?? 0) || 0;
+    const qty = Number(release.total_qty ?? 0) || 0;
+    return price * qty;
+  };
+
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
     return col?.visible ?? true;
@@ -257,8 +279,21 @@ const History = () => {
       }
     });
     
+    const normalizedGroups = Object.values(groups).map(group => {
+      const countingReleases = getCountingReleases(group.items);
+      const totalAmount = countingReleases.reduce((sum, release) => sum + getReleaseAmount(release), 0);
+
+      return {
+        ...group,
+        totalBoxes: countingReleases.reduce((sum, release) => sum + (Number(release.boxes_released) || 0), 0),
+        totalQty: countingReleases.reduce((sum, release) => sum + (Number(release.total_qty) || 0), 0),
+        amount: totalAmount > 0 ? totalAmount : null,
+        itemCount: countingReleases.length,
+      };
+    });
+
     // Sort: pending review (no action_status) first, then by set_date ascending.
-    return Object.values(groups).sort((a, b) => {
+    return normalizedGroups.sort((a, b) => {
       const aPending = !a.action_status;
       const bPending = !b.action_status;
       if (aPending && !bPending) return -1;
