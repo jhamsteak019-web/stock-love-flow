@@ -196,7 +196,7 @@ const History = () => {
           deleted_at: release.deleted_at,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
-          amount: release.amount ?? null,
+          amount: null,
           totalQty: 0,
           itemCount: 0,
           items: [],
@@ -213,9 +213,9 @@ const History = () => {
       groups[batchKey].totalQty += release.total_qty || 0;
       groups[batchKey].itemCount += 1;
 
-      // Prefer the first non-null amount within the group
-      if (groups[batchKey].amount === null && release.amount != null) {
-        groups[batchKey].amount = release.amount;
+      // Sum per-row amounts so multi-product allocation bills show one correct total.
+      if (release.amount != null) {
+        groups[batchKey].amount = (groups[batchKey].amount || 0) + Number(release.amount);
       }
     });
     

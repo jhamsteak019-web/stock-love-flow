@@ -127,7 +127,7 @@ const Deliveries = () => {
           date_delivered: release.date_delivered || null,
           delivery_status: release.delivery_status,
           totalBoxes: 0,
-          amount: release.amount ?? null,
+          amount: null,
           totalQty: 0,
           itemCount: 0,
           items: [],
@@ -148,9 +148,9 @@ const Deliveries = () => {
       groups[batchKey].itemCount += 1;
       groups[batchKey].releaseIds.push(release.id);
 
-      // Prefer the first non-null amount within the group
-      if (groups[batchKey].amount === null && release.amount != null) {
-        groups[batchKey].amount = release.amount;
+      // Sum per-row amounts so multi-product allocation bills show one correct total.
+      if (release.amount != null) {
+        groups[batchKey].amount = (groups[batchKey].amount || 0) + Number(release.amount);
       }
     });
     
