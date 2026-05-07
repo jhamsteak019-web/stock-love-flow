@@ -58,6 +58,10 @@ const SummaryReport = () => {
   const [remarksFilter, setRemarksFilter] = useState<'all' | 'ro' | 'new'>('all');
   const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
 
+  const openAllocationBill = useCallback((item: DeliveredSummaryItem) => {
+    setSelectedSummaryItem(item);
+  }, []);
+
   // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
   const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
     month: parseInt(selectedMonth),
@@ -1686,9 +1690,20 @@ const SummaryReport = () => {
                             <TableRow
                               key={item.batch_id}
                               className="cursor-pointer"
-                              onClick={() => setSelectedSummaryItem(item)}
+                              onClick={() => openAllocationBill(item)}
                             >
-                              <TableCell className="font-mono whitespace-nowrap">{item.allocation_bill || '-'}</TableCell>
+                              <TableCell className="font-mono whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openAllocationBill(item);
+                                  }}
+                                >
+                                  {item.allocation_bill || '-'}
+                                </button>
+                              </TableCell>
                               <TableCell className="whitespace-nowrap">{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">

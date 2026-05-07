@@ -49,6 +49,10 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const [branchSearch, setBranchSearch] = useState('');
   const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
 
+  const openAllocationBill = (item: DeliveredSummaryItem) => {
+    setSelectedSummaryItem(item);
+  };
+
   // Get available years from releases
   const availableYears = useMemo(() => {
     const years = new Set<string>();
@@ -713,9 +717,20 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                 <TableRow
                                   key={item.batch_id || idx}
                                   className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => setSelectedSummaryItem(item)}
+                                  onClick={() => openAllocationBill(item)}
                                 >
-                                  <TableCell>{item.allocation_bill || '-'}</TableCell>
+                                  <TableCell>
+                                    <button
+                                      type="button"
+                                      className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openAllocationBill(item);
+                                      }}
+                                    >
+                                      {item.allocation_bill || '-'}
+                                    </button>
+                                  </TableCell>
                                   <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                                   <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                                   <TableCell>{deliveryDays}</TableCell>
