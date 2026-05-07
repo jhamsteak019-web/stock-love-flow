@@ -55,7 +55,13 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';
   const waybillNo = releases[0]?.waybill_no || '-';
   const category = releases[0]?.category || '-';
-  const remarks = releases[0]?.notes || '-';
+  const remarks = Array.from(
+    new Set(
+      releases
+        .map(release => release.notes?.trim())
+        .filter((note): note is string => Boolean(note))
+    )
+  ).join(' | ') || '-';
   const dateOutWarehouse = setDate || releases[0]?.set_date;
   const releasedByName = releases[0]?.profile?.full_name || releases[0]?.profile?.email || '-';
   const dateOutWarehouseDate = toValidDate(dateOutWarehouse);

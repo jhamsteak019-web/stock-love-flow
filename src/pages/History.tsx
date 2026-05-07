@@ -60,6 +60,15 @@ const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
 
+const normalizeAllocationKey = (allocation?: string | null) => {
+  return String(allocation || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .replace(/\s+/g, '')
+    .toLowerCase();
+};
+
 interface GroupedRelease {
   batch_id: string;
   allocation_bill: string | null;
@@ -149,6 +158,14 @@ const History = () => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }, []);
 
+  const combineNotes = (current?: string | null, next?: string | null) => {
+    const notes = [current, next]
+      .map(note => note?.trim())
+      .filter((note): note is string => Boolean(note));
+
+    return Array.from(new Set(notes)).join(' | ') || null;
+  };
+
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
     return col?.visible ?? true;
@@ -183,11 +200,12 @@ const History = () => {
     
     // Use filtered list instead of original releasesList
     filtered.forEach(release => {
-      const batchKey = release.batch_id || release.id;
+      const normalizedAllocation = normalizeAllocationKey(release.allocation_bill);
+      const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
       
       if (!groups[batchKey]) {
         groups[batchKey] = {
-          batch_id: batchKey,
+          batch_id: release.batch_id || release.id,
           allocation_bill: release.allocation_bill,
           destination: release.destination,
           category: release.category,
@@ -211,15 +229,31 @@ const History = () => {
         };
       }
       
-      groups[batchKey].items.push(release);
-      groups[batchKey].releaseIds.push(release.id);
-      groups[batchKey].totalBoxes += release.boxes_released;
-      groups[batchKey].totalQty += release.total_qty || 0;
-      groups[batchKey].itemCount += 1;
+      const group = groups[batchKey];
+      group.allocation_bill = group.allocation_bill || release.allocation_bill;
+      group.destination = group.destination || release.destination;
+      group.category = group.category || release.category;
+      group.courier = group.courier || release.courier;
+      group.waybill_no = group.waybill_no || release.waybill_no;
+      group.notes = combineNotes(group.notes, release.notes);
+      group.set_date = group.set_date || release.set_date;
+      group.date_delivered = group.date_delivered || release.date_delivered;
+      group.photo_url = group.photo_url || release.photo_url;
+      group.photo_status = group.photo_status || release.photo_status;
+      group.action_status = group.action_status || ((release as unknown as { action_status?: string | null }).action_status ?? null);
+      if (release.date_delivered || release.delivery_status === 'delivered') {
+        group.delivery_status = 'delivered';
+      }
+
+      group.items.push(release);
+      group.releaseIds.push(release.id);
+      group.totalBoxes += release.boxes_released;
+      group.totalQty += release.total_qty || 0;
+      group.itemCount += 1;
 
       // Sum per-row amounts so multi-product allocation bills show one correct total.
       if (release.amount != null) {
-        groups[batchKey].amount = (groups[batchKey].amount || 0) + Number(release.amount);
+        group.amount = (group.amount || 0) + Number(release.amount);
       }
     });
     
@@ -358,7 +392,12 @@ const History = () => {
     if (!confirm('Are you sure you want to delete this release? It will be moved to Recently Deleted.')) return;
     
     try {
-      await deleteReleaseBatch(group.batch_id);
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', group.releaseIds);
+      if (error) throw error;
+      await fetchReleases();
       toast({ title: 'Success', description: 'Release moved to Recently Deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete release', variant: 'destructive' });
@@ -368,8 +407,13 @@ const History = () => {
   const handleRestore = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await restoreReleaseBatch(group.batch_id);
-      setDeletedReleases(deletedReleases.filter(r => r.batch_id !== group.batch_id));
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ deleted_at: null })
+        .in('id', group.releaseIds);
+      if (error) throw error;
+      setDeletedReleases(deletedReleases.filter(r => !group.releaseIds.includes(r.id)));
+      await fetchReleases();
       toast({ title: 'Success', description: 'Release restored successfully' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to restore release', variant: 'destructive' });
@@ -381,8 +425,12 @@ const History = () => {
     if (!confirm('Are you sure you want to permanently delete this release? This cannot be undone.')) return;
     
     try {
-      await permanentlyDeleteBatch(group.batch_id);
-      setDeletedReleases(deletedReleases.filter(r => r.batch_id !== group.batch_id));
+      const { error } = await supabase
+        .from('stock_releases')
+        .delete()
+        .in('id', group.releaseIds);
+      if (error) throw error;
+      setDeletedReleases(deletedReleases.filter(r => !group.releaseIds.includes(r.id)));
       toast({ title: 'Success', description: 'Release permanently deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete release', variant: 'destructive' });
@@ -401,7 +449,7 @@ const History = () => {
       const { error: updErr } = await supabase
         .from('stock_releases')
         .update({ action_status: status })
-        .eq('batch_id', group.batch_id);
+        .in('id', group.releaseIds);
       if (updErr) throw updErr;
 
       // 2) If "no", create a discrepancy record (avoid duplicates by batch_id)
@@ -455,7 +503,7 @@ const History = () => {
       const { error } = await supabase
         .from('stock_releases')
         .update({ notes })
-        .eq('batch_id', group.batch_id);
+        .in('id', group.releaseIds);
       
       if (error) throw error;
       toast({ title: 'Success', description: 'Remarks updated' });
