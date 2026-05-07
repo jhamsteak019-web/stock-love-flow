@@ -1,5 +1,4 @@
 import { useState, useRef, useMemo, useEffect, useCallback, useTransition, memo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -59,14 +58,12 @@ interface ReleaseItem {
 
 
 const ReleaseStock = () => {
-  const { items, releases, releaseStockBatch, fetchReleases, loading } = useInventory();
-  const isReleasingRef = useRef(false);
+  const { items, releases, releaseStockBatch, loading } = useInventory();
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef2 = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
   const isColumnVisible = (key: string) => {
@@ -74,6 +71,20 @@ const ReleaseStock = () => {
     return col?.visible ?? true;
   };
   
+  const [releaseItems, setReleaseItems] = useState<ReleaseItem[]>([
+    { id: crypto.randomUUID(), itemId: '', boxes: 1 }
+  ]);
+  const [allocationBill, setAllocationBill] = useState('');
+  const [destination, setDestination] = useState('');
+  const [category, setCategory] = useState('');
+  const [boxes, setBoxes] = useState<number>(0);
+  const [qtyItems, setQtyItems] = useState<number>(0);
+  const [remarks, setRemarks] = useState('');
+  const [amount, setAmount] = useState<number>(0);
+  const [billDate, setBillDate] = useState<Date | undefined>(undefined);
+  const [setDate, setSetDate] = useState<Date | undefined>(undefined);
+  const [courier, setCourier] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
   
@@ -107,6 +118,119 @@ const ReleaseStock = () => {
       localStorage.removeItem('releaseStock_parsedItems');
     }
   }, [parsedItems]);
+
+  const addReleaseItem = () => {
+    setReleaseItems([...releaseItems, { id: crypto.randomUUID(), itemId: '', boxes: 1 }]);
+  };
+
+  const removeReleaseItem = (id: string) => {
+    if (releaseItems.length > 1) {
+      setReleaseItems(releaseItems.filter(item => item.id !== id));
+    }
+  };
+
+  const updateReleaseItem = (id: string, field: 'itemId' | 'boxes', value: string | number) => {
+    setReleaseItems(releaseItems.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+    
+    // Auto-fill remarks and destination when selecting an item
+    if (field === 'itemId' && typeof value === 'string') {
+      const selectedItem = items.find(i => i.id === value);
+      if (selectedItem?.description) {
+        setRemarks(selectedItem.description);
+      }
+      if (selectedItem?.branch) {
+        setDestination(selectedItem.branch);
+      }
+    }
+  };
+
+  const getAvailableItems = (currentItemId: string) => {
+    const selectedIds = releaseItems.map(r => r.itemId).filter(id => id && id !== currentItemId);
+    return items.filter(item => item.available_stock > 0 && !selectedIds.includes(item.id));
+  };
+
+  const getItemData = (itemId: string) => items.find(i => i.id === itemId);
+
+  // Check if allocation bill already exists
+  const isDuplicateAllocationBill = (bill: string) => {
+    if (!bill.trim()) return false;
+    return releases.some(r => r.allocation_bill?.toLowerCase().trim() === bill.toLowerCase().trim());
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!allocationBill.trim() || !destination.trim()) {
+      toast({ title: 'Error', description: 'Please enter allocation bill and destination', variant: 'destructive' });
+      return;
+    }
+
+    // Check for duplicate allocation bill
+    if (isDuplicateAllocationBill(allocationBill)) {
+      toast({ title: 'Warning', description: `Allocation bill "${allocationBill}" already exists. Please use a different one.`, variant: 'destructive' });
+      return;
+    }
+
+    if (boxes <= 0) {
+      toast({ title: 'Error', description: 'Please enter number of boxes', variant: 'destructive' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Create a manual release entry (no inventory item linked)
+      await releaseStockBatch(
+        [{ itemId: '', boxes: boxes }],
+        destination,
+        user!.id,
+        remarks || undefined,
+        courier || undefined,
+        allocationBill || undefined,
+        category || undefined,
+        undefined, // waybillNo removed
+        setDate?.toISOString() || undefined,
+        qtyItems || boxes,
+        selectedBranch?.id || undefined,
+        amount || undefined
+      );
+      
+      // Log activity
+      await logActivity({
+        actionType: 'create',
+        module: 'stock_releases',
+        description: `Created delivery: ${allocationBill || 'Manual Entry'} to ${destination}`,
+        metadata: {
+          allocation_bill: allocationBill,
+          destination,
+          category,
+          boxes,
+          amount,
+          branch: selectedBranch?.name
+        }
+      });
+      
+      toast({ title: 'Success', description: 'Stock released successfully' });
+      
+      // Reset form
+      setAllocationBill('');
+      setDestination('');
+      setCategory('');
+      setBoxes(0);
+      setQtyItems(0);
+      setRemarks('');
+      setAmount(0);
+      setBillDate(undefined);
+      setSetDate(undefined);
+      setCourier('');
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to release stock', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Excel Import Functions
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
@@ -289,12 +413,6 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    // Prevent double-click / rapid re-submission
-    if (isReleasingRef.current) {
-      toast({ title: 'Please wait', description: 'Release is already in progress...', variant: 'default' });
-      return;
-    }
-
     // Allow boxes >= 0 (0 is valid for import releases)
     const validItems = parsedItems.filter(p => p.qtyBoxes >= 0 && selectedItems.has(p.id) && p.courier && p.setDate);
     
@@ -303,77 +421,87 @@ const ReleaseStock = () => {
       return;
     }
 
-    // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
-    setSubmitting(true);
-    isReleasingRef.current = true;
+    // Check for duplicate allocation bills - show warning but allow to continue
+    const duplicates = validItems.filter(item => isDuplicateAllocationBill(item.sheetNo));
+    if (duplicates.length > 0) {
+      const duplicateBills = duplicates.map(d => d.sheetNo).join(', ');
+      const confirmed = window.confirm(
+        `Warning: Allocation bill(s) already exist:\n${duplicateBills}\n\nDo you still want to continue releasing these items?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
 
+    setSubmitting(true);
+    
+    // Track released allocation bills to prevent double release
+    const releasedBills = new Set<string>();
+    
     try {
+      // Release all selected items as ONE BATCH (single batch_id)
+      // Use the first item's courier, setDate, and waybillNo for the batch
       const firstItem = validItems[0];
 
-      // Group items by Sheet No. so duplicates become products under the same allocation bill
-      const groups = new Map<string, ParsedReleaseItem[]>();
+      // Release all items together as one batch
       for (const item of validItems) {
-        const key = item.sheetNo?.trim()
-          ? `bill:${item.sheetNo.toLowerCase().trim()}`
-          : `row:${item.id}`;
-        const arr = groups.get(key) || [];
-        arr.push(item);
-        groups.set(key, arr);
-      }
-
-      for (const group of groups.values()) {
-        const head = group[0];
-        const totalQty = group.reduce((s, g) => s + (g.qtyItem || g.qtyBoxes || 0), 0);
-        const totalBoxes = group.reduce((s, g) => s + (g.qtyBoxes || 0), 0);
-        const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || g.qtyBoxes || 0)), 0);
-        const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
+        // Skip if this allocation bill was already released in this batch
+        const billKey = item.sheetNo?.toLowerCase().trim();
+        if (billKey && releasedBills.has(billKey)) {
+          console.log(`Skipping duplicate in batch: ${item.sheetNo}`);
+          continue;
+        }
+        
         await releaseStockBatch(
-          group.map(g => ({ itemId: g.matchedItemId || '', boxes: g.qtyBoxes })),
-          head.deliverTo || 'Unknown',
+          [{ itemId: item.matchedItemId || '', boxes: item.qtyBoxes }],
+          item.deliverTo || 'Unknown',
           user!.id,
-          combinedNotes || undefined,
-          firstItem.courier,
-          head.sheetNo || undefined,
-          head.category || undefined,
-          undefined,
-          firstItem.setDate || undefined,
-          totalQty || totalBoxes,
+          item.remarks || undefined,
+          firstItem.courier, // Use first item's courier for all
+          item.sheetNo || undefined,
+          item.category || undefined,
+          undefined, // waybillNo removed
+          firstItem.setDate || undefined, // Use first item's set date for all
+          item.qtyItem || item.qtyBoxes,
           selectedBranch?.id || undefined,
-          totalAmount || undefined
+          item.amount || undefined
         );
+        
+        // Mark as released
+        if (billKey) {
+          releasedBills.add(billKey);
+        }
       }
 
-      // Remove released items from preview
+      // Remove released items from preview - including any duplicates
       const releasedIds = new Set(validItems.map(i => i.id));
       setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
       setSelectedItems(new Set());
       
+      // Hide preview if no items left
       if (parsedItems.length - validItems.length === 0) {
         setShowImportPreview(false);
       }
 
-      // Refresh releases state to keep duplicate checks accurate
-      await fetchReleases();
-
+      // Log activity for batch import
       await logActivity({
         actionType: 'import',
         module: 'stock_releases',
-        description: `Imported ${validItems.length} delivery item(s) via Excel`,
+        description: `Imported ${releasedBills.size || validItems.length} delivery item(s) via Excel`,
         metadata: {
-          items_count: validItems.length,
+          items_count: releasedBills.size || validItems.length,
           courier: firstItem.courier,
           branch: selectedBranch?.name,
           allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
         }
       });
 
-      toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
+      toast({ title: 'Success', description: `${releasedBills.size || validItems.length} item(s) released successfully` });
     } catch (error) {
       console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
     } finally {
       setSubmitting(false);
-      isReleasingRef.current = false;
     }
   };
 
@@ -503,155 +631,33 @@ const ReleaseStock = () => {
   };
 
 
+  const normalize = (value: string) =>
+    String(value || '').trim().toLowerCase();
+
+  const groupedItems = paginatedItems.reduce((acc: { sheetNo: string; items: ParsedReleaseItem[] }[], item) => {
+    const existingGroup = acc.find(
+      (group) => normalize(group.sheetNo) === normalize(item.sheetNo)
+    );
+
+    if (existingGroup) {
+      existingGroup.items.push(item);
+    } else {
+      acc.push({
+        sheetNo: item.sheetNo,
+        items: [item],
+      });
+    }
+
+    return acc;
+  }, []);
+
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
-  // Second importer: same preview flow as the first (Out Warehouse Delivery).
-  // Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
-  const handleFileUpload2 = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setImporting(true);
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
-      if (rows.length === 0) {
-        toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
-        return;
-      }
-
-      const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet');
-        const branch = findColumnValue(row, 'Branch', 'BRANCH');
-        const productName = findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product');
-        const category = findColumnValue(row, 'Category', 'CATEGORY');
-        const description = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION');
-        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity');
-        const price = findNumericValue(row, 'Price', 'PRICE', 'Amount');
-        const remarks = [productName, description].filter(Boolean).join(' - ');
-        return {
-          id: `parsed2-${index}-${Date.now()}`,
-          sheetNo,
-          deliverTo: branch,
-          qtyBoxes: 1,
-          amount: price,
-          qtyItem: qty,
-          category,
-          remarks,
-          billDate: '',
-          setDate: '',
-          courier: '',
-          matchedItemId: null,
-          matchedItemName: null,
-        };
-      }).filter(p => p.sheetNo || p.deliverTo || p.remarks);
-
-      if (parsed.length === 0) {
-        toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
-        return;
-      }
-
-      // DIRECT TO HISTORY — save immediately as pending (Yes/No) review.
-      // Group by Sheet No. so multiple rows = items inside one allocation bill.
-      const groups = new Map<string, ParsedReleaseItem[]>();
-      for (const item of parsed) {
-        const key = item.sheetNo?.trim()
-          ? `bill:${item.sheetNo.toLowerCase().trim()}`
-          : `row:${item.id}`;
-        const arr = groups.get(key) || [];
-        arr.push(item);
-        groups.set(key, arr);
-      }
-
-      let savedCount = 0;
-      for (const group of groups.values()) {
-        const head = group[0];
-        const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
-        const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || 0)), 0);
-        await releaseStockBatch(
-          group.map(g => {
-            const [pname, pdesc] = (g.remarks || '').split(' - ');
-            return {
-              itemId: g.matchedItemId || '',
-              boxes: g.qtyBoxes || 0,
-              productCode: pname || undefined,
-              productDescription: pdesc || undefined,
-              unitPrice: g.amount || 0,
-              qty: g.qtyItem || 0,
-              amount: (g.amount || 0) * (g.qtyItem || 0),
-            };
-          }),
-          head.deliverTo || 'Unknown',
-          user!.id,
-          undefined,
-          undefined,
-          head.sheetNo || undefined,
-          head.category || undefined,
-          undefined,
-          undefined,
-          totalQty || undefined,
-          selectedBranch?.id || undefined,
-          totalAmount || undefined,
-        );
-        savedCount += group.length;
-      }
-
-      await fetchReleases();
-
-      await logActivity({
-        actionType: 'import',
-        module: 'stock_releases',
-        description: `Imported ${savedCount} item(s) directly to History (pending review)`,
-        metadata: {
-          items_count: savedCount,
-          branch: selectedBranch?.name,
-          allocation_bills: parsed.map(p => p.sheetNo).filter(Boolean),
-        },
-      });
-
-      toast({ title: 'Imported to History', description: `${savedCount} item(s) added to History as pending Yes/No.` });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
-    } finally {
-      setImporting(false);
-      if (fileInputRef2.current) fileInputRef2.current.value = '';
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Import Excel #2 — Direct to History (pending Yes/No) */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold select-none">Import from Excel (Direct to History)</h2>
-              <p className="text-sm text-muted-foreground select-none">Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price</p>
-            </div>
-          </div>
-          <div>
-            <input
-              ref={fileInputRef2}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileUpload2}
-              className="hidden"
-            />
-            <Button variant="outline" onClick={() => fileInputRef2.current?.click()} disabled={importing}>
-              <Upload className="h-4 w-4 mr-2" />
-              {importing ? 'Importing...' : 'Upload File'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
@@ -752,7 +758,9 @@ const ReleaseStock = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedItems.map((item) => (
+                      groupedItems.map((group) => (
+  <>
+    {group.items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="px-5">
                             <Checkbox
@@ -909,6 +917,8 @@ const ReleaseStock = () => {
                             </Select>
                           </TableCell>
                         </TableRow>
+    ))}
+  </>
                       ))
                     )}
                   </TableBody>
@@ -957,6 +967,131 @@ const ReleaseStock = () => {
           </div>
         )}
       </div>
+
+      {/* Manual Release Form */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <PackagePlus className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold select-none">OUT WAREHOUSE DELIVERY</h2>
+            <p className="text-sm text-muted-foreground select-none">Manual stock release entry</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* 1. Allocation Bill */}
+          <div className="space-y-2">
+            <Label>Allocation Bill *</Label>
+            <Input value={allocationBill} onChange={(e) => setAllocationBill(e.target.value)} placeholder="Enter allocation bill number" />
+          </div>
+
+          {/* 2. Destination */}
+          <div className="space-y-2">
+            <Label>Destination *</Label>
+            <Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Store / Branch / Customer" />
+          </div>
+
+          {/* 3. Category (Manual Input) */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Enter category (e.g. BAGS, WALLET, SHOES)" />
+          </div>
+
+          {/* 4. Boxes */}
+          <div className="space-y-2">
+            <Label>Boxes</Label>
+            <Input 
+              type="number" 
+              min={0}
+              value={boxes || ''} 
+              onChange={(e) => setBoxes(parseInt(e.target.value) || 0)} 
+              placeholder="Enter number of boxes" 
+            />
+          </div>
+
+          {/* 5. Amount */}
+          <div className="space-y-2">
+            <Label>Amount</Label>
+            <Input 
+              type="number" 
+              min={0}
+              step="0.01"
+              value={amount || ''} 
+              onChange={(e) => setAmount(parseFloat(e.target.value) || 0)} 
+              placeholder="Enter amount" 
+            />
+          </div>
+
+          {/* 6. Qty/Items */}
+          <div className="space-y-2">
+            <Label>Qty/Items</Label>
+            <Input 
+              type="number" 
+              min={0}
+              value={qtyItems || ''} 
+              onChange={(e) => setQtyItems(parseInt(e.target.value) || 0)} 
+              placeholder="Enter total quantity of items" 
+            />
+          </div>
+
+          {/* 7. Remarks */}
+          <div className="space-y-2">
+            <Label>Remarks</Label>
+            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks / reference" />
+          </div>
+
+          {/* 8. Set Date */}
+          <div className="space-y-2">
+            <Label>Set Date (Date Out Warehouse)</Label>
+            <Popover modal={true}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {setDate ? format(setDate, 'MMM d, yyyy') : 'Select date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-50" align="start">
+                <Calendar
+                  mode="single"
+                  selected={setDate}
+                  onSelect={setSetDate}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Courier (Optional) */}
+          <div className="space-y-2">
+            <Label>Courier (Optional)</Label>
+            <Select value={courier} onValueChange={setCourier}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select courier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AP CARGO">AP CARGO</SelectItem>
+                <SelectItem value="SOUTHSEA">SOUTHSEA</SelectItem>
+                <SelectItem value="AIRSPEED">AIRSPEED</SelectItem>
+                <SelectItem value="FAST CARGO">FAST CARGO</SelectItem>
+                <SelectItem value="JUNIX TRACKING">JUNIX TRACKING</SelectItem>
+                <SelectItem value="RDS DC">RDS DC</SelectItem>
+                <SelectItem value="SC DEC TO SM DC">SC DEC TO SM DC</SelectItem>
+                <SelectItem value="SM DC">SM DC</SelectItem>
+                <SelectItem value="PRIETO">PRIETO</SelectItem>
+                <SelectItem value="DIRECT">DIRECT</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? 'Processing...' : 'Release Stock'}
+          </Button>
+        </form>
+      </div>
+
 
     </div>
   );
