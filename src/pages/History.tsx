@@ -138,20 +138,15 @@ const History = () => {
   const canDelete = isAdmin; // Only admin can delete
   const canExport = userRole !== 'uploader';
 
+  const openAllocationBill = useCallback((group: GroupedRelease) => {
+    setSelectedBatch(group);
+  }, []);
+
   const formatAmount = useCallback((value: number | null | undefined) => {
     if (value === null || value === undefined) return '-';
     const num = Number(value);
     if (!Number.isFinite(num)) return '-';
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }, []);
-
-  const formatDeliveryDays = useCallback((dateOut?: string | null, dateReceived?: string | null) => {
-    if (!dateOut || !dateReceived) return '-';
-
-    const days = differenceInDays(new Date(dateReceived), new Date(dateOut));
-    if (days < 0) return 'Invalid dates';
-
-    return `${days} day(s)`;
   }, []);
 
   const isColumnVisible = (key: string) => {
@@ -505,7 +500,9 @@ const History = () => {
         totalQty: group.totalQty,
         dateOut: group.set_date ? format(new Date(group.set_date), 'MMM dd, yyyy') : '-',
         dateReceived: group.date_delivered ? format(new Date(group.date_delivered), 'MMM dd, yyyy') : '-',
-        deliveryDays: formatDeliveryDays(group.set_date, group.date_delivered),
+        deliveryDays: group.set_date && group.date_delivered
+          ? differenceInDays(new Date(group.date_delivered), new Date(group.set_date)) + ' days'
+          : '-',
         courier: group.courier || '-',
         remarks: group.notes || '-',
       }));
@@ -730,7 +727,7 @@ const History = () => {
                     <TableRow 
                       key={group.batch_id} 
                       className="cursor-pointer transition-colors hover:bg-muted/50" 
-                      onClick={() => setSelectedBatch(group)}
+                      onClick={() => openAllocationBill(group)}
                     >
                       {isColumnVisible('allocation') && (
                         <TableCell className="font-medium" style={{ width: getColumnWidth('allocation') }}>
@@ -744,7 +741,16 @@ const History = () => {
                                 onPhotoUpdate={() => fetchReleases()}
                               />
                             </div>
-                            <span>{group.allocation_bill || '-'}</span>
+                            <button
+                              type="button"
+                              className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAllocationBill(group);
+                              }}
+                            >
+                              {group.allocation_bill || '-'}
+                            </button>
                           </div>
                         </TableCell>
                       )}
@@ -761,14 +767,11 @@ const History = () => {
                       )}
                       {isColumnVisible('deliveryTime') && (
                         <TableCell className="text-center" style={{ width: getColumnWidth('deliveryTime') }}>
-                          <span className={cn(
-                            "font-medium",
-                            formatDeliveryDays(group.set_date, group.date_delivered) === 'Invalid dates'
-                              ? "text-destructive"
-                              : "text-emerald-600 dark:text-emerald-400"
-                          )}>
-                            {formatDeliveryDays(group.set_date, group.date_delivered)}
-                          </span>
+                          {group.set_date && group.date_delivered ? (
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                              {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} day(s)
+                            </span>
+                          ) : '-'}
                         </TableCell>
                       )}
                       {isColumnVisible('courier') && <TableCell style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
@@ -792,6 +795,15 @@ const History = () => {
                       )}
                       <TableCell>
                         <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openAllocationBill(group)}
+                            title="View allocation bill"
+                            className="h-7 w-7"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="default"
@@ -925,8 +937,23 @@ const History = () => {
                     </TableRow>
                   ) : (
                     paginatedDeletedReleases.map((group) => (
-                      <TableRow key={group.batch_id}>
-                        <TableCell className="font-medium">{group.allocation_bill || '-'}</TableCell>
+                      <TableRow
+                        key={group.batch_id}
+                        className="cursor-pointer transition-colors hover:bg-muted/50"
+                        onClick={() => openAllocationBill(group)}
+                      >
+                        <TableCell className="font-medium">
+                          <button
+                            type="button"
+                            className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAllocationBill(group);
+                            }}
+                          >
+                            {group.allocation_bill || '-'}
+                          </button>
+                        </TableCell>
                         <TableCell>{group.destination}</TableCell>
                         <TableCell>{group.category || '-'}</TableCell>
                         <TableCell>{group.totalBoxes}</TableCell>
@@ -937,6 +964,17 @@ const History = () => {
                         <TableCell>{group.waybill_no || '-'}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAllocationBill(group);
+                              }}
+                              title="View allocation bill"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -1024,6 +1062,7 @@ const History = () => {
           courier={selectedBatch.courier}
           dateReleased={selectedBatch.date_released}
           dateDelivered={selectedBatch.date_delivered}
+          allocationBill={selectedBatch.allocation_bill}
           setDate={selectedBatch.set_date}
           isViewer={isViewer}
         />
