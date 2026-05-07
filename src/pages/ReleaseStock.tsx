@@ -57,7 +57,6 @@ interface ReleaseItem {
   boxes: number;
 }
 
-
 const ReleaseStock = () => {
   const { items, releases, releaseStockBatch, fetchReleases, loading } = useInventory();
   const isReleasingRef = useRef(false);
@@ -76,8 +75,6 @@ const ReleaseStock = () => {
   
   const [submitting, setSubmitting] = useState(false);
   
-  
-  // Import Excel state - initialize from localStorage
   const [importing, setImporting] = useState(false);
   const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>(() => {
     const saved = localStorage.getItem('releaseStock_parsedItems');
@@ -96,10 +93,8 @@ const ReleaseStock = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
   
-  // Debounced search for smooth typing
   const debouncedSearch = useDebounce(sheetNoSearch, 350);
 
-  // Persist parsedItems to localStorage
   useEffect(() => {
     if (parsedItems.length > 0) {
       localStorage.setItem('releaseStock_parsedItems', JSON.stringify(parsedItems));
@@ -108,7 +103,6 @@ const ReleaseStock = () => {
     }
   }, [parsedItems]);
 
-  // Excel Import Functions
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
     const keys = Object.keys(row);
     for (const name of possibleNames) {
@@ -151,7 +145,6 @@ const ReleaseStock = () => {
     if (!file || !user) return;
 
     setImporting(true);
-    // Don't clear existing items - we'll append to them
 
     try {
       const data = await file.arrayBuffer();
@@ -174,44 +167,37 @@ const ReleaseStock = () => {
         }
       }
 
-      // Log the column names from the first row for debugging
       if (rows.length > 0) {
         console.log('Excel column names detected:', Object.keys(rows[0]));
       }
 
-      // Parse rows into release items - Format: Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        // Log each row for debugging if index is 0
         if (index === 0) {
           console.log('First row data:', row);
         }
         
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
         const deliverTo = findColumnValue(row, 'Supplier', 'SUPPLIER', 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER');
-        const qtyBoxes = 1; // Default to 1 box when importing
+        const qtyBoxes = 1;
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
         const amountVal = findNumericValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE');
         
-        // Log parsed values for first row
         if (index === 0) {
           console.log('Parsed first row - sheetNo:', sheetNo, 'deliverTo:', deliverTo, 'category:', category, 'remarks:', rem);
         }
         
-        // Parse BILL DATE - keep as string for manual input
         let billDateStr = '';
         const billDateKeys = ['BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE'];
         for (const key of billDateKeys) {
           const val = row[key];
           if (val !== undefined && val !== null && val !== '') {
             if (val instanceof Date) {
-              // Format as readable date string
               billDateStr = format(val, 'MM/dd/yyyy');
             } else if (typeof val === 'string') {
               billDateStr = val;
             } else if (typeof val === 'number') {
-              // Excel serial date number
               const excelDate = new Date((val - 25569) * 86400 * 1000);
               if (!isNaN(excelDate.getTime())) {
                 billDateStr = format(excelDate, 'MM/dd/yyyy');
@@ -221,7 +207,6 @@ const ReleaseStock = () => {
           }
         }
 
-        // Try to match with inventory item by item_code or item_name
         const matchedItem = items.find(i => 
           i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
           i.item_name?.toLowerCase() === sheetNo.toLowerCase() ||
@@ -246,7 +231,6 @@ const ReleaseStock = () => {
         };
       }).filter(item => item.sheetNo || item.deliverTo);
 
-      // Filter out items that already exist as allocation bills in releases
       const existingBills = new Set(
         releases
           .filter(r => r.allocation_bill)
@@ -254,7 +238,7 @@ const ReleaseStock = () => {
       );
       
       const filteredParsed = parsed.filter(item => {
-        if (!item.sheetNo) return true; // Keep items without sheetNo
+        if (!item.sheetNo) return true;
         return !existingBills.has(item.sheetNo.toLowerCase().trim());
       });
       
@@ -271,7 +255,6 @@ const ReleaseStock = () => {
         return;
       }
 
-      // Append new items to existing ones instead of replacing
       setParsedItems(prev => [...prev, ...filteredParsed]);
       setShowImportPreview(true);
       
@@ -289,13 +272,11 @@ const ReleaseStock = () => {
   };
 
   const handleConfirmImport = async () => {
-    // Prevent double-click / rapid re-submission
     if (isReleasingRef.current) {
       toast({ title: 'Please wait', description: 'Release is already in progress...', variant: 'default' });
       return;
     }
 
-    // Allow boxes >= 0 (0 is valid for import releases)
     const validItems = parsedItems.filter(p => p.qtyBoxes >= 0 && selectedItems.has(p.id) && p.courier && p.setDate);
     
     if (validItems.length === 0) {
@@ -303,14 +284,12 @@ const ReleaseStock = () => {
       return;
     }
 
-    // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
     setSubmitting(true);
     isReleasingRef.current = true;
 
     try {
       const firstItem = validItems[0];
 
-      // Group items by Sheet No. so duplicates become products under the same allocation bill
       const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of validItems) {
         const key = item.sheetNo?.trim()
@@ -343,7 +322,6 @@ const ReleaseStock = () => {
         );
       }
 
-      // Remove released items from preview
       const releasedIds = new Set(validItems.map(i => i.id));
       setParsedItems(prev => prev.filter(p => !releasedIds.has(p.id)));
       setSelectedItems(new Set());
@@ -352,7 +330,6 @@ const ReleaseStock = () => {
         setShowImportPreview(false);
       }
 
-      // Refresh releases state to keep duplicate checks accurate
       await fetchReleases();
 
       await logActivity({
@@ -377,13 +354,11 @@ const ReleaseStock = () => {
     }
   };
 
-  // Bulk update function - when user changes amount/setDate/courier on any checked item, apply to all checked items
   const updateParsedItemWithBulk = (id: string, field: keyof ParsedReleaseItem, value: string | number) => {
     const isChecked = selectedItems.has(id);
     const isBulkField = field === 'amount' || field === 'setDate' || field === 'courier';
     
     if (isChecked && isBulkField && selectedItems.size > 1) {
-      // Apply to all checked items
       setParsedItems(prev => prev.map(item => {
         if (selectedItems.has(item.id)) {
           return { ...item, [field]: value };
@@ -391,7 +366,6 @@ const ReleaseStock = () => {
         return item;
       }));
     } else {
-      // Apply only to the single item
       updateParsedItem(id, field, value);
     }
   };
@@ -408,8 +382,6 @@ const ReleaseStock = () => {
     setCurrentPage(1);
   };
 
-  // Filter parsed items by sheet no or destination search - use debounced value
-  // Also sort checked items to the top
   const filteredParsedItems = useMemo(() => {
     let filtered = parsedItems;
     
@@ -423,7 +395,6 @@ const ReleaseStock = () => {
       );
     }
     
-    // Sort checked items to the top
     return [...filtered].sort((a, b) => {
       const aChecked = selectedItems.has(a.id);
       const bChecked = selectedItems.has(b.id);
@@ -433,14 +404,12 @@ const ReleaseStock = () => {
     });
   }, [parsedItems, debouncedSearch, selectedItems]);
 
-  // Pagination for filtered items
   const totalPages = Math.ceil(filteredParsedItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredParsedItems.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredParsedItems, currentPage]);
 
-  // Reset page when search changes
   const handleSearchChange = useCallback((value: string) => {
     setSheetNoSearch(value);
     startTransition(() => {
@@ -454,7 +423,6 @@ const ReleaseStock = () => {
     });
   }, [totalPages]);
 
-  // Checkbox handlers - enable checkboxes when courier AND set date are set for item
   const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && p.courier && p.setDate);
   const matchedItems = filteredParsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
   const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(p => selectedItems.has(p.id));
@@ -478,14 +446,12 @@ const ReleaseStock = () => {
     setSelectedItems(newSet);
   };
 
-  // Edit parsed item function
   const updateParsedItem = (id: string, field: keyof ParsedReleaseItem, value: string | number) => {
     setParsedItems(prev => prev.map(item => {
       if (item.id !== id) return item;
       
       const updated = { ...item, [field]: value };
       
-      // If sheetNo changed, try to re-match with inventory
       if (field === 'sheetNo') {
         const sheetNo = String(value);
         const matchedItem = items.find(i => 
@@ -502,41 +468,42 @@ const ReleaseStock = () => {
     }));
   };
 
-
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
-  // Second importer: same preview flow as the first (Out Warehouse Delivery).
-  // Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
   const handleFileUpload2 = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+
     setImporting(true);
+
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { cellDates: true });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+
       if (rows.length === 0) {
         toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
         return;
       }
 
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet');
-        const branch = findColumnValue(row, 'Branch', 'BRANCH');
-        const productName = findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product');
+        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'Allocation Bill', 'Bill', 'BILL');
+        const branch = findColumnValue(row, 'Branch', 'BRANCH', 'Destination', 'DESTINATION', 'Deliver To', 'DELIVER TO');
+        const productName = findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product', 'PRODUCT');
         const category = findColumnValue(row, 'Category', 'CATEGORY');
         const description = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Description', 'DESCRIPTION');
-        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity');
-        const price = findNumericValue(row, 'Price', 'PRICE', 'Amount');
+        const qty = findNumericValue(row, 'Qty', 'QTY', 'Quantity', 'QUANTITY');
+        const price = findNumericValue(row, 'Price', 'PRICE', 'Amount', 'AMOUNT');
         const remarks = [productName, description].filter(Boolean).join(' - ');
+
         return {
           id: `parsed2-${index}-${Date.now()}`,
           sheetNo,
           deliverTo: branch,
-          qtyBoxes: 1,
+          qtyBoxes: 0,
           amount: price,
           qtyItem: qty,
           category,
@@ -554,8 +521,6 @@ const ReleaseStock = () => {
         return;
       }
 
-      // DIRECT TO HISTORY — save immediately as pending (Yes/No) review.
-      // Group by Sheet No. so multiple rows = items inside one allocation bill.
       const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of parsed) {
         const key = item.sheetNo?.trim()
@@ -567,35 +532,94 @@ const ReleaseStock = () => {
       }
 
       let savedCount = 0;
+      let updatedExistingCount = 0;
+      let createdNewCount = 0;
+
       for (const group of groups.values()) {
         const head = group[0];
+        const sheetNoKey = head.sheetNo?.toLowerCase().trim();
         const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
         const totalAmount = group.reduce((s, g) => s + ((g.amount || 0) * (g.qtyItem || 0)), 0);
-        await releaseStockBatch(
-          group.map(g => {
-            const [pname, pdesc] = (g.remarks || '').split(' - ');
-            return {
-              itemId: g.matchedItemId || '',
-              boxes: g.qtyBoxes || 0,
-              productCode: pname || undefined,
-              productDescription: pdesc || undefined,
-              unitPrice: g.amount || 0,
-              qty: g.qtyItem || 0,
-              amount: (g.amount || 0) * (g.qtyItem || 0),
-            };
-          }),
-          head.deliverTo || 'Unknown',
-          user!.id,
-          undefined,
-          undefined,
-          head.sheetNo || undefined,
-          head.category || undefined,
-          undefined,
-          undefined,
-          totalQty || undefined,
-          selectedBranch?.id || undefined,
-          totalAmount || undefined,
-        );
+
+        const productItems = group.map(g => {
+          const [pname, ...descParts] = (g.remarks || '').split(' - ');
+          const pdesc = descParts.join(' - ');
+
+          return {
+            itemId: g.matchedItemId || null,
+            boxes: 0,
+            productCode: pname || undefined,
+            productDescription: pdesc || undefined,
+            category: g.category || undefined,
+            unitPrice: g.amount || 0,
+            qty: g.qtyItem || 0,
+            amount: (g.amount || 0) * (g.qtyItem || 0),
+          };
+        });
+
+        const existingRelease = sheetNoKey
+          ? releases.find(r => r.allocation_bill?.toLowerCase().trim() === sheetNoKey)
+          : undefined;
+
+        if (existingRelease) {
+          const { error: insertError } = await supabase.from('stock_release_items').insert(
+            productItems.map(item => ({
+              release_id: existingRelease.id,
+              item_id: item.itemId,
+              boxes: item.boxes,
+              product_code: item.productCode,
+              product_description: item.productDescription,
+              category: item.category,
+              unit_price: item.unitPrice,
+              qty: item.qty,
+              amount: item.amount,
+            }))
+          );
+
+          if (insertError) throw insertError;
+
+          const currentQty = Number(existingRelease.total_qty_items || 0);
+          const currentAmount = Number(existingRelease.amount || 0);
+
+          const { error: updateError } = await supabase
+            .from('stock_releases')
+            .update({
+              total_qty_items: currentQty + totalQty,
+              amount: currentAmount + totalAmount,
+            })
+            .eq('id', existingRelease.id);
+
+          if (updateError) throw updateError;
+
+          updatedExistingCount += group.length;
+        } else {
+          await releaseStockBatch(
+            productItems.map(item => ({
+              itemId: item.itemId || '',
+              boxes: item.boxes,
+              productCode: item.productCode,
+              productDescription: item.productDescription,
+              category: item.category,
+              unitPrice: item.unitPrice,
+              qty: item.qty,
+              amount: item.amount,
+            })),
+            head.deliverTo || 'Unknown',
+            user!.id,
+            undefined,
+            undefined,
+            head.sheetNo || undefined,
+            head.category || undefined,
+            undefined,
+            undefined,
+            totalQty || undefined,
+            selectedBranch?.id || undefined,
+            totalAmount || undefined,
+          );
+
+          createdNewCount += group.length;
+        }
+
         savedCount += group.length;
       }
 
@@ -604,18 +628,23 @@ const ReleaseStock = () => {
       await logActivity({
         actionType: 'import',
         module: 'stock_releases',
-        description: `Imported ${savedCount} item(s) directly to History (pending review)`,
+        description: `Imported ${savedCount} product item(s) to History`,
         metadata: {
           items_count: savedCount,
+          updated_existing_items: updatedExistingCount,
+          created_new_items: createdNewCount,
           branch: selectedBranch?.name,
           allocation_bills: parsed.map(p => p.sheetNo).filter(Boolean),
         },
       });
 
-      toast({ title: 'Imported to History', description: `${savedCount} item(s) added to History as pending Yes/No.` });
+      toast({
+        title: 'Imported to History',
+        description: `${savedCount} product item(s) imported. ${updatedExistingCount} added to existing allocation, ${createdNewCount} created as new allocation.`,
+      });
     } catch (err) {
       console.error(err);
-      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to parse/import file.', variant: 'destructive' });
     } finally {
       setImporting(false);
       if (fileInputRef2.current) fileInputRef2.current.value = '';
@@ -624,7 +653,6 @@ const ReleaseStock = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Import Excel #2 — Direct to History (pending Yes/No) */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
@@ -652,7 +680,6 @@ const ReleaseStock = () => {
         </div>
       </div>
 
-      {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -683,7 +710,6 @@ const ReleaseStock = () => {
           </div>
         </div>
 
-        {/* Import Preview */}
         {showImportPreview && parsedItems.length > 0 && (
           <div className="space-y-4 mt-4 pt-4 border-t">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -916,7 +942,6 @@ const ReleaseStock = () => {
               </div>
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-2">
                 <div className="text-sm text-muted-foreground">
@@ -957,7 +982,6 @@ const ReleaseStock = () => {
           </div>
         )}
       </div>
-
     </div>
   );
 };
