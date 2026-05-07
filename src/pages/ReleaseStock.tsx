@@ -57,6 +57,19 @@ interface ReleaseItem {
   boxes: number;
 }
 
+interface ExistingAllocationSection {
+  releaseId: string;
+  batchId: string;
+  allocationBill: string;
+  destination: string;
+  courier?: string;
+  category?: string;
+  waybillNo?: string;
+  setDate?: string;
+  branchId?: string;
+  needsBatchIdBackfill: boolean;
+}
+
 
 const ReleaseStock = () => {
   const { items, releases, releaseStockBatch, fetchReleases, loading } = useInventory();
@@ -107,6 +120,47 @@ const ReleaseStock = () => {
       localStorage.removeItem('releaseStock_parsedItems');
     }
   }, [parsedItems]);
+
+  const normalizeAllocation = (allocation?: string | null) => {
+    return allocation?.trim().toLowerCase() || '';
+  };
+
+  const findExistingAllocationSection = (allocation?: string | null): ExistingAllocationSection | null => {
+    const normalizedAllocation = normalizeAllocation(allocation);
+    if (!normalizedAllocation) return null;
+
+    const existingRelease = releases.find(release => {
+      const sameAllocation = normalizeAllocation(release.allocation_bill) === normalizedAllocation;
+      const sameBranch = selectedBranch?.id ? release.branch_id === selectedBranch.id : true;
+      return sameAllocation && sameBranch;
+    });
+
+    if (!existingRelease) return null;
+
+    return {
+      releaseId: existingRelease.id,
+      batchId: existingRelease.batch_id || existingRelease.id,
+      allocationBill: existingRelease.allocation_bill || allocation!.trim(),
+      destination: existingRelease.destination,
+      courier: existingRelease.courier || undefined,
+      category: existingRelease.category || undefined,
+      waybillNo: existingRelease.waybill_no || undefined,
+      setDate: existingRelease.set_date || undefined,
+      branchId: existingRelease.branch_id || undefined,
+      needsBatchIdBackfill: !existingRelease.batch_id,
+    };
+  };
+
+  const ensureExistingSectionBatchId = async (section: ExistingAllocationSection | null) => {
+    if (!section?.needsBatchIdBackfill) return;
+
+    const { error } = await supabase
+      .from('stock_releases')
+      .update({ batch_id: section.batchId })
+      .eq('id', section.releaseId);
+
+    if (error) throw error;
+  };
 
   // Excel Import Functions
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
@@ -186,7 +240,7 @@ const ReleaseStock = () => {
           console.log('First row data:', row);
         }
         
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Item Code', 'ItemCode', 'Code', 'Allocation Bill', 'Bill', 'BILL');
+        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL', 'Item Code', 'ItemCode', 'Code', 'Bill', 'BILL');
         const deliverTo = findColumnValue(row, 'Supplier', 'SUPPLIER', 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER');
         const qtyBoxes = 1; // Default to 1 box when importing
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
@@ -246,39 +300,18 @@ const ReleaseStock = () => {
         };
       }).filter(item => item.sheetNo || item.deliverTo);
 
-      // Filter out items that already exist as allocation bills in releases
-      const existingBills = new Set(
-        releases
-          .filter(r => r.allocation_bill)
-          .map(r => r.allocation_bill!.toLowerCase().trim())
-      );
-      
-      const filteredParsed = parsed.filter(item => {
-        if (!item.sheetNo) return true; // Keep items without sheetNo
-        return !existingBills.has(item.sheetNo.toLowerCase().trim());
-      });
-      
-      const skippedCount = parsed.length - filteredParsed.length;
-
-      if (filteredParsed.length === 0) {
-        if (skippedCount > 0) {
-          toast({ title: 'All Items Already Released', description: `${skippedCount} item(s) already exist in deliveries and were skipped.`, variant: 'default' });
-        } else {
-          toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE).', variant: 'destructive' });
-        }
+      if (parsed.length === 0) {
+        toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE).', variant: 'destructive' });
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
 
       // Append new items to existing ones instead of replacing
-      setParsedItems(prev => [...prev, ...filteredParsed]);
+      setParsedItems(prev => [...prev, ...parsed]);
       setShowImportPreview(true);
       
-      const message = skippedCount > 0 
-        ? `${filteredParsed.length} items added (${skippedCount} already released and skipped). Total: ${parsedItems.length + filteredParsed.length} items.`
-        : `${filteredParsed.length} items added. Total: ${parsedItems.length + filteredParsed.length} items.`;
-      toast({ title: 'File Parsed', description: message });
+      toast({ title: 'File Parsed', description: `${parsed.length} items added. Total: ${parsedItems.length + parsed.length} items.` });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
@@ -313,8 +346,9 @@ const ReleaseStock = () => {
       // Group items by Sheet No. so duplicates become products under the same allocation bill
       const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of validItems) {
-        const key = item.sheetNo?.trim()
-          ? `bill:${item.sheetNo.toLowerCase().trim()}`
+        const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+        const key = normalizedSheetNo
+          ? `bill:${normalizedSheetNo}`
           : `row:${item.id}`;
         const arr = groups.get(key) || [];
         arr.push(item);
@@ -323,6 +357,9 @@ const ReleaseStock = () => {
 
       for (const group of groups.values()) {
         const head = group[0];
+        const existingSection = findExistingAllocationSection(head.sheetNo);
+        await ensureExistingSectionBatchId(existingSection);
+
         const totalQty = group.reduce((s, g) => s + (g.qtyItem || g.qtyBoxes || 0), 0);
         const totalBoxes = group.reduce((s, g) => s + (g.qtyBoxes || 0), 0);
         const totalAmount = group.reduce((s, g) => s + (g.amount || 0), 0);
@@ -333,18 +370,20 @@ const ReleaseStock = () => {
             boxes: g.qtyBoxes,
             qty: g.qtyItem || g.qtyBoxes || 0,
             amount: g.amount || 0,
+            category: g.category || undefined,
           })),
-          head.deliverTo || 'Unknown',
+          existingSection?.destination || head.deliverTo || 'Unknown',
           user!.id,
           combinedNotes || undefined,
-          firstItem.courier,
-          head.sheetNo || undefined,
-          head.category || undefined,
-          undefined,
-          firstItem.setDate || undefined,
+          existingSection?.courier || firstItem.courier,
+          existingSection?.allocationBill || head.sheetNo || undefined,
+          existingSection?.category || head.category || undefined,
+          existingSection?.waybillNo,
+          existingSection?.setDate || firstItem.setDate || undefined,
           totalQty || totalBoxes,
-          selectedBranch?.id || undefined,
-          totalAmount || undefined
+          existingSection?.branchId || selectedBranch?.id || undefined,
+          totalAmount || undefined,
+          existingSection?.batchId
         );
       }
 
@@ -529,7 +568,7 @@ const ReleaseStock = () => {
       }
 
       const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet');
+        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL');
         const branch = findColumnValue(row, 'Branch', 'BRANCH');
         const productName = findColumnValue(row, 'Product Name', 'PRODUCT NAME', 'Product');
         const category = findColumnValue(row, 'Category', 'CATEGORY');
@@ -563,8 +602,9 @@ const ReleaseStock = () => {
       // Group by Sheet No. so multiple rows = items inside one allocation bill.
       const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of parsed) {
-        const key = item.sheetNo?.trim()
-          ? `bill:${item.sheetNo.toLowerCase().trim()}`
+        const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+        const key = normalizedSheetNo
+          ? `bill:${normalizedSheetNo}`
           : `row:${item.id}`;
         const arr = groups.get(key) || [];
         arr.push(item);
@@ -574,6 +614,9 @@ const ReleaseStock = () => {
       let savedCount = 0;
       for (const group of groups.values()) {
         const head = group[0];
+        const existingSection = findExistingAllocationSection(head.sheetNo);
+        await ensureExistingSectionBatchId(existingSection);
+
         const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
         const totalAmount = group.reduce((s, g) => s + (g.amount || 0), 0);
         await releaseStockBatch(
@@ -584,22 +627,24 @@ const ReleaseStock = () => {
               boxes: g.qtyBoxes || 0,
               productCode: pname || undefined,
               productDescription: pdesc || undefined,
-              unitPrice: g.qtyItem ? (g.amount || 0) / g.qtyItem : g.amount || 0,
+              unitPrice: g.amount || 0,
               qty: g.qtyItem || 0,
               amount: g.amount || 0,
+              category: g.category || undefined,
             };
           }),
-          head.deliverTo || 'Unknown',
+          existingSection?.destination || head.deliverTo || 'Unknown',
           user!.id,
           undefined,
-          undefined,
-          head.sheetNo || undefined,
-          head.category || undefined,
-          undefined,
-          undefined,
+          existingSection?.courier,
+          existingSection?.allocationBill || head.sheetNo || undefined,
+          existingSection?.category || head.category || undefined,
+          existingSection?.waybillNo,
+          existingSection?.setDate,
           totalQty || undefined,
-          selectedBranch?.id || undefined,
+          existingSection?.branchId || selectedBranch?.id || undefined,
           totalAmount || undefined,
+          existingSection?.batchId
         );
         savedCount += group.length;
       }

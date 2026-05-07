@@ -235,7 +235,7 @@ export const useInventory = () => {
   };
 
   const releaseStockBatch = async (
-    items: { itemId: string; boxes: number; productCode?: string; productDescription?: string; unitPrice?: number; qty?: number; amount?: number }[],
+    items: { itemId: string; boxes: number; productCode?: string; productDescription?: string; unitPrice?: number; qty?: number; amount?: number; category?: string }[],
     destination: string,
     releasedBy: string,
     notes?: string,
@@ -246,9 +246,10 @@ export const useInventory = () => {
     setDate?: string,
     totalQty?: number,
     branchId?: string,
-    amount?: number
+    amount?: number,
+    batchIdOverride?: string
   ) => {
-    const batchId = crypto.randomUUID();
+    const batchId = batchIdOverride || crypto.randomUUID();
     
     const insertData = items.map(item => ({
       item_id: item.itemId && item.itemId.trim() !== '' ? item.itemId : null,
@@ -259,7 +260,7 @@ export const useInventory = () => {
       courier,
       allocation_bill: allocationBill,
       batch_id: batchId,
-      category: category || null,
+      category: item.category || category || null,
       waybill_no: waybillNo || null,
       set_date: setDate || null,
       total_qty: item.qty ?? totalQty ?? null,
