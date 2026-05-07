@@ -145,6 +145,15 @@ const History = () => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }, []);
 
+  const formatDeliveryDays = useCallback((dateOut?: string | null, dateReceived?: string | null) => {
+    if (!dateOut || !dateReceived) return '-';
+
+    const days = differenceInDays(new Date(dateReceived), new Date(dateOut));
+    if (days < 0) return 'Invalid dates';
+
+    return `${days} day(s)`;
+  }, []);
+
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
     return col?.visible ?? true;
@@ -496,9 +505,7 @@ const History = () => {
         totalQty: group.totalQty,
         dateOut: group.set_date ? format(new Date(group.set_date), 'MMM dd, yyyy') : '-',
         dateReceived: group.date_delivered ? format(new Date(group.date_delivered), 'MMM dd, yyyy') : '-',
-        deliveryDays: group.set_date && group.date_delivered
-          ? differenceInDays(new Date(group.date_delivered), new Date(group.set_date)) + ' days'
-          : '-',
+        deliveryDays: formatDeliveryDays(group.set_date, group.date_delivered),
         courier: group.courier || '-',
         remarks: group.notes || '-',
       }));
@@ -754,11 +761,14 @@ const History = () => {
                       )}
                       {isColumnVisible('deliveryTime') && (
                         <TableCell className="text-center" style={{ width: getColumnWidth('deliveryTime') }}>
-                          {group.set_date && group.date_delivered ? (
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                              {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} day(s)
-                            </span>
-                          ) : '-'}
+                          <span className={cn(
+                            "font-medium",
+                            formatDeliveryDays(group.set_date, group.date_delivered) === 'Invalid dates'
+                              ? "text-destructive"
+                              : "text-emerald-600 dark:text-emerald-400"
+                          )}>
+                            {formatDeliveryDays(group.set_date, group.date_delivered)}
+                          </span>
                         </TableCell>
                       )}
                       {isColumnVisible('courier') && <TableCell style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}

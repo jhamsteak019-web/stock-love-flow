@@ -37,9 +37,10 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
   const releasedByName = releases[0]?.profile?.full_name || releases[0]?.profile?.email || '-';
   
   // Calculate delivery days
-  const deliveryDays = dateOutWarehouse && dateDelivered 
+  const rawDeliveryDays = dateOutWarehouse && dateDelivered
     ? differenceInDays(new Date(dateDelivered), new Date(dateOutWarehouse))
     : null;
+  const deliveryDays = rawDeliveryDays !== null && rawDeliveryDays >= 0 ? rawDeliveryDays : null;
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
