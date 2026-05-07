@@ -449,6 +449,8 @@ const ReleaseStock = () => {
           totalQty || totalBoxes,
           selectedBranch?.id || undefined,
           totalAmount || undefined,
+          undefined,
+          'yes'
         );
       }
 

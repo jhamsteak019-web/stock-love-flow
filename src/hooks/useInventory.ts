@@ -247,7 +247,8 @@ export const useInventory = () => {
     totalQty?: number,
     branchId?: string,
     amount?: number,
-    batchIdOverride?: string
+    batchIdOverride?: string,
+    actionStatus?: 'yes' | 'no' | null
   ) => {
     const batchId = batchIdOverride || crypto.randomUUID();
     
@@ -266,6 +267,7 @@ export const useInventory = () => {
       total_qty: item.qty ?? totalQty ?? null,
       branch_id: branchId || null,
       amount: item.amount ?? amount ?? null,
+      action_status: actionStatus ?? null,
       product_code: item.productCode || null,
       product_description: item.productDescription || null,
       unit_price: item.unitPrice ?? null,
