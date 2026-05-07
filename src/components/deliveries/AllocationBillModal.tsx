@@ -75,6 +75,17 @@ const hasProductDetails = (release: StockRelease) => {
   ].some(hasUsefulProductText);
 };
 
+const isImportedProductRow = (release: StockRelease) => {
+  return hasUsefulProductText(release.product_code) ||
+    hasUsefulProductText(release.product_description) ||
+    (release.unit_price !== null && release.unit_price !== undefined);
+};
+
+const getBoxReleases = (releaseItems: StockRelease[]) => {
+  const manualBoxRows = releaseItems.filter(release => !isImportedProductRow(release));
+  return manualBoxRows.length > 0 ? manualBoxRows : releaseItems;
+};
+
 const getSortParts = (release: StockRelease) => {
   const code = getProductCode(release).trim();
   const description = getProductDescription(release).trim();
@@ -141,7 +152,8 @@ const getReleaseAmount = (release: StockRelease) => {
 const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate, isViewer = false }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const displayReleases = getDisplayReleases(releases);
-  const totalBoxes = displayReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
+  const boxReleases = getBoxReleases(releases);
+  const totalBoxes = boxReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
   const totalQty = displayReleases.reduce((sum, r) => sum + toNumber(r.total_qty), 0);
   const totalAmount = displayReleases.reduce((sum, r) => sum + getReleaseAmount(r), 0);
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';
