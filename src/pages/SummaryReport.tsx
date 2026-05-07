@@ -19,12 +19,30 @@ import 'jspdf-autotable';
 import { exportToExcel } from '@/lib/excelExport';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
+import type { StockRelease } from '@/types/inventory';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+interface DeliveredSummaryItem {
+  batch_id: string;
+  allocation_bill: string | null;
+  set_date: string | null;
+  date_delivered: string | null;
+  courier: string | null;
+  category: string | null;
+  categories: string[];
+  boxes: number;
+  qty: number;
+  amount: number;
+  delivery_status: string;
+  remarks: string | null;
+  releases: StockRelease[];
+}
+
 const SummaryReport = () => {
-  const { items, loading: inventoryLoading } = useInventory();
+  const { loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const currentYear = new Date().getFullYear();
@@ -38,6 +56,7 @@ const SummaryReport = () => {
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
   const [remarksFilter, setRemarksFilter] = useState<'all' | 'ro' | 'new'>('all');
+  const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
 
   // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
   const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
@@ -341,18 +360,8 @@ const SummaryReport = () => {
   const deliveredByBranch = useMemo(() => {
     const branches: Record<string, {
       branch: string;
-      items: {
-        allocation_bill: string | null;
-        set_date: string | null;
-        date_delivered: string | null;
-        courier: string | null;
-        category: string | null;
-        boxes: number;
-        qty: number;
-        amount: number;
-        delivery_status: string;
-        remarks: string | null;
-      }[];
+      items: DeliveredSummaryItem[];
+      allocationMap: Record<string, DeliveredSummaryItem>;
       totalBoxes: number;
       totalQty: number;
       totalAmount: number;
@@ -366,24 +375,52 @@ const SummaryReport = () => {
           branches[branch] = {
             branch,
             items: [],
+            allocationMap: {},
             totalBoxes: 0,
             totalQty: 0,
             totalAmount: 0,
           };
         }
+
+        const batchKey = release.batch_id || release.allocation_bill?.trim().toLowerCase() || release.id;
+        const existingItem = branches[branch].allocationMap[batchKey];
         
-        branches[branch].items.push({
-          allocation_bill: release.allocation_bill,
-          set_date: release.set_date,
-          date_delivered: release.date_delivered,
-          courier: release.courier,
-          category: release.category,
-          boxes: release.boxes_released,
-          qty: release.total_qty || 0,
-          amount: release.amount || 0,
-          delivery_status: release.delivery_status,
-          remarks: release.notes,
-        });
+        if (existingItem) {
+          existingItem.releases.push(release);
+          existingItem.boxes += release.boxes_released;
+          existingItem.qty += release.total_qty || 0;
+          existingItem.amount += release.amount || 0;
+          existingItem.set_date = existingItem.set_date || release.set_date;
+          existingItem.date_delivered = existingItem.date_delivered || release.date_delivered;
+          existingItem.courier = existingItem.courier || release.courier;
+          existingItem.remarks = [existingItem.remarks, release.notes].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(' | ') || null;
+          if (release.category && !existingItem.categories.includes(release.category)) {
+            existingItem.categories.push(release.category);
+            existingItem.category = existingItem.categories.join(', ');
+          }
+          if (release.delivery_status !== 'delivered') {
+            existingItem.delivery_status = release.delivery_status;
+          }
+        } else {
+          const item: DeliveredSummaryItem = {
+            batch_id: batchKey,
+            allocation_bill: release.allocation_bill,
+            set_date: release.set_date,
+            date_delivered: release.date_delivered,
+            courier: release.courier,
+            category: release.category,
+            categories: release.category ? [release.category] : [],
+            boxes: release.boxes_released,
+            qty: release.total_qty || 0,
+            amount: release.amount || 0,
+            delivery_status: release.delivery_status,
+            remarks: release.notes,
+            releases: [release],
+          };
+          branches[branch].allocationMap[batchKey] = item;
+          branches[branch].items.push(item);
+        }
+
         branches[branch].totalBoxes += release.boxes_released;
         branches[branch].totalQty += release.total_qty || 0;
         branches[branch].totalAmount += release.amount || 0;
@@ -392,7 +429,10 @@ const SummaryReport = () => {
     // Sort branches by name and items by set_date ascending (earliest first)
     return Object.values(branches)
       .map(branch => ({
-        ...branch,
+        branch: branch.branch,
+        totalBoxes: branch.totalBoxes,
+        totalQty: branch.totalQty,
+        totalAmount: branch.totalAmount,
         items: branch.items.sort((a, b) => {
           const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
           const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
@@ -429,6 +469,7 @@ const SummaryReport = () => {
           items: filteredItems,
           totalBoxes: filteredItems.reduce((sum, item) => sum + item.boxes, 0),
           totalQty: filteredItems.reduce((sum, item) => sum + item.qty, 0),
+          totalAmount: filteredItems.reduce((sum, item) => sum + item.amount, 0),
         };
       })
       .filter((branch): branch is NonNullable<typeof branch> => branch !== null);
@@ -1558,7 +1599,7 @@ const SummaryReport = () => {
                     // Filter items by category if a category is selected
                     const filteredItems = selectedCategory === 'all' 
                       ? branch.items 
-                      : branch.items.filter(item => item.category === selectedCategory);
+                      : branch.items.filter(item => item.categories.includes(selectedCategory));
                     
                     const filteredTotalBoxes = filteredItems.reduce((sum, item) => sum + item.boxes, 0);
                     const filteredTotalQty = filteredItems.reduce((sum, item) => sum + item.qty, 0);
@@ -1611,7 +1652,8 @@ const SummaryReport = () => {
                                 ...branch,
                                 items: filteredItems,
                                 totalBoxes: filteredTotalBoxes,
-                                totalQty: filteredTotalQty
+                                totalQty: filteredTotalQty,
+                                totalAmount: filteredTotalAmount
                               })}
                             >
                               <Printer className="h-4 w-4 mr-1" />
@@ -1637,8 +1679,12 @@ const SummaryReport = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredItems.map((item, idx) => (
-                            <TableRow key={idx}>
+                          {filteredItems.map((item) => (
+                            <TableRow
+                              key={item.batch_id}
+                              className="cursor-pointer"
+                              onClick={() => setSelectedSummaryItem(item)}
+                            >
                               <TableCell className="font-mono whitespace-nowrap">{item.allocation_bill || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
@@ -1928,6 +1974,22 @@ const SummaryReport = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      {selectedSummaryItem && (
+        <AllocationBillModal
+          open={!!selectedSummaryItem}
+          onOpenChange={(open) => {
+            if (!open) setSelectedSummaryItem(null);
+          }}
+          releases={selectedSummaryItem.releases}
+          destination={selectedSummaryItem.releases[0]?.destination || ''}
+          courier={selectedSummaryItem.courier}
+          dateReleased={selectedSummaryItem.releases[0]?.date_released || ''}
+          dateDelivered={selectedSummaryItem.date_delivered}
+          allocationBill={selectedSummaryItem.allocation_bill}
+          setDate={selectedSummaryItem.set_date}
+          isViewer={isViewer}
+        />
+      )}
     </div>
   );
 };

@@ -58,7 +58,7 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
         let query = supabase
           .from("stock_releases")
           .select(
-            "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at",
+            "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(*)",
           )
           .is("deleted_at", null)
           .or(periodOrFilter)
