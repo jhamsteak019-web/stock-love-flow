@@ -193,32 +193,35 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
           <title>Warehouse Allocation Bill - ${billNumber}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
-            .header { margin-bottom: 20px; }
-            .header-title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-            .header-info { display: flex; justify-content: space-between; margin-bottom: 10px; }
-            .header-left { text-align: left; }
-            .header-right { text-align: right; }
-            .bill-number { font-size: 14px; font-weight: bold; color: #000; }
-            .info-row { margin-bottom: 3px; }
+            body { font-family: Arial, sans-serif; padding: 30px 42px; color: #000; font-size: 12px; }
+            .header { margin-bottom: 26px; }
+            .header-title { text-align: center; font-size: 20px; font-weight: 800; text-decoration: underline; margin-bottom: 26px; }
+            .divider { border-top: 2px solid #000; margin-bottom: 16px; }
+            .header-info { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 34px; }
+            .header-left { text-align: left; line-height: 1.55; }
+            .header-right { text-align: right; line-height: 1.65; min-width: 220px; }
+            .bill-number { font-size: 19px; font-weight: 800; letter-spacing: 0.5px; color: #000; }
+            .info-row { margin-bottom: 2px; }
             .info-label { font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            th, td { border: 1px solid #000; padding: 3px 6px; font-size: 9px; line-height: 1.2; }
-            th { background: #f0f0f0; font-weight: bold; text-align: left; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 18px; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+            th, td { border-bottom: 1px solid #000; padding: 3px 8px; font-size: 11px; line-height: 1.25; }
+            th { font-size: 13px; font-weight: 700; text-align: left; border-bottom: 2px solid #000; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
-            .totals-row { font-weight: bold; background: #f5f5f5; }
-            .summary-box { margin-top: 15px; padding: 10px; border: 1px solid #000; background: #fafafa; }
-            .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-            .footer { margin-top: 40px; display: flex; justify-content: space-between; padding: 0 20px; }
-            .signature-block { text-align: center; width: 120px; }
-            .signature-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 9px; }
+            .totals-row { font-weight: bold; border-top: 2px solid #000; }
+            .totals-row td { border-bottom: 0; padding-top: 6px; padding-bottom: 6px; }
+            .summary-box { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px 24px; font-size: 12px; }
+            .summary-row { display: flex; gap: 5px; }
+            .footer { margin-top: 58px; display: flex; justify-content: space-between; padding: 0 4px; }
+            .signature-block { text-align: center; width: 150px; }
+            .signature-line { border-top: 1px solid #000; padding-top: 7px; font-size: 11px; color: #333; }
             @media print { body { padding: 10px; } }
           </style>
         </head>
         <body>
           <div class="header">
             <div class="header-title">WAREHOUSE ALLOCATION BILL</div>
+            <div class="divider"></div>
             <div class="header-info">
               <div class="header-left">
                 <div class="info-row"><span class="info-label">WH-Kawit</span></div>
@@ -287,10 +290,10 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto bg-white p-5 text-black sm:p-6">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-black">
               <FileText className="h-5 w-5 text-primary" />
               Warehouse Allocation Bill
             </DialogTitle>
@@ -303,36 +306,36 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
           </div>
         </DialogHeader>
 
-        <div ref={printRef} className="space-y-4">
+        <div ref={printRef} className="space-y-5 bg-white px-1 pb-2 text-black">
           {/* Header */}
-          <div className="text-center pb-4 border-b-2 border-foreground">
-            <h2 className="text-lg font-bold">WAREHOUSE ALLOCATION BILL</h2>
+          <div className="border-b-2 border-black pb-4 text-center">
+            <h2 className="text-xl font-extrabold underline underline-offset-4">WAREHOUSE ALLOCATION BILL</h2>
           </div>
 
           {/* Bill Info */}
-          <div className="flex justify-between items-start">
-            <div className="space-y-1 text-sm">
+          <div className="flex items-start justify-between gap-6">
+            <div className="space-y-1 text-sm leading-relaxed">
               <div><span className="font-semibold">WH-Kawit</span></div>
               <div><span className="font-semibold">To Branch:</span> {destination}</div>
               <div><span className="font-semibold">Remarks:</span> {remarks}</div>
             </div>
-            <div className="text-right space-y-1 text-sm">
-              <div className="text-lg font-bold font-mono">{billNumber}</div>
+            <div className="min-w-[220px] space-y-1 text-right text-sm leading-relaxed">
+              <div className="font-mono text-xl font-extrabold tracking-wide">{billNumber}</div>
               <div>{formatDate(dateOutWarehouse)}</div>
               <div>{releasedByName}</div>
             </div>
           </div>
 
           {/* Products Table */}
-          <div className="rounded-md border overflow-hidden">
-            <Table className="text-xs">
+          <div className="overflow-hidden">
+            <Table className="border-y-2 border-black text-[12px]">
               <TableHeader>
-                <TableRow className="bg-muted h-8">
-                  <TableHead className="h-8 px-2 py-1 font-bold border-r w-[24%] whitespace-nowrap">Product Code</TableHead>
-                  <TableHead className="h-8 px-2 py-1 font-bold border-r w-[34%] whitespace-nowrap">Product Description</TableHead>
-                  <TableHead className="h-8 px-2 py-1 font-bold border-r text-center w-[8%] whitespace-nowrap">Qty</TableHead>
-                  <TableHead className="h-8 px-2 py-1 font-bold border-r text-right w-[14%] whitespace-nowrap">Price</TableHead>
-                  <TableHead className="h-8 px-2 py-1 font-bold text-right w-[14%] whitespace-nowrap">Amount</TableHead>
+                <TableRow className="h-7 border-b-2 border-black hover:bg-transparent">
+                  <TableHead className="h-7 w-[25%] whitespace-nowrap px-2 py-1 text-sm font-bold text-black">Product Code</TableHead>
+                  <TableHead className="h-7 w-[36%] whitespace-nowrap px-2 py-1 text-sm font-bold text-black">Product Description</TableHead>
+                  <TableHead className="h-7 w-[8%] whitespace-nowrap px-2 py-1 text-center text-sm font-bold text-black">Qty</TableHead>
+                  <TableHead className="h-7 w-[14%] whitespace-nowrap px-2 py-1 text-right text-sm font-bold text-black">Price</TableHead>
+                  <TableHead className="h-7 w-[17%] whitespace-nowrap px-2 py-1 text-right text-sm font-bold text-black">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -344,29 +347,29 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                   const amount = getReleaseAmount(release);
                   
                   return (
-                    <TableRow key={release.id || index} className="h-8">
-                      <TableCell className="border-r font-mono text-xs px-2 py-1 whitespace-nowrap">{itemCode}</TableCell>
-                      <TableCell className="border-r text-xs px-2 py-1 whitespace-nowrap">{description}</TableCell>
-                      <TableCell className="border-r text-center text-xs px-2 py-1 whitespace-nowrap">{qty}</TableCell>
-                      <TableCell className="border-r text-right text-xs px-2 py-1 whitespace-nowrap">{price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right text-xs px-2 py-1 whitespace-nowrap">{formatMoney(amount)}</TableCell>
+                    <TableRow key={release.id || index} className="h-6 border-b border-black/70 hover:bg-transparent">
+                      <TableCell className="whitespace-nowrap px-2 py-[3px] font-mono text-[11px] text-black">{itemCode}</TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-[3px] text-[11px] text-black">{description}</TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-[3px] text-center text-[11px] text-black">{qty}</TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-[3px] text-right text-[11px] text-black">{price.toFixed(2)}</TableCell>
+                      <TableCell className="whitespace-nowrap px-2 py-[3px] text-right text-[11px] text-black">{formatMoney(amount)}</TableCell>
                     </TableRow>
                   );
                 })}
                 {/* Totals Row */}
-                <TableRow className="bg-muted font-semibold h-8">
-                  <TableCell colSpan={2} className="border-r text-right text-xs px-2 py-1">Total Qty:</TableCell>
-                  <TableCell className="border-r text-center text-xs px-2 py-1">{totalQty}</TableCell>
-                  <TableCell className="border-r px-2 py-1"></TableCell>
-                  <TableCell className="text-right text-xs px-2 py-1">{formatMoney(totalAmount)}</TableCell>
+                <TableRow className="h-7 border-t-2 border-black font-bold hover:bg-transparent">
+                  <TableCell colSpan={2} className="px-2 py-1 text-right text-[12px] text-black">Total Qty:</TableCell>
+                  <TableCell className="px-2 py-1 text-center text-[12px] text-black">{totalQty}</TableCell>
+                  <TableCell className="px-2 py-1"></TableCell>
+                  <TableCell className="px-2 py-1 text-right text-[12px] text-black">{formatMoney(totalAmount)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </div>
 
           {/* Summary Info Box */}
-          <div className="bg-muted/50 rounded-lg border p-4 space-y-2 text-sm">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="border-t border-black pt-4 text-sm">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 md:grid-cols-3">
               <div><span className="font-semibold">Total Boxes:</span> {totalBoxes}</div>
               <div><span className="font-semibold">Waybill No:</span> {waybillNo}</div>
               <div><span className="font-semibold">Courier:</span> {courier || '-'}</div>
@@ -379,13 +382,13 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
           {/* Signature Section */}
           <div className="flex justify-between pt-8 mt-8">
             <div className="text-center">
-              <div className="w-32 border-t border-foreground pt-2 text-xs text-muted-foreground">Checked By</div>
+              <div className="w-36 border-t border-black pt-2 text-xs text-black/70">Checked By</div>
             </div>
             <div className="text-center">
-              <div className="w-32 border-t border-foreground pt-2 text-xs text-muted-foreground">Delivered By</div>
+              <div className="w-36 border-t border-black pt-2 text-xs text-black/70">Delivered By</div>
             </div>
             <div className="text-center">
-              <div className="w-32 border-t border-foreground pt-2 text-xs text-muted-foreground">Received By</div>
+              <div className="w-36 border-t border-black pt-2 text-xs text-black/70">Received By</div>
             </div>
           </div>
         </div>

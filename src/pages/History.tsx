@@ -166,14 +166,21 @@ const History = () => {
     return Array.from(new Set(notes)).join(' | ') || null;
   };
 
+  const hasUsefulProductText = (value?: string | null) => {
+    const cleaned = value?.trim();
+    if (!cleaned) return false;
+    const normalized = cleaned.toLowerCase();
+    return normalized !== '-' && normalized !== 'n/a' && normalized !== 'na' && normalized !== 'null';
+  };
+
   const hasProductDetails = (release: StockRelease) => {
-    return Boolean(
-      release.product_code ||
-      release.product_description ||
-      release.inventory_item?.item_code ||
-      release.inventory_item?.item_name ||
-      release.inventory_item?.description
-    );
+    return [
+      release.product_code,
+      release.product_description,
+      release.inventory_item?.item_code,
+      release.inventory_item?.item_name,
+      release.inventory_item?.description,
+    ].some(hasUsefulProductText);
   };
 
   const getCountingReleases = (releaseItems: StockRelease[]) => {
@@ -182,10 +189,11 @@ const History = () => {
   };
 
   const getReleaseAmount = (release: StockRelease) => {
-    if (release.amount != null) return Number(release.amount) || 0;
     const price = Number(release.unit_price ?? release.inventory_item?.price ?? 0) || 0;
-    const qty = Number(release.total_qty ?? 0) || 0;
-    return price * qty;
+    const qty = Number(release.total_qty ?? release.boxes_released ?? 0) || 0;
+
+    if (price > 0) return price * qty;
+    return Number(release.amount ?? 0) || 0;
   };
 
   const isColumnVisible = (key: string) => {
