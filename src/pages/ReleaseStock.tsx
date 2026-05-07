@@ -125,6 +125,13 @@ const ReleaseStock = () => {
     return allocation?.trim().toLowerCase() || '';
   };
 
+  const hasExistingAllocation = (allocation?: string | null) => {
+    const normalizedAllocation = normalizeAllocation(allocation);
+    if (!normalizedAllocation) return false;
+
+    return releases.some(release => normalizeAllocation(release.allocation_bill) === normalizedAllocation);
+  };
+
   const findExistingAllocationSection = (allocation?: string | null): ExistingAllocationSection | null => {
     const normalizedAllocation = normalizeAllocation(allocation);
     if (!normalizedAllocation) return null;
@@ -307,11 +314,45 @@ const ReleaseStock = () => {
         return;
       }
 
+      const seenSheetNos = new Set(
+        [
+          ...releases.map(r => normalizeAllocation(r.allocation_bill)),
+          ...parsedItems.map(item => normalizeAllocation(item.sheetNo)),
+        ].filter(Boolean)
+      );
+      const filteredParsed: ParsedReleaseItem[] = [];
+      let skippedCount = 0;
+
+      for (const item of parsed) {
+        const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+        if (normalizedSheetNo && seenSheetNos.has(normalizedSheetNo)) {
+          skippedCount += 1;
+          continue;
+        }
+
+        filteredParsed.push(item);
+        if (normalizedSheetNo) seenSheetNos.add(normalizedSheetNo);
+      }
+
+      if (filteredParsed.length === 0) {
+        toast({
+          title: 'All Items Already Exist',
+          description: `${skippedCount} item(s) skipped because their Sheet No. already exists.`,
+          variant: 'default',
+        });
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
       // Append new items to existing ones instead of replacing
-      setParsedItems(prev => [...prev, ...parsed]);
+      setParsedItems(prev => [...prev, ...filteredParsed]);
       setShowImportPreview(true);
       
-      toast({ title: 'File Parsed', description: `${parsed.length} items added. Total: ${parsedItems.length + parsed.length} items.` });
+      const message = skippedCount > 0
+        ? `${filteredParsed.length} items added (${skippedCount} duplicate Sheet No. skipped). Total: ${parsedItems.length + filteredParsed.length} items.`
+        : `${filteredParsed.length} items added. Total: ${parsedItems.length + filteredParsed.length} items.`;
+      toast({ title: 'File Parsed', description: message });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
@@ -337,6 +378,33 @@ const ReleaseStock = () => {
     }
 
     // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
+    const existingSheetNos = validItems.filter(item => item.sheetNo && hasExistingAllocation(item.sheetNo));
+    if (existingSheetNos.length > 0) {
+      toast({
+        title: 'Duplicate Sheet No.',
+        description: `${existingSheetNos.length} selected item(s) already exist and will not be imported.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const seenSelectedSheetNos = new Set<string>();
+    const duplicateSelectedSheetNos = validItems.filter(item => {
+      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+      if (!normalizedSheetNo) return false;
+      if (seenSelectedSheetNos.has(normalizedSheetNo)) return true;
+      seenSelectedSheetNos.add(normalizedSheetNo);
+      return false;
+    });
+    if (duplicateSelectedSheetNos.length > 0) {
+      toast({
+        title: 'Duplicate Sheet No.',
+        description: `${duplicateSelectedSheetNos.length} selected item(s) have duplicate Sheet No. in the import preview.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     isReleasingRef.current = true;
 
@@ -357,8 +425,6 @@ const ReleaseStock = () => {
 
       for (const group of groups.values()) {
         const head = group[0];
-        const existingSection = findExistingAllocationSection(head.sheetNo);
-        await ensureExistingSectionBatchId(existingSection);
 
         const totalQty = group.reduce((s, g) => s + (g.qtyItem || g.qtyBoxes || 0), 0);
         const totalBoxes = group.reduce((s, g) => s + (g.qtyBoxes || 0), 0);
@@ -372,18 +438,17 @@ const ReleaseStock = () => {
             amount: g.amount || 0,
             category: g.category || undefined,
           })),
-          existingSection?.destination || head.deliverTo || 'Unknown',
+          head.deliverTo || 'Unknown',
           user!.id,
           combinedNotes || undefined,
-          existingSection?.courier || firstItem.courier,
-          existingSection?.allocationBill || head.sheetNo || undefined,
-          existingSection?.category || head.category || undefined,
-          existingSection?.waybillNo,
-          existingSection?.setDate || firstItem.setDate || undefined,
+          firstItem.courier,
+          head.sheetNo || undefined,
+          head.category || undefined,
+          undefined,
+          firstItem.setDate || undefined,
           totalQty || totalBoxes,
-          existingSection?.branchId || selectedBranch?.id || undefined,
+          selectedBranch?.id || undefined,
           totalAmount || undefined,
-          existingSection?.batchId
         );
       }
 
