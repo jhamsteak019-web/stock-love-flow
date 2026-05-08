@@ -105,6 +105,16 @@ const Deliveries = () => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }, []);
 
+  const hasQtyOrProductLines = (group: GroupedRelease) => {
+    return group.totalQty > 0 || group.items.some(release => {
+      return Boolean(
+        release.product_code?.trim() ||
+        release.product_description?.trim() ||
+        release.unit_price !== null && release.unit_price !== undefined
+      );
+    });
+  };
+
   // Group releases by allocation bill first, then fallback to batch_id.
   const groupedReleases = useMemo(() => {
     // First filter by branch + only show CONFIRMED (action_status='yes') items.
@@ -164,7 +174,10 @@ const Deliveries = () => {
       }
     });
     
-    return Object.values(groups).sort((a, b) => {
+    return Object.values(groups).map(group => ({
+      ...group,
+      totalBoxes: group.totalBoxes > 0 || !hasQtyOrProductLines(group) ? group.totalBoxes : 1,
+    })).sort((a, b) => {
       const dateA = a.set_date ? new Date(a.set_date).getTime() : new Date(a.date_released).getTime();
       const dateB = b.set_date ? new Date(b.set_date).getTime() : new Date(b.date_released).getTime();
       return dateA - dateB; // Ascending order - earliest dates first

@@ -1,6 +1,5 @@
 import { Menu, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
 import { BranchSelector } from './BranchSelector';
 
@@ -10,10 +9,8 @@ interface HeaderProps {
 }
 
 export const Header = ({ onMenuClick, title }: HeaderProps) => {
-  const navigate = useNavigate();
-  
   const handleRefresh = () => {
-    navigate('/');
+    window.location.reload();
   };
 
   return (

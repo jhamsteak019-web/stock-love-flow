@@ -87,11 +87,14 @@ const getBoxReleases = (releaseItems: StockRelease[]) => {
   return manualBoxRows.length > 0 ? manualBoxRows : releaseItems;
 };
 
+const naturalSort = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 const getSortParts = (release: StockRelease) => {
   const code = getProductCode(release).trim();
   const description = getProductDescription(release).trim();
   const codeSizeMatch = code.match(/^(.*?)[\s_]+(\d{1,3})$/);
   const descriptionSizeMatch = description.match(/(?:^|[\s_])(\d{1,3})$/);
+  const standaloneDescriptionSizeMatch = description.match(/^(\d{1,3})$/);
 
   if (codeSizeMatch) {
     return {
@@ -100,9 +103,16 @@ const getSortParts = (release: StockRelease) => {
     };
   }
 
-  if (descriptionSizeMatch) {
+  if (standaloneDescriptionSizeMatch && code) {
     return {
       groupKey: code,
+      size: Number(standaloneDescriptionSizeMatch[1]),
+    };
+  }
+
+  if (descriptionSizeMatch) {
+    return {
+      groupKey: description.replace(/[\s_]+\d{1,3}$/, '').trim() || code,
       size: Number(descriptionSizeMatch[1]),
     };
   }
@@ -116,19 +126,11 @@ const getSortParts = (release: StockRelease) => {
 const getDisplayReleases = (releaseItems: StockRelease[]) => {
   const detailedItems = releaseItems.filter(hasProductDetails);
   const displayItems = detailedItems.length > 0 ? detailedItems : releaseItems;
-  const groupOrder = new Map<string, number>();
-
-  displayItems.forEach((release) => {
-    const { groupKey } = getSortParts(release);
-    if (!groupOrder.has(groupKey)) {
-      groupOrder.set(groupKey, groupOrder.size);
-    }
-  });
 
   return displayItems
     .map((release, index) => ({ release, index, parts: getSortParts(release) }))
     .sort((a, b) => {
-      const groupDiff = (groupOrder.get(a.parts.groupKey) ?? a.index) - (groupOrder.get(b.parts.groupKey) ?? b.index);
+      const groupDiff = naturalSort.compare(a.parts.groupKey, b.parts.groupKey);
       if (groupDiff !== 0) return groupDiff;
       if (a.parts.size !== b.parts.size) return a.parts.size - b.parts.size;
       return a.index - b.index;
@@ -155,7 +157,8 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
   const uniqueReleases = useMemo(() => dedupeStockReleasesForDisplay(releases), [releases]);
   const displayReleases = useMemo(() => getDisplayReleases(uniqueReleases), [uniqueReleases]);
   const boxReleases = useMemo(() => getBoxReleases(uniqueReleases), [uniqueReleases]);
-  const totalBoxes = boxReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
+  const countedBoxes = boxReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
+  const totalBoxes = countedBoxes > 0 || displayReleases.length === 0 ? countedBoxes : 1;
   const totalQty = displayReleases.reduce((sum, r) => sum + toNumber(r.total_qty), 0);
   const totalAmount = displayReleases.reduce((sum, r) => sum + getReleaseAmount(r), 0);
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';

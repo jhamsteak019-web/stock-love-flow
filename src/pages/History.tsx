@@ -191,6 +191,16 @@ const History = () => {
     return manualBoxRows.length > 0 ? manualBoxRows : releaseItems;
   };
 
+  const getReleaseBoxTotal = (releaseItems: StockRelease[]) => {
+    const boxCountingReleases = getBoxCountingReleases(releaseItems);
+    const totalBoxes = boxCountingReleases.reduce((sum, release) => sum + (Number(release.boxes_released) || 0), 0);
+    const hasQtyOrProductLines = releaseItems.some(release => {
+      return (Number(release.total_qty) || 0) > 0 || hasProductDetails(release);
+    });
+
+    return totalBoxes > 0 || !hasQtyOrProductLines ? totalBoxes : 1;
+  };
+
   const getReleaseAmount = (release: StockRelease) => {
     const price = Number(release.unit_price ?? release.inventory_item?.price ?? 0) || 0;
     const qty = Number(release.total_qty ?? release.boxes_released ?? 0) || 0;
@@ -300,12 +310,11 @@ const History = () => {
     
     const normalizedGroups = Object.values(groups).map(group => {
       const countingReleases = getCountingReleases(group.items);
-      const boxCountingReleases = getBoxCountingReleases(group.items);
       const totalAmount = countingReleases.reduce((sum, release) => sum + getReleaseAmount(release), 0);
 
       return {
         ...group,
-        totalBoxes: boxCountingReleases.reduce((sum, release) => sum + (Number(release.boxes_released) || 0), 0),
+        totalBoxes: getReleaseBoxTotal(group.items),
         totalQty: countingReleases.reduce((sum, release) => sum + (Number(release.total_qty) || 0), 0),
         amount: totalAmount > 0 ? totalAmount : null,
         itemCount: countingReleases.length,

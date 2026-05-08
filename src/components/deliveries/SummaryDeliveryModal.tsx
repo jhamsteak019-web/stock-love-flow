@@ -47,6 +47,16 @@ const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string |
   return getEffectiveDeliveryStatus(status, dateDelivered) === 'delivered';
 };
 
+const hasQtyOrProductLines = (item: DeliveredSummaryItem) => {
+  return item.qty > 0 || item.releases.some(release => {
+    return Boolean(
+      release.product_code?.trim() ||
+      release.product_description?.trim() ||
+      release.unit_price !== null && release.unit_price !== undefined
+    );
+  });
+};
+
 const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
   const { releases } = useInventory();
   const currentYear = new Date().getFullYear();
@@ -206,17 +216,24 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
     });
 
     return Object.values(branches)
-      .map(branch => ({
-        branch: branch.branch,
-        totalBoxes: branch.totalBoxes,
-        totalQty: branch.totalQty,
-        totalAmount: branch.totalAmount,
-        items: branch.items.sort((a, b) => {
-          const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
-          const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
-          return dateA - dateB;
-        })
-      }))
+      .map(branch => {
+        const items = branch.items.map(item => ({
+          ...item,
+          boxes: item.boxes > 0 || !hasQtyOrProductLines(item) ? item.boxes : 1,
+        }));
+
+        return {
+          branch: branch.branch,
+          totalBoxes: items.reduce((sum, item) => sum + item.boxes, 0),
+          totalQty: branch.totalQty,
+          totalAmount: branch.totalAmount,
+          items: items.sort((a, b) => {
+            const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
+            const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
+            return dateA - dateB;
+          })
+        };
+      })
       .sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
 
