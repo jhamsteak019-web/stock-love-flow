@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Package, Truck, Store, CheckCircle, Printer, Search, FileDown } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { format } from 'date-fns';
+import { dedupeStockReleasesForDisplay, getStockReleaseGroupKey } from '@/lib/stockReleaseDedupe';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import type { StockRelease } from '@/types/inventory';
 
@@ -74,13 +75,14 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
 
   // Filter releases by selected year and month
   const filteredReleases = useMemo(() => {
-    return releases.filter(release => {
+    const monthReleases = releases.filter(release => {
       const dateToUse = release.set_date || release.date_released;
       const releaseDate = new Date(dateToUse);
       const releaseYear = releaseDate.getFullYear().toString();
       const releaseMonth = releaseDate.getMonth().toString();
       return releaseYear === selectedYear && releaseMonth === selectedMonth;
     });
+    return dedupeStockReleasesForDisplay(monthReleases);
   }, [releases, selectedYear, selectedMonth]);
 
   // Branch/Store Report
@@ -148,8 +150,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         };
       }
 
-      const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
-      const allocationKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+      const allocationKey = getStockReleaseGroupKey(release);
       const existingItem = branches[branch].allocationMap[allocationKey];
       const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
 

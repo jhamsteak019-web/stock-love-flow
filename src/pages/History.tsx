@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
+import { getStockReleaseDisplayKey, getStockReleaseGroupKey } from '@/lib/stockReleaseDedupe';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,15 +60,6 @@ const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
   { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 100, minWidth: 80, maxWidth: 150 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
-
-const normalizeAllocationKey = (allocation?: string | null) => {
-  return String(allocation || '')
-    .normalize('NFKC')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim()
-    .replace(/\s+/g, '')
-    .toLowerCase();
-};
 
 interface GroupedRelease {
   batch_id: string;
@@ -230,7 +222,7 @@ const History = () => {
     }
   }, [activeTab]);
 
-  // Group releases by batch_id, filtered by branch
+  // Group releases by allocation bill first, then fallback to batch_id.
   const groupReleases = (releasesList: StockRelease[], filterByBranch = true) => {
     // Filter by branch if enabled - STRICT branch isolation
     const filtered = filterByBranch && selectedBranch 
@@ -238,11 +230,11 @@ const History = () => {
       : releasesList;
     
     const groups: Record<string, GroupedRelease> = {};
+    const countedReleaseKeys: Record<string, Set<string>> = {};
     
     // Use filtered list instead of original releasesList
     filtered.forEach(release => {
-      const normalizedAllocation = normalizeAllocationKey(release.allocation_bill);
-      const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+      const batchKey = getStockReleaseGroupKey(release);
       
       if (!groups[batchKey]) {
         groups[batchKey] = {
@@ -268,6 +260,7 @@ const History = () => {
           photo_status: release.photo_status,
           action_status: (release as unknown as { action_status?: string | null }).action_status ?? null,
         };
+        countedReleaseKeys[batchKey] = new Set();
       }
       
       const group = groups[batchKey];
@@ -286,8 +279,15 @@ const History = () => {
         group.delivery_status = 'delivered';
       }
 
-      group.items.push(release);
       group.releaseIds.push(release.id);
+
+      const releaseKey = getStockReleaseDisplayKey(release);
+      if (countedReleaseKeys[batchKey].has(releaseKey)) {
+        return;
+      }
+      countedReleaseKeys[batchKey].add(releaseKey);
+
+      group.items.push(release);
       group.totalBoxes += release.boxes_released;
       group.totalQty += release.total_qty || 0;
       group.itemCount += 1;

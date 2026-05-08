@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { exportToExcel } from '@/lib/excelExport';
+import { getStockReleaseDisplayKey, getStockReleaseGroupKey } from '@/lib/stockReleaseDedupe';
 import { toast as sonnerToast } from 'sonner';
 import { format as formatDateFn } from 'date-fns';
 
@@ -104,7 +105,7 @@ const Deliveries = () => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }, []);
 
-  // Group releases by batch_id, filtered by branch
+  // Group releases by allocation bill first, then fallback to batch_id.
   const groupedReleases = useMemo(() => {
     // First filter by branch + only show CONFIRMED (action_status='yes') items.
     // Items not yet confirmed live in History page with Yes/No buttons.
@@ -114,13 +115,14 @@ const Deliveries = () => {
     ).filter(r => (r as unknown as { action_status?: string | null }).action_status === 'yes');
     
     const groups: Record<string, GroupedRelease> = {};
+    const countedReleaseKeys: Record<string, Set<string>> = {};
     
     branchFiltered.forEach(release => {
-      const batchKey = release.batch_id || release.id;
+      const batchKey = getStockReleaseGroupKey(release);
       
       if (!groups[batchKey]) {
         groups[batchKey] = {
-          batch_id: batchKey,
+          batch_id: release.batch_id || release.id,
           destination: release.destination,
           courier: release.courier,
           date_released: release.date_released,
@@ -140,13 +142,21 @@ const Deliveries = () => {
           photo_url: release.photo_url || null,
           photo_status: release.photo_status || null,
         };
+        countedReleaseKeys[batchKey] = new Set();
       }
       
+      groups[batchKey].releaseIds.push(release.id);
+
+      const releaseKey = getStockReleaseDisplayKey(release);
+      if (countedReleaseKeys[batchKey].has(releaseKey)) {
+        return;
+      }
+      countedReleaseKeys[batchKey].add(releaseKey);
+
       groups[batchKey].items.push(release);
       groups[batchKey].totalBoxes += release.boxes_released;
       groups[batchKey].totalQty += release.total_qty || (release.boxes_released * (release.inventory_item?.pieces_per_box || 1));
       groups[batchKey].itemCount += 1;
-      groups[batchKey].releaseIds.push(release.id);
 
       // Sum per-row amounts so multi-product allocation bills show one correct total.
       if (release.amount != null) {

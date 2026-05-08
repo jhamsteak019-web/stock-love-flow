@@ -1,10 +1,11 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { StockRelease } from '@/types/inventory';
 import { format, differenceInDays } from 'date-fns';
 import { FileText, Printer } from 'lucide-react';
+import { dedupeStockReleasesForDisplay } from '@/lib/stockReleaseDedupe';
 
 interface AllocationBillModalProps {
   open: boolean;
@@ -151,8 +152,9 @@ const getReleaseAmount = (release: StockRelease) => {
 
 const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate, isViewer = false }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const displayReleases = getDisplayReleases(releases);
-  const boxReleases = getBoxReleases(releases);
+  const uniqueReleases = useMemo(() => dedupeStockReleasesForDisplay(releases), [releases]);
+  const displayReleases = useMemo(() => getDisplayReleases(uniqueReleases), [uniqueReleases]);
+  const boxReleases = useMemo(() => getBoxReleases(uniqueReleases), [uniqueReleases]);
   const totalBoxes = boxReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
   const totalQty = displayReleases.reduce((sum, r) => sum + toNumber(r.total_qty), 0);
   const totalAmount = displayReleases.reduce((sum, r) => sum + getReleaseAmount(r), 0);
