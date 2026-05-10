@@ -122,6 +122,14 @@ export const useInventory = () => {
 
   useEffect(() => {
     fetchAll();
+    const handleSoftRefresh = () => {
+      void fetchAll();
+    };
+
+    window.addEventListener('app:soft-refresh', handleSoftRefresh);
+    return () => {
+      window.removeEventListener('app:soft-refresh', handleSoftRefresh);
+    };
   }, []);
 
   const addCategory = async (name: string) => {

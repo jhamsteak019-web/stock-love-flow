@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Menu, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
@@ -9,8 +10,16 @@ interface HeaderProps {
 }
 
 export const Header = ({ onMenuClick, title }: HeaderProps) => {
+  const [refreshing, setRefreshing] = useState(false);
+
   const handleRefresh = () => {
-    window.location.reload();
+    if (refreshing) return;
+
+    setRefreshing(true);
+    window.dispatchEvent(new CustomEvent('app:soft-refresh'));
+    window.setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
   };
 
   return (
@@ -30,10 +39,26 @@ export const Header = ({ onMenuClick, title }: HeaderProps) => {
       
       <div className="flex items-center gap-2">
         <NotificationBell />
-        <Button variant="ghost" size="icon" onClick={handleRefresh} title="Refresh" className="hover:rotate-180 transition-transform duration-500">
-          <RefreshCw className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleRefresh}
+          title="Refresh"
+          className="hover:rotate-180 transition-transform duration-500"
+          disabled={refreshing}
+        >
+          <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
         </Button>
       </div>
+
+      {refreshing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/45 backdrop-blur-[1px]">
+          <div className="flex items-center gap-3 rounded-md border bg-background px-4 py-3 text-sm font-medium shadow-lg">
+            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+            Loading...
+          </div>
+        </div>
+      )}
     </header>
   );
 };

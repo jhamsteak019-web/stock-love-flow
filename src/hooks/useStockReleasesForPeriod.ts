@@ -35,7 +35,19 @@ const getUtcYearRange = (year: number) => {
 export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = false }: Params) => {
   const [releases, setReleases] = useState<StockRelease[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const handleSoftRefresh = () => {
+      setRefreshTick(tick => tick + 1);
+    };
+
+    window.addEventListener('app:soft-refresh', handleSoftRefresh);
+    return () => {
+      window.removeEventListener('app:soft-refresh', handleSoftRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +115,7 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
     return () => {
       cancelled = true;
     };
-  }, [month, year, branchId, allYear, toast]);
+  }, [month, year, branchId, allYear, toast, refreshTick]);
 
   return { releases, loading };
 };

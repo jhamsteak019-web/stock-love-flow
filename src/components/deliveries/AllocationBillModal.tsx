@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button';
 import { StockRelease } from '@/types/inventory';
 import { format, differenceInDays } from 'date-fns';
 import { FileText, Printer } from 'lucide-react';
-import { dedupeStockReleasesForDisplay } from '@/lib/stockReleaseDedupe';
+import {
+  dedupeStockReleasesForDisplay,
+  getStockReleaseAmount,
+  getStockReleaseBoxTotal,
+  getStockReleaseQty,
+  getStockReleaseUnitPrice,
+  hasStockReleaseProductDetails,
+} from '@/lib/stockReleaseDedupe';
 
 interface AllocationBillModalProps {
   open: boolean;
@@ -66,27 +73,6 @@ const getProductDescription = (release: StockRelease) => {
   );
 };
 
-const hasProductDetails = (release: StockRelease) => {
-  return [
-    release.product_code,
-    release.product_description,
-    release.inventory_item?.item_code,
-    release.inventory_item?.item_name,
-    release.inventory_item?.description,
-  ].some(hasUsefulProductText);
-};
-
-const isImportedProductRow = (release: StockRelease) => {
-  return hasUsefulProductText(release.product_code) ||
-    hasUsefulProductText(release.product_description) ||
-    (release.unit_price !== null && release.unit_price !== undefined);
-};
-
-const getBoxReleases = (releaseItems: StockRelease[]) => {
-  const manualBoxRows = releaseItems.filter(release => !isImportedProductRow(release));
-  return manualBoxRows.length > 0 ? manualBoxRows : releaseItems;
-};
-
 const naturalSort = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const getSortParts = (release: StockRelease) => {
@@ -124,7 +110,7 @@ const getSortParts = (release: StockRelease) => {
 };
 
 const getDisplayReleases = (releaseItems: StockRelease[]) => {
-  const detailedItems = releaseItems.filter(hasProductDetails);
+  const detailedItems = releaseItems.filter(hasStockReleaseProductDetails);
   const displayItems = detailedItems.length > 0 ? detailedItems : releaseItems;
 
   return displayItems
@@ -138,29 +124,13 @@ const getDisplayReleases = (releaseItems: StockRelease[]) => {
     .map(({ release }) => release);
 };
 
-const getReleaseQty = (release: StockRelease) => {
-  return toNumber(release.total_qty) || toNumber(release.boxes_released);
-};
-
-const getReleasePrice = (release: StockRelease) => {
-  return toNumber(release.unit_price ?? release.inventory_item?.price);
-};
-
-const getReleaseAmount = (release: StockRelease) => {
-  const qty = getReleaseQty(release);
-  const price = getReleasePrice(release);
-  return qty * price;
-};
-
 const AllocationBillModal = ({ open, onOpenChange, releases, destination, courier, dateReleased, dateDelivered, allocationBill, setDate, isViewer = false }: AllocationBillModalProps) => {
   const printRef = useRef<HTMLDivElement>(null);
   const uniqueReleases = useMemo(() => dedupeStockReleasesForDisplay(releases), [releases]);
   const displayReleases = useMemo(() => getDisplayReleases(uniqueReleases), [uniqueReleases]);
-  const boxReleases = useMemo(() => getBoxReleases(uniqueReleases), [uniqueReleases]);
-  const countedBoxes = boxReleases.reduce((sum, r) => sum + toNumber(r.boxes_released), 0);
-  const totalBoxes = countedBoxes > 0 || displayReleases.length === 0 ? countedBoxes : 1;
-  const totalQty = displayReleases.reduce((sum, r) => sum + toNumber(r.total_qty), 0);
-  const totalAmount = displayReleases.reduce((sum, r) => sum + getReleaseAmount(r), 0);
+  const totalBoxes = useMemo(() => getStockReleaseBoxTotal(releases), [releases]);
+  const totalQty = displayReleases.reduce((sum, r) => sum + getStockReleaseQty(r), 0);
+  const totalAmount = displayReleases.reduce((sum, r) => sum + getStockReleaseAmount(r), 0);
   const billNumber = allocationBill || releases[0]?.allocation_bill || releases[0]?.batch_id?.slice(0, 8).toUpperCase() || 'N/A';
   const waybillNo = releases[0]?.waybill_no || '-';
   const category = releases[0]?.category || '-';
@@ -188,9 +158,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
     const itemsHtml = displayReleases.map((release, index) => {
       const itemCode = getProductCode(release);
       const description = getProductDescription(release);
-      const qty = getReleaseQty(release);
-      const price = getReleasePrice(release);
-      const amount = getReleaseAmount(release);
+      const qty = getStockReleaseQty(release);
+      const price = getStockReleaseUnitPrice(release);
+      const amount = getStockReleaseAmount(release);
       
       return `
         <tr>
@@ -359,9 +329,9 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 {displayReleases.map((release, index) => {
                   const itemCode = getProductCode(release);
                   const description = getProductDescription(release);
-                  const qty = getReleaseQty(release);
-                  const price = getReleasePrice(release);
-                  const amount = getReleaseAmount(release);
+                  const qty = getStockReleaseQty(release);
+                  const price = getStockReleaseUnitPrice(release);
+                  const amount = getStockReleaseAmount(release);
                   
                   return (
                     <TableRow key={release.id || index} className="h-6 border-b border-black/70 hover:bg-transparent">

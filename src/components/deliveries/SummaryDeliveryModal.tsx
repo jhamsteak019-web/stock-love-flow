@@ -10,7 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import { Package, Truck, Store, CheckCircle, Printer, Search, FileDown } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { format } from 'date-fns';
-import { dedupeStockReleasesForDisplay, getStockReleaseGroupKey } from '@/lib/stockReleaseDedupe';
+import {
+  dedupeStockReleasesForDisplay,
+  getStockReleaseAmount,
+  getStockReleaseBoxTotal,
+  getStockReleaseCountingReleases,
+  getStockReleaseGroupKey,
+  getStockReleaseQty,
+} from '@/lib/stockReleaseDedupe';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import type { StockRelease } from '@/types/inventory';
 
@@ -45,16 +52,6 @@ const getEffectiveDeliveryStatus = (status?: string | null, dateDelivered?: stri
 
 const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string | null) => {
   return getEffectiveDeliveryStatus(status, dateDelivered) === 'delivered';
-};
-
-const hasQtyOrProductLines = (item: DeliveredSummaryItem) => {
-  return item.qty > 0 || item.releases.some(release => {
-    return Boolean(
-      release.product_code?.trim() ||
-      release.product_description?.trim() ||
-      release.unit_price !== null && release.unit_price !== undefined
-    );
-  });
 };
 
 const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
@@ -217,16 +214,23 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
 
     return Object.values(branches)
       .map(branch => {
-        const items = branch.items.map(item => ({
-          ...item,
-          boxes: item.boxes > 0 || !hasQtyOrProductLines(item) ? item.boxes : 1,
-        }));
+        const items = branch.items.map(item => {
+          const countingReleases = getStockReleaseCountingReleases(item.releases);
+
+          return {
+            ...item,
+            boxes: getStockReleaseBoxTotal(item.releases),
+            qty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
+            amount: countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0),
+            releases: countingReleases,
+          };
+        });
 
         return {
           branch: branch.branch,
           totalBoxes: items.reduce((sum, item) => sum + item.boxes, 0),
-          totalQty: branch.totalQty,
-          totalAmount: branch.totalAmount,
+          totalQty: items.reduce((sum, item) => sum + item.qty, 0),
+          totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
           items: items.sort((a, b) => {
             const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
             const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;

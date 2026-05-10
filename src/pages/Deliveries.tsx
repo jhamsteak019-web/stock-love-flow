@@ -23,7 +23,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { exportToExcel } from '@/lib/excelExport';
-import { getStockReleaseDisplayKey, getStockReleaseGroupKey } from '@/lib/stockReleaseDedupe';
+import {
+  getStockReleaseAmount,
+  getStockReleaseBoxTotal,
+  getStockReleaseCountingReleases,
+  getStockReleaseDisplayKey,
+  getStockReleaseGroupKey,
+  getStockReleaseQty,
+} from '@/lib/stockReleaseDedupe';
 import { toast as sonnerToast } from 'sonner';
 import { format as formatDateFn } from 'date-fns';
 
@@ -105,16 +112,6 @@ const Deliveries = () => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }, []);
 
-  const hasQtyOrProductLines = (group: GroupedRelease) => {
-    return group.totalQty > 0 || group.items.some(release => {
-      return Boolean(
-        release.product_code?.trim() ||
-        release.product_description?.trim() ||
-        release.unit_price !== null && release.unit_price !== undefined
-      );
-    });
-  };
-
   // Group releases by allocation bill first, then fallback to batch_id.
   const groupedReleases = useMemo(() => {
     // First filter by branch + only show CONFIRMED (action_status='yes') items.
@@ -174,10 +171,18 @@ const Deliveries = () => {
       }
     });
     
-    return Object.values(groups).map(group => ({
-      ...group,
-      totalBoxes: group.totalBoxes > 0 || !hasQtyOrProductLines(group) ? group.totalBoxes : 1,
-    })).sort((a, b) => {
+    return Object.values(groups).map(group => {
+      const countingReleases = getStockReleaseCountingReleases(group.items);
+      const totalAmount = countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
+
+      return {
+        ...group,
+        totalBoxes: getStockReleaseBoxTotal(group.items),
+        totalQty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
+        amount: totalAmount > 0 ? totalAmount : null,
+        itemCount: countingReleases.length,
+      };
+    }).sort((a, b) => {
       const dateA = a.set_date ? new Date(a.set_date).getTime() : new Date(a.date_released).getTime();
       const dateB = b.set_date ? new Date(b.set_date).getTime() : new Date(b.date_released).getTime();
       return dateA - dateB; // Ascending order - earliest dates first

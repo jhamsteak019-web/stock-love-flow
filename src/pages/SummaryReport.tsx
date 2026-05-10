@@ -21,6 +21,14 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import type { StockRelease } from '@/types/inventory';
+import {
+  dedupeStockReleasesForDisplay,
+  getStockReleaseAmount,
+  getStockReleaseBoxTotal,
+  getStockReleaseCountingReleases,
+  getStockReleaseGroupKey,
+  getStockReleaseQty,
+} from '@/lib/stockReleaseDedupe';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -252,13 +260,15 @@ const SummaryReport = () => {
 
   // Filter releases by category only (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
-    return periodReleases.filter(release => {
+    const categoryReleases = periodReleases.filter(release => {
       // Category filter
       const matchesCategory = selectedCategory === 'all' || 
         (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
       
       return matchesCategory;
     });
+
+    return dedupeStockReleasesForDisplay(categoryReleases);
   }, [periodReleases, selectedCategory]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
@@ -272,11 +282,11 @@ const SummaryReport = () => {
       total_qty: number;
       set_date: string | null;
       date_released: string;
+      items: StockRelease[];
     }> = {};
 
     filteredReleases.forEach(release => {
-      const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
-      const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+      const batchKey = getStockReleaseGroupKey(release);
       const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
       // Normalize category: trim whitespace and convert to uppercase
       const normalizedCategory = release.category?.trim().toUpperCase() || null;
@@ -290,16 +300,24 @@ const SummaryReport = () => {
           total_qty: 0,
           set_date: release.set_date,
           date_released: release.date_released,
+          items: [],
         };
       }
-      batches[batchKey].boxes_released += release.boxes_released;
-      batches[batchKey].total_qty += release.total_qty || 0;
+      batches[batchKey].items.push(release);
       if (effectiveStatus === 'delivered') {
         batches[batchKey].delivery_status = 'delivered';
       }
     });
 
-    return Object.values(batches);
+    return Object.values(batches).map(batch => {
+      const countingReleases = getStockReleaseCountingReleases(batch.items);
+
+      return {
+        ...batch,
+        boxes_released: getStockReleaseBoxTotal(batch.items),
+        total_qty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
+      };
+    });
   }, [filteredReleases]);
 
   // Filter releases by year only (for yearly stats) - use periodReleases
@@ -400,16 +418,12 @@ const SummaryReport = () => {
           };
         }
 
-        const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
-        const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
+        const batchKey = getStockReleaseGroupKey(release);
         const existingItem = branches[branch].allocationMap[batchKey];
         const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
         
         if (existingItem) {
           existingItem.releases.push(release);
-          existingItem.boxes += release.boxes_released;
-          existingItem.qty += release.total_qty || 0;
-          existingItem.amount += release.amount || 0;
           existingItem.set_date = existingItem.set_date || release.set_date;
           existingItem.date_delivered = existingItem.date_delivered || release.date_delivered;
           existingItem.courier = existingItem.courier || release.courier;
@@ -432,9 +446,9 @@ const SummaryReport = () => {
             courier: release.courier,
             category: release.category,
             categories: release.category ? [release.category] : [],
-            boxes: release.boxes_released,
-            qty: release.total_qty || 0,
-            amount: release.amount || 0,
+            boxes: 0,
+            qty: 0,
+            amount: 0,
             delivery_status: effectiveStatus,
             remarks: release.notes,
             releases: [release],
@@ -442,25 +456,35 @@ const SummaryReport = () => {
           branches[branch].allocationMap[batchKey] = item;
           branches[branch].items.push(item);
         }
-
-        branches[branch].totalBoxes += release.boxes_released;
-        branches[branch].totalQty += release.total_qty || 0;
-        branches[branch].totalAmount += release.amount || 0;
       });
 
     // Sort branches by name and items by set_date ascending (earliest first)
     return Object.values(branches)
-      .map(branch => ({
-        branch: branch.branch,
-        totalBoxes: branch.totalBoxes,
-        totalQty: branch.totalQty,
-        totalAmount: branch.totalAmount,
-        items: branch.items.sort((a, b) => {
-          const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
-          const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
-          return dateA - dateB;
-        })
-      }))
+      .map(branch => {
+        const items = branch.items.map(item => {
+          const countingReleases = getStockReleaseCountingReleases(item.releases);
+
+          return {
+            ...item,
+            boxes: getStockReleaseBoxTotal(item.releases),
+            qty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
+            amount: countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0),
+            releases: countingReleases,
+          };
+        });
+
+        return {
+          branch: branch.branch,
+          totalBoxes: items.reduce((sum, item) => sum + item.boxes, 0),
+          totalQty: items.reduce((sum, item) => sum + item.qty, 0),
+          totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
+          items: items.sort((a, b) => {
+            const dateA = a.set_date ? new Date(a.set_date).getTime() : 0;
+            const dateB = b.set_date ? new Date(b.set_date).getTime() : 0;
+            return dateA - dateB;
+          })
+        };
+      })
       .sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
 
@@ -573,7 +597,7 @@ const SummaryReport = () => {
   const totalStats = useMemo(() => {
     const totalBoxes = groupedByBatch.reduce((sum, r) => sum + r.boxes_released, 0);
     const totalQty = groupedByBatch.reduce((sum, r) => sum + r.total_qty, 0);
-    const totalAmount = filteredReleases.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const totalAmount = filteredReleases.reduce((sum, r) => sum + getStockReleaseAmount(r), 0);
     const deliveredCount = groupedByBatch.filter(r => r.delivery_status === 'delivered').length;
     const pendingCount = groupedByBatch.filter(r => r.delivery_status !== 'delivered').length;
     const uniqueDestinations = new Set(groupedByBatch.map(r => r.destination)).size;

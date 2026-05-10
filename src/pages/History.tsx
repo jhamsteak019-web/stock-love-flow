@@ -25,7 +25,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
-import { getStockReleaseDisplayKey, getStockReleaseGroupKey } from '@/lib/stockReleaseDedupe';
+import {
+  getStockReleaseAmount,
+  getStockReleaseBoxTotal,
+  getStockReleaseCountingReleases,
+  getStockReleaseDisplayKey,
+  getStockReleaseGroupKey,
+  getStockReleaseQty,
+} from '@/lib/stockReleaseDedupe';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -158,57 +165,6 @@ const History = () => {
     return Array.from(new Set(notes)).join(' | ') || null;
   };
 
-  const hasUsefulProductText = (value?: string | null) => {
-    const cleaned = value?.trim();
-    if (!cleaned) return false;
-    const normalized = cleaned.toLowerCase();
-    return normalized !== '-' && normalized !== 'n/a' && normalized !== 'na' && normalized !== 'null';
-  };
-
-  const hasProductDetails = (release: StockRelease) => {
-    return [
-      release.product_code,
-      release.product_description,
-      release.inventory_item?.item_code,
-      release.inventory_item?.item_name,
-      release.inventory_item?.description,
-    ].some(hasUsefulProductText);
-  };
-
-  const isImportedProductRow = (release: StockRelease) => {
-    return hasUsefulProductText(release.product_code) ||
-      hasUsefulProductText(release.product_description) ||
-      (release.unit_price !== null && release.unit_price !== undefined);
-  };
-
-  const getCountingReleases = (releaseItems: StockRelease[]) => {
-    const detailedItems = releaseItems.filter(hasProductDetails);
-    return detailedItems.length > 0 ? detailedItems : releaseItems;
-  };
-
-  const getBoxCountingReleases = (releaseItems: StockRelease[]) => {
-    const manualBoxRows = releaseItems.filter(release => !isImportedProductRow(release));
-    return manualBoxRows.length > 0 ? manualBoxRows : releaseItems;
-  };
-
-  const getReleaseBoxTotal = (releaseItems: StockRelease[]) => {
-    const boxCountingReleases = getBoxCountingReleases(releaseItems);
-    const totalBoxes = boxCountingReleases.reduce((sum, release) => sum + (Number(release.boxes_released) || 0), 0);
-    const hasQtyOrProductLines = releaseItems.some(release => {
-      return (Number(release.total_qty) || 0) > 0 || hasProductDetails(release);
-    });
-
-    return totalBoxes > 0 || !hasQtyOrProductLines ? totalBoxes : 1;
-  };
-
-  const getReleaseAmount = (release: StockRelease) => {
-    const price = Number(release.unit_price ?? release.inventory_item?.price ?? 0) || 0;
-    const qty = Number(release.total_qty ?? release.boxes_released ?? 0) || 0;
-
-    if (price > 0) return price * qty;
-    return Number(release.amount ?? 0) || 0;
-  };
-
   const isColumnVisible = (key: string) => {
     const col = columns.find(c => c.key === key);
     return col?.visible ?? true;
@@ -309,13 +265,13 @@ const History = () => {
     });
     
     const normalizedGroups = Object.values(groups).map(group => {
-      const countingReleases = getCountingReleases(group.items);
-      const totalAmount = countingReleases.reduce((sum, release) => sum + getReleaseAmount(release), 0);
+      const countingReleases = getStockReleaseCountingReleases(group.items);
+      const totalAmount = countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
 
       return {
         ...group,
-        totalBoxes: getReleaseBoxTotal(group.items),
-        totalQty: countingReleases.reduce((sum, release) => sum + (Number(release.total_qty) || 0), 0),
+        totalBoxes: getStockReleaseBoxTotal(group.items),
+        totalQty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
         amount: totalAmount > 0 ? totalAmount : null,
         itemCount: countingReleases.length,
       };
