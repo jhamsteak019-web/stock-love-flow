@@ -19,7 +19,7 @@ export const Header = ({ onMenuClick, title }: HeaderProps) => {
     window.dispatchEvent(new CustomEvent('app:soft-refresh'));
     window.setTimeout(() => {
       setRefreshing(false);
-    }, 2000);
+    }, 700);
   };
 
   return (

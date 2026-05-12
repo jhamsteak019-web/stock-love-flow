@@ -3,6 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { InventoryItem, Category, StockRelease, DashboardStats, DeliveryStatus } from '@/types/inventory';
 import { useToast } from '@/hooks/use-toast';
 
+const STOCK_RELEASE_PAGE_SIZE = 1000;
+const STOCK_RELEASE_SELECT = `
+  *,
+  inventory_item:inventory_items(*)
+`;
+
 export const useInventory = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -48,30 +54,36 @@ export const useInventory = () => {
 
   const fetchReleases = async () => {
     try {
-      // Paginate to fetch ALL releases without any limit
-      const PAGE_SIZE = 1000;
-      const allReleases: StockRelease[] = [];
-      let from = 0;
+      const { data: firstPage, error, count } = await supabase
+        .from('stock_releases')
+        .select(STOCK_RELEASE_SELECT, { count: 'exact' })
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(0, STOCK_RELEASE_PAGE_SIZE - 1);
 
-      while (true) {
-        const { data, error } = await supabase
-          .from('stock_releases')
-          .select(`
-            *,
-            inventory_item:inventory_items(*)
-          `)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
 
-        if (error) throw error;
+      const allReleases = [...((firstPage ?? []) as StockRelease[])];
+      const totalCount = count ?? allReleases.length;
 
-        const chunk = (data ?? []) as StockRelease[];
-        allReleases.push(...chunk);
+      if (totalCount > STOCK_RELEASE_PAGE_SIZE) {
+        const pageRequests = [];
+        for (let from = STOCK_RELEASE_PAGE_SIZE; from < totalCount; from += STOCK_RELEASE_PAGE_SIZE) {
+          pageRequests.push(
+            supabase
+              .from('stock_releases')
+              .select(STOCK_RELEASE_SELECT)
+              .is('deleted_at', null)
+              .order('created_at', { ascending: false })
+              .range(from, from + STOCK_RELEASE_PAGE_SIZE - 1)
+          );
+        }
 
-        // If we got fewer than PAGE_SIZE, we've reached the end
-        if (chunk.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+        const pages = await Promise.all(pageRequests);
+        pages.forEach(({ data, error: pageError }) => {
+          if (pageError) throw pageError;
+          allReleases.push(...((data ?? []) as StockRelease[]));
+        });
       }
 
       setReleases(allReleases);
@@ -82,29 +94,36 @@ export const useInventory = () => {
 
   const fetchDeletedReleases = async () => {
     try {
-      // Paginate to fetch ALL deleted releases without any limit
-      const PAGE_SIZE = 1000;
-      const allDeleted: StockRelease[] = [];
-      let from = 0;
+      const { data: firstPage, error, count } = await supabase
+        .from('stock_releases')
+        .select(STOCK_RELEASE_SELECT, { count: 'exact' })
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .range(0, STOCK_RELEASE_PAGE_SIZE - 1);
 
-      while (true) {
-        const { data, error } = await supabase
-          .from('stock_releases')
-          .select(`
-            *,
-            inventory_item:inventory_items(*)
-          `)
-          .not('deleted_at', 'is', null)
-          .order('deleted_at', { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
 
-        if (error) throw error;
+      const allDeleted = [...((firstPage ?? []) as StockRelease[])];
+      const totalCount = count ?? allDeleted.length;
 
-        const chunk = (data ?? []) as StockRelease[];
-        allDeleted.push(...chunk);
+      if (totalCount > STOCK_RELEASE_PAGE_SIZE) {
+        const pageRequests = [];
+        for (let from = STOCK_RELEASE_PAGE_SIZE; from < totalCount; from += STOCK_RELEASE_PAGE_SIZE) {
+          pageRequests.push(
+            supabase
+              .from('stock_releases')
+              .select(STOCK_RELEASE_SELECT)
+              .not('deleted_at', 'is', null)
+              .order('deleted_at', { ascending: false })
+              .range(from, from + STOCK_RELEASE_PAGE_SIZE - 1)
+          );
+        }
 
-        if (chunk.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+        const pages = await Promise.all(pageRequests);
+        pages.forEach(({ data, error: pageError }) => {
+          if (pageError) throw pageError;
+          allDeleted.push(...((data ?? []) as StockRelease[]));
+        });
       }
 
       return allDeleted;
@@ -114,16 +133,19 @@ export const useInventory = () => {
     }
   };
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchItems(), fetchCategories(), fetchReleases()]);
-    setLoading(false);
+  const fetchAll = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      await Promise.all([fetchItems(), fetchCategories(), fetchReleases()]);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchAll();
+    void fetchAll();
     const handleSoftRefresh = () => {
-      void fetchAll();
+      void fetchAll(false);
     };
 
     window.addEventListener('app:soft-refresh', handleSoftRefresh);

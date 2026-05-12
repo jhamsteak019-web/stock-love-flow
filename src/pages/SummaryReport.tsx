@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useInventory } from '@/hooks/useInventory';
 import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -58,7 +57,6 @@ const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string |
 };
 
 const SummaryReport = () => {
-  const { loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const currentYear = new Date().getFullYear();
@@ -90,7 +88,7 @@ const SummaryReport = () => {
   
   const isViewer = userRole === 'viewer';
   const canExport = userRole !== 'uploader';
-  const loading = inventoryLoading || periodLoading;
+  const loading = periodLoading;
 
   // Fetch attendance records
   const { data: attendanceRecords = [] } = useQuery({

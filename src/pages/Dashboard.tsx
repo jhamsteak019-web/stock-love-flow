@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { useInventory } from '@/hooks/useInventory';
 import { useStockReleasesForPeriod } from "@/hooks/useStockReleasesForPeriod";
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -76,7 +75,6 @@ const PaginationBar = ({
 };
 
 const Dashboard = () => {
-  const { releases: allReleases, loading: inventoryLoading } = useInventory();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -127,6 +125,12 @@ const Dashboard = () => {
     month: selectedMonth,
     year: selectedYear,
     branchId: selectedBranch?.id ?? null,
+  });
+  const { releases: yearlyReleases } = useStockReleasesForPeriod({
+    month: selectedMonth,
+    year: selectedYear,
+    branchId: selectedBranch?.id ?? null,
+    allYear: true,
   });
 
   // Use filtered releases for stats
@@ -362,32 +366,30 @@ const Dashboard = () => {
       totalQty: 0
     }));
 
-    allReleases.forEach(release => {
-      const releaseDate = new Date(release.date_released);
-      if (releaseDate.getFullYear() === 2025) {
-        const monthIndex = releaseDate.getMonth();
-        monthlyData[monthIndex].totalBoxes += release.boxes_released || 0;
-        monthlyData[monthIndex].totalQty += release.total_qty || 0;
-        
-        switch (release.delivery_status) {
-          case 'pending':
-            monthlyData[monthIndex].pending += 1;
-            break;
-          case 'in_transit':
-            monthlyData[monthIndex].inTransit += 1;
-            break;
-          case 'out_for_delivery':
-            monthlyData[monthIndex].outForDelivery += 1;
-            break;
-          case 'delivered':
-            monthlyData[monthIndex].delivered += 1;
-            break;
-        }
+    yearlyReleases.forEach(release => {
+      const releaseDate = new Date(release.set_date || release.date_released);
+      const monthIndex = releaseDate.getMonth();
+      monthlyData[monthIndex].totalBoxes += release.boxes_released || 0;
+      monthlyData[monthIndex].totalQty += release.total_qty || 0;
+
+      switch (release.delivery_status) {
+        case 'pending':
+          monthlyData[monthIndex].pending += 1;
+          break;
+        case 'in_transit':
+          monthlyData[monthIndex].inTransit += 1;
+          break;
+        case 'out_for_delivery':
+          monthlyData[monthIndex].outForDelivery += 1;
+          break;
+        case 'delivered':
+          monthlyData[monthIndex].delivered += 1;
+          break;
       }
     });
 
     return monthlyData;
-  }, [allReleases]);
+  }, [yearlyReleases]);
 
   // Data for pie chart - store distribution by boxes
   const storePieData = useMemo(() => {
@@ -427,7 +429,7 @@ const Dashboard = () => {
     const categories = new Set<string>();
     
     // Get all unique categories
-    allReleases.forEach(release => {
+    yearlyReleases.forEach(release => {
       const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
       categories.add(category);
     });
@@ -442,21 +444,19 @@ const Dashboard = () => {
       return data;
     });
 
-    allReleases.forEach(release => {
-      const releaseDate = new Date(release.date_released);
-      if (releaseDate.getFullYear() === 2025) {
-        const monthIndex = releaseDate.getMonth();
-        const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
-        if (categoryList.includes(category)) {
-          (monthlyData[monthIndex][category] as number) += release.boxes_released || 0;
-        }
+    yearlyReleases.forEach(release => {
+      const releaseDate = new Date(release.set_date || release.date_released);
+      const monthIndex = releaseDate.getMonth();
+      const category = release.category?.trim().toUpperCase() || 'UNCATEGORIZED';
+      if (categoryList.includes(category)) {
+        (monthlyData[monthIndex][category] as number) += release.boxes_released || 0;
       }
     });
 
     return { data: monthlyData, categories: categoryList };
-  }, [allReleases]);
+  }, [yearlyReleases]);
 
-  if (inventoryLoading || periodLoading) {
+  if (periodLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

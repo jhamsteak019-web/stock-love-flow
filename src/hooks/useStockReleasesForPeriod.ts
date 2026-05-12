@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,8 @@ type Params = {
 };
 
 const PAGE_SIZE = 1000;
+const STOCK_RELEASE_PERIOD_SELECT =
+  "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(*)";
 
 const getUtcMonthRange = (month: number, year: number) => {
   const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
@@ -36,10 +38,13 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
   const [releases, setReleases] = useState<StockRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
+  const silentRefreshRef = useRef(false);
+  const releaseCountRef = useRef(0);
   const { toast } = useToast();
 
   useEffect(() => {
     const handleSoftRefresh = () => {
+      silentRefreshRef.current = true;
       setRefreshTick(tick => tick + 1);
     };
 
@@ -53,45 +58,56 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
     let cancelled = false;
 
     const run = async () => {
-      setLoading(true);
+      const silentRefresh = silentRefreshRef.current && releaseCountRef.current > 0;
+      silentRefreshRef.current = false;
+
+      if (!silentRefresh) setLoading(true);
       const { start, end } = allYear
         ? getUtcYearRange(year)
         : getUtcMonthRange(month, year);
-
-      const all: StockRelease[] = [];
-      let from = 0;
 
       // OR condition:
       // 1) set_date in range
       // 2) set_date is null AND date_released in range
       const periodOrFilter = `and(set_date.gte.${start},set_date.lt.${end}),and(set_date.is.null,date_released.gte.${start},date_released.lt.${end})`;
 
-      while (true) {
+      const buildQuery = (from: number, to: number, withCount = false) => {
         let query = supabase
           .from("stock_releases")
-          .select(
-            "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(*)",
-          )
+          .select(STOCK_RELEASE_PERIOD_SELECT, withCount ? { count: "exact" } : undefined)
           .is("deleted_at", null)
           .or(periodOrFilter)
           .order("created_at", { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
+          .range(from, to);
 
         if (branchId) {
           query = query.eq("branch_id", branchId);
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
+        return query;
+      };
 
-        const chunk = (data ?? []) as StockRelease[];
-        all.push(...chunk);
+      const { data: firstPage, error, count } = await buildQuery(0, PAGE_SIZE - 1, true);
+      if (error) throw error;
 
-        if (chunk.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+      const all = [...((firstPage ?? []) as StockRelease[])];
+      const totalCount = count ?? all.length;
+
+      if (totalCount > PAGE_SIZE) {
+        const pageRequests = [];
+        for (let from = PAGE_SIZE; from < totalCount; from += PAGE_SIZE) {
+          pageRequests.push(buildQuery(from, from + PAGE_SIZE - 1));
+        }
+
+        const pages = await Promise.all(pageRequests);
+        pages.forEach(({ data, error: pageError }) => {
+          if (pageError) throw pageError;
+          all.push(...((data ?? []) as StockRelease[]));
+        });
       }
 
       if (!cancelled) {
+        releaseCountRef.current = all.length;
         setReleases(all);
       }
     };
@@ -100,6 +116,7 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
       .catch((error) => {
         console.error("Error fetching stock releases for period:", error);
         if (!cancelled) {
+          releaseCountRef.current = 0;
           setReleases([]);
           toast({
             title: "Error",
