@@ -141,13 +141,6 @@ const Deliveries = () => {
     }));
   }, [selectedMonth, selectedYear, showAllYear, statusFilter]);
 
-  useEffect(() => {
-    if (!branchLoading && !loading && releases.length === 0 && !showAllYear && !searchQuery.trim()) {
-      setShowAllYear(true);
-      setCurrentPage(1);
-    }
-  }, [branchLoading, loading, releases.length, searchQuery, showAllYear]);
-  
   const isViewer = userRole === 'viewer';
   const isEncoder = userRole === 'encoder';
   const isAssistant = userRole === 'assistant';
