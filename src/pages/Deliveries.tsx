@@ -117,7 +117,7 @@ const Deliveries = () => {
     year: selectedYear,
     branchId: selectedBranch?.id ?? null,
     allYear: showAllYear,
-    actionStatus: 'yes',
+    allDates: showAllYear,
     deliveryStatus: statusFilter === 'all' ? 'all' : statusFilter as DeliveryStatus,
     excludeDelivered: statusFilter === 'all',
     progressive: true,
@@ -178,12 +178,10 @@ const Deliveries = () => {
 
   // Group releases by allocation bill first, then fallback to batch_id.
   const groupedReleases = useMemo(() => {
-    // First filter by branch + only show CONFIRMED (action_status='yes') items.
-    // Items not yet confirmed live in History page with Yes/No buttons.
     const branchFiltered = (selectedBranch 
       ? releases.filter(r => r.branch_id === selectedBranch.id)
       : releases
-    ).filter(r => (r as unknown as { action_status?: string | null }).action_status === 'yes');
+    );
     
     const groups: Record<string, GroupedRelease> = {};
     const countedReleaseKeys: Record<string, Set<string>> = {};
