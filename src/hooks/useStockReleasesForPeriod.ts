@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { StockRelease } from "@/types/inventory";
+import type { DeliveryStatus, StockRelease } from "@/types/inventory";
 
 type Params = {
   month: number; // 0-indexed
@@ -11,6 +11,7 @@ type Params = {
   allYear?: boolean;
   allDates?: boolean;
   actionStatus?: "yes" | "no" | null;
+  deliveryStatus?: DeliveryStatus | "all";
   excludeDelivered?: boolean;
   includePendingReview?: boolean;
   progressive?: boolean;
@@ -48,6 +49,7 @@ export const useStockReleasesForPeriod = ({
   allYear = false,
   allDates = false,
   actionStatus,
+  deliveryStatus = "all",
   excludeDelivered = false,
   includePendingReview = false,
   progressive = false,
@@ -129,7 +131,9 @@ export const useStockReleasesForPeriod = ({
           query = query.eq("action_status", actionStatus);
         }
 
-        if (excludeDelivered) {
+        if (deliveryStatus !== "all") {
+          query = query.eq("delivery_status", deliveryStatus);
+        } else if (excludeDelivered) {
           query = query.neq("delivery_status", "delivered");
         }
 
@@ -225,7 +229,7 @@ export const useStockReleasesForPeriod = ({
     return () => {
       cancelled = true;
     };
-  }, [month, year, branchId, allYear, allDates, actionStatus, excludeDelivered, includePendingReview, progressive, enabled, toast, refreshTick]);
+  }, [month, year, branchId, allYear, allDates, actionStatus, deliveryStatus, excludeDelivered, includePendingReview, progressive, enabled, toast, refreshTick]);
 
   return { releases, loading, refetch };
 };

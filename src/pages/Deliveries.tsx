@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useTransition } from 'react';
+import { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { Truck, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -36,6 +36,11 @@ import { toast as sonnerToast } from 'sonner';
 import { format as formatDateFn } from 'date-fns';
 
 const ITEMS_PER_PAGE = 15;
+const DELIVERY_FILTER_STORAGE_KEY = 'deliveries_filter';
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'allocation', label: 'Allocation', visible: true, width: 180, minWidth: 140, maxWidth: 250 },
@@ -77,17 +82,44 @@ const Deliveries = () => {
   const { userRole } = useAuth();
   const { selectedBranch, loading: branchLoading } = useBranch();
   const currentDate = new Date();
+  const getSavedDeliveryFilter = () => {
+    try {
+      const saved = localStorage.getItem(DELIVERY_FILTER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          month: typeof parsed.month === 'number' ? parsed.month : currentDate.getMonth(),
+          year: typeof parsed.year === 'number' ? parsed.year : currentDate.getFullYear(),
+          allYear: Boolean(parsed.allYear),
+          status: typeof parsed.status === 'string' ? parsed.status : 'all',
+        };
+      }
+    } catch {}
+
+    return {
+      month: currentDate.getMonth(),
+      year: currentDate.getFullYear(),
+      allYear: false,
+      status: 'all',
+    };
+  };
+  const savedDeliveryFilter = getSavedDeliveryFilter();
+  const [selectedMonth, setSelectedMonth] = useState(savedDeliveryFilter.month);
+  const [selectedYear, setSelectedYear] = useState(savedDeliveryFilter.year);
+  const [showAllYear, setShowAllYear] = useState(savedDeliveryFilter.allYear);
+  const [statusFilter, setStatusFilter] = useState<string>(savedDeliveryFilter.status);
   const {
     releases,
     loading,
     refetch: refetchDeliveries,
   } = useStockReleasesForPeriod({
-    month: currentDate.getMonth(),
-    year: currentDate.getFullYear(),
+    month: selectedMonth,
+    year: selectedYear,
     branchId: selectedBranch?.id ?? null,
-    allDates: true,
+    allYear: showAllYear,
     actionStatus: 'yes',
-    excludeDelivered: true,
+    deliveryStatus: statusFilter === 'all' ? 'all' : statusFilter as DeliveryStatus,
+    excludeDelivered: statusFilter === 'all',
     progressive: true,
     enabled: !branchLoading,
   });
@@ -99,6 +131,15 @@ const Deliveries = () => {
   const [isPending, startTransition] = useTransition();
   const { columns, setColumns, isAdmin } = useColumnSettings('deliveries', DEFAULT_COLUMNS);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem(DELIVERY_FILTER_STORAGE_KEY, JSON.stringify({
+      month: selectedMonth,
+      year: selectedYear,
+      allYear: showAllYear,
+      status: statusFilter,
+    }));
+  }, [selectedMonth, selectedYear, showAllYear, statusFilter]);
   
   const isViewer = userRole === 'viewer';
   const isEncoder = userRole === 'encoder';
@@ -208,7 +249,7 @@ const Deliveries = () => {
   // Filtered results using debounced search - case-insensitive and partial match
   const pendingGroups = useMemo(() => {
     return groupedReleases
-      .filter(g => g.delivery_status !== 'delivered')
+      .filter(g => statusFilter === 'delivered' ? g.delivery_status === 'delivered' : g.delivery_status !== 'delivered')
       .filter(g => {
         if (!debouncedSearch.trim()) return true;
         const query = debouncedSearch.toLowerCase();
@@ -223,7 +264,7 @@ const Deliveries = () => {
                category.includes(query) ||
                notes.includes(query);
       });
-  }, [groupedReleases, debouncedSearch]);
+  }, [groupedReleases, debouncedSearch, statusFilter]);
 
   // Pagination logic
   const totalPages = Math.ceil(pendingGroups.length / ITEMS_PER_PAGE);
@@ -235,6 +276,35 @@ const Deliveries = () => {
   // Reset to page 1 when search changes
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const handleMonthChange = useCallback((value: string) => {
+    setSelectedMonth(parseInt(value, 10));
+    setShowAllYear(false);
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const handleYearChange = useCallback((value: string) => {
+    setSelectedYear(parseInt(value, 10));
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const handleAllYearToggle = useCallback(() => {
+    setShowAllYear(current => !current);
+    startTransition(() => {
+      setCurrentPage(1);
+    });
+  }, []);
+
+  const handleStatusFilterChange = useCallback((value: string) => {
+    setStatusFilter(value);
     startTransition(() => {
       setCurrentPage(1);
     });
@@ -352,47 +422,96 @@ const Deliveries = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-        <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search allocation, waybill, destination, category..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10 pr-10"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => handleSearchChange('')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div className="relative max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search allocation, waybill, destination, category..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => handleSearchChange('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {pendingGroups.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
+                {isPending && (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                )}
+              </div>
+            )}
+            {!isViewer && canExport && (
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Save Excel
+              </Button>
+            )}
+            {!isViewer && canExport && (
+              <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Save PDF
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {pendingGroups.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
-              {isPending && (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              )}
-            </div>
-          )}
-          {!isViewer && canExport && (
-            <Button variant="outline" size="sm" onClick={handleExportExcel}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Save Excel
-            </Button>
-          )}
-          {!isViewer && canExport && (
-            <Button variant="outline" size="sm" onClick={() => setShowSummaryModal(true)}>
-              <FileDown className="h-4 w-4 mr-2" />
-              Save PDF
-            </Button>
-          )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth.toString()} onValueChange={handleMonthChange}>
+              <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month, index) => (
+                  <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear.toString()} onValueChange={handleYearChange}>
+              <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((year) => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            variant={showAllYear ? "default" : "outline"}
+            size="sm"
+            onClick={handleAllYearToggle}
+          >
+            {showAllYear ? 'Showing All Year' : 'All Year'}
+          </Button>
+
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in_transit">In Transit</SelectItem>
+              <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+            </SelectContent>
+          </Select>
           {isAdmin && <ColumnSettings columns={columns} onColumnChange={setColumns} defaultColumns={DEFAULT_COLUMNS} />}
         </div>
       </div>
