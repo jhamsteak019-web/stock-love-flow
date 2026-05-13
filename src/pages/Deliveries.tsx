@@ -36,7 +36,7 @@ import { toast as sonnerToast } from 'sonner';
 import { format as formatDateFn } from 'date-fns';
 
 const ITEMS_PER_PAGE = 15;
-const DELIVERY_FILTER_STORAGE_KEY = 'deliveries_filter_v2';
+const DELIVERY_FILTER_STORAGE_KEY = 'deliveries_filter_v3';
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -140,6 +140,13 @@ const Deliveries = () => {
       status: statusFilter,
     }));
   }, [selectedMonth, selectedYear, showAllYear, statusFilter]);
+
+  useEffect(() => {
+    if (!branchLoading && !loading && releases.length === 0 && !showAllYear && !searchQuery.trim()) {
+      setShowAllYear(true);
+      setCurrentPage(1);
+    }
+  }, [branchLoading, loading, releases.length, searchQuery, showAllYear]);
   
   const isViewer = userRole === 'viewer';
   const isEncoder = userRole === 'encoder';
