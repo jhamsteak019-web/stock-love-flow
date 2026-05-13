@@ -36,7 +36,7 @@ import { toast as sonnerToast } from 'sonner';
 import { format as formatDateFn } from 'date-fns';
 
 const ITEMS_PER_PAGE = 15;
-const DELIVERY_FILTER_STORAGE_KEY = 'deliveries_filter';
+const DELIVERY_FILTER_STORAGE_KEY = 'deliveries_filter_v2';
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -90,7 +90,7 @@ const Deliveries = () => {
         return {
           month: typeof parsed.month === 'number' ? parsed.month : currentDate.getMonth(),
           year: typeof parsed.year === 'number' ? parsed.year : currentDate.getFullYear(),
-          allYear: Boolean(parsed.allYear),
+          allYear: typeof parsed.allYear === 'boolean' ? parsed.allYear : true,
           status: typeof parsed.status === 'string' ? parsed.status : 'all',
         };
       }
@@ -99,7 +99,7 @@ const Deliveries = () => {
     return {
       month: currentDate.getMonth(),
       year: currentDate.getFullYear(),
-      allYear: false,
+      allYear: true,
       status: 'all',
     };
   };
