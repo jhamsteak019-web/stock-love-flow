@@ -55,7 +55,12 @@ const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string |
 };
 
 const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
-  const { releases } = useInventory();
+  const { releases, loading } = useInventory({
+    autoFetch: open,
+    loadItems: false,
+    loadCategories: false,
+    loadReleases: open,
+  });
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
 
@@ -520,6 +525,12 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
           </DialogTitle>
         </DialogHeader>
 
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        ) : (
+        <>
         <div className="flex flex-wrap items-center gap-2 py-2">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-[140px]">
@@ -805,6 +816,8 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
             </div>
           </TabsContent>
         </Tabs>
+        </>
+        )}
         </DialogContent>
       </Dialog>
 

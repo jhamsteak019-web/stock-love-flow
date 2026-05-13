@@ -75,7 +75,7 @@ const Deliveries = () => {
   const { bulkUpdateReleases } = useInventory({ autoFetch: false });
   const { toast } = useToast();
   const { userRole } = useAuth();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, loading: branchLoading } = useBranch();
   const currentDate = new Date();
   const {
     releases,
@@ -88,6 +88,8 @@ const Deliveries = () => {
     allDates: true,
     actionStatus: 'yes',
     excludeDelivered: true,
+    progressive: true,
+    enabled: !branchLoading && Boolean(selectedBranch?.id),
   });
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
@@ -344,7 +346,7 @@ const Deliveries = () => {
     }
   };
 
-  if (loading) {
+  if (branchLoading || loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
@@ -615,11 +617,13 @@ const Deliveries = () => {
       </Dialog>
 
       {/* Summary Delivery Modal */}
-      <SummaryDeliveryModal
-        open={showSummaryModal}
-        onOpenChange={setShowSummaryModal}
-        isViewer={isViewer}
-      />
+      {showSummaryModal && (
+        <SummaryDeliveryModal
+          open={showSummaryModal}
+          onOpenChange={setShowSummaryModal}
+          isViewer={isViewer}
+        />
+      )}
     </div>
   );
 };

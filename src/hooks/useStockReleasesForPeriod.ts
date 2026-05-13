@@ -13,6 +13,8 @@ type Params = {
   actionStatus?: "yes" | "no" | null;
   excludeDelivered?: boolean;
   includePendingReview?: boolean;
+  progressive?: boolean;
+  enabled?: boolean;
 };
 
 const PAGE_SIZE = 1000;
@@ -48,9 +50,11 @@ export const useStockReleasesForPeriod = ({
   actionStatus,
   excludeDelivered = false,
   includePendingReview = false,
+  progressive = false,
+  enabled = true,
 }: Params) => {
   const [releases, setReleases] = useState<StockRelease[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [refreshTick, setRefreshTick] = useState(0);
   const silentRefreshRef = useRef(false);
   const releaseCountRef = useRef(0);
@@ -74,6 +78,13 @@ export const useStockReleasesForPeriod = ({
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      releaseCountRef.current = 0;
+      setReleases([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     const run = async () => {
@@ -125,14 +136,25 @@ export const useStockReleasesForPeriod = ({
         return query;
       };
 
-      const fetchPages = async (options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {}) => {
+      const publishRows = (rows: StockRelease[]) => {
+        if (cancelled) return;
+        releaseCountRef.current = rows.length;
+        setReleases([...rows]);
+        if (progressive) setLoading(false);
+      };
+
+      const fetchPages = async (
+        options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {},
+        onBatch?: (rows: StockRelease[]) => void,
+      ) => {
         const pageRows: StockRelease[] = [];
         let from = 0;
         let hasMore = true;
 
         while (hasMore) {
+          const pagesInBatch = progressive && from === 0 ? 1 : PAGE_BATCH_SIZE;
           const pageStarts = Array.from(
-            { length: PAGE_BATCH_SIZE },
+            { length: pagesInBatch },
             (_, index) => from + index * PAGE_SIZE
           );
           const pageRequests = pageStarts.map(pageStart => buildQuery(pageStart, pageStart + PAGE_SIZE - 1, options));
@@ -149,24 +171,32 @@ export const useStockReleasesForPeriod = ({
             }
           }
 
-          from += PAGE_BATCH_SIZE * PAGE_SIZE;
+          onBatch?.(pageRows);
+          from += pagesInBatch * PAGE_SIZE;
         }
 
         return pageRows;
       };
 
-      const all = await fetchPages();
+      const all = await fetchPages({}, progressive ? publishRows : undefined);
 
       if (includePendingReview && !allDates && actionStatus === undefined) {
         const byId = new Map(all.map(release => [release.id, release]));
-        const pendingReviewRows = await fetchPages({ ignorePeriod: true, pendingReviewOnly: true });
+        const pendingReviewRows = await fetchPages(
+          { ignorePeriod: true, pendingReviewOnly: true },
+          progressive
+            ? (rows) => {
+                rows.forEach(release => byId.set(release.id, release));
+                publishRows(Array.from(byId.values()));
+              }
+            : undefined,
+        );
         pendingReviewRows.forEach(release => byId.set(release.id, release));
         all.splice(0, all.length, ...byId.values());
       }
 
       if (!cancelled) {
-        releaseCountRef.current = all.length;
-        setReleases(all);
+        publishRows(all);
       }
     };
 
@@ -174,11 +204,16 @@ export const useStockReleasesForPeriod = ({
       .catch((error) => {
         console.error("Error fetching stock releases for period:", error);
         if (!cancelled) {
-          releaseCountRef.current = 0;
-          setReleases([]);
+          const hasPartialRows = progressive && releaseCountRef.current > 0;
+          if (!hasPartialRows) {
+            releaseCountRef.current = 0;
+            setReleases([]);
+          }
           toast({
             title: "Error",
-            description: "Failed to load complete monthly data",
+            description: hasPartialRows
+              ? "Some older records may still be loading. Please refresh if data looks incomplete."
+              : "Failed to load complete monthly data",
             variant: "destructive",
           });
         }
@@ -190,7 +225,7 @@ export const useStockReleasesForPeriod = ({
     return () => {
       cancelled = true;
     };
-  }, [month, year, branchId, allYear, allDates, actionStatus, excludeDelivered, includePendingReview, toast, refreshTick]);
+  }, [month, year, branchId, allYear, allDates, actionStatus, excludeDelivered, includePendingReview, progressive, enabled, toast, refreshTick]);
 
   return { releases, loading, refetch };
 };
