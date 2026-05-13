@@ -149,7 +149,7 @@ const History = () => {
     allYear: showAllYear,
     includePendingReview: true,
     progressive: true,
-    enabled: !branchLoading && Boolean(selectedBranch?.id),
+    enabled: !branchLoading,
   });
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);

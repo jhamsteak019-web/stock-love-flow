@@ -89,7 +89,7 @@ const Deliveries = () => {
     actionStatus: 'yes',
     excludeDelivered: true,
     progressive: true,
-    enabled: !branchLoading && Boolean(selectedBranch?.id),
+    enabled: !branchLoading,
   });
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
