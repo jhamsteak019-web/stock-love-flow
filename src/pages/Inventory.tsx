@@ -27,7 +27,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 const Inventory = () => {
-  const { items, categories, loading, addItem, updateItem, deleteItem, deleteAllItems, addCategory, bulkUpdateStock } = useInventory();
+  const { items, categories, loading, addItem, updateItem, deleteItem, deleteAllItems, addCategory, bulkUpdateStock } = useInventory({ loadReleases: false });
   const { userRole, user } = useAuth();
   const { toast } = useToast();
   const isAdmin = userRole === 'admin';

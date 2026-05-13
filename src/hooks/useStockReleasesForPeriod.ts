@@ -16,8 +16,9 @@ type Params = {
 };
 
 const PAGE_SIZE = 1000;
+const PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_PERIOD_SELECT =
-  "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(*)";
+  "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
 
 const getUtcMonthRange = (month: number, year: number) => {
   const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
@@ -92,12 +93,11 @@ export const useStockReleasesForPeriod = ({
       const buildQuery = (
         from: number,
         to: number,
-        withCount = false,
         options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {},
       ) => {
         let query = supabase
           .from("stock_releases")
-          .select(STOCK_RELEASE_PERIOD_SELECT, withCount ? { count: "exact" } : undefined)
+          .select(STOCK_RELEASE_PERIOD_SELECT)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .range(from, to);
@@ -126,23 +126,30 @@ export const useStockReleasesForPeriod = ({
       };
 
       const fetchPages = async (options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {}) => {
-        const { data: firstPage, error, count } = await buildQuery(0, PAGE_SIZE - 1, true, options);
-        if (error) throw error;
+        const pageRows: StockRelease[] = [];
+        let from = 0;
+        let hasMore = true;
 
-        const pageRows = [...((firstPage ?? []) as StockRelease[])];
-        const totalCount = count ?? pageRows.length;
+        while (hasMore) {
+          const pageStarts = Array.from(
+            { length: PAGE_BATCH_SIZE },
+            (_, index) => from + index * PAGE_SIZE
+          );
+          const pageRequests = pageStarts.map(pageStart => buildQuery(pageStart, pageStart + PAGE_SIZE - 1, options));
+          const pages = await Promise.all(pageRequests);
 
-        if (totalCount > PAGE_SIZE) {
-          const pageRequests = [];
-          for (let from = PAGE_SIZE; from < totalCount; from += PAGE_SIZE) {
-            pageRequests.push(buildQuery(from, from + PAGE_SIZE - 1, false, options));
+          for (const { data, error: pageError } of pages) {
+            if (pageError) throw pageError;
+            const rows = (data ?? []) as StockRelease[];
+            pageRows.push(...rows);
+
+            if (rows.length < PAGE_SIZE) {
+              hasMore = false;
+              break;
+            }
           }
 
-          const pages = await Promise.all(pageRequests);
-          pages.forEach(({ data, error: pageError }) => {
-            if (pageError) throw pageError;
-            pageRows.push(...((data ?? []) as StockRelease[]));
-          });
+          from += PAGE_BATCH_SIZE * PAGE_SIZE;
         }
 
         return pageRows;

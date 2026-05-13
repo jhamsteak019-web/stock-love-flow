@@ -4,10 +4,8 @@ import { InventoryItem, Category, StockRelease, DashboardStats, DeliveryStatus }
 import { useToast } from '@/hooks/use-toast';
 
 const STOCK_RELEASE_PAGE_SIZE = 1000;
-const STOCK_RELEASE_SELECT = `
-  *,
-  inventory_item:inventory_items(*)
-`;
+const STOCK_RELEASE_PAGE_BATCH_SIZE = 4;
+const STOCK_RELEASE_SELECT = "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,action_status,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
 
 type UseInventoryOptions = {
   autoFetch?: boolean;
@@ -67,36 +65,36 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
 
   const fetchReleases = async () => {
     try {
-      const { data: firstPage, error, count } = await supabase
+      const buildQuery = (from: number) => supabase
         .from('stock_releases')
-        .select(STOCK_RELEASE_SELECT, { count: 'exact' })
+        .select(STOCK_RELEASE_SELECT)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .range(0, STOCK_RELEASE_PAGE_SIZE - 1);
+        .range(from, from + STOCK_RELEASE_PAGE_SIZE - 1);
 
-      if (error) throw error;
+      const allReleases: StockRelease[] = [];
+      let from = 0;
+      let hasMore = true;
 
-      const allReleases = [...((firstPage ?? []) as StockRelease[])];
-      const totalCount = count ?? allReleases.length;
+      while (hasMore) {
+        const pageStarts = Array.from(
+          { length: STOCK_RELEASE_PAGE_BATCH_SIZE },
+          (_, index) => from + index * STOCK_RELEASE_PAGE_SIZE
+        );
+        const pages = await Promise.all(pageStarts.map(buildQuery));
 
-      if (totalCount > STOCK_RELEASE_PAGE_SIZE) {
-        const pageRequests = [];
-        for (let from = STOCK_RELEASE_PAGE_SIZE; from < totalCount; from += STOCK_RELEASE_PAGE_SIZE) {
-          pageRequests.push(
-            supabase
-              .from('stock_releases')
-              .select(STOCK_RELEASE_SELECT)
-              .is('deleted_at', null)
-              .order('created_at', { ascending: false })
-              .range(from, from + STOCK_RELEASE_PAGE_SIZE - 1)
-          );
+        for (const { data, error } of pages) {
+          if (error) throw error;
+          const rows = (data ?? []) as StockRelease[];
+          allReleases.push(...rows);
+
+          if (rows.length < STOCK_RELEASE_PAGE_SIZE) {
+            hasMore = false;
+            break;
+          }
         }
 
-        const pages = await Promise.all(pageRequests);
-        pages.forEach(({ data, error: pageError }) => {
-          if (pageError) throw pageError;
-          allReleases.push(...((data ?? []) as StockRelease[]));
-        });
+        from += STOCK_RELEASE_PAGE_BATCH_SIZE * STOCK_RELEASE_PAGE_SIZE;
       }
 
       setReleases(allReleases);
@@ -107,36 +105,36 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
 
   const fetchDeletedReleases = async () => {
     try {
-      const { data: firstPage, error, count } = await supabase
+      const buildQuery = (from: number) => supabase
         .from('stock_releases')
-        .select(STOCK_RELEASE_SELECT, { count: 'exact' })
+        .select(STOCK_RELEASE_SELECT)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false })
-        .range(0, STOCK_RELEASE_PAGE_SIZE - 1);
+        .range(from, from + STOCK_RELEASE_PAGE_SIZE - 1);
 
-      if (error) throw error;
+      const allDeleted: StockRelease[] = [];
+      let from = 0;
+      let hasMore = true;
 
-      const allDeleted = [...((firstPage ?? []) as StockRelease[])];
-      const totalCount = count ?? allDeleted.length;
+      while (hasMore) {
+        const pageStarts = Array.from(
+          { length: STOCK_RELEASE_PAGE_BATCH_SIZE },
+          (_, index) => from + index * STOCK_RELEASE_PAGE_SIZE
+        );
+        const pages = await Promise.all(pageStarts.map(buildQuery));
 
-      if (totalCount > STOCK_RELEASE_PAGE_SIZE) {
-        const pageRequests = [];
-        for (let from = STOCK_RELEASE_PAGE_SIZE; from < totalCount; from += STOCK_RELEASE_PAGE_SIZE) {
-          pageRequests.push(
-            supabase
-              .from('stock_releases')
-              .select(STOCK_RELEASE_SELECT)
-              .not('deleted_at', 'is', null)
-              .order('deleted_at', { ascending: false })
-              .range(from, from + STOCK_RELEASE_PAGE_SIZE - 1)
-          );
+        for (const { data, error } of pages) {
+          if (error) throw error;
+          const rows = (data ?? []) as StockRelease[];
+          allDeleted.push(...rows);
+
+          if (rows.length < STOCK_RELEASE_PAGE_SIZE) {
+            hasMore = false;
+            break;
+          }
         }
 
-        const pages = await Promise.all(pageRequests);
-        pages.forEach(({ data, error: pageError }) => {
-          if (pageError) throw pageError;
-          allDeleted.push(...((data ?? []) as StockRelease[]));
-        });
+        from += STOCK_RELEASE_PAGE_BATCH_SIZE * STOCK_RELEASE_PAGE_SIZE;
       }
 
       return allDeleted;
@@ -275,7 +273,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
         released_by: releasedBy,
         notes,
       })
-      .select(`*, inventory_item:inventory_items(*)`)
+      .select(STOCK_RELEASE_SELECT)
       .single();
 
     if (error) throw error;
@@ -328,7 +326,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
     const { data, error } = await supabase
       .from('stock_releases')
       .insert(insertData)
-      .select(`*, inventory_item:inventory_items(*)`);
+      .select(STOCK_RELEASE_SELECT);
 
     if (error) throw error;
     
@@ -353,7 +351,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
       .from('stock_releases')
       .update(updates)
       .eq('id', releaseId)
-      .select(`*, inventory_item:inventory_items(*)`)
+      .select(STOCK_RELEASE_SELECT)
       .single();
 
     if (error) {
