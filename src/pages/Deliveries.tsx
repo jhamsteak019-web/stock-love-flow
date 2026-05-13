@@ -8,6 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useInventory } from '@/hooks/useInventory';
+import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -71,10 +72,23 @@ interface GroupedRelease {
 }
 
 const Deliveries = () => {
-  const { releases, loading, updateDeliveryStatus, fetchReleases, bulkUpdateReleases } = useInventory();
+  const { bulkUpdateReleases } = useInventory({ autoFetch: false });
   const { toast } = useToast();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
+  const currentDate = new Date();
+  const {
+    releases,
+    loading,
+    refetch: refetchDeliveries,
+  } = useStockReleasesForPeriod({
+    month: currentDate.getMonth(),
+    year: currentDate.getFullYear(),
+    branchId: selectedBranch?.id ?? null,
+    allDates: true,
+    actionStatus: 'yes',
+    excludeDelivered: true,
+  });
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -239,6 +253,7 @@ const Deliveries = () => {
     
     try {
       await bulkUpdateReleases(group.releaseIds, { delivery_status: status });
+      refetchDeliveries(true);
       toast({ title: 'Success', description: 'Delivery status updated' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
@@ -252,6 +267,7 @@ const Deliveries = () => {
         date_delivered: date.toISOString(),
       });
       setDeliveredDateGroup(null);
+      refetchDeliveries(true);
       toast({ title: 'Success', description: `Marked as delivered on ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
@@ -261,6 +277,7 @@ const Deliveries = () => {
   const handleWaybillChange = async (group: GroupedRelease, waybillNo: string) => {
     try {
       await bulkUpdateReleases(group.releaseIds, { waybill_no: waybillNo });
+      refetchDeliveries(true);
       toast({ title: 'Success', description: 'Waybill updated' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update waybill', variant: 'destructive' });
@@ -270,6 +287,7 @@ const Deliveries = () => {
   const handleRemarksChange = async (group: GroupedRelease, notes: string) => {
     try {
       await bulkUpdateReleases(group.releaseIds, { notes });
+      refetchDeliveries(true);
       toast({ title: 'Success', description: 'Remarks updated' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update remarks', variant: 'destructive' });
@@ -279,6 +297,7 @@ const Deliveries = () => {
   const handleSetDateChange = async (group: GroupedRelease, date: Date) => {
     try {
       await bulkUpdateReleases(group.releaseIds, { set_date: date.toISOString() });
+      refetchDeliveries(true);
       toast({ title: 'Success', description: `Delivery date set to ${format(date, 'MMM d, yyyy')}` });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update delivery date', variant: 'destructive' });
@@ -416,7 +435,7 @@ const Deliveries = () => {
                           photoUrl={group.photo_url}
                           photoStatus={group.photo_status}
                           currentAllocation={group.allocation_bill}
-                          onPhotoUpdate={fetchReleases}
+                          onPhotoUpdate={() => refetchDeliveries(true)}
                         />
                         <span className="truncate flex-1">{group.allocation_bill || group.batch_id.slice(0, 8)}</span>
                       </div>
@@ -561,7 +580,7 @@ const Deliveries = () => {
           open={!!editingBatch}
           onOpenChange={(open) => !open && setEditingBatch(null)}
           group={editingBatch}
-          onSuccess={() => fetchReleases()}
+          onSuccess={() => refetchDeliveries(true)}
         />
       )}
 

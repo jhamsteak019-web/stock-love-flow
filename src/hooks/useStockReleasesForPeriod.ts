@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,10 @@ type Params = {
   year: number;
   branchId?: string | null;
   allYear?: boolean;
+  allDates?: boolean;
+  actionStatus?: "yes" | "no" | null;
+  excludeDelivered?: boolean;
+  includePendingReview?: boolean;
 };
 
 const PAGE_SIZE = 1000;
@@ -34,13 +38,27 @@ const getUtcYearRange = (year: number) => {
  * - We must paginate because PostgREST limits results (default 1,000).
  * - We mirror Dashboard logic: use set_date when present, otherwise date_released.
  */
-export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = false }: Params) => {
+export const useStockReleasesForPeriod = ({
+  month,
+  year,
+  branchId,
+  allYear = false,
+  allDates = false,
+  actionStatus,
+  excludeDelivered = false,
+  includePendingReview = false,
+}: Params) => {
   const [releases, setReleases] = useState<StockRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
   const silentRefreshRef = useRef(false);
   const releaseCountRef = useRef(0);
   const { toast } = useToast();
+
+  const refetch = useCallback((silent = false) => {
+    silentRefreshRef.current = silent;
+    setRefreshTick(tick => tick + 1);
+  }, []);
 
   useEffect(() => {
     const handleSoftRefresh = () => {
@@ -71,39 +89,72 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
       // 2) set_date is null AND date_released in range
       const periodOrFilter = `and(set_date.gte.${start},set_date.lt.${end}),and(set_date.is.null,date_released.gte.${start},date_released.lt.${end})`;
 
-      const buildQuery = (from: number, to: number, withCount = false) => {
+      const buildQuery = (
+        from: number,
+        to: number,
+        withCount = false,
+        options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {},
+      ) => {
         let query = supabase
           .from("stock_releases")
           .select(STOCK_RELEASE_PERIOD_SELECT, withCount ? { count: "exact" } : undefined)
           .is("deleted_at", null)
-          .or(periodOrFilter)
           .order("created_at", { ascending: false })
           .range(from, to);
+
+        if (!allDates && !options.ignorePeriod) {
+          query = query.or(periodOrFilter);
+        }
 
         if (branchId) {
           query = query.eq("branch_id", branchId);
         }
 
+        if (options.pendingReviewOnly) {
+          query = query.is("action_status", null);
+        } else if (actionStatus === null) {
+          query = query.is("action_status", null);
+        } else if (actionStatus) {
+          query = query.eq("action_status", actionStatus);
+        }
+
+        if (excludeDelivered) {
+          query = query.neq("delivery_status", "delivered");
+        }
+
         return query;
       };
 
-      const { data: firstPage, error, count } = await buildQuery(0, PAGE_SIZE - 1, true);
-      if (error) throw error;
+      const fetchPages = async (options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {}) => {
+        const { data: firstPage, error, count } = await buildQuery(0, PAGE_SIZE - 1, true, options);
+        if (error) throw error;
 
-      const all = [...((firstPage ?? []) as StockRelease[])];
-      const totalCount = count ?? all.length;
+        const pageRows = [...((firstPage ?? []) as StockRelease[])];
+        const totalCount = count ?? pageRows.length;
 
-      if (totalCount > PAGE_SIZE) {
-        const pageRequests = [];
-        for (let from = PAGE_SIZE; from < totalCount; from += PAGE_SIZE) {
-          pageRequests.push(buildQuery(from, from + PAGE_SIZE - 1));
+        if (totalCount > PAGE_SIZE) {
+          const pageRequests = [];
+          for (let from = PAGE_SIZE; from < totalCount; from += PAGE_SIZE) {
+            pageRequests.push(buildQuery(from, from + PAGE_SIZE - 1, false, options));
+          }
+
+          const pages = await Promise.all(pageRequests);
+          pages.forEach(({ data, error: pageError }) => {
+            if (pageError) throw pageError;
+            pageRows.push(...((data ?? []) as StockRelease[]));
+          });
         }
 
-        const pages = await Promise.all(pageRequests);
-        pages.forEach(({ data, error: pageError }) => {
-          if (pageError) throw pageError;
-          all.push(...((data ?? []) as StockRelease[]));
-        });
+        return pageRows;
+      };
+
+      const all = await fetchPages();
+
+      if (includePendingReview && !allDates && actionStatus === undefined) {
+        const byId = new Map(all.map(release => [release.id, release]));
+        const pendingReviewRows = await fetchPages({ ignorePeriod: true, pendingReviewOnly: true });
+        pendingReviewRows.forEach(release => byId.set(release.id, release));
+        all.splice(0, all.length, ...byId.values());
       }
 
       if (!cancelled) {
@@ -132,7 +183,7 @@ export const useStockReleasesForPeriod = ({ month, year, branchId, allYear = fal
     return () => {
       cancelled = true;
     };
-  }, [month, year, branchId, allYear, toast, refreshTick]);
+  }, [month, year, branchId, allYear, allDates, actionStatus, excludeDelivered, includePendingReview, toast, refreshTick]);
 
-  return { releases, loading };
+  return { releases, loading, refetch };
 };

@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useInventory } from '@/hooks/useInventory';
+import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { DeliveryStatus, StockRelease } from '@/types/inventory';
@@ -93,7 +94,7 @@ interface GroupedRelease {
 }
 
 const History = () => {
-  const { releases, loading, deleteReleaseBatch, deleteAllReleases, fetchDeletedReleases, restoreReleaseBatch, permanentlyDeleteBatch, permanentlyDeleteAllDeleted, fetchReleases } = useInventory();
+  const { deleteAllReleases, fetchDeletedReleases, permanentlyDeleteAllDeleted } = useInventory({ autoFetch: false });
   const { toast } = useToast();
   const { userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -137,6 +138,17 @@ const History = () => {
   const [loadingDeleted, setLoadingDeleted] = useState(false);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const {
+    releases,
+    loading,
+    refetch: refetchHistory,
+  } = useStockReleasesForPeriod({
+    month: selectedMonth,
+    year: selectedYear,
+    branchId: selectedBranch?.id ?? null,
+    allYear: showAllYear,
+    includePendingReview: true,
+  });
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
   const isViewer = userRole === 'viewer';
@@ -417,7 +429,7 @@ const History = () => {
         .update({ deleted_at: new Date().toISOString() })
         .in('id', group.releaseIds);
       if (error) throw error;
-      await fetchReleases();
+      refetchHistory(true);
       toast({ title: 'Success', description: 'Release moved to Recently Deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete release', variant: 'destructive' });
@@ -433,7 +445,7 @@ const History = () => {
         .in('id', group.releaseIds);
       if (error) throw error;
       setDeletedReleases(deletedReleases.filter(r => !group.releaseIds.includes(r.id)));
-      await fetchReleases();
+      refetchHistory(true);
       toast({ title: 'Success', description: 'Release restored successfully' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to restore release', variant: 'destructive' });
@@ -511,7 +523,7 @@ const History = () => {
         toast({ title: 'Marked as OK', description: 'Delivery confirmed na maayos' });
       }
 
-      await fetchReleases();
+      refetchHistory(true);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to update action';
       toast({ title: 'Error', description: msg, variant: 'destructive' });
@@ -536,6 +548,7 @@ const History = () => {
     setClearing(true);
     try {
       await deleteAllReleases();
+      refetchHistory(true);
       toast({ title: 'Success', description: 'All transaction history moved to Recently Deleted' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to clear history', variant: 'destructive' });
@@ -603,7 +616,7 @@ const History = () => {
     }
   };
 
-  if (loading) {
+  if (activeTab === 'active' && loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
@@ -806,7 +819,7 @@ const History = () => {
                                 photoUrl={group.photo_url}
                                 photoStatus={group.photo_status}
                                 currentAllocation={group.allocation_bill}
-                                onPhotoUpdate={() => fetchReleases()}
+                                onPhotoUpdate={() => refetchHistory(true)}
                               />
                             </div>
                             <button
@@ -1142,7 +1155,7 @@ const History = () => {
           open={!!editingBatch}
           onOpenChange={(open) => !open && setEditingBatch(null)}
           group={editingBatch}
-          onSuccess={() => fetchReleases()}
+          onSuccess={() => refetchHistory(true)}
         />
       )}
 

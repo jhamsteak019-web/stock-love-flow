@@ -9,11 +9,24 @@ const STOCK_RELEASE_SELECT = `
   inventory_item:inventory_items(*)
 `;
 
-export const useInventory = () => {
+type UseInventoryOptions = {
+  autoFetch?: boolean;
+  loadItems?: boolean;
+  loadCategories?: boolean;
+  loadReleases?: boolean;
+};
+
+export const useInventory = (options: UseInventoryOptions = {}) => {
+  const {
+    autoFetch = true,
+    loadItems = true,
+    loadCategories = true,
+    loadReleases = true,
+  } = options;
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [releases, setReleases] = useState<StockRelease[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(autoFetch && (loadItems || loadCategories || loadReleases));
   const { toast } = useToast();
 
   const fetchItems = async () => {
@@ -136,13 +149,22 @@ export const useInventory = () => {
   const fetchAll = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      await Promise.all([fetchItems(), fetchCategories(), fetchReleases()]);
+      const tasks = [];
+      if (loadItems) tasks.push(fetchItems());
+      if (loadCategories) tasks.push(fetchCategories());
+      if (loadReleases) tasks.push(fetchReleases());
+      await Promise.all(tasks);
     } finally {
       if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!autoFetch) {
+      setLoading(false);
+      return;
+    }
+
     void fetchAll();
     const handleSoftRefresh = () => {
       void fetchAll(false);
@@ -152,7 +174,7 @@ export const useInventory = () => {
     return () => {
       window.removeEventListener('app:soft-refresh', handleSoftRefresh);
     };
-  }, []);
+  }, [autoFetch, loadItems, loadCategories, loadReleases]);
 
   const addCategory = async (name: string) => {
     const { data, error } = await supabase
