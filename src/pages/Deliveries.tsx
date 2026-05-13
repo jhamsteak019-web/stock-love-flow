@@ -416,9 +416,7 @@ const Deliveries = () => {
     }
   };
 
-  if (branchLoading || loading) {
-    return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
-  }
+  const isInitialLoading = branchLoading || (loading && releases.length === 0);
 
   return (
     <div className="space-y-6">
@@ -447,10 +445,10 @@ const Deliveries = () => {
             {pendingGroups.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>{pendingGroups.length} result{pendingGroups.length !== 1 ? 's' : ''}</span>
-                {isPending && (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                )}
               </div>
+            )}
+            {(isPending || loading) && (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             )}
             {!isViewer && canExport && (
               <Button variant="outline" size="sm" onClick={handleExportExcel}>
@@ -532,7 +530,14 @@ const Deliveries = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedGroups.length === 0 ? (
+            {isInitialLoading ? (
+              <TableRow>
+                <TableCell colSpan={visibleColumnCount} className="text-center py-12">
+                  <div className="h-8 w-8 mx-auto mb-3 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  <p className="text-muted-foreground">Loading deliveries...</p>
+                </TableCell>
+              </TableRow>
+            ) : paginatedGroups.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={visibleColumnCount} className="text-center py-12">
                   <Truck className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />

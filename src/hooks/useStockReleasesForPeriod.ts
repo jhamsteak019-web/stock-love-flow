@@ -19,6 +19,7 @@ type Params = {
 };
 
 const PAGE_SIZE = 1000;
+const PROGRESSIVE_FIRST_PAGE_SIZE = 150;
 const PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_PERIOD_SELECT =
   "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
@@ -106,7 +107,11 @@ export const useStockReleasesForPeriod = ({
       const buildQuery = (
         from: number,
         to: number,
-        options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {},
+        options: {
+          ignorePeriod?: boolean;
+          pendingReviewOnly?: boolean;
+          periodMode?: "setDate" | "dateReleasedFallback";
+        } = {},
       ) => {
         let query = supabase
           .from("stock_releases")
@@ -116,7 +121,16 @@ export const useStockReleasesForPeriod = ({
           .range(from, to);
 
         if (!allDates && !options.ignorePeriod) {
-          query = query.or(periodOrFilter);
+          if (options.periodMode === "setDate") {
+            query = query.gte("set_date", start).lt("set_date", end);
+          } else if (options.periodMode === "dateReleasedFallback") {
+            query = query
+              .is("set_date", null)
+              .gte("date_released", start)
+              .lt("date_released", end);
+          } else {
+            query = query.or(periodOrFilter);
+          }
         }
 
         if (branchId) {
@@ -148,20 +162,26 @@ export const useStockReleasesForPeriod = ({
       };
 
       const fetchPages = async (
-        options: { ignorePeriod?: boolean; pendingReviewOnly?: boolean } = {},
+        options: {
+          ignorePeriod?: boolean;
+          pendingReviewOnly?: boolean;
+          periodMode?: "setDate" | "dateReleasedFallback";
+        } = {},
         onBatch?: (rows: StockRelease[]) => void,
       ) => {
         const pageRows: StockRelease[] = [];
         let from = 0;
         let hasMore = true;
+        let isFirstPageBatch = true;
 
         while (hasMore) {
-          const pagesInBatch = progressive && from === 0 ? 1 : PAGE_BATCH_SIZE;
+          const pageSize = progressive && isFirstPageBatch ? PROGRESSIVE_FIRST_PAGE_SIZE : PAGE_SIZE;
+          const pagesInBatch = progressive && isFirstPageBatch ? 1 : PAGE_BATCH_SIZE;
           const pageStarts = Array.from(
             { length: pagesInBatch },
-            (_, index) => from + index * PAGE_SIZE
+            (_, index) => from + index * pageSize
           );
-          const pageRequests = pageStarts.map(pageStart => buildQuery(pageStart, pageStart + PAGE_SIZE - 1, options));
+          const pageRequests = pageStarts.map(pageStart => buildQuery(pageStart, pageStart + pageSize - 1, options));
           const pages = await Promise.all(pageRequests);
 
           for (const { data, error: pageError } of pages) {
@@ -169,20 +189,39 @@ export const useStockReleasesForPeriod = ({
             const rows = (data ?? []) as StockRelease[];
             pageRows.push(...rows);
 
-            if (rows.length < PAGE_SIZE) {
+            if (rows.length < pageSize) {
               hasMore = false;
               break;
             }
           }
 
           onBatch?.(pageRows);
-          from += pagesInBatch * PAGE_SIZE;
+          from += pagesInBatch * pageSize;
+          isFirstPageBatch = false;
         }
 
         return pageRows;
       };
 
-      const all = await fetchPages({}, progressive ? publishRows : undefined);
+      const fetchPeriodPages = async (onBatch?: (rows: StockRelease[]) => void) => {
+        const byId = new Map<string, StockRelease>();
+        const publishMergedRows = (rows: StockRelease[]) => {
+          rows.forEach(release => byId.set(release.id, release));
+          onBatch?.(Array.from(byId.values()));
+        };
+
+        const [setDateRows, fallbackRows] = await Promise.all([
+          fetchPages({ periodMode: "setDate" }, onBatch ? publishMergedRows : undefined),
+          fetchPages({ periodMode: "dateReleasedFallback" }, onBatch ? publishMergedRows : undefined),
+        ]);
+
+        [...setDateRows, ...fallbackRows].forEach(release => byId.set(release.id, release));
+        return Array.from(byId.values());
+      };
+
+      const all = !allDates
+        ? await fetchPeriodPages(progressive ? publishRows : undefined)
+        : await fetchPages({}, progressive ? publishRows : undefined);
 
       if (includePendingReview && !allDates && actionStatus === undefined) {
         const byId = new Map(all.map(release => [release.id, release]));
