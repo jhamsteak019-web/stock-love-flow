@@ -34,6 +34,9 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
 ];
 
 const ITEMS_PER_PAGE = 15;
+const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
+const MAX_PERSISTED_PARSED_ITEMS = 1000;
+const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 
 interface ParsedReleaseItem {
   id: string;
@@ -70,9 +73,50 @@ interface ExistingAllocationSection {
   needsBatchIdBackfill: boolean;
 }
 
+type StockReleaseInsertRow = {
+  item_id: string | null;
+  boxes_released: number;
+  destination: string;
+  released_by: string;
+  notes: string | null;
+  courier: string | null;
+  allocation_bill: string | null;
+  batch_id: string;
+  category: string | null;
+  waybill_no: string | null;
+  set_date: string | null;
+  total_qty: number | null;
+  branch_id: string | null;
+  amount: number | null;
+  action_status: 'yes' | 'no' | null;
+  product_code: string | null;
+  product_description: string | null;
+  unit_price: number | null;
+};
+
+const getSavedParsedItems = () => {
+  try {
+    const saved = localStorage.getItem(PARSED_ITEMS_STORAGE_KEY);
+    if (!saved) return [];
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+
+    if (parsed.length > MAX_PERSISTED_PARSED_ITEMS) {
+      localStorage.removeItem(PARSED_ITEMS_STORAGE_KEY);
+      return [];
+    }
+
+    return parsed as ParsedReleaseItem[];
+  } catch {
+    localStorage.removeItem(PARSED_ITEMS_STORAGE_KEY);
+    return [];
+  }
+};
+
 
 const ReleaseStock = () => {
-  const { items, releases, releaseStockBatch, fetchReleases, loading } = useInventory();
+  const { items, loading } = useInventory({ loadCategories: false, loadReleases: false });
   const isReleasingRef = useRef(false);
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
@@ -92,13 +136,9 @@ const ReleaseStock = () => {
   
   // Import Excel state - initialize from localStorage
   const [importing, setImporting] = useState(false);
-  const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>(() => {
-    const saved = localStorage.getItem('releaseStock_parsedItems');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>(getSavedParsedItems);
   const [showImportPreview, setShowImportPreview] = useState(() => {
-    const saved = localStorage.getItem('releaseStock_parsedItems');
-    return saved ? JSON.parse(saved).length > 0 : false;
+    return getSavedParsedItems().length > 0;
   });
   const [importCourier, setImportCourier] = useState('');
   const [importCategory, setImportCategory] = useState('');
@@ -112,13 +152,22 @@ const ReleaseStock = () => {
   // Debounced search for smooth typing
   const debouncedSearch = useDebounce(sheetNoSearch, 350);
 
-  // Persist parsedItems to localStorage
   useEffect(() => {
+    const savePreview = () => {
+      if (parsedItems.length > MAX_PERSISTED_PARSED_ITEMS) {
+        localStorage.removeItem(PARSED_ITEMS_STORAGE_KEY);
+        return;
+      }
+
+      localStorage.setItem(PARSED_ITEMS_STORAGE_KEY, JSON.stringify(parsedItems));
+    };
+
     if (parsedItems.length > 0) {
-      localStorage.setItem('releaseStock_parsedItems', JSON.stringify(parsedItems));
-    } else {
-      localStorage.removeItem('releaseStock_parsedItems');
+      const timer = window.setTimeout(savePreview, 400);
+      return () => window.clearTimeout(timer);
     }
+
+    localStorage.removeItem(PARSED_ITEMS_STORAGE_KEY);
   }, [parsedItems]);
 
   const normalizeAllocation = useCallback((allocation?: string | null) => {
@@ -133,9 +182,7 @@ const ReleaseStock = () => {
   useEffect(() => {
     if (parsedItems.length === 0) return;
 
-    const seenSheetNos = new Set(
-      releases.map(release => normalizeAllocation(release.allocation_bill)).filter(Boolean)
-    );
+    const seenSheetNos = new Set<string>();
     const dedupedItems: ParsedReleaseItem[] = [];
     const removedIds = new Set<string>();
 
@@ -161,43 +208,7 @@ const ReleaseStock = () => {
         setShowImportPreview(false);
       }
     }
-  }, [parsedItems, releases, normalizeAllocation]);
-
-  const hasExistingAllocation = (allocation?: string | null) => {
-    const normalizedAllocation = normalizeAllocation(allocation);
-    if (!normalizedAllocation) return false;
-
-    return releases.some(release => normalizeAllocation(release.allocation_bill) === normalizedAllocation);
-  };
-
-  const findExistingAllocationSection = (allocation?: string | null): ExistingAllocationSection | null => {
-    const normalizedAllocation = normalizeAllocation(allocation);
-    if (!normalizedAllocation) return null;
-
-    const matchingReleases = releases.filter(release => {
-      return normalizeAllocation(release.allocation_bill) === normalizedAllocation;
-    });
-
-    const existingRelease =
-      matchingReleases.find(release => selectedBranch?.id && release.branch_id === selectedBranch.id) ||
-      matchingReleases.find(release => !release.branch_id) ||
-      matchingReleases[0];
-
-    if (!existingRelease) return null;
-
-    return {
-      releaseId: existingRelease.id,
-      batchId: existingRelease.batch_id || existingRelease.id,
-      allocationBill: existingRelease.allocation_bill || allocation!.trim(),
-      destination: existingRelease.destination,
-      courier: existingRelease.courier || undefined,
-      category: existingRelease.category || undefined,
-      waybillNo: existingRelease.waybill_no || undefined,
-      setDate: existingRelease.set_date || undefined,
-      branchId: existingRelease.branch_id || undefined,
-      needsBatchIdBackfill: !existingRelease.batch_id,
-    };
-  };
+  }, [parsedItems, normalizeAllocation]);
 
   const ensureExistingSectionBatchId = async (section: ExistingAllocationSection | null) => {
     if (!section?.needsBatchIdBackfill) return;
@@ -235,6 +246,67 @@ const ReleaseStock = () => {
     }
 
     return keys;
+  };
+
+  const fetchExistingAllocationSections = async () => {
+    const sections = new Map<string, ExistingAllocationSection>();
+    const PAGE_SIZE = 1000;
+    let from = 0;
+
+    const shouldReplaceSection = (current: ExistingAllocationSection | undefined, next: ExistingAllocationSection) => {
+      if (!current) return true;
+      const nextMatchesBranch = Boolean(selectedBranch?.id && next.branchId === selectedBranch.id);
+      const currentMatchesBranch = Boolean(selectedBranch?.id && current.branchId === selectedBranch.id);
+      if (nextMatchesBranch && !currentMatchesBranch) return true;
+      if (!current.branchId && next.branchId) return true;
+      return false;
+    };
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('stock_releases')
+        .select('id,batch_id,allocation_bill,destination,courier,category,waybill_no,set_date,branch_id')
+        .is('deleted_at', null)
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      const chunk = data || [];
+      chunk.forEach((release) => {
+        const key = normalizeAllocation(release.allocation_bill);
+        if (!key) return;
+
+        const section: ExistingAllocationSection = {
+          releaseId: release.id,
+          batchId: release.batch_id || release.id,
+          allocationBill: release.allocation_bill || '',
+          destination: release.destination || 'Unknown',
+          courier: release.courier || undefined,
+          category: release.category || undefined,
+          waybillNo: release.waybill_no || undefined,
+          setDate: release.set_date || undefined,
+          branchId: release.branch_id || undefined,
+          needsBatchIdBackfill: !release.batch_id,
+        };
+
+        if (shouldReplaceSection(sections.get(key), section)) {
+          sections.set(key, section);
+        }
+      });
+
+      if (chunk.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+
+    return sections;
+  };
+
+  const insertStockReleaseRows = async (rows: StockReleaseInsertRow[]) => {
+    for (let index = 0; index < rows.length; index += STOCK_RELEASE_INSERT_CHUNK_SIZE) {
+      const chunk = rows.slice(index, index + STOCK_RELEASE_INSERT_CHUNK_SIZE);
+      const { error } = await supabase.from('stock_releases').insert(chunk);
+      if (error) throw error;
+    }
   };
 
   // Excel Import Functions
@@ -384,7 +456,6 @@ const ReleaseStock = () => {
 
       const seenSheetNos = new Set(
         [
-          ...releases.map(r => normalizeAllocation(r.allocation_bill)),
           ...parsedItems.map(item => normalizeAllocation(item.sheetNo)),
         ].filter(Boolean)
       );
@@ -483,7 +554,6 @@ const ReleaseStock = () => {
     try {
       const firstItem = validItems[0];
 
-      // Group items by Sheet No. so duplicates become products under the same allocation bill
       const groups = new Map<string, ParsedReleaseItem[]>();
       for (const item of validItems) {
         const normalizedSheetNo = normalizeAllocation(item.sheetNo);
@@ -495,36 +565,37 @@ const ReleaseStock = () => {
         groups.set(key, arr);
       }
 
+      const rowsToInsert: StockReleaseInsertRow[] = [];
       for (const group of groups.values()) {
         const head = group[0];
-
-        const totalQty = group.reduce((s, g) => s + (g.qtyItem || g.qtyBoxes || 0), 0);
-        const totalBoxes = group.reduce((s, g) => s + (g.qtyBoxes || 0), 0);
-        const totalAmount = group.reduce((s, g) => s + (g.amount || 0), 0);
+        const batchId = crypto.randomUUID();
         const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
-        await releaseStockBatch(
-          group.map(g => ({
-            itemId: g.matchedItemId || '',
-            boxes: g.qtyBoxes,
-            qty: g.qtyItem || g.qtyBoxes || 0,
-            amount: g.amount || 0,
-            category: g.category || undefined,
-          })),
-          head.deliverTo || 'Unknown',
-          user!.id,
-          combinedNotes || undefined,
-          firstItem.courier,
-          head.sheetNo || undefined,
-          head.category || undefined,
-          undefined,
-          firstItem.setDate || undefined,
-          totalQty || totalBoxes,
-          selectedBranch?.id || undefined,
-          totalAmount || undefined,
-          undefined,
-          'yes'
-        );
+
+        group.forEach(item => {
+          rowsToInsert.push({
+            item_id: item.matchedItemId || null,
+            boxes_released: item.qtyBoxes,
+            destination: head.deliverTo || 'Unknown',
+            released_by: user!.id,
+            notes: combinedNotes || null,
+            courier: head.courier || null,
+            allocation_bill: head.sheetNo || null,
+            batch_id: batchId,
+            category: item.category || head.category || null,
+            waybill_no: null,
+            set_date: head.setDate || null,
+            total_qty: item.qtyItem || item.qtyBoxes || 0,
+            branch_id: selectedBranch?.id || null,
+            amount: item.amount || null,
+            action_status: 'yes',
+            product_code: null,
+            product_description: null,
+            unit_price: null,
+          });
+        });
       }
+
+      await insertStockReleaseRows(rowsToInsert);
 
       // Remove released items from preview
       const releasedIds = new Set(validItems.map(i => i.id));
@@ -534,9 +605,6 @@ const ReleaseStock = () => {
       if (parsedItems.length - validItems.length === 0) {
         setShowImportPreview(false);
       }
-
-      // Refresh releases state to keep duplicate checks accurate
-      await fetchReleases();
 
       await logActivity({
         actionType: 'import',
@@ -606,14 +674,17 @@ const ReleaseStock = () => {
       );
     }
     
-    // Sort checked items to the top
-    return [...filtered].sort((a, b) => {
-      const aChecked = selectedItems.has(a.id);
-      const bChecked = selectedItems.has(b.id);
-      if (aChecked && !bChecked) return -1;
-      if (!aChecked && bChecked) return 1;
-      return 0;
+    const checked: ParsedReleaseItem[] = [];
+    const unchecked: ParsedReleaseItem[] = [];
+    filtered.forEach(item => {
+      if (selectedItems.has(item.id)) {
+        checked.push(item);
+      } else {
+        unchecked.push(item);
+      }
     });
+
+    return [...checked, ...unchecked];
   }, [parsedItems, debouncedSearch, selectedItems]);
 
   // Pagination for filtered items
@@ -820,9 +891,11 @@ const ReleaseStock = () => {
       let savedCount = 0;
       let skippedCount = 0;
       const skippedBills: string[] = [];
+      const existingSections = await fetchExistingAllocationSections();
+      const rowsToInsert: StockReleaseInsertRow[] = [];
       for (const group of groups.values()) {
         const head = group[0];
-        const existingSection = findExistingAllocationSection(head.sheetNo);
+        const existingSection = existingSections.get(normalizeAllocation(head.sheetNo));
         if (!existingSection) {
           skippedCount += group.length;
           if (head.sheetNo) skippedBills.push(head.sheetNo);
@@ -831,35 +904,29 @@ const ReleaseStock = () => {
 
         await ensureExistingSectionBatchId(existingSection);
 
-        const totalQty = group.reduce((s, g) => s + (g.qtyItem || 0), 0);
-        const totalAmount = group.reduce((s, g) => s + (g.amount || 0), 0);
-        await releaseStockBatch(
-          group.map(g => {
-            const [pname, pdesc] = (g.remarks || '').split(' - ');
-            return {
-              itemId: g.matchedItemId || '',
-              boxes: g.qtyBoxes || 0,
-              productCode: pname || undefined,
-              productDescription: pdesc || undefined,
-              unitPrice: g.amount || 0,
-              qty: g.qtyItem || 0,
-              amount: g.amount || 0,
-              category: g.category || undefined,
-            };
-          }),
-          existingSection?.destination || head.deliverTo || 'Unknown',
-          user!.id,
-          undefined,
-          existingSection?.courier,
-          existingSection?.allocationBill || head.sheetNo || undefined,
-          existingSection?.category || head.category || undefined,
-          existingSection?.waybillNo,
-          existingSection?.setDate,
-          totalQty || undefined,
-          existingSection?.branchId || selectedBranch?.id || undefined,
-          totalAmount || undefined,
-          existingSection?.batchId
-        );
+        group.forEach(item => {
+          const [productCode, productDescription] = (item.remarks || '').split(' - ');
+          rowsToInsert.push({
+            item_id: item.matchedItemId || null,
+            boxes_released: item.qtyBoxes || 0,
+            destination: existingSection.destination || head.deliverTo || 'Unknown',
+            released_by: user!.id,
+            notes: null,
+            courier: existingSection.courier || null,
+            allocation_bill: existingSection.allocationBill || head.sheetNo || null,
+            batch_id: existingSection.batchId,
+            category: item.category || existingSection.category || head.category || null,
+            waybill_no: existingSection.waybillNo || null,
+            set_date: existingSection.setDate || null,
+            total_qty: item.qtyItem || 0,
+            branch_id: existingSection.branchId || selectedBranch?.id || null,
+            amount: item.amount || null,
+            action_status: null,
+            product_code: productCode || null,
+            product_description: productDescription || null,
+            unit_price: item.amount || null,
+          });
+        });
         savedCount += group.length;
       }
 
@@ -872,7 +939,7 @@ const ReleaseStock = () => {
         return;
       }
 
-      await fetchReleases();
+      await insertStockReleaseRows(rowsToInsert);
 
       await logActivity({
         actionType: 'import',

@@ -147,6 +147,8 @@ const History = () => {
     year: selectedYear,
     branchId: selectedBranch?.id ?? null,
     allYear: showAllYear,
+    allDates: showAllYear || Boolean(debouncedSearchQuery.trim()),
+    search: debouncedSearchQuery,
     includePendingReview: true,
     progressive: true,
     enabled: !branchLoading,
@@ -319,6 +321,8 @@ const History = () => {
 
   // Filter grouped releases based on search query, date range, month/year (or all year), and status
   const filteredReleases = useMemo(() => {
+    const hasSearch = Boolean(debouncedSearchQuery.trim());
+
     return groupedReleases.filter(group => {
       // Pending review (no action_status yet) ALWAYS shows so user can confirm Yes/No.
       const isPendingReview = !group.action_status;
@@ -326,7 +330,7 @@ const History = () => {
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
       const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
       
-      if (!isPendingReview) {
+      if (!isPendingReview && !hasSearch) {
         // Year filter always applies
         if (dateToFilter.getFullYear() !== selectedYear) {
           return false;
@@ -364,10 +368,15 @@ const History = () => {
         if (group.delivery_status.toLowerCase().includes(query)) return true;
         if (group.allocation_bill?.toLowerCase().includes(query)) return true;
         if (group.waybill_no?.toLowerCase().includes(query)) return true;
+        if (group.category?.toLowerCase().includes(query)) return true;
+        if (group.notes?.toLowerCase().includes(query)) return true;
         
         const itemMatch = group.items.some(item => 
+          item.product_code?.toLowerCase().includes(query) ||
+          item.product_description?.toLowerCase().includes(query) ||
           item.inventory_item?.item_name?.toLowerCase().includes(query) ||
-          item.inventory_item?.item_code?.toLowerCase().includes(query)
+          item.inventory_item?.item_code?.toLowerCase().includes(query) ||
+          item.inventory_item?.description?.toLowerCase().includes(query)
         );
         if (itemMatch) return true;
         
@@ -618,7 +627,7 @@ const History = () => {
     }
   };
 
-  if (activeTab === 'active' && (branchLoading || loading)) {
+  if (activeTab === 'active' && (branchLoading || (loading && releases.length === 0))) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 

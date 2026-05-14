@@ -108,6 +108,8 @@ const Deliveries = () => {
   const [selectedYear, setSelectedYear] = useState(savedDeliveryFilter.year);
   const [showAllYear, setShowAllYear] = useState(savedDeliveryFilter.allYear);
   const [statusFilter, setStatusFilter] = useState<string>(savedDeliveryFilter.status);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 350);
   const {
     releases,
     loading,
@@ -117,7 +119,8 @@ const Deliveries = () => {
     year: selectedYear,
     branchId: selectedBranch?.id ?? null,
     allYear: showAllYear,
-    allDates: showAllYear,
+    allDates: showAllYear || Boolean(debouncedSearch.trim()),
+    search: debouncedSearch,
     deliveryStatus: statusFilter === 'all' ? 'all' : statusFilter as DeliveryStatus,
     excludeDelivered: statusFilter === 'all',
     progressive: true,
@@ -125,7 +128,6 @@ const Deliveries = () => {
   });
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [editingBatch, setEditingBatch] = useState<GroupedRelease | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [deliveredDateGroup, setDeliveredDateGroup] = useState<GroupedRelease | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
@@ -159,9 +161,6 @@ const Deliveries = () => {
 
   const visibleColumnCount = columns.filter(c => c.visible).length + (canEdit ? 1 : 0); // +1 for Edit if can edit
   
-  // Debounced search for smooth performance
-  const debouncedSearch = useDebounce(searchQuery, 350);
-
   const formatAmount = useCallback((value: number | null | undefined) => {
     if (value === null || value === undefined) return '-';
     const num = Number(value);
@@ -256,11 +255,19 @@ const Deliveries = () => {
         const destination = (g.destination || '').toLowerCase();
         const category = (g.category || '').toLowerCase();
         const notes = (g.notes || '').toLowerCase();
+        const itemMatch = g.items.some(item =>
+          item.product_code?.toLowerCase().includes(query) ||
+          item.product_description?.toLowerCase().includes(query) ||
+          item.inventory_item?.item_code?.toLowerCase().includes(query) ||
+          item.inventory_item?.item_name?.toLowerCase().includes(query) ||
+          item.inventory_item?.description?.toLowerCase().includes(query)
+        );
         return allocation.includes(query) || 
                waybill.includes(query) || 
                destination.includes(query) || 
                category.includes(query) ||
-               notes.includes(query);
+               notes.includes(query) ||
+               itemMatch;
       });
   }, [groupedReleases, debouncedSearch, statusFilter]);
 

@@ -16,13 +16,14 @@ type Params = {
   includePendingReview?: boolean;
   progressive?: boolean;
   enabled?: boolean;
+  search?: string;
 };
 
 const PAGE_SIZE = 1000;
 const PROGRESSIVE_FIRST_PAGE_SIZE = 150;
 const PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_PERIOD_SELECT =
-  "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
+  "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
 
 const getUtcMonthRange = (month: number, year: number) => {
   const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
@@ -34,6 +35,23 @@ const getUtcYearRange = (year: number) => {
   const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)).toISOString();
   const end = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0)).toISOString();
   return { start, end };
+};
+
+const buildSearchFilter = (search?: string) => {
+  const term = search?.trim().replace(/[%,()]/g, " ");
+  if (!term) return null;
+
+  const pattern = `%${term}%`;
+  return [
+    "allocation_bill",
+    "destination",
+    "courier",
+    "waybill_no",
+    "category",
+    "notes",
+    "product_code",
+    "product_description",
+  ].map(column => `${column}.ilike.${pattern}`).join(",");
 };
 
 /**
@@ -55,6 +73,7 @@ export const useStockReleasesForPeriod = ({
   includePendingReview = false,
   progressive = false,
   enabled = true,
+  search,
 }: Params) => {
   const [releases, setReleases] = useState<StockRelease[]>([]);
   const [loading, setLoading] = useState(enabled);
@@ -103,6 +122,7 @@ export const useStockReleasesForPeriod = ({
       // 1) set_date in range
       // 2) set_date is null AND date_released in range
       const periodOrFilter = `and(set_date.gte.${start},set_date.lt.${end}),and(set_date.is.null,date_released.gte.${start},date_released.lt.${end})`;
+      const searchFilter = buildSearchFilter(search);
 
       const buildQuery = (
         from: number,
@@ -135,6 +155,10 @@ export const useStockReleasesForPeriod = ({
 
         if (branchId) {
           query = query.eq("branch_id", branchId);
+        }
+
+        if (searchFilter) {
+          query = query.or(searchFilter);
         }
 
         if (options.pendingReviewOnly) {
@@ -268,7 +292,7 @@ export const useStockReleasesForPeriod = ({
     return () => {
       cancelled = true;
     };
-  }, [month, year, branchId, allYear, allDates, actionStatus, deliveryStatus, excludeDelivered, includePendingReview, progressive, enabled, toast, refreshTick]);
+  }, [month, year, branchId, allYear, allDates, actionStatus, deliveryStatus, excludeDelivered, includePendingReview, progressive, enabled, search, toast, refreshTick]);
 
   return { releases, loading, refetch };
 };
