@@ -114,6 +114,15 @@ const getSavedParsedItems = () => {
   }
 };
 
+const getUniqueAllocationBills = (items: ParsedReleaseItem[]) => {
+  const bills = new Set<string>();
+  items.forEach(item => {
+    const bill = item.sheetNo.trim();
+    if (bill) bills.add(bill);
+  });
+  return Array.from(bills);
+};
+
 
 const ReleaseStock = () => {
   const { items, loading } = useInventory({ loadCategories: false, loadReleases: false });
@@ -179,37 +188,6 @@ const ReleaseStock = () => {
       .toLowerCase();
   }, []);
 
-  useEffect(() => {
-    if (parsedItems.length === 0) return;
-
-    const seenSheetNos = new Set<string>();
-    const dedupedItems: ParsedReleaseItem[] = [];
-    const removedIds = new Set<string>();
-
-    for (const item of parsedItems) {
-      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
-      if (normalizedSheetNo && seenSheetNos.has(normalizedSheetNo)) {
-        removedIds.add(item.id);
-        continue;
-      }
-
-      dedupedItems.push(item);
-      if (normalizedSheetNo) seenSheetNos.add(normalizedSheetNo);
-    }
-
-    if (dedupedItems.length !== parsedItems.length) {
-      setParsedItems(dedupedItems);
-      setSelectedItems(prev => {
-        const next = new Set(prev);
-        removedIds.forEach(id => next.delete(id));
-        return next;
-      });
-      if (dedupedItems.length === 0) {
-        setShowImportPreview(false);
-      }
-    }
-  }, [parsedItems, normalizeAllocation]);
-
   const ensureExistingSectionBatchId = async (section: ExistingAllocationSection | null) => {
     if (!section?.needsBatchIdBackfill) return;
 
@@ -221,9 +199,31 @@ const ReleaseStock = () => {
     if (error) throw error;
   };
 
-  const fetchExistingAllocationKeys = async () => {
+  const fetchExistingAllocationKeys = async (allocations?: string[]) => {
     const keys = new Set<string>();
     const PAGE_SIZE = 1000;
+    const requestedAllocations = (allocations || []).map(bill => bill.trim()).filter(Boolean);
+
+    if (requestedAllocations.length > 0) {
+      for (let index = 0; index < requestedAllocations.length; index += 100) {
+        const chunk = requestedAllocations.slice(index, index + 100);
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select('allocation_bill')
+          .is('deleted_at', null)
+          .in('allocation_bill', chunk);
+
+        if (error) throw error;
+
+        (data || []).forEach((release) => {
+          const key = normalizeAllocation(release.allocation_bill);
+          if (key) keys.add(key);
+        });
+      }
+
+      return keys;
+    }
+
     let from = 0;
 
     while (true) {
@@ -248,10 +248,10 @@ const ReleaseStock = () => {
     return keys;
   };
 
-  const fetchExistingAllocationSections = async () => {
+  const fetchExistingAllocationSections = async (allocations: string[]) => {
     const sections = new Map<string, ExistingAllocationSection>();
     const PAGE_SIZE = 1000;
-    let from = 0;
+    const requestedAllocations = allocations.map(bill => bill.trim()).filter(Boolean);
 
     const shouldReplaceSection = (current: ExistingAllocationSection | undefined, next: ExistingAllocationSection) => {
       if (!current) return true;
@@ -262,17 +262,18 @@ const ReleaseStock = () => {
       return false;
     };
 
-    while (true) {
-      const { data, error } = await supabase
-        .from('stock_releases')
-        .select('id,batch_id,allocation_bill,destination,courier,category,waybill_no,set_date,branch_id')
-        .is('deleted_at', null)
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (error) throw error;
-
-      const chunk = data || [];
-      chunk.forEach((release) => {
+    const addSections = (rows: Array<{
+      id: string;
+      batch_id: string | null;
+      allocation_bill: string | null;
+      destination: string;
+      courier: string | null;
+      category: string | null;
+      waybill_no: string | null;
+      set_date: string | null;
+      branch_id: string | null;
+    }>) => {
+      rows.forEach((release) => {
         const key = normalizeAllocation(release.allocation_bill);
         if (!key) return;
 
@@ -293,6 +294,36 @@ const ReleaseStock = () => {
           sections.set(key, section);
         }
       });
+    };
+
+    if (requestedAllocations.length > 0) {
+      for (let index = 0; index < requestedAllocations.length; index += 100) {
+        const chunk = requestedAllocations.slice(index, index + 100);
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select('id,batch_id,allocation_bill,destination,courier,category,waybill_no,set_date,branch_id')
+          .is('deleted_at', null)
+          .in('allocation_bill', chunk);
+
+        if (error) throw error;
+        addSections(data || []);
+      }
+
+      return sections;
+    }
+
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('stock_releases')
+        .select('id,batch_id,allocation_bill,destination,courier,category,waybill_no,set_date,branch_id')
+        .is('deleted_at', null)
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      const chunk = data || [];
+      addSections(chunk);
 
       if (chunk.length < PAGE_SIZE) break;
       from += PAGE_SIZE;
@@ -454,44 +485,14 @@ const ReleaseStock = () => {
         return;
       }
 
-      const seenSheetNos = new Set(
-        [
-          ...parsedItems.map(item => normalizeAllocation(item.sheetNo)),
-        ].filter(Boolean)
-      );
-      const filteredParsed: ParsedReleaseItem[] = [];
-      let skippedCount = 0;
-
-      for (const item of parsed) {
-        const normalizedSheetNo = normalizeAllocation(item.sheetNo);
-        if (normalizedSheetNo && seenSheetNos.has(normalizedSheetNo)) {
-          skippedCount += 1;
-          continue;
-        }
-
-        filteredParsed.push(item);
-        if (normalizedSheetNo) seenSheetNos.add(normalizedSheetNo);
-      }
-
-      if (filteredParsed.length === 0) {
-        toast({
-          title: 'All Items Already Exist',
-          description: `${skippedCount} item(s) skipped because their Sheet No. already exists.`,
-          variant: 'default',
-        });
-        setImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
-
-      // Append new items to existing ones instead of replacing
-      setParsedItems(prev => [...prev, ...filteredParsed]);
+      // Keep duplicate Sheet No. rows: they are product lines under the same allocation bill.
+      setParsedItems(prev => [...prev, ...parsed]);
       setShowImportPreview(true);
       
-      const message = skippedCount > 0
-        ? `${filteredParsed.length} items added (${skippedCount} duplicate Sheet No. skipped). Total: ${parsedItems.length + filteredParsed.length} items.`
-        : `${filteredParsed.length} items added. Total: ${parsedItems.length + filteredParsed.length} items.`;
-      toast({ title: 'File Parsed', description: message });
+      toast({
+        title: 'File Parsed',
+        description: `${parsed.length} items added. Total: ${parsedItems.length + parsed.length} items.`,
+      });
     } catch (error) {
       console.error('Excel parse error:', error);
       toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
@@ -517,7 +518,7 @@ const ReleaseStock = () => {
     }
 
     // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
-    const existingAllocationKeys = await fetchExistingAllocationKeys();
+    const existingAllocationKeys = await fetchExistingAllocationKeys(getUniqueAllocationBills(validItems));
     const existingSheetNos = validItems.filter(item => {
       const normalizedSheetNo = normalizeAllocation(item.sheetNo);
       return Boolean(normalizedSheetNo && existingAllocationKeys.has(normalizedSheetNo));
@@ -526,23 +527,6 @@ const ReleaseStock = () => {
       toast({
         title: 'Duplicate Sheet No.',
         description: `${existingSheetNos.length} selected item(s) already exist and will not be imported.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const seenSelectedSheetNos = new Set<string>();
-    const duplicateSelectedSheetNos = validItems.filter(item => {
-      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
-      if (!normalizedSheetNo) return false;
-      if (seenSelectedSheetNos.has(normalizedSheetNo)) return true;
-      seenSelectedSheetNos.add(normalizedSheetNo);
-      return false;
-    });
-    if (duplicateSelectedSheetNos.length > 0) {
-      toast({
-        title: 'Duplicate Sheet No.',
-        description: `${duplicateSelectedSheetNos.length} selected item(s) have duplicate Sheet No. in the import preview.`,
         variant: 'destructive',
       });
       return;
@@ -891,7 +875,7 @@ const ReleaseStock = () => {
       let savedCount = 0;
       let skippedCount = 0;
       const skippedBills: string[] = [];
-      const existingSections = await fetchExistingAllocationSections();
+      const existingSections = await fetchExistingAllocationSections(getUniqueAllocationBills(parsed));
       const rowsToInsert: StockReleaseInsertRow[] = [];
       for (const group of groups.values()) {
         const head = group[0];
