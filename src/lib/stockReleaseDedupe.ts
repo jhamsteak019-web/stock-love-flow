@@ -48,6 +48,10 @@ export const getStockReleaseGroupKey = (release: StockRelease) => {
 };
 
 export const getStockReleaseDisplayKey = (release: StockRelease) => {
+  if (isImportedStockReleaseProductRow(release)) {
+    return `imported-product:${normalizeText(release.id)}`;
+  }
+
   const baseKey = [
     normalizeAllocationKey(release.allocation_bill),
     normalizeText(release.destination),

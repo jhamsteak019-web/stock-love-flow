@@ -557,7 +557,7 @@ const ReleaseStock = () => {
 
         group.forEach(item => {
           rowsToInsert.push({
-            item_id: item.matchedItemId || null,
+            item_id: null,
             boxes_released: item.qtyBoxes,
             destination: head.deliverTo || 'Unknown',
             released_by: user!.id,
@@ -573,8 +573,8 @@ const ReleaseStock = () => {
             amount: item.amount || null,
             action_status: 'yes',
             product_code: null,
-            product_description: null,
-            unit_price: null,
+            product_description: item.remarks || item.matchedItemName || null,
+            unit_price: item.amount || null,
           });
         });
       }
