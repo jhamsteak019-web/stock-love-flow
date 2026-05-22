@@ -199,6 +199,19 @@ const ReleaseStock = () => {
     if (error) throw error;
   };
 
+  const updateExistingSectionDestination = async (section: ExistingAllocationSection, destination?: string | null) => {
+    const nextDestination = destination?.trim();
+    if (!nextDestination || nextDestination.toLowerCase() === section.destination.trim().toLowerCase()) return;
+
+    const { error } = await supabase
+      .from('stock_releases')
+      .update({ destination: nextDestination })
+      .eq('allocation_bill', section.allocationBill)
+      .is('deleted_at', null);
+
+    if (error) throw error;
+  };
+
   const fetchExistingAllocationKeys = async (allocations?: string[]) => {
     const keys = new Set<string>();
     const PAGE_SIZE = 1000;
@@ -419,7 +432,7 @@ const ReleaseStock = () => {
         }
         
         const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL', 'Item Code', 'ItemCode', 'Code', 'Bill', 'BILL');
-        const deliverTo = findColumnValue(row, 'Supplier', 'SUPPLIER', 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER');
+        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER', 'Supplier', 'SUPPLIER');
         const qtyBoxes = 1; // Default to 1 box when importing
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
@@ -887,13 +900,15 @@ const ReleaseStock = () => {
         }
 
         await ensureExistingSectionBatchId(existingSection);
+        const resolvedDestination = head.deliverTo || existingSection.destination || 'Unknown';
+        await updateExistingSectionDestination(existingSection, resolvedDestination);
 
         group.forEach(item => {
           const [productCode, productDescription] = (item.remarks || '').split(' - ');
           rowsToInsert.push({
             item_id: null,
             boxes_released: item.qtyBoxes || 0,
-            destination: existingSection.destination || head.deliverTo || 'Unknown',
+            destination: resolvedDestination,
             released_by: user!.id,
             notes: null,
             courier: existingSection.courier || null,
