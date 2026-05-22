@@ -574,7 +574,7 @@ const ReleaseStock = () => {
             action_status: 'yes',
             product_code: null,
             product_description: item.remarks || item.matchedItemName || null,
-            unit_price: item.amount || null,
+            unit_price: null,
           });
         });
       }
@@ -891,7 +891,7 @@ const ReleaseStock = () => {
         group.forEach(item => {
           const [productCode, productDescription] = (item.remarks || '').split(' - ');
           rowsToInsert.push({
-            item_id: item.matchedItemId || null,
+            item_id: null,
             boxes_released: item.qtyBoxes || 0,
             destination: existingSection.destination || head.deliverTo || 'Unknown',
             released_by: user!.id,
@@ -908,7 +908,7 @@ const ReleaseStock = () => {
             action_status: null,
             product_code: productCode || null,
             product_description: productDescription || null,
-            unit_price: item.amount || null,
+            unit_price: null,
           });
         });
         savedCount += group.length;

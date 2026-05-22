@@ -148,7 +148,12 @@ export const getStockReleaseUnitPrice = (release: StockRelease) => {
 };
 
 export const getStockReleaseAmount = (release: StockRelease) => {
+  const storedAmount = normalizeNumber(release.amount);
+  if (isImportedStockReleaseProductRow(release) && storedAmount > 0) {
+    return storedAmount;
+  }
+
   const price = getStockReleaseUnitPrice(release);
   if (price > 0) return price * getStockReleaseQty(release);
-  return normalizeNumber(release.amount);
+  return storedAmount;
 };
