@@ -170,7 +170,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         existingItem.releases.push(release);
         existingItem.boxes += release.boxes_released;
         existingItem.qty += release.total_qty || 0;
-        existingItem.amount += release.amount || 0;
+        existingItem.amount += getStockReleaseAmount(release);
         existingItem.set_date = existingItem.set_date || release.set_date;
         existingItem.date_delivered = existingItem.date_delivered || release.date_delivered;
         existingItem.courier = existingItem.courier || release.courier;
@@ -202,7 +202,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
           categories: release.category ? [release.category] : [],
           boxes: release.boxes_released,
           qty: release.total_qty || 0,
-          amount: release.amount || 0,
+          amount: getStockReleaseAmount(release),
           delivery_status: effectiveStatus,
           remarks: release.notes,
           releases: [release],
@@ -214,7 +214,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
 
       branches[branch].totalBoxes += release.boxes_released;
       branches[branch].totalQty += release.total_qty || 0;
-      branches[branch].totalAmount += release.amount || 0;
+      branches[branch].totalAmount += getStockReleaseAmount(release);
     });
 
     return Object.values(branches)
@@ -302,7 +302,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         stores[store].categories[category].qty += release.total_qty || 0;
         stores[store].totalBoxes += release.boxes_released;
         stores[store].totalQty += release.total_qty || 0;
-        stores[store].totalAmount += release.amount || 0;
+        stores[store].totalAmount += getStockReleaseAmount(release);
       });
 
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);

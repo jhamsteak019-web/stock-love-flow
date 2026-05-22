@@ -274,10 +274,6 @@ const History = () => {
       group.totalQty += release.total_qty || 0;
       group.itemCount += 1;
 
-      // Sum per-row amounts so multi-product allocation bills show one correct total.
-      if (release.amount != null) {
-        group.amount = (group.amount || 0) + Number(release.amount);
-      }
     });
     
     const normalizedGroups = Object.values(groups).map(group => {

@@ -367,7 +367,7 @@ const SummaryReport = () => {
       branches[branch].totalDeliveries += 1;
       branches[branch].totalBoxes += release.boxes_released;
       branches[branch].totalQty += release.total_qty || 0;
-      branches[branch].totalAmount += release.amount || 0;
+      branches[branch].totalAmount += getStockReleaseAmount(release);
       
       switch (effectiveStatus) {
         case 'pending':
@@ -552,10 +552,10 @@ const SummaryReport = () => {
         
         stores[store].categories[category].boxes += release.boxes_released;
         stores[store].categories[category].qty += release.total_qty || 0;
-        stores[store].categories[category].amount += release.amount || 0;
+        stores[store].categories[category].amount += getStockReleaseAmount(release);
         stores[store].totalBoxes += release.boxes_released;
         stores[store].totalQty += release.total_qty || 0;
-        stores[store].totalAmount += release.amount || 0;
+        stores[store].totalAmount += getStockReleaseAmount(release);
       });
 
     return Object.values(stores).sort((a, b) => b.totalBoxes - a.totalBoxes);

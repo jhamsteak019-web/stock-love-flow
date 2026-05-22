@@ -44,6 +44,7 @@ interface ParsedReleaseItem {
   deliverTo: string;
   qtyBoxes: number;
   amount: number;
+  unitPrice?: number | null;
   qtyItem: number;
   remarks: string;
   category: string;
@@ -383,6 +384,32 @@ const ReleaseStock = () => {
     return Number(cleanVal) || 0;
   };
 
+  const findNumericColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]) => {
+    const keys = Object.keys(row);
+
+    for (const name of possibleNames) {
+      const exactKey = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
+      const key = row[name] !== undefined ? name : exactKey;
+      if (key && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+        const cleanVal = String(row[key]).replace(/[â‚±$,]/g, '').trim();
+        return { value: Number(cleanVal) || 0, matchedColumn: key };
+      }
+    }
+
+    for (const name of possibleNames) {
+      const partialKey = keys.find(k =>
+        k.toLowerCase().includes(name.toLowerCase()) ||
+        name.toLowerCase().includes(k.toLowerCase())
+      );
+      if (partialKey && row[partialKey] !== undefined && row[partialKey] !== null && String(row[partialKey]).trim() !== '') {
+        const cleanVal = String(row[partialKey]).replace(/[â‚±$,]/g, '').trim();
+        return { value: Number(cleanVal) || 0, matchedColumn: partialKey };
+      }
+    }
+
+    return { value: 0, matchedColumn: '' };
+  };
+
   const findNumericValueNullable = (row: Record<string, unknown>, ...possibleNames: string[]): number | null => {
     const val = findColumnValue(row, ...possibleNames);
     if (val === '') return null;
@@ -437,7 +464,15 @@ const ReleaseStock = () => {
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
-        const amountVal = findNumericValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE');
+        const amountInfo = findNumericColumnValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE', 'Unit Price', 'UNIT PRICE');
+        const amountHeader = amountInfo.matchedColumn.toLowerCase();
+        const amountIsUnitPrice = amountHeader.includes('price') && !amountHeader.includes('amount') && !amountHeader.includes('total');
+        const amountVal = amountIsUnitPrice && qtyItem > 0 ? amountInfo.value * qtyItem : amountInfo.value;
+        const unitPrice = amountIsUnitPrice
+          ? amountInfo.value
+          : amountVal > 0 && qtyItem > 0
+            ? amountVal / qtyItem
+            : null;
         
         // Log parsed values for first row
         if (index === 0) {
@@ -480,6 +515,7 @@ const ReleaseStock = () => {
           deliverTo,
           qtyBoxes,
           amount: amountVal,
+          unitPrice,
           qtyItem,
           category,
           remarks: rem,
@@ -587,7 +623,7 @@ const ReleaseStock = () => {
             action_status: 'yes',
             product_code: null,
             product_description: item.remarks || item.matchedItemName || null,
-            unit_price: null,
+            unit_price: item.unitPrice || null,
           });
         });
       }
@@ -848,6 +884,7 @@ const ReleaseStock = () => {
         const description = getByHeader(row, ['Product Description', 'Description'], descriptionIndex);
         const qty = parseDirectNumber(getByHeader(row, ['Qty', 'Quantity'], qtyIndex));
         const price = parseDirectNumber(getByHeader(row, ['Price', 'Unit Price'], priceIndex));
+        const amount = price > 0 && qty > 0 ? price * qty : price;
         const remarks = [productName, description].filter(Boolean).join(' - ');
 
         return {
@@ -855,7 +892,8 @@ const ReleaseStock = () => {
           sheetNo,
           deliverTo: branch,
           qtyBoxes: 1,
-          amount: price,
+          amount,
+          unitPrice: price || null,
           qtyItem: qty,
           category,
           remarks,
@@ -923,7 +961,7 @@ const ReleaseStock = () => {
             action_status: null,
             product_code: productCode || null,
             product_description: productDescription || null,
-            unit_price: null,
+            unit_price: item.unitPrice || null,
           });
         });
         savedCount += group.length;

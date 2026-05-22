@@ -219,10 +219,6 @@ const Deliveries = () => {
       groups[batchKey].totalQty += release.total_qty || (release.boxes_released * (release.inventory_item?.pieces_per_box || 1));
       groups[batchKey].itemCount += 1;
 
-      // Sum per-row amounts so multi-product allocation bills show one correct total.
-      if (release.amount != null) {
-        groups[batchKey].amount = (groups[batchKey].amount || 0) + Number(release.amount);
-      }
     });
     
     return Object.values(groups).map(group => {

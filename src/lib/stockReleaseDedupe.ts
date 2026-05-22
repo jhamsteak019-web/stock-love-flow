@@ -144,12 +144,17 @@ export const getStockReleaseQty = (release: StockRelease) => {
 };
 
 export const getStockReleaseUnitPrice = (release: StockRelease) => {
-  return normalizeNumber(release.unit_price ?? release.inventory_item?.price);
+  const directPrice = normalizeNumber(release.unit_price ?? release.inventory_item?.price);
+  if (directPrice > 0) return directPrice;
+
+  const storedAmount = normalizeNumber(release.amount);
+  const qty = getStockReleaseQty(release);
+  return storedAmount > 0 && qty > 0 ? storedAmount / qty : 0;
 };
 
 export const getStockReleaseAmount = (release: StockRelease) => {
   const storedAmount = normalizeNumber(release.amount);
-  if (isImportedStockReleaseProductRow(release) && storedAmount > 0) {
+  if (storedAmount > 0) {
     return storedAmount;
   }
 

@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
+import { getStockReleaseAmount } from '@/lib/stockReleaseDedupe';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
 
@@ -197,13 +198,14 @@ const Dashboard = () => {
     let deliveredAmount = 0;
 
     filteredReleases.forEach(release => {
+      const releaseAmount = getStockReleaseAmount(release);
       totalBoxes += release.boxes_released || 0;
       totalQty += release.total_qty || 0;
-      totalAmount += release.amount || 0;
+      totalAmount += releaseAmount;
       if (release.delivery_status === 'delivered') {
         deliveredBoxes += release.boxes_released || 0;
         deliveredQty += release.total_qty || 0;
-        deliveredAmount += release.amount || 0;
+        deliveredAmount += releaseAmount;
       }
     });
 
