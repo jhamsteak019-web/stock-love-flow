@@ -10,6 +10,11 @@ const normalizeNumber = (value: unknown) => {
   return Number.isFinite(numberValue) ? numberValue : 0;
 };
 
+const amountsNearlyEqual = (left: number, right: number) => {
+  const tolerance = Math.max(0.01, Math.abs(right) * 0.0001);
+  return Math.abs(left - right) <= tolerance;
+};
+
 export const hasUsefulStockReleaseText = (value?: string | null) => {
   const cleaned = value?.trim();
   if (!cleaned) return false;
@@ -155,6 +160,19 @@ export const getStockReleaseUnitPrice = (release: StockRelease) => {
 export const getStockReleaseAmount = (release: StockRelease) => {
   const storedAmount = normalizeNumber(release.amount);
   if (storedAmount > 0) {
+    const qty = getStockReleaseQty(release);
+    const importedUnitPrice = normalizeNumber(release.unit_price);
+    const hasLegacyImportedTotal =
+      !hasUsefulStockReleaseText(release.product_code) &&
+      !hasUsefulStockReleaseText(release.item_id) &&
+      importedUnitPrice > 0 &&
+      qty > 1 &&
+      amountsNearlyEqual(storedAmount, importedUnitPrice * qty);
+
+    if (hasLegacyImportedTotal) {
+      return importedUnitPrice;
+    }
+
     return storedAmount;
   }
 

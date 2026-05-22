@@ -468,11 +468,7 @@ const ReleaseStock = () => {
         const amountHeader = amountInfo.matchedColumn.toLowerCase();
         const amountIsUnitPrice = amountHeader.includes('price') && !amountHeader.includes('amount') && !amountHeader.includes('total');
         const amountVal = amountIsUnitPrice && qtyItem > 0 ? amountInfo.value * qtyItem : amountInfo.value;
-        const unitPrice = amountIsUnitPrice
-          ? amountInfo.value
-          : amountVal > 0 && qtyItem > 0
-            ? amountVal / qtyItem
-            : null;
+        const unitPrice = amountIsUnitPrice ? amountInfo.value : null;
         
         // Log parsed values for first row
         if (index === 0) {
