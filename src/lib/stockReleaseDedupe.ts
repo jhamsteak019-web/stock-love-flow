@@ -180,3 +180,12 @@ export const getStockReleaseAmount = (release: StockRelease) => {
   if (price > 0) return price * getStockReleaseQty(release);
   return storedAmount;
 };
+
+export const getStockReleaseGroupAmountTotal = (releaseItems: StockRelease[]) => {
+  const countingReleases = getStockReleaseCountingReleases(releaseItems);
+  const countingAmount = countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
+  if (countingAmount > 0) return countingAmount;
+
+  return dedupeStockReleasesForDisplay(releaseItems)
+    .reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
+};

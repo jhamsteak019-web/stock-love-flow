@@ -27,10 +27,10 @@ import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
 import {
-  getStockReleaseAmount,
   getStockReleaseBoxTotal,
   getStockReleaseCountingReleases,
   getStockReleaseDisplayKey,
+  getStockReleaseGroupAmountTotal,
   getStockReleaseGroupKey,
   getStockReleaseQty,
 } from '@/lib/stockReleaseDedupe';
@@ -278,7 +278,7 @@ const History = () => {
     
     const normalizedGroups = Object.values(groups).map(group => {
       const countingReleases = getStockReleaseCountingReleases(group.items);
-      const totalAmount = countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
+      const totalAmount = getStockReleaseGroupAmountTotal(group.items);
 
       return {
         ...group,

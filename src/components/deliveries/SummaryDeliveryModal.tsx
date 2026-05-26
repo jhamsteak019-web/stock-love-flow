@@ -15,6 +15,7 @@ import {
   getStockReleaseAmount,
   getStockReleaseBoxTotal,
   getStockReleaseCountingReleases,
+  getStockReleaseGroupAmountTotal,
   getStockReleaseGroupKey,
   getStockReleaseQty,
 } from '@/lib/stockReleaseDedupe';
@@ -226,7 +227,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
             ...item,
             boxes: getStockReleaseBoxTotal(item.releases),
             qty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
-            amount: countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0),
+            amount: getStockReleaseGroupAmountTotal(item.releases),
             releases: countingReleases,
           };
         });
