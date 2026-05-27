@@ -53,6 +53,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const HISTORY_YEAR_OPTIONS = [2024, 2025, 2026];
 const HISTORY_STORAGE_KEY = 'history_filter';
 const ITEMS_PER_PAGE = 50;
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'amount' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'remarks';
@@ -144,6 +145,8 @@ const History = () => {
   const savedHistoryFilter = getSavedHistoryFilter();
   const [selectedMonth, setSelectedMonth] = useState<number>(savedHistoryFilter.month);
   const [selectedYear, setSelectedYear] = useState<number>(savedHistoryFilter.year);
+  const [clearMonth, setClearMonth] = useState<number>(savedHistoryFilter.month);
+  const [clearYear, setClearYear] = useState<number>(savedHistoryFilter.year);
   const [showAllYear, setShowAllYear] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   const [currentPage, setCurrentPage] = useState(1);
@@ -599,8 +602,8 @@ const History = () => {
 
     setClearingMonth(true);
     try {
-      const start = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
-      const end = new Date(Date.UTC(selectedYear, selectedMonth + 1, 1, 0, 0, 0, 0)).toISOString();
+      const start = new Date(Date.UTC(clearYear, clearMonth, 1, 0, 0, 0, 0)).toISOString();
+      const end = new Date(Date.UTC(clearYear, clearMonth + 1, 1, 0, 0, 0, 0)).toISOString();
       const periodFilter = [
         `and(set_date.gte.${start},set_date.lt.${end})`,
         `and(set_date.is.null,date_released.gte.${start},date_released.lt.${end})`,
@@ -618,7 +621,7 @@ const History = () => {
       refetchHistory(true);
       toast({
         title: 'Success',
-        description: `${MONTHS[selectedMonth]} ${selectedYear} transaction history moved to Recently Deleted`,
+        description: `${MONTHS[clearMonth]} ${clearYear} transaction history moved to Recently Deleted`,
       });
     } catch (error) {
       toast({
@@ -728,6 +731,10 @@ const History = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => {
+                      setClearMonth(selectedMonth);
+                      setClearYear(selectedYear);
+                    }}
                     disabled={clearingMonth || branchLoading || !selectedBranch}
                     className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                   >
@@ -739,16 +746,49 @@ const History = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center gap-2">
                       <AlertTriangle className="h-5 w-5 text-destructive" />
-                      Clear {MONTHS[selectedMonth]} {selectedYear}
+                      Clear History By Month
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will move all {MONTHS[selectedMonth]} {selectedYear} transaction history for {selectedBranch?.name || 'the selected branch'} to Recently Deleted. Other months and branches will not be touched.
+                      Choose the exact month and year to clear before confirming.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className="space-y-4 py-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Month</label>
+                        <Select value={clearMonth.toString()} onValueChange={(val) => setClearMonth(parseInt(val))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select month" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MONTHS.map((month, index) => (
+                              <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Year</label>
+                        <Select value={clearYear.toString()} onValueChange={(val) => setClearYear(parseInt(val))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select year" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {HISTORY_YEAR_OPTIONS.map((year) => (
+                              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                      Warning: this will move all {MONTHS[clearMonth]} {clearYear} transaction history for {selectedBranch?.name || 'the selected branch'} to Recently Deleted. Other months and branches will not be touched.
+                    </div>
+                  </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleClearMonth} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Yes, Clear This Month
+                      Yes, Clear {MONTHS[clearMonth]} {clearYear}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -844,7 +884,7 @@ const History = () => {
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[2024, 2025, 2026].map((year) => (
+                    {HISTORY_YEAR_OPTIONS.map((year) => (
                       <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                     ))}
                   </SelectContent>
