@@ -95,6 +95,22 @@ const Discrepancies = () => {
     if (notificationError) throw notificationError;
   }, [user?.id]);
 
+  const clearCurrentUserReviewNotificationsForItem = useCallback(async (item: Discrepancy) => {
+    if (!user?.id) return;
+
+    const allocationLabel = item.allocation_bill || item.batch_id?.slice(0, 8).toUpperCase();
+    if (!allocationLabel) return;
+
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('title', 'History Issue Reported')
+      .ilike('message', `%${allocationLabel}%`);
+
+    if (error) throw error;
+  }, [user?.id]);
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['discrepancies', selectedBranch?.id],
     queryFn: async () => {
@@ -146,7 +162,9 @@ const Discrepancies = () => {
       notifyDiscrepanciesChanged();
       if (canNotifyReporterRoles && variables.resolution_status === 'resolved' && editing?.id === variables.id && editing.resolution_status !== 'resolved') {
         try {
-          await notifyReporterRolesAfterResolve({ ...editing, ...variables });
+          const resolvedItem = { ...editing, ...variables };
+          await clearCurrentUserReviewNotificationsForItem(resolvedItem);
+          await notifyReporterRolesAfterResolve(resolvedItem);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to notify reporter roles';
           toast({ title: 'Notification Error', description: message, variant: 'destructive' });

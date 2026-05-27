@@ -656,6 +656,19 @@ const History = () => {
     }));
   }, [getGroupLabel, getHistoryNotificationLink, notifyUsersByRoles]);
 
+  const clearCurrentUserReviewNotification = useCallback(async (group: GroupedRelease) => {
+    if (!user?.id) return;
+
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('title', 'History Issue Reported')
+      .eq('link', getHistoryNotificationLink(group, 'editRelease'));
+
+    if (error) throw error;
+  }, [getHistoryNotificationLink, user?.id]);
+
   const handleIssueReportSubmit = async () => {
     if (!reportingBatch || !user) return;
 
@@ -766,6 +779,7 @@ const History = () => {
         .eq('batch_id', group.batch_id)
         .is('deleted_at', null);
       notifyDiscrepanciesChanged();
+      await clearCurrentUserReviewNotification(group);
 
       if (group.action_status === 'no' && (isAdmin || isAssistant)) {
         await notifyReportersAfterFix(group);
@@ -882,6 +896,7 @@ const History = () => {
           .eq('batch_id', fixedGroup.batch_id)
           .is('deleted_at', null);
         notifyDiscrepanciesChanged();
+        await clearCurrentUserReviewNotification(fixedGroup);
 
         await notifyReportersAfterFix(fixedGroup);
       }
@@ -891,7 +906,7 @@ const History = () => {
     } finally {
       refetchHistory(true);
     }
-  }, [editingBatch, isAdmin, isAssistant, notifyReportersAfterFix, refetchHistory, toast]);
+  }, [clearCurrentUserReviewNotification, editingBatch, isAdmin, isAssistant, notifyReportersAfterFix, refetchHistory, toast]);
 
   const handleExportExcel = async () => {
     try {

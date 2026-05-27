@@ -103,16 +103,16 @@ export const NotificationBell = () => {
     }
   }, [canViewDiscrepancyReports, selectedBranch?.id, user?.id]);
 
-  // Mark notification as read
-  const markAsRead = async (id: string) => {
+  const removeNotification = async (id: string) => {
+    if (!user?.id) return;
+
     await supabase
       .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id);
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
 
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
-    );
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   // Mark all as read
@@ -130,9 +130,7 @@ export const NotificationBell = () => {
 
   // Handle notification click
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.is_read) {
-      await markAsRead(notification.id);
-    }
+    await removeNotification(notification.id);
     if (notification.link) {
       navigate(notification.link);
       setIsOpen(false);
@@ -156,6 +154,7 @@ export const NotificationBell = () => {
     fetchDiscrepancyReports();
 
     const handleDiscrepanciesChanged = () => {
+      fetchNotifications();
       fetchDiscrepancyReports();
     };
     window.addEventListener(DISCREPANCIES_CHANGED_EVENT, handleDiscrepanciesChanged);
@@ -166,13 +165,13 @@ export const NotificationBell = () => {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev]);
+        () => {
+          fetchNotifications();
           fetchDiscrepancyReports();
         }
       )
