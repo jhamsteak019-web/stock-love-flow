@@ -221,22 +221,25 @@ const Deliveries = () => {
 
     });
     
-    return Object.values(groups).map(group => {
-      const countingReleases = getStockReleaseCountingReleases(group.items);
-      const totalAmount = getStockReleaseGroupAmountTotal(group.items);
+    return Object.values(groups)
+      .map(group => {
+        const countingReleases = getStockReleaseCountingReleases(group.items);
+        const totalAmount = getStockReleaseGroupAmountTotal(group.items);
 
-      return {
-        ...group,
-        totalBoxes: getStockReleaseBoxTotal(group.items),
-        totalQty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
-        amount: totalAmount > 0 ? totalAmount : null,
-        itemCount: countingReleases.length,
-      };
-    }).sort((a, b) => {
-      const dateA = a.set_date ? new Date(a.set_date).getTime() : new Date(a.date_released).getTime();
-      const dateB = b.set_date ? new Date(b.set_date).getTime() : new Date(b.date_released).getTime();
-      return dateA - dateB; // Ascending order - earliest dates first
-    });
+        return {
+          ...group,
+          totalBoxes: getStockReleaseBoxTotal(group.items),
+          totalQty: countingReleases.reduce((sum, release) => sum + getStockReleaseQty(release), 0),
+          amount: totalAmount > 0 ? totalAmount : null,
+          itemCount: countingReleases.length,
+        };
+      })
+      .filter(group => group.itemCount > 0)
+      .sort((a, b) => {
+        const dateA = a.set_date ? new Date(a.set_date).getTime() : new Date(a.date_released).getTime();
+        const dateB = b.set_date ? new Date(b.set_date).getTime() : new Date(b.date_released).getTime();
+        return dateA - dateB; // Ascending order - earliest dates first
+      });
   }, [releases, selectedBranch]);
 
   // Filtered results using debounced search - case-insensitive and partial match
