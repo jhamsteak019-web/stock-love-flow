@@ -56,30 +56,30 @@ const ITEMS_PER_PAGE = 50;
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'amount' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
-  { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 150, minWidth: 120, maxWidth: 180 },
+  { key: 'allocation' as ColumnKey, label: 'Allocation', visible: true, width: 160, minWidth: 120, maxWidth: 180 },
+  { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 130, minWidth: 90, maxWidth: 145 },
+  { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 90, minWidth: 70, maxWidth: 100 },
+  { key: 'totalBoxes' as ColumnKey, label: 'Total Boxes', visible: true, width: 95, minWidth: 75, maxWidth: 105 },
   { key: 'amount' as ColumnKey, label: 'Amount', visible: true, width: 115, minWidth: 90, maxWidth: 130 },
+  { key: 'totalQty' as ColumnKey, label: 'Total Qty/Items', visible: true, width: 110, minWidth: 90, maxWidth: 120 },
+  { key: 'dateOut' as ColumnKey, label: 'Date Out Warehouse', visible: true, width: 125, minWidth: 105, maxWidth: 135 },
   { key: 'dateReceived' as ColumnKey, label: 'Date Received', visible: true, width: 125, minWidth: 110, maxWidth: 135 },
   { key: 'deliveryTime' as ColumnKey, label: 'Delivery Days', visible: true, width: 115, minWidth: 100, maxWidth: 125 },
-  { key: 'destination' as ColumnKey, label: 'Destination', visible: true, width: 125, minWidth: 90, maxWidth: 145 },
-  { key: 'category' as ColumnKey, label: 'Category', visible: true, width: 80, minWidth: 70, maxWidth: 95 },
-  { key: 'totalBoxes' as ColumnKey, label: 'Total Boxes', visible: true, width: 90, minWidth: 75, maxWidth: 100 },
-  { key: 'totalQty' as ColumnKey, label: 'Total Qty/Items', visible: true, width: 105, minWidth: 90, maxWidth: 115 },
-  { key: 'dateOut' as ColumnKey, label: 'Date Out', visible: true, width: 110, minWidth: 95, maxWidth: 120 },
-  { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 85, minWidth: 75, maxWidth: 95 },
+  { key: 'courier' as ColumnKey, label: 'Courier', visible: true, width: 90, minWidth: 75, maxWidth: 100 },
   { key: 'remarks' as ColumnKey, label: 'Remarks', visible: true, width: 150, minWidth: 120, maxWidth: 170 },
 ];
 
 const HISTORY_COLUMN_WIDTHS: Record<HistoryColumnKey, number> = {
-  allocation: 150,
+  allocation: 160,
+  destination: 130,
+  category: 90,
+  totalBoxes: 95,
   amount: 115,
+  totalQty: 110,
+  dateOut: 125,
   dateReceived: 125,
   deliveryTime: 115,
-  destination: 125,
-  category: 80,
-  totalBoxes: 90,
-  totalQty: 105,
-  dateOut: 110,
-  courier: 85,
+  courier: 90,
   remarks: 150,
 };
 
@@ -805,14 +805,14 @@ const History = () => {
               <TableHeader>
                 <TableRow className="transition-none">
                   {isColumnVisible('allocation') && <TableHead className="px-3 pl-[64px] whitespace-nowrap" style={{ width: getColumnWidth('allocation') }}>Allocation</TableHead>}
-                  {isColumnVisible('amount') && <TableHead className="px-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('amount') }}>Amount</TableHead>}
-                  {isColumnVisible('dateReceived') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
-                  {isColumnVisible('deliveryTime') && <TableHead className="px-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Days</TableHead>}
                   {isColumnVisible('destination') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('destination') }}>Destination</TableHead>}
                   {isColumnVisible('category') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('category') }}>Category</TableHead>}
                   {isColumnVisible('totalBoxes') && <TableHead className="px-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('totalBoxes') }}>Total Boxes</TableHead>}
+                  {isColumnVisible('amount') && <TableHead className="px-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('amount') }}>Amount</TableHead>}
                   {isColumnVisible('totalQty') && <TableHead className="px-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('totalQty') }}>Total Qty/Items</TableHead>}
-                  {isColumnVisible('dateOut') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('dateOut') }}>Date Out</TableHead>}
+                  {isColumnVisible('dateOut') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('dateOut') }}>Date Out Warehouse</TableHead>}
+                  {isColumnVisible('dateReceived') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('dateReceived') }}>Date Received</TableHead>}
+                  {isColumnVisible('deliveryTime') && <TableHead className="px-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('deliveryTime') }}>Delivery Days</TableHead>}
                   {isColumnVisible('courier') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('courier') }}>Courier</TableHead>}
                   {isColumnVisible('remarks') && <TableHead className="px-3 whitespace-nowrap" style={{ width: getColumnWidth('remarks') }}>Remarks</TableHead>}
                   <TableHead className="px-3 text-right whitespace-nowrap" style={{ width: HISTORY_ACTIONS_WIDTH }}>Actions</TableHead>
@@ -860,14 +860,19 @@ const History = () => {
                           </div>
                         </TableCell>
                       )}
-                      {isColumnVisible('amount') && <TableCell className="px-3 py-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('amount') }}>{formatAmount(group.amount)}</TableCell>}
+                      {isColumnVisible('destination') && <TableCell className="px-3 py-3 whitespace-nowrap" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
+                      {isColumnVisible('category') && <TableCell className="px-3 py-3 whitespace-nowrap" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
+                      {isColumnVisible('totalBoxes') && <TableCell className="px-3 py-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
+                      {isColumnVisible('amount') && <TableCell className="px-3 py-3 text-center whitespace-nowrap font-medium" style={{ width: getColumnWidth('amount') }}>{formatAmount(group.amount)}</TableCell>}
+                      {isColumnVisible('totalQty') && <TableCell className="px-3 py-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
+                      {isColumnVisible('dateOut') && <TableCell className="px-3 py-3 text-muted-foreground whitespace-nowrap" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
                       {isColumnVisible('dateReceived') && (
-                        <TableCell className="px-3 py-3 text-muted-foreground whitespace-nowrap" style={{ width: getColumnWidth('dateReceived') }}>
+                        <TableCell className="px-3 py-3 text-muted-foreground whitespace-nowrap font-medium" style={{ width: getColumnWidth('dateReceived') }}>
                           {group.date_delivered ? format(new Date(group.date_delivered), 'MMM d, yyyy') : '-'}
                         </TableCell>
                       )}
                       {isColumnVisible('deliveryTime') && (
-                        <TableCell className="px-3 py-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('deliveryTime') }}>
+                        <TableCell className="px-3 py-3 text-center whitespace-nowrap font-medium" style={{ width: getColumnWidth('deliveryTime') }}>
                           {group.set_date && group.date_delivered ? (
                             <span className="font-medium text-emerald-600 dark:text-emerald-400">
                               {differenceInDays(new Date(group.date_delivered), new Date(group.set_date))} day(s)
@@ -875,11 +880,6 @@ const History = () => {
                           ) : '-'}
                         </TableCell>
                       )}
-                      {isColumnVisible('destination') && <TableCell className="px-3 py-3 whitespace-nowrap" style={{ width: getColumnWidth('destination') }}>{group.destination}</TableCell>}
-                      {isColumnVisible('category') && <TableCell className="px-3 py-3 whitespace-nowrap" style={{ width: getColumnWidth('category') }}>{group.category || '-'}</TableCell>}
-                      {isColumnVisible('totalBoxes') && <TableCell className="px-3 py-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('totalBoxes') }}>{group.totalBoxes}</TableCell>}
-                      {isColumnVisible('totalQty') && <TableCell className="px-3 py-3 text-center whitespace-nowrap" style={{ width: getColumnWidth('totalQty') }}>{group.totalQty || group.itemCount}</TableCell>}
-                      {isColumnVisible('dateOut') && <TableCell className="px-3 py-3 text-muted-foreground whitespace-nowrap" style={{ width: getColumnWidth('dateOut') }}>{group.set_date ? format(new Date(group.set_date), 'MMM d, yyyy') : '-'}</TableCell>}
                       {isColumnVisible('courier') && <TableCell className="px-3 py-3 whitespace-nowrap" style={{ width: getColumnWidth('courier') }}>{group.courier || '-'}</TableCell>}
                       {isColumnVisible('remarks') && (
                         <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()} style={{ width: getColumnWidth('remarks') }}>
