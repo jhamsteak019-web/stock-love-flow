@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight, Check, XCircle } from 'lucide-react';
+import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight, Check, XCircle, MessageSquareWarning } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -9,7 +10,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
-import { DeliveryStatus, StockRelease } from '@/types/inventory';
+import { DeliveryStatus, StockRelease, UserRole } from '@/types/inventory';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { PhotoUploadCell } from '@/components/deliveries/PhotoUploadCell';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   getStockReleaseBoxTotal,
   getStockReleaseCountingReleases,
@@ -47,6 +49,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -56,6 +66,8 @@ const MONTHS = [
 const HISTORY_YEAR_OPTIONS = [2024, 2025, 2026];
 const HISTORY_STORAGE_KEY = 'history_filter';
 const ITEMS_PER_PAGE = 50;
+const REVIEW_NOTIFICATION_ROLES: UserRole[] = ['admin', 'assistant'];
+const REPORTER_NOTIFICATION_ROLES: UserRole[] = ['staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder'];
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'amount' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
@@ -115,12 +127,17 @@ interface GroupedRelease {
 const History = () => {
   const { deleteAllReleases, fetchDeletedReleases, permanentlyDeleteAllDeleted } = useInventory({ autoFetch: false });
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { user, userRole } = useAuth();
   const { selectedBranch, loading: branchLoading } = useBranch();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearingMonth, setClearingMonth] = useState(false);
   const [clearingDeleted, setClearingDeleted] = useState(false);
+  const [reportingBatch, setReportingBatch] = useState<GroupedRelease | null>(null);
+  const [reportNotes, setReportNotes] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -182,6 +199,8 @@ const History = () => {
   const canEdit = isAdmin || isEncoder || isAssistant; // Admin, encoder, and assistant can edit
   const canDelete = isAdmin; // Only admin can delete
   const canExport = userRole !== 'uploader';
+  const canReportIssue = Boolean(userRole && REPORTER_NOTIFICATION_ROLES.includes(userRole));
+  const canUseHistoryReviewActions = canReportIssue || isAdmin || isAssistant;
 
   const hasAllocationBillDetails = useCallback((group: GroupedRelease) => {
     return group.items.some(isImportedStockReleaseProductRow);
@@ -198,6 +217,63 @@ const History = () => {
     if (!Number.isFinite(num)) return '-';
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }, []);
+
+  const getGroupLabel = useCallback((group: GroupedRelease) => {
+    return group.allocation_bill || group.batch_id.slice(0, 8).toUpperCase();
+  }, []);
+
+  const getGroupMonthYear = useCallback((group: GroupedRelease) => {
+    const dateValue = group.set_date || group.date_released;
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return { month: selectedMonth, year: selectedYear };
+    }
+
+    return { month: date.getMonth(), year: date.getFullYear() };
+  }, [selectedMonth, selectedYear]);
+
+  const getHistoryNotificationLink = useCallback((group: GroupedRelease, mode: 'editRelease' | 'viewRelease') => {
+    const releaseId = group.releaseIds[0];
+    const { month, year } = getGroupMonthYear(group);
+    return `/history?${mode}=${encodeURIComponent(releaseId)}&month=${month}&year=${year}`;
+  }, [getGroupMonthYear]);
+
+  const notifyUsersByRoles = useCallback(async (
+    roles: UserRole[],
+    createNotification: (userId: string) => {
+      title: string;
+      message: string;
+      type?: string;
+      link?: string | null;
+    }
+  ) => {
+    const { data: recipients, error } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', roles);
+
+    if (error) throw error;
+
+    const recipientIds = Array.from(
+      new Set((recipients || [])
+        .map(recipient => recipient.user_id)
+        .filter((userId): userId is string => Boolean(userId) && userId !== user?.id))
+    );
+
+    if (recipientIds.length === 0) return;
+
+    const notifications = recipientIds.map(userId => ({
+      user_id: userId,
+      ...createNotification(userId),
+      created_by: user?.id ?? null,
+    }));
+
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert(notifications);
+
+    if (notificationError) throw notificationError;
+  }, [user?.id]);
 
   const combineNotes = (current?: string | null, next?: string | null) => {
     const notes = [current, next]
@@ -343,6 +419,68 @@ const History = () => {
 
   const groupedReleases = useMemo(() => groupReleases(releases, true), [releases, selectedBranch]);
   const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases, false), [deletedReleases]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const editReleaseId = params.get('editRelease');
+    const viewReleaseId = params.get('viewRelease');
+    const targetReleaseId = editReleaseId || viewReleaseId;
+    if (!targetReleaseId) return;
+
+    const queryMonth = Number(params.get('month'));
+    const queryYear = Number(params.get('year'));
+
+    if (Number.isInteger(queryMonth) && queryMonth >= 0 && queryMonth <= 11 && selectedMonth !== queryMonth) {
+      setShowAllYear(false);
+      setSelectedMonth(queryMonth);
+      return;
+    }
+
+    if (Number.isInteger(queryYear) && queryYear > 2000 && selectedYear !== queryYear) {
+      setSelectedYear(queryYear);
+      return;
+    }
+
+    if (showAllYear) {
+      setShowAllYear(false);
+      return;
+    }
+
+    if (searchQuery.trim()) {
+      setSearchQuery('');
+      return;
+    }
+
+    const targetGroup = groupedReleases.find(group => group.releaseIds.includes(targetReleaseId));
+    if (!targetGroup) return;
+
+    setActiveTab('active');
+    if (editReleaseId && (isAdmin || isAssistant)) {
+      setEditingBatch(targetGroup);
+    } else if (viewReleaseId) {
+      openAllocationBill(targetGroup);
+    }
+
+    params.delete('editRelease');
+    params.delete('viewRelease');
+    const nextSearch = params.toString();
+    navigate(
+      { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' },
+      { replace: true }
+    );
+  }, [
+    groupedReleases,
+    isAdmin,
+    isAssistant,
+    location.pathname,
+    location.search,
+    navigate,
+    openAllocationBill,
+    searchQuery,
+    selectedMonth,
+    selectedYear,
+    showAllYear,
+  ]);
 
   // Filter grouped releases based on search query, date range, month/year (or all year), and status
   const filteredReleases = useMemo(() => {
@@ -507,8 +645,108 @@ const History = () => {
     setEditingBatch(group);
   };
 
+  const notifyReportersAfterFix = useCallback(async (group: GroupedRelease) => {
+    const allocationLabel = getGroupLabel(group);
+    await notifyUsersByRoles(REPORTER_NOTIFICATION_ROLES, () => ({
+      title: 'History Record Updated',
+      message: `${allocationLabel} has been edited/fixed by Admin or Assistant.`,
+      type: 'success',
+      link: getHistoryNotificationLink(group, 'viewRelease'),
+    }));
+  }, [getGroupLabel, getHistoryNotificationLink, notifyUsersByRoles]);
+
+  const handleIssueReportSubmit = async () => {
+    if (!reportingBatch || !user) return;
+
+    const issueNotes = reportNotes.trim();
+    if (!issueNotes) {
+      toast({
+        title: 'Notes required',
+        description: 'Please describe kung anong mali bago i-send.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setReportSubmitting(true);
+    try {
+      const { error: updErr } = await supabase
+        .from('stock_releases')
+        .update({ action_status: 'no' })
+        .in('id', reportingBatch.releaseIds);
+      if (updErr) throw updErr;
+
+      const discrepancyPayload = {
+        batch_id: reportingBatch.batch_id,
+        allocation_bill: reportingBatch.allocation_bill,
+        destination: reportingBatch.destination,
+        category: reportingBatch.category,
+        courier: reportingBatch.courier,
+        waybill_no: reportingBatch.waybill_no,
+        total_boxes: reportingBatch.totalBoxes,
+        total_qty: reportingBatch.totalQty,
+        amount: reportingBatch.amount,
+        date_out: reportingBatch.set_date,
+        date_received: reportingBatch.date_delivered,
+        remarks: reportingBatch.notes,
+        discrepancy_notes: issueNotes,
+        resolution_status: 'unresolved',
+        deleted_at: null,
+        branch_id: selectedBranch?.id ?? null,
+        created_by: user.id,
+      };
+
+      const { data: existing } = await supabase
+        .from('discrepancies')
+        .select('id')
+        .eq('batch_id', reportingBatch.batch_id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (existing) {
+        const { error: updateDiscrepancyError } = await supabase
+          .from('discrepancies')
+          .update(discrepancyPayload)
+          .eq('id', existing.id);
+        if (updateDiscrepancyError) throw updateDiscrepancyError;
+      } else {
+        const { error: insertDiscrepancyError } = await supabase
+          .from('discrepancies')
+          .insert(discrepancyPayload);
+        if (insertDiscrepancyError) throw insertDiscrepancyError;
+      }
+
+      const allocationLabel = getGroupLabel(reportingBatch);
+      await notifyUsersByRoles(REVIEW_NOTIFICATION_ROLES, () => ({
+        title: 'History Issue Reported',
+        message: `${user.email || 'User'} reported ${allocationLabel}: ${issueNotes}`,
+        type: 'warning',
+        link: getHistoryNotificationLink(reportingBatch, 'editRelease'),
+      }));
+
+      setReportingBatch(null);
+      setReportNotes('');
+      refetchHistory(true);
+      toast({
+        title: 'Report sent',
+        description: 'Admin and Assistant have been notified.',
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to send report';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   const handleActionStatus = async (group: GroupedRelease, status: 'yes' | 'no', e: React.MouseEvent) => {
     e.stopPropagation();
+    if (status === 'no') {
+      setReportingBatch(group);
+      setReportNotes('');
+      return;
+    }
+
     try {
       // 1) Update stock_releases.action_status for the batch
       const { error: updErr } = await supabase
@@ -517,45 +755,20 @@ const History = () => {
         .in('id', group.releaseIds);
       if (updErr) throw updErr;
 
-      // 2) If "no", create a discrepancy record (avoid duplicates by batch_id)
-      if (status === 'no') {
-        const { data: existing } = await supabase
-          .from('discrepancies')
-          .select('id')
-          .eq('batch_id', group.batch_id)
-          .is('deleted_at', null)
-          .maybeSingle();
+      await supabase
+        .from('discrepancies')
+        .update({
+          deleted_at: new Date().toISOString(),
+          resolution_status: 'resolved',
+        })
+        .eq('batch_id', group.batch_id)
+        .is('deleted_at', null);
 
-        if (!existing) {
-          const { error: insErr } = await supabase.from('discrepancies').insert({
-            batch_id: group.batch_id,
-            allocation_bill: group.allocation_bill,
-            destination: group.destination,
-            category: group.category,
-            courier: group.courier,
-            waybill_no: group.waybill_no,
-            total_boxes: group.totalBoxes,
-            total_qty: group.totalQty,
-            amount: group.amount,
-            date_out: group.set_date,
-            date_received: group.date_delivered,
-            remarks: group.notes,
-            resolution_status: 'unresolved',
-            branch_id: selectedBranch?.id ?? null,
-          });
-          if (insErr) throw insErr;
-        }
-        toast({ title: 'Marked as Not OK', description: 'Idinagdag sa Discrepancy page' });
-      } else {
-        // If "yes", remove any existing discrepancy for this batch (soft delete)
-        await supabase
-          .from('discrepancies')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('batch_id', group.batch_id)
-          .is('deleted_at', null);
-        toast({ title: 'Marked as OK', description: 'Delivery confirmed na maayos' });
+      if (group.action_status === 'no' && (isAdmin || isAssistant)) {
+        await notifyReportersAfterFix(group);
       }
 
+      toast({ title: 'Marked as OK', description: 'Delivery confirmed na maayos' });
       refetchHistory(true);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to update action';
@@ -646,6 +859,35 @@ const History = () => {
       setClearingDeleted(false);
     }
   };
+
+  const handleDeliveryEditSuccess = useCallback(async () => {
+    const fixedGroup = editingBatch;
+
+    try {
+      if (fixedGroup?.action_status === 'no' && (isAdmin || isAssistant)) {
+        await supabase
+          .from('stock_releases')
+          .update({ action_status: 'yes' })
+          .in('id', fixedGroup.releaseIds);
+
+        await supabase
+          .from('discrepancies')
+          .update({
+            resolution_status: 'resolved',
+            deleted_at: new Date().toISOString(),
+          })
+          .eq('batch_id', fixedGroup.batch_id)
+          .is('deleted_at', null);
+
+        await notifyReportersAfterFix(fixedGroup);
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to send fixed notification';
+      toast({ title: 'Notification Error', description: msg, variant: 'destructive' });
+    } finally {
+      refetchHistory(true);
+    }
+  }, [editingBatch, isAdmin, isAssistant, notifyReportersAfterFix, refetchHistory, toast]);
 
   const handleExportExcel = async () => {
     try {
@@ -1048,6 +1290,7 @@ const History = () => {
                           <Button
                             size="sm"
                             variant="default"
+                            disabled={!canUseHistoryReviewActions}
                             className={cn(
                               "h-7 px-2 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600",
                               group.action_status === 'yes' && "ring-2 ring-emerald-300"
@@ -1061,6 +1304,7 @@ const History = () => {
                           <Button
                             size="sm"
                             variant="default"
+                            disabled={!canUseHistoryReviewActions}
                             className={cn(
                               "h-7 px-2 text-xs gap-1 bg-red-600 hover:bg-red-700 text-white border-red-600",
                               group.action_status === 'no' && "ring-2 ring-red-300"
@@ -1295,6 +1539,59 @@ const History = () => {
         </TabsContent>
       </Tabs>
 
+      <Dialog
+        open={!!reportingBatch}
+        onOpenChange={(open) => {
+          if (!open && !reportSubmitting) {
+            setReportingBatch(null);
+            setReportNotes('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquareWarning className="h-5 w-5 text-destructive" />
+              Report History Issue
+            </DialogTitle>
+            <DialogDescription>
+              Describe kung anong mali sa {reportingBatch ? getGroupLabel(reportingBatch) : 'this record'}. Admin and Assistant will receive a notification.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Textarea
+              value={reportNotes}
+              onChange={(event) => setReportNotes(event.target.value)}
+              placeholder="Example: Mali yung amount / kulang qty / wrong branch / wrong date received..."
+              className="min-h-[120px]"
+              disabled={reportSubmitting}
+            />
+            <p className="text-xs text-muted-foreground">
+              This will also mark the row as Not OK and add it to Discrepancy.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={reportSubmitting}
+              onClick={() => {
+                setReportingBatch(null);
+                setReportNotes('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={reportSubmitting || !reportNotes.trim()}
+              onClick={handleIssueReportSubmit}
+            >
+              {reportSubmitting ? 'Sending...' : 'Send Report'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {selectedBatch && (
         <AllocationBillModal
           open={!!selectedBatch}
@@ -1316,7 +1613,7 @@ const History = () => {
           open={!!editingBatch}
           onOpenChange={(open) => !open && setEditingBatch(null)}
           group={editingBatch}
-          onSuccess={() => refetchHistory(true)}
+          onSuccess={handleDeliveryEditSuccess}
         />
       )}
 

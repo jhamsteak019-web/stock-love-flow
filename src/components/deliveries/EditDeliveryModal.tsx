@@ -31,7 +31,7 @@ interface EditDeliveryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   group: GroupedRelease;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }
 
 const COURIER_OPTIONS = ['AP CARGO', 'SOUTHSEA', 'AIRSPEED', 'FAST CARGO', 'JUNIX TRACKING', 'RDS DC', 'SM DC', 'PRIETO', 'DIRECT'];
@@ -113,7 +113,7 @@ const EditDeliveryModal = ({ open, onOpenChange, group, onSuccess }: EditDeliver
       });
 
       toast({ title: 'Success', description: 'Delivery updated successfully' });
-      onSuccess();
+      await onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating delivery:', error);

@@ -12,6 +12,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import type { UserRole } from '@/types/inventory';
+
+const NOTIFICATION_VISIBLE_ROLES: UserRole[] = [
+  'admin',
+  'assistant',
+  'staff',
+  'oic',
+  'teamleader',
+  'uploader',
+  'hr',
+  'encoder',
+];
 
 interface Notification {
   id: string;
@@ -94,6 +106,8 @@ export const NotificationBell = () => {
   };
 
   useEffect(() => {
+    if (!user?.id) return;
+
     fetchNotifications();
 
     // Subscribe to realtime notifications
@@ -105,7 +119,7 @@ export const NotificationBell = () => {
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${user?.id}`,
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           setNotifications(prev => [payload.new as Notification, ...prev]);
@@ -118,8 +132,7 @@ export const NotificationBell = () => {
     };
   }, [user?.id]);
 
-  // Only show for admin
-  if (userRole !== 'admin') return null;
+  if (!userRole || !NOTIFICATION_VISIBLE_ROLES.includes(userRole)) return null;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
