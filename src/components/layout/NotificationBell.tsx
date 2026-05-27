@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { useBranch } from '@/contexts/BranchContext';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import type { UserRole } from '@/types/inventory';
+import { DISCREPANCIES_CHANGED_EVENT } from '@/lib/discrepancyEvents';
 
 const NOTIFICATION_VISIBLE_ROLES: UserRole[] = [
   'admin',
@@ -36,16 +37,26 @@ interface Notification {
   created_at: string;
 }
 
+interface DiscrepancyPreview {
+  id: string;
+  allocation_bill: string | null;
+  destination: string | null;
+  discrepancy_notes: string | null;
+  created_at: string;
+}
+
 export const NotificationBell = () => {
   const { user, userRole } = useAuth();
   const { selectedBranch } = useBranch();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [discrepancyCount, setDiscrepancyCount] = useState(0);
+  const [discrepancies, setDiscrepancies] = useState<DiscrepancyPreview[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
-  const badgeCount = Math.max(unreadCount, discrepancyCount);
+  const unreadRegularCount = notifications.filter(n => !n.is_read && n.title !== 'History Issue Reported').length;
+  const badgeCount = discrepancyCount + unreadRegularCount;
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -63,24 +74,27 @@ export const NotificationBell = () => {
     }
   };
 
-  const fetchDiscrepancyCount = async () => {
-    if (!user) return;
+  const fetchDiscrepancyReports = useCallback(async () => {
+    if (!user?.id) return;
 
     let query = supabase
       .from('discrepancies')
-      .select('id', { count: 'exact', head: true })
+      .select('id, allocation_bill, destination, discrepancy_notes, created_at', { count: 'exact' })
       .is('deleted_at', null)
-      .or('resolution_status.is.null,resolution_status.neq.resolved');
+      .or('resolution_status.is.null,resolution_status.neq.resolved')
+      .order('created_at', { ascending: false })
+      .limit(5);
 
     if (selectedBranch?.id) {
       query = query.eq('branch_id', selectedBranch.id);
     }
 
-    const { count, error } = await query;
+    const { data, count, error } = await query;
     if (!error) {
       setDiscrepancyCount(count || 0);
+      setDiscrepancies((data || []) as DiscrepancyPreview[]);
     }
-  };
+  }, [selectedBranch?.id, user?.id]);
 
   // Mark notification as read
   const markAsRead = async (id: string) => {
@@ -132,7 +146,12 @@ export const NotificationBell = () => {
     if (!user?.id) return;
 
     fetchNotifications();
-    fetchDiscrepancyCount();
+    fetchDiscrepancyReports();
+
+    const handleDiscrepanciesChanged = () => {
+      fetchDiscrepancyReports();
+    };
+    window.addEventListener(DISCREPANCIES_CHANGED_EVENT, handleDiscrepanciesChanged);
 
     // Subscribe to realtime notifications
     const channel = supabase
@@ -147,6 +166,7 @@ export const NotificationBell = () => {
         },
         (payload) => {
           setNotifications(prev => [payload.new as Notification, ...prev]);
+          fetchDiscrepancyReports();
         }
       )
       .on(
@@ -157,21 +177,25 @@ export const NotificationBell = () => {
           table: 'discrepancies',
         },
         () => {
-          fetchDiscrepancyCount();
+          fetchDiscrepancyReports();
         }
       )
       .subscribe();
 
+    const refreshTimer = window.setInterval(fetchDiscrepancyReports, 15000);
+
     return () => {
+      window.removeEventListener(DISCREPANCIES_CHANGED_EVENT, handleDiscrepanciesChanged);
+      window.clearInterval(refreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [selectedBranch?.id, user?.id]);
+  }, [fetchDiscrepancyReports, selectedBranch?.id, user?.id]);
 
   useEffect(() => {
     if (!isOpen || !user?.id) return;
     fetchNotifications();
-    fetchDiscrepancyCount();
-  }, [isOpen, selectedBranch?.id, user?.id]);
+    fetchDiscrepancyReports();
+  }, [fetchDiscrepancyReports, isOpen, selectedBranch?.id, user?.id]);
 
   if (!userRole || !NOTIFICATION_VISIBLE_ROLES.includes(userRole)) return null;
 
@@ -214,23 +238,60 @@ export const NotificationBell = () => {
           ) : (
             <div className="divide-y">
               {discrepancyCount > 0 && (
-                <div
-                  className="p-3 cursor-pointer bg-destructive/5 hover:bg-destructive/10 transition-colors"
-                  onClick={() => {
-                    navigate('/discrepancies');
-                    setIsOpen(false);
-                  }}
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-destructive">
-                        {discrepancyCount} reported discrepancy{discrepancyCount > 1 ? 'ies' : ''}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Click to open Discrepancy records.
-                      </p>
+                <div className="bg-destructive/5">
+                  <div
+                    className="p-3 cursor-pointer hover:bg-destructive/10 transition-colors"
+                    onClick={() => {
+                      navigate('/discrepancies');
+                      setIsOpen(false);
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-destructive">
+                          {discrepancyCount} active discrepancy report{discrepancyCount > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Reports are shown below. Resolved reports are removed from this count.
+                        </p>
+                      </div>
                     </div>
+                  </div>
+                  <div className="px-3 pb-3 space-y-1.5">
+                    {discrepancies.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="w-full rounded-md border bg-background/80 p-2 text-left hover:bg-background transition-colors"
+                        onClick={() => {
+                          navigate('/discrepancies');
+                          setIsOpen(false);
+                        }}
+                      >
+                        <p className="text-xs font-medium truncate">
+                          {item.allocation_bill || 'No allocation'} {item.destination ? `- ${item.destination}` : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                          {item.discrepancy_notes || 'No discrepancy notes'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/70 mt-1">
+                          {format(new Date(item.created_at), 'MMM d, h:mm a')}
+                        </p>
+                      </button>
+                    ))}
+                    {discrepancyCount > discrepancies.length && (
+                      <button
+                        type="button"
+                        className="w-full text-left text-xs font-medium text-destructive hover:underline"
+                        onClick={() => {
+                          navigate('/discrepancies');
+                          setIsOpen(false);
+                        }}
+                      >
+                        View {discrepancyCount - discrepancies.length} more in Discrepancy
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

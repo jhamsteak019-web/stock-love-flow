@@ -22,6 +22,7 @@ import SummaryDeliveryModal from '@/components/deliveries/SummaryDeliveryModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { exportToExcel } from '@/lib/excelExport';
+import { notifyDiscrepanciesChanged } from '@/lib/discrepancyEvents';
 import { toast as sonnerToast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
@@ -715,6 +716,7 @@ const History = () => {
           .insert(discrepancyPayload);
         if (insertDiscrepancyError) throw insertDiscrepancyError;
       }
+      notifyDiscrepanciesChanged();
 
       const allocationLabel = getGroupLabel(reportingBatch);
       await notifyUsersByRoles(REVIEW_NOTIFICATION_ROLES, () => ({
@@ -775,6 +777,7 @@ const History = () => {
         })
         .eq('batch_id', group.batch_id)
         .is('deleted_at', null);
+      notifyDiscrepanciesChanged();
 
       if (group.action_status === 'no' && (isAdmin || isAssistant)) {
         await notifyReportersAfterFix(group);
@@ -890,6 +893,7 @@ const History = () => {
           })
           .eq('batch_id', fixedGroup.batch_id)
           .is('deleted_at', null);
+        notifyDiscrepanciesChanged();
 
         await notifyReportersAfterFix(fixedGroup);
       }

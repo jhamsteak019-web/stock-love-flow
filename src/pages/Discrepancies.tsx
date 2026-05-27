@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { exportToExcel } from '@/lib/excelExport';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { notifyDiscrepanciesChanged } from '@/lib/discrepancyEvents';
 
 interface Discrepancy {
   id: string;
@@ -105,6 +106,7 @@ const Discrepancies = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discrepancies'] });
+      notifyDiscrepanciesChanged();
       toast({ title: 'Updated', description: 'Discrepancy saved' });
       setEditing(null);
     },
@@ -118,6 +120,7 @@ const Discrepancies = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discrepancies'] });
+      notifyDiscrepanciesChanged();
       toast({ title: 'Deleted', description: 'Discrepancy removed' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
