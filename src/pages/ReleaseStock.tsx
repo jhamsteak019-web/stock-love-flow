@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback, useTransition, memo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PackagePlus, Plus, Trash2, FileText, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { PackagePlus, Plus, Trash2, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,19 +61,6 @@ interface ReleaseItem {
   boxes: number;
 }
 
-interface ExistingAllocationSection {
-  releaseId: string;
-  batchId: string;
-  allocationBill: string;
-  destination: string;
-  courier?: string;
-  category?: string;
-  waybillNo?: string;
-  setDate?: string;
-  branchId?: string;
-  needsBatchIdBackfill: boolean;
-}
-
 type StockReleaseInsertRow = {
   item_id: string | null;
   boxes_released: number;
@@ -128,12 +115,11 @@ const getUniqueAllocationBills = (items: ParsedReleaseItem[]) => {
 const ReleaseStock = () => {
   const { items, loading } = useInventory({ loadCategories: false, loadReleases: false });
   const isReleasingRef = useRef(false);
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef2 = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
   const isColumnVisible = (key: string) => {
@@ -189,30 +175,6 @@ const ReleaseStock = () => {
       .toLowerCase();
   }, []);
 
-  const ensureExistingSectionBatchId = async (section: ExistingAllocationSection | null) => {
-    if (!section?.needsBatchIdBackfill) return;
-
-    const { error } = await supabase
-      .from('stock_releases')
-      .update({ batch_id: section.batchId })
-      .eq('id', section.releaseId);
-
-    if (error) throw error;
-  };
-
-  const updateExistingSectionDestination = async (section: ExistingAllocationSection, destination?: string | null) => {
-    const nextDestination = destination?.trim();
-    if (!nextDestination || nextDestination.toLowerCase() === section.destination.trim().toLowerCase()) return;
-
-    const { error } = await supabase
-      .from('stock_releases')
-      .update({ destination: nextDestination })
-      .eq('allocation_bill', section.allocationBill)
-      .is('deleted_at', null);
-
-    if (error) throw error;
-  };
-
   const fetchExistingAllocationKeys = async (allocations?: string[]) => {
     const keys = new Set<string>();
     const PAGE_SIZE = 1000;
@@ -260,90 +222,6 @@ const ReleaseStock = () => {
     }
 
     return keys;
-  };
-
-  const fetchExistingAllocationSections = async (allocations: string[]) => {
-    const sections = new Map<string, ExistingAllocationSection>();
-    const PAGE_SIZE = 1000;
-    const requestedAllocations = allocations.map(bill => bill.trim()).filter(Boolean);
-
-    const shouldReplaceSection = (current: ExistingAllocationSection | undefined, next: ExistingAllocationSection) => {
-      if (!current) return true;
-      const nextMatchesBranch = Boolean(selectedBranch?.id && next.branchId === selectedBranch.id);
-      const currentMatchesBranch = Boolean(selectedBranch?.id && current.branchId === selectedBranch.id);
-      if (nextMatchesBranch && !currentMatchesBranch) return true;
-      if (!current.branchId && next.branchId) return true;
-      return false;
-    };
-
-    const addSections = (rows: Array<{
-      id: string;
-      batch_id: string | null;
-      allocation_bill: string | null;
-      destination: string;
-      courier: string | null;
-      category: string | null;
-      waybill_no: string | null;
-      set_date: string | null;
-      branch_id: string | null;
-    }>) => {
-      rows.forEach((release) => {
-        const key = normalizeAllocation(release.allocation_bill);
-        if (!key) return;
-
-        const section: ExistingAllocationSection = {
-          releaseId: release.id,
-          batchId: release.batch_id || release.id,
-          allocationBill: release.allocation_bill || '',
-          destination: release.destination || 'Unknown',
-          courier: release.courier || undefined,
-          category: release.category || undefined,
-          waybillNo: release.waybill_no || undefined,
-          setDate: release.set_date || undefined,
-          branchId: release.branch_id || undefined,
-          needsBatchIdBackfill: !release.batch_id,
-        };
-
-        if (shouldReplaceSection(sections.get(key), section)) {
-          sections.set(key, section);
-        }
-      });
-    };
-
-    if (requestedAllocations.length > 0) {
-      for (let index = 0; index < requestedAllocations.length; index += 100) {
-        const chunk = requestedAllocations.slice(index, index + 100);
-        const { data, error } = await supabase
-          .from('stock_releases')
-          .select('id,batch_id,allocation_bill,destination,courier,category,waybill_no,set_date,branch_id')
-          .is('deleted_at', null)
-          .in('allocation_bill', chunk);
-
-        if (error) throw error;
-        addSections(data || []);
-      }
-
-      return sections;
-    }
-
-    let from = 0;
-    while (true) {
-      const { data, error } = await supabase
-        .from('stock_releases')
-        .select('id,batch_id,allocation_bill,destination,courier,category,waybill_no,set_date,branch_id')
-        .is('deleted_at', null)
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (error) throw error;
-
-      const chunk = data || [];
-      addSections(chunk);
-
-      if (chunk.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
-    }
-
-    return sections;
   };
 
   const insertStockReleaseRows = async (rows: StockReleaseInsertRow[]) => {
@@ -408,14 +286,6 @@ const ReleaseStock = () => {
     }
 
     return { value: 0, matchedColumn: '' };
-  };
-
-  const findNumericValueNullable = (row: Record<string, unknown>, ...possibleNames: string[]): number | null => {
-    const val = findColumnValue(row, ...possibleNames);
-    if (val === '') return null;
-    const cleanVal = val.replace(/[₱$,]/g, '').trim();
-    const num = Number(cleanVal);
-    return isNaN(num) ? null : num;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -739,9 +609,7 @@ const ReleaseStock = () => {
 
   // Checkbox handlers - enable checkboxes when courier AND set date are set for item
   const selectableItems = filteredParsedItems.filter(p => p.qtyBoxes > 0 && p.courier && p.setDate);
-  const matchedItems = filteredParsedItems.filter(p => p.matchedItemId && p.qtyBoxes > 0);
   const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(p => selectedItems.has(p.id));
-  const someMatchedSelected = selectableItems.some(p => selectedItems.has(p.id));
 
   const toggleSelectAll = () => {
     if (allSelectableSelected) {
@@ -790,248 +658,8 @@ const ReleaseStock = () => {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
-  // Second importer: same preview flow as the first (Out Warehouse Delivery).
-  // Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price
-  const handleFileUpload2 = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setImporting(true);
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawRows = (XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][])
-        .filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
-
-      if (rawRows.length === 0) {
-        toast({ title: 'Empty file', description: 'No rows found.', variant: 'destructive' });
-        return;
-      }
-
-      const normalizeHeader = (value: unknown) => String(value ?? '')
-        .normalize('NFKC')
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .trim()
-        .replace(/[^a-z0-9]/gi, '')
-        .toLowerCase();
-      const directImportHeaders = new Set([
-        'sheetno',
-        'allocation',
-        'allocationbill',
-        'bill',
-        'billno',
-        'branch',
-        'destination',
-        'deliverto',
-        'product',
-        'productname',
-        'productcode',
-        'category',
-        'productdescription',
-        'description',
-        'qty',
-        'quantity',
-        'price',
-        'unitprice',
-      ]);
-      const hasHeader = rawRows[0].some(cell => directImportHeaders.has(normalizeHeader(cell)));
-      const headerRow = hasHeader ? rawRows[0] : [];
-      const dataRows = hasHeader ? rawRows.slice(1) : rawRows;
-      const headerIndex = new Map<string, number>();
-
-      headerRow.forEach((header, index) => {
-        const key = normalizeHeader(header);
-        if (key && !headerIndex.has(key)) headerIndex.set(key, index);
-      });
-
-      const parseDirectNumber = (value: unknown) => {
-        const cleaned = String(value ?? '').replace(/[₱$,]/g, '').trim();
-        const num = Number(cleaned);
-        return Number.isFinite(num) ? num : 0;
-      };
-      const getByHeader = (row: unknown[], possibleHeaders: string[], fallbackIndex: number) => {
-        for (const header of possibleHeaders) {
-          const index = headerIndex.get(normalizeHeader(header));
-          if (index !== undefined) {
-            const value = String(row[index] ?? '').trim();
-            if (value) return value;
-          }
-        }
-
-        return fallbackIndex >= 0 ? String(row[fallbackIndex] ?? '').trim() : '';
-      };
-      const looksLikeCategory = (value: unknown) => /^[A-Z]{2,6}$/.test(String(value ?? '').trim().toUpperCase());
-      const hasBranchColumnFromHeader = ['branch', 'destination', 'deliverto'].some(header => headerIndex.has(header));
-
-      const parsed: ParsedReleaseItem[] = dataRows.map((row, index) => {
-        const hasBranchColumn = hasHeader
-          ? hasBranchColumnFromHeader
-          : !looksLikeCategory(row[2]) && looksLikeCategory(row[3]);
-        const productNameIndex = hasBranchColumn ? 2 : 1;
-        const categoryIndex = hasBranchColumn ? 3 : 2;
-        const descriptionIndex = hasBranchColumn ? 4 : 3;
-        const qtyIndex = hasBranchColumn ? 5 : 4;
-        const priceIndex = hasBranchColumn ? 6 : 5;
-
-        const sheetNo = getByHeader(row, ['Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'Allocation', 'Allocation Bill', 'Bill No', 'Bill'], 0);
-        const branch = getByHeader(row, ['Branch', 'Destination', 'Deliver To'], hasBranchColumn ? 1 : -1);
-        const productName = getByHeader(row, ['Product Name', 'Product Code', 'Product'], productNameIndex);
-        const category = getByHeader(row, ['Category'], categoryIndex);
-        const description = getByHeader(row, ['Product Description', 'Description'], descriptionIndex);
-        const qty = parseDirectNumber(getByHeader(row, ['Qty', 'Quantity'], qtyIndex));
-        const price = parseDirectNumber(getByHeader(row, ['Price', 'Unit Price'], priceIndex));
-        const amount = price > 0 && qty > 0 ? price * qty : price;
-        const remarks = [productName, description].filter(Boolean).join(' - ');
-
-        return {
-          id: `parsed2-${index}-${Date.now()}`,
-          sheetNo,
-          deliverTo: branch,
-          qtyBoxes: 1,
-          amount,
-          unitPrice: price || null,
-          qtyItem: qty,
-          category,
-          remarks,
-          billDate: '',
-          setDate: '',
-          courier: '',
-          matchedItemId: null,
-          matchedItemName: null,
-        };
-      }).filter(p => p.sheetNo || p.deliverTo || p.remarks);
-
-      if (parsed.length === 0) {
-        toast({ title: 'No items', description: 'Check headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price.', variant: 'destructive' });
-        return;
-      }
-
-      // DIRECT TO HISTORY — save immediately as pending (Yes/No) review.
-      // Group by Sheet No. so multiple rows = items inside one allocation bill.
-      const groups = new Map<string, ParsedReleaseItem[]>();
-      for (const item of parsed) {
-        const normalizedSheetNo = normalizeAllocation(item.sheetNo);
-        const key = normalizedSheetNo
-          ? `bill:${normalizedSheetNo}`
-          : `row:${item.id}`;
-        const arr = groups.get(key) || [];
-        arr.push(item);
-        groups.set(key, arr);
-      }
-
-      let savedCount = 0;
-      let skippedCount = 0;
-      const skippedBills: string[] = [];
-      const existingSections = await fetchExistingAllocationSections(getUniqueAllocationBills(parsed));
-      const rowsToInsert: StockReleaseInsertRow[] = [];
-      for (const group of groups.values()) {
-        const head = group[0];
-        const existingSection = existingSections.get(normalizeAllocation(head.sheetNo));
-        if (!existingSection) {
-          skippedCount += group.length;
-          if (head.sheetNo) skippedBills.push(head.sheetNo);
-          continue;
-        }
-
-        await ensureExistingSectionBatchId(existingSection);
-        const resolvedDestination = head.deliverTo || existingSection.destination || 'Unknown';
-        await updateExistingSectionDestination(existingSection, resolvedDestination);
-
-        group.forEach(item => {
-          const [productCode, productDescription] = (item.remarks || '').split(' - ');
-          rowsToInsert.push({
-            item_id: null,
-            boxes_released: item.qtyBoxes || 0,
-            destination: resolvedDestination,
-            released_by: user!.id,
-            notes: null,
-            courier: existingSection.courier || null,
-            allocation_bill: existingSection.allocationBill || head.sheetNo || null,
-            batch_id: existingSection.batchId,
-            category: item.category || existingSection.category || head.category || null,
-            waybill_no: existingSection.waybillNo || null,
-            set_date: existingSection.setDate || null,
-            total_qty: item.qtyItem || 0,
-            branch_id: existingSection.branchId || selectedBranch?.id || null,
-            amount: item.amount || null,
-            action_status: null,
-            product_code: productCode || null,
-            product_description: productDescription || null,
-            unit_price: item.unitPrice || null,
-          });
-        });
-        savedCount += group.length;
-      }
-
-      if (savedCount === 0) {
-        toast({
-          title: 'No Matching Existing Bills',
-          description: `${skippedCount} item(s) skipped. Direct to History only appends to existing Allocation Bills.`,
-          variant: 'default',
-        });
-        return;
-      }
-
-      await insertStockReleaseRows(rowsToInsert);
-
-      await logActivity({
-        actionType: 'import',
-        module: 'stock_releases',
-        description: `Imported ${savedCount} item(s) directly to History (pending review)`,
-        metadata: {
-          items_count: savedCount,
-          skipped_count: skippedCount,
-          branch: selectedBranch?.name,
-          allocation_bills: parsed.map(p => p.sheetNo).filter(Boolean),
-          skipped_allocation_bills: skippedBills,
-        },
-      });
-
-      toast({
-        title: 'Imported to History',
-        description: skippedCount > 0
-          ? `${savedCount} item(s) appended. ${skippedCount} item(s) skipped because no existing bill matched.`
-          : `${savedCount} item(s) appended to existing bill(s).`,
-      });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
-    } finally {
-      setImporting(false);
-      if (fileInputRef2.current) fileInputRef2.current.value = '';
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Import Excel #2 — Direct to History (pending Yes/No) */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold select-none">Import from Excel (Direct to History)</h2>
-              <p className="text-sm text-muted-foreground select-none">Headers: Sheet No., Branch, Product Name, Category, Product Description, Qty, Price</p>
-            </div>
-          </div>
-          <div>
-            <input
-              ref={fileInputRef2}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileUpload2}
-              className="hidden"
-            />
-            <Button variant="outline" onClick={() => fileInputRef2.current?.click()} disabled={importing}>
-              <Upload className="h-4 w-4 mr-2" />
-              {importing ? 'Importing...' : 'Upload File'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
