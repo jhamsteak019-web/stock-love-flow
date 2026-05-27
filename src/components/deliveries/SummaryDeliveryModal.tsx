@@ -18,6 +18,7 @@ import {
   getStockReleaseGroupAmountTotal,
   getStockReleaseGroupKey,
   getStockReleaseQty,
+  isImportedStockReleaseProductRow,
 } from '@/lib/stockReleaseDedupe';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
 import type { StockRelease } from '@/types/inventory';
@@ -71,7 +72,12 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const [branchSearch, setBranchSearch] = useState('');
   const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
 
+  const hasAllocationBillDetails = (item: DeliveredSummaryItem) => {
+    return item.releases.some(isImportedStockReleaseProductRow);
+  };
+
   const openAllocationBill = (item: DeliveredSummaryItem) => {
+    if (!hasAllocationBillDetails(item)) return;
     setSelectedSummaryItem(item);
   };
 
@@ -750,6 +756,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                           </TableHeader>
                           <TableBody>
                             {branch.items.map((item, idx) => {
+                              const canOpenBill = hasAllocationBillDetails(item);
                               // Calculate delivery days
                               let deliveryDays = '-';
                               if (item.set_date && item.date_delivered) {
@@ -762,20 +769,26 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                               return (
                                 <TableRow
                                   key={item.batch_id || idx}
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => openAllocationBill(item)}
+                                  className={canOpenBill ? 'cursor-pointer hover:bg-muted/50' : undefined}
+                                  onClick={() => {
+                                    if (canOpenBill) openAllocationBill(item);
+                                  }}
                                 >
                                   <TableCell>
-                                    <button
-                                      type="button"
-                                      className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        openAllocationBill(item);
-                                      }}
-                                    >
-                                      {item.allocation_bill || '-'}
-                                    </button>
+                                    {canOpenBill ? (
+                                      <button
+                                        type="button"
+                                        className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openAllocationBill(item);
+                                        }}
+                                      >
+                                        {item.allocation_bill || '-'}
+                                      </button>
+                                    ) : (
+                                      <span className="font-mono">{item.allocation_bill || '-'}</span>
+                                    )}
                                   </TableCell>
                                   <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                                   <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>

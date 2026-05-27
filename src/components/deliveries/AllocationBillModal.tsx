@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -144,6 +144,16 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
   const deliveryDays = dateOutWarehouseDate && dateDeliveredDate
     ? differenceInDays(dateDeliveredDate, dateOutWarehouseDate)
     : null;
+
+  useEffect(() => {
+    if (open && displayReleases.length === 0) {
+      onOpenChange(false);
+    }
+  }, [displayReleases.length, onOpenChange, open]);
+
+  if (open && displayReleases.length === 0) {
+    return null;
+  }
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');

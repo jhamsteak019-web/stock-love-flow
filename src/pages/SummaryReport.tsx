@@ -28,6 +28,7 @@ import {
   getStockReleaseGroupAmountTotal,
   getStockReleaseGroupKey,
   getStockReleaseQty,
+  isImportedStockReleaseProductRow,
 } from '@/lib/stockReleaseDedupe';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
@@ -73,9 +74,14 @@ const SummaryReport = () => {
   const [remarksFilter, setRemarksFilter] = useState<'all' | 'ro' | 'new'>('all');
   const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
 
-  const openAllocationBill = useCallback((item: DeliveredSummaryItem) => {
-    setSelectedSummaryItem(item);
+  const hasAllocationBillDetails = useCallback((item: DeliveredSummaryItem) => {
+    return item.releases.some(isImportedStockReleaseProductRow);
   }, []);
+
+  const openAllocationBill = useCallback((item: DeliveredSummaryItem) => {
+    if (!hasAllocationBillDetails(item)) return;
+    setSelectedSummaryItem(item);
+  }, [hasAllocationBillDetails]);
 
   // Use paginated hook to fetch ALL releases for selected period (bypasses 1000 row limit)
   const { releases: periodReleases, loading: periodLoading } = useStockReleasesForPeriod({
@@ -1729,23 +1735,32 @@ const SummaryReport = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredItems.map((item) => (
+                          {filteredItems.map((item) => {
+                            const canOpenBill = hasAllocationBillDetails(item);
+
+                            return (
                             <TableRow
                               key={item.batch_id}
-                              className="cursor-pointer"
-                              onClick={() => openAllocationBill(item)}
+                              className={canOpenBill ? 'cursor-pointer hover:bg-muted/50' : undefined}
+                              onClick={() => {
+                                if (canOpenBill) openAllocationBill(item);
+                              }}
                             >
                               <TableCell className="font-mono whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    openAllocationBill(item);
-                                  }}
-                                >
-                                  {item.allocation_bill || '-'}
-                                </button>
+                                {canOpenBill ? (
+                                  <button
+                                    type="button"
+                                    className="text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openAllocationBill(item);
+                                    }}
+                                  >
+                                    {item.allocation_bill || '-'}
+                                  </button>
+                                ) : (
+                                  <span>{item.allocation_bill || '-'}</span>
+                                )}
                               </TableCell>
                               <TableCell className="whitespace-nowrap">{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
@@ -1770,7 +1785,8 @@ const SummaryReport = () => {
                                 {item.amount > 0 ? '₱' + item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                               </TableCell>
                             </TableRow>
-                          ))}
+                            );
+                          })}
                           <TableRow className="bg-muted/50 font-semibold">
                             <TableCell colSpan={8}>Subtotal</TableCell>
                             <TableCell className="text-center">{filteredTotalBoxes}</TableCell>
