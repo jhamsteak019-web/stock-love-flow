@@ -53,6 +53,17 @@ export const isLegacyDirectHistoryImportRow = (release: StockRelease) => {
     );
 };
 
+export const isEmptyPendingHistoryRow = (release: StockRelease) => {
+  return release.item_id === null &&
+    release.action_status === null &&
+    normalizeNumber(release.boxes_released) === 0 &&
+    normalizeNumber(release.total_qty) === 0 &&
+    normalizeNumber(release.amount) === 0 &&
+    !hasUsefulStockReleaseText(release.product_code) &&
+    !hasUsefulStockReleaseText(release.product_description) &&
+    (release.unit_price === null || release.unit_price === undefined);
+};
+
 export const isImportedStockReleaseProductRow = (release: StockRelease) => {
   return hasImportedStockReleaseProductDetails(release);
 };
@@ -121,7 +132,9 @@ export const dedupeStockReleasesForDisplay = (releases: StockRelease[]) => {
   const byKey = new Map<string, StockRelease>();
   const keyOrder: string[] = [];
 
-  releases.filter(release => !isLegacyDirectHistoryImportRow(release)).forEach((release) => {
+  releases
+    .filter(release => !isLegacyDirectHistoryImportRow(release) && !isEmptyPendingHistoryRow(release))
+    .forEach((release) => {
     const key = getStockReleaseDisplayKey(release);
     const existing = byKey.get(key);
 
@@ -140,13 +153,13 @@ export const dedupeStockReleasesForDisplay = (releases: StockRelease[]) => {
 };
 
 export const getStockReleaseCountingReleases = (releaseItems: StockRelease[]) => {
-  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release));
+  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release) && !isEmptyPendingHistoryRow(release));
   const detailedItems = activeItems.filter(hasStockReleaseProductDetails);
   return dedupeStockReleasesForDisplay(detailedItems.length > 0 ? detailedItems : activeItems);
 };
 
 export const getStockReleaseBoxTotal = (releaseItems: StockRelease[]) => {
-  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release));
+  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release) && !isEmptyPendingHistoryRow(release));
   const manualBoxRows = activeItems.filter(release => !isImportedStockReleaseProductRow(release));
   const boxRows = manualBoxRows.length > 0 ? manualBoxRows : activeItems;
   const boxesByKey = new Map<string, number>();
@@ -203,7 +216,7 @@ export const getStockReleaseAmount = (release: StockRelease) => {
 };
 
 export const getStockReleaseGroupAmountTotal = (releaseItems: StockRelease[]) => {
-  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release));
+  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release) && !isEmptyPendingHistoryRow(release));
   const countingReleases = getStockReleaseCountingReleases(activeItems);
   const countingAmount = countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
   if (countingAmount > 0) return countingAmount;

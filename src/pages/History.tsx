@@ -33,6 +33,7 @@ import {
   getStockReleaseGroupAmountTotal,
   getStockReleaseGroupKey,
   getStockReleaseQty,
+  isEmptyPendingHistoryRow,
 } from '@/lib/stockReleaseDedupe';
 import {
   AlertDialog,
@@ -165,7 +166,6 @@ const History = () => {
     allYear: showAllYear,
     allDates: showAllYear || Boolean(debouncedSearchQuery.trim()),
     search: debouncedSearchQuery,
-    includePendingReview: true,
     progressive: true,
     enabled: !branchLoading,
   });
@@ -228,12 +228,13 @@ const History = () => {
     const filtered = filterByBranch && selectedBranch 
       ? releasesList.filter(r => r.branch_id === selectedBranch.id)
       : releasesList;
+    const activeRows = filtered.filter(release => !isEmptyPendingHistoryRow(release));
     
     const groups: Record<string, GroupedRelease> = {};
     const countedReleaseKeys: Record<string, Set<string>> = {};
     
     // Use filtered list instead of original releasesList
-    filtered.forEach(release => {
+    activeRows.forEach(release => {
       const batchKey = getStockReleaseGroupKey(release);
       
       if (!groups[batchKey]) {
@@ -338,13 +339,10 @@ const History = () => {
     const hasSearch = Boolean(debouncedSearchQuery.trim());
 
     return groupedReleases.filter(group => {
-      // Pending review (no action_status yet) ALWAYS shows so user can confirm Yes/No.
-      const isPendingReview = !group.action_status;
-
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
       const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
       
-      if (!isPendingReview && !hasSearch) {
+      if (!hasSearch) {
         // Year filter always applies
         if (dateToFilter.getFullYear() !== selectedYear) {
           return false;
