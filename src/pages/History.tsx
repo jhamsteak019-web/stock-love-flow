@@ -98,7 +98,7 @@ const HISTORY_COLUMN_WIDTHS: Record<HistoryColumnKey, number> = {
   remarks: 150,
 };
 
-const HISTORY_ACTIONS_WIDTH = 210;
+const HISTORY_ACTIONS_WIDTH = 280;
 
 interface GroupedRelease {
   batch_id: string;
@@ -1287,6 +1287,21 @@ const History = () => {
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
+                          {canReportIssue && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={cn(
+                                "h-7 px-2 text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800",
+                                group.action_status === 'no' && "ring-2 ring-amber-300"
+                              )}
+                              onClick={(e) => handleActionStatus(group, 'no', e)}
+                              title="Report issue to Admin and Assistant"
+                            >
+                              <MessageSquareWarning className="h-3.5 w-3.5" />
+                              Report
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="default"
