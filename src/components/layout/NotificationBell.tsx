@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { AlertTriangle, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import type { UserRole } from '@/types/inventory';
@@ -37,11 +38,14 @@ interface Notification {
 
 export const NotificationBell = () => {
   const { user, userRole } = useAuth();
+  const { selectedBranch } = useBranch();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [discrepancyCount, setDiscrepancyCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  const badgeCount = Math.max(unreadCount, discrepancyCount);
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -56,6 +60,25 @@ export const NotificationBell = () => {
 
     if (!error && data) {
       setNotifications(data);
+    }
+  };
+
+  const fetchDiscrepancyCount = async () => {
+    if (!user) return;
+
+    let query = supabase
+      .from('discrepancies')
+      .select('id', { count: 'exact', head: true })
+      .is('deleted_at', null)
+      .or('resolution_status.is.null,resolution_status.neq.resolved');
+
+    if (selectedBranch?.id) {
+      query = query.eq('branch_id', selectedBranch.id);
+    }
+
+    const { count, error } = await query;
+    if (!error) {
+      setDiscrepancyCount(count || 0);
     }
   };
 
@@ -109,6 +132,7 @@ export const NotificationBell = () => {
     if (!user?.id) return;
 
     fetchNotifications();
+    fetchDiscrepancyCount();
 
     // Subscribe to realtime notifications
     const channel = supabase
@@ -125,12 +149,29 @@ export const NotificationBell = () => {
           setNotifications(prev => [payload.new as Notification, ...prev]);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'discrepancies',
+        },
+        () => {
+          fetchDiscrepancyCount();
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [selectedBranch?.id, user?.id]);
+
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    fetchNotifications();
+    fetchDiscrepancyCount();
+  }, [isOpen, selectedBranch?.id, user?.id]);
 
   if (!userRole || !NOTIFICATION_VISIBLE_ROLES.includes(userRole)) return null;
 
@@ -139,11 +180,11 @@ export const NotificationBell = () => {
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {badgeCount > 0 && (
             <Badge 
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 hover:bg-red-500"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {badgeCount > 9 ? '9+' : badgeCount}
             </Badge>
           )}
         </Button>
@@ -165,13 +206,34 @@ export const NotificationBell = () => {
           </div>
         </div>
         <ScrollArea className="h-[300px]">
-          {notifications.length === 0 ? (
+          {notifications.length === 0 && discrepancyCount === 0 ? (
             <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
               <Bell className="h-8 w-8 mb-2 opacity-50" />
               <p className="text-sm">No notifications</p>
             </div>
           ) : (
             <div className="divide-y">
+              {discrepancyCount > 0 && (
+                <div
+                  className="p-3 cursor-pointer bg-destructive/5 hover:bg-destructive/10 transition-colors"
+                  onClick={() => {
+                    navigate('/discrepancies');
+                    setIsOpen(false);
+                  }}
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-destructive">
+                        {discrepancyCount} reported discrepancy{discrepancyCount > 1 ? 'ies' : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Click to open Discrepancy records.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
