@@ -118,6 +118,7 @@ const History = () => {
   const { selectedBranch, loading: branchLoading } = useBranch();
   const [selectedBatch, setSelectedBatch] = useState<GroupedRelease | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [clearingMonth, setClearingMonth] = useState(false);
   const [clearingDeleted, setClearingDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -586,6 +587,50 @@ const History = () => {
     }
   };
 
+  const handleClearMonth = async () => {
+    if (!selectedBranch?.id) {
+      toast({
+        title: 'No branch selected',
+        description: 'Please select a branch before clearing a month.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setClearingMonth(true);
+    try {
+      const start = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0, 0)).toISOString();
+      const end = new Date(Date.UTC(selectedYear, selectedMonth + 1, 1, 0, 0, 0, 0)).toISOString();
+      const periodFilter = [
+        `and(set_date.gte.${start},set_date.lt.${end})`,
+        `and(set_date.is.null,date_released.gte.${start},date_released.lt.${end})`,
+      ].join(',');
+
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('branch_id', selectedBranch.id)
+        .is('deleted_at', null)
+        .or(periodFilter);
+
+      if (error) throw error;
+
+      refetchHistory(true);
+      toast({
+        title: 'Success',
+        description: `${MONTHS[selectedMonth]} ${selectedYear} transaction history moved to Recently Deleted`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to clear selected month',
+        variant: 'destructive',
+      });
+    } finally {
+      setClearingMonth(false);
+    }
+  };
+
   const handleClearAllDeleted = async () => {
     setClearingDeleted(true);
     try {
@@ -675,6 +720,39 @@ const History = () => {
                 <FileDown className="h-4 w-4 mr-2" />
                 Save PDF
               </Button>
+            )}
+
+            {activeTab === 'active' && isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={clearingMonth || branchLoading || !selectedBranch}
+                    className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {clearingMonth ? 'Clearing...' : 'Clear Month'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      Clear {MONTHS[selectedMonth]} {selectedYear}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will move all {MONTHS[selectedMonth]} {selectedYear} transaction history for {selectedBranch?.name || 'the selected branch'} to Recently Deleted. Other months and branches will not be touched.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearMonth} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Yes, Clear This Month
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
 
             {activeTab === 'active' && isAdmin && groupedReleases.length > 0 && (
