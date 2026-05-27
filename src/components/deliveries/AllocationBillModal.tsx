@@ -11,7 +11,7 @@ import {
   getStockReleaseBoxTotal,
   getStockReleaseQty,
   getStockReleaseUnitPrice,
-  hasStockReleaseProductDetails,
+  isImportedStockReleaseProductRow,
 } from '@/lib/stockReleaseDedupe';
 
 interface AllocationBillModalProps {
@@ -62,15 +62,11 @@ const firstUsefulProductText = (...values: (string | null | undefined)[]) => {
 };
 
 const getProductCode = (release: StockRelease) => {
-  return firstUsefulProductText(release.product_code, release.inventory_item?.item_code);
+  return firstUsefulProductText(release.product_code);
 };
 
 const getProductDescription = (release: StockRelease) => {
-  return firstUsefulProductText(
-    release.product_description,
-    release.inventory_item?.description,
-    release.inventory_item?.item_name
-  );
+  return firstUsefulProductText(release.product_description);
 };
 
 const naturalSort = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -110,10 +106,8 @@ const getSortParts = (release: StockRelease) => {
 };
 
 const getDisplayReleases = (releaseItems: StockRelease[]) => {
-  const detailedItems = releaseItems.filter(hasStockReleaseProductDetails);
-  const displayItems = detailedItems.length > 0 ? detailedItems : releaseItems;
-
-  return displayItems
+  return releaseItems
+    .filter(isImportedStockReleaseProductRow)
     .map((release, index) => ({ release, index, parts: getSortParts(release) }))
     .sort((a, b) => {
       const groupDiff = naturalSort.compare(a.parts.groupKey, b.parts.groupKey);
@@ -171,7 +165,15 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
           <td class="text-right">${formatMoney(amount)}</td>
         </tr>
       `;
-    }).join('');
+    }).join('') || `
+        <tr>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+          <td>&nbsp;</td>
+        </tr>
+      `;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -326,6 +328,15 @@ const AllocationBillModal = ({ open, onOpenChange, releases, destination, courie
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {displayReleases.length === 0 && (
+                  <TableRow className="h-6 border-b border-black/70 hover:bg-transparent">
+                    <TableCell className="px-2 py-[3px] text-[11px] text-black">&nbsp;</TableCell>
+                    <TableCell className="px-2 py-[3px] text-[11px] text-black">&nbsp;</TableCell>
+                    <TableCell className="px-2 py-[3px] text-[11px] text-black">&nbsp;</TableCell>
+                    <TableCell className="px-2 py-[3px] text-[11px] text-black">&nbsp;</TableCell>
+                    <TableCell className="px-2 py-[3px] text-[11px] text-black">&nbsp;</TableCell>
+                  </TableRow>
+                )}
                 {displayReleases.map((release, index) => {
                   const itemCode = getProductCode(release);
                   const description = getProductDescription(release);

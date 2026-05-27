@@ -23,6 +23,8 @@ export const hasUsefulStockReleaseText = (value?: string | null) => {
 };
 
 export const hasStockReleaseProductDetails = (release: StockRelease) => {
+  if (isLegacyDirectHistoryImportRow(release)) return false;
+
   return [
     release.product_code,
     release.product_description,
@@ -32,10 +34,27 @@ export const hasStockReleaseProductDetails = (release: StockRelease) => {
   ].some(hasUsefulStockReleaseText);
 };
 
+export const hasImportedStockReleaseProductDetails = (release: StockRelease) => {
+  if (isLegacyDirectHistoryImportRow(release)) return false;
+
+  return release.item_id === null && (
+    hasUsefulStockReleaseText(release.product_code) ||
+    release.unit_price !== null && release.unit_price !== undefined
+  );
+};
+
+export const isLegacyDirectHistoryImportRow = (release: StockRelease) => {
+  return release.item_id === null &&
+    release.action_status === null &&
+    (
+      hasUsefulStockReleaseText(release.product_code) ||
+      hasUsefulStockReleaseText(release.product_description) ||
+      release.unit_price !== null && release.unit_price !== undefined
+    );
+};
+
 export const isImportedStockReleaseProductRow = (release: StockRelease) => {
-  return hasUsefulStockReleaseText(release.product_code) ||
-    hasUsefulStockReleaseText(release.product_description) ||
-    (release.unit_price !== null && release.unit_price !== undefined);
+  return hasImportedStockReleaseProductDetails(release);
 };
 
 export const normalizeAllocationKey = (allocation?: string | null) => {
@@ -102,7 +121,7 @@ export const dedupeStockReleasesForDisplay = (releases: StockRelease[]) => {
   const byKey = new Map<string, StockRelease>();
   const keyOrder: string[] = [];
 
-  releases.forEach((release) => {
+  releases.filter(release => !isLegacyDirectHistoryImportRow(release)).forEach((release) => {
     const key = getStockReleaseDisplayKey(release);
     const existing = byKey.get(key);
 
@@ -121,13 +140,15 @@ export const dedupeStockReleasesForDisplay = (releases: StockRelease[]) => {
 };
 
 export const getStockReleaseCountingReleases = (releaseItems: StockRelease[]) => {
-  const detailedItems = releaseItems.filter(hasStockReleaseProductDetails);
-  return dedupeStockReleasesForDisplay(detailedItems.length > 0 ? detailedItems : releaseItems);
+  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release));
+  const detailedItems = activeItems.filter(hasStockReleaseProductDetails);
+  return dedupeStockReleasesForDisplay(detailedItems.length > 0 ? detailedItems : activeItems);
 };
 
 export const getStockReleaseBoxTotal = (releaseItems: StockRelease[]) => {
-  const manualBoxRows = releaseItems.filter(release => !isImportedStockReleaseProductRow(release));
-  const boxRows = manualBoxRows.length > 0 ? manualBoxRows : releaseItems;
+  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release));
+  const manualBoxRows = activeItems.filter(release => !isImportedStockReleaseProductRow(release));
+  const boxRows = manualBoxRows.length > 0 ? manualBoxRows : activeItems;
   const boxesByKey = new Map<string, number>();
 
   boxRows.forEach((release) => {
@@ -136,7 +157,7 @@ export const getStockReleaseBoxTotal = (releaseItems: StockRelease[]) => {
   });
 
   const totalBoxes = Array.from(boxesByKey.values()).reduce((sum, boxes) => sum + boxes, 0);
-  const hasQtyOrProductLines = releaseItems.some(release => {
+  const hasQtyOrProductLines = activeItems.some(release => {
     return normalizeNumber(release.total_qty) > 0 || hasStockReleaseProductDetails(release);
   });
 
@@ -182,10 +203,11 @@ export const getStockReleaseAmount = (release: StockRelease) => {
 };
 
 export const getStockReleaseGroupAmountTotal = (releaseItems: StockRelease[]) => {
-  const countingReleases = getStockReleaseCountingReleases(releaseItems);
+  const activeItems = releaseItems.filter(release => !isLegacyDirectHistoryImportRow(release));
+  const countingReleases = getStockReleaseCountingReleases(activeItems);
   const countingAmount = countingReleases.reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
   if (countingAmount > 0) return countingAmount;
 
-  return dedupeStockReleasesForDisplay(releaseItems)
+  return dedupeStockReleasesForDisplay(activeItems)
     .reduce((sum, release) => sum + getStockReleaseAmount(release), 0);
 };

@@ -47,6 +47,8 @@ interface ParsedReleaseItem {
   unitPrice?: number | null;
   qtyItem: number;
   remarks: string;
+  productCode: string;
+  productDescription: string;
   category: string;
   billDate: string;
   setDate: string;
@@ -328,10 +330,12 @@ const ReleaseStock = () => {
           console.log('First row data:', row);
         }
         
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL', 'Item Code', 'ItemCode', 'Code', 'Bill', 'BILL');
+        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL', 'Bill No', 'BILL NO', 'Bill', 'BILL');
         const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER', 'Supplier', 'SUPPLIER');
         const qtyBoxes = 1; // Default to 1 box when importing
         const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
+        const productCode = findColumnValue(row, 'Product Code', 'PRODUCT CODE', 'ProductCode', 'Item Code', 'ITEM CODE', 'ItemCode', 'Code', 'CODE', 'SKU', 'Product Name', 'PRODUCT NAME', 'Product');
+        const productDescription = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Product Desc', 'PRODUCT DESC', 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Model', 'MODEL');
         const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
         const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
         const amountInfo = findNumericColumnValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE', 'Unit Price', 'UNIT PRICE');
@@ -385,6 +389,8 @@ const ReleaseStock = () => {
           qtyItem,
           category,
           remarks: rem,
+          productCode,
+          productDescription,
           billDate: billDateStr,
           setDate: '',
           courier: '',
@@ -487,8 +493,8 @@ const ReleaseStock = () => {
             branch_id: selectedBranch?.id || null,
             amount: item.amount || null,
             action_status: 'yes',
-            product_code: null,
-            product_description: item.remarks || item.matchedItemName || null,
+            product_code: item.productCode || null,
+            product_description: item.productDescription || null,
             unit_price: item.unitPrice || null,
           });
         });
