@@ -20,7 +20,7 @@ type Params = {
 };
 
 const PAGE_SIZE = 1000;
-const PROGRESSIVE_FIRST_PAGE_SIZE = 150;
+const PROGRESSIVE_FIRST_PAGE_SIZE = 1000;
 const PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_PERIOD_SELECT =
   "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
@@ -243,23 +243,27 @@ export const useStockReleasesForPeriod = ({
         return Array.from(byId.values());
       };
 
-      const all = !allDates
-        ? await fetchPeriodPages(progressive ? publishRows : undefined)
-        : await fetchPages({}, progressive ? publishRows : undefined);
-
+      let all: StockRelease[];
       if (includePendingReview && !allDates && actionStatus === undefined) {
-        const byId = new Map(all.map(release => [release.id, release]));
-        const pendingReviewRows = await fetchPages(
-          { ignorePeriod: true, pendingReviewOnly: true },
-          progressive
-            ? (rows) => {
-                rows.forEach(release => byId.set(release.id, release));
-                publishRows(Array.from(byId.values()));
-              }
-            : undefined,
-        );
-        pendingReviewRows.forEach(release => byId.set(release.id, release));
-        all.splice(0, all.length, ...byId.values());
+        const byId = new Map<string, StockRelease>();
+        const publishMergedRows = progressive
+          ? (rows: StockRelease[]) => {
+              rows.forEach(release => byId.set(release.id, release));
+              publishRows(Array.from(byId.values()));
+            }
+          : undefined;
+
+        const [periodRows, pendingReviewRows] = await Promise.all([
+          fetchPeriodPages(publishMergedRows),
+          fetchPages({ ignorePeriod: true, pendingReviewOnly: true }, publishMergedRows),
+        ]);
+
+        [...periodRows, ...pendingReviewRows].forEach(release => byId.set(release.id, release));
+        all = Array.from(byId.values());
+      } else {
+        all = !allDates
+          ? await fetchPeriodPages(progressive ? publishRows : undefined)
+          : await fetchPages({}, progressive ? publishRows : undefined);
       }
 
       if (!cancelled) {
