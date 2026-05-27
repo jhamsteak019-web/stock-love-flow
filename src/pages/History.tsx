@@ -724,6 +724,18 @@ const History = () => {
         link: getHistoryNotificationLink(reportingBatch, 'editRelease'),
       }));
 
+      const { error: reporterNotificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: user.id,
+          title: 'Report Submitted',
+          message: `${allocationLabel} was sent to Admin and Assistant for checking.`,
+          type: 'info',
+          link: getHistoryNotificationLink(reportingBatch, 'viewRelease'),
+          created_by: user.id,
+        });
+      if (reporterNotificationError) throw reporterNotificationError;
+
       setReportingBatch(null);
       setReportNotes('');
       refetchHistory(true);
