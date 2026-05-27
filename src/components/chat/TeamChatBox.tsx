@@ -30,6 +30,8 @@ import { toast } from 'sonner';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
+const CHAT_TIMESTAMP_FORMAT = 'MMM d, yyyy h:mm a';
+
 // Notification sound using Web Audio API
 const playNotificationSound = () => {
   try {
@@ -643,14 +645,14 @@ export const TeamChatBox = () => {
                       isOwnMessage(msg.user_id) && "items-end"
                     )}>
                       <div className={cn(
-                        "flex items-center gap-2 mb-0.5",
+                        "flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-0.5",
                         isOwnMessage(msg.user_id) && "flex-row-reverse justify-start"
                       )}>
                         <span className="text-xs font-medium truncate">
                           {msg.profiles?.full_name || msg.profiles?.email?.split('@')[0]}
                         </span>
-                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                          {format(new Date(msg.created_at), 'h:mm a')}
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0 whitespace-nowrap">
+                          {format(new Date(msg.created_at), CHAT_TIMESTAMP_FORMAT)}
                         </span>
                         <Button
                           variant="ghost"

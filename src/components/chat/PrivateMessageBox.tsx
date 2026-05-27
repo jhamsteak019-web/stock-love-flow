@@ -27,6 +27,8 @@ import { toast } from 'sonner';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
+const CHAT_TIMESTAMP_FORMAT = 'MMM d, yyyy h:mm a';
+
 interface PrivateMessage {
   id: string;
   sender_id: string;
@@ -420,10 +422,10 @@ export const PrivateMessageBox = ({ isOpen, onClose }: PrivateMessageBoxProps) =
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <p className="font-medium text-sm truncate">{conv.partnerName}</p>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(conv.lastMessageTime), 'HH:mm')}
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {format(new Date(conv.lastMessageTime), CHAT_TIMESTAMP_FORMAT)}
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{conv.lastMessage}</p>
@@ -555,7 +557,7 @@ export const PrivateMessageBox = ({ isOpen, onClose }: PrivateMessageBoxProps) =
                             "text-xs",
                             isOwnMessage(msg.sender_id) ? "text-primary-foreground/70" : "text-muted-foreground"
                           )}>
-                            {format(new Date(msg.created_at), 'HH:mm')}
+                            {format(new Date(msg.created_at), CHAT_TIMESTAMP_FORMAT)}
                           </span>
                           {isOwnMessage(msg.sender_id) && (
                             msg.is_read ? (
