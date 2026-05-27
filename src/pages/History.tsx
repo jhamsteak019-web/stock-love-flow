@@ -34,6 +34,7 @@ import {
   getStockReleaseGroupKey,
   getStockReleaseQty,
   isEmptyPendingHistoryRow,
+  isImportedStockReleaseProductRow,
 } from '@/lib/stockReleaseDedupe';
 import {
   AlertDialog,
@@ -179,8 +180,7 @@ const History = () => {
   const canExport = userRole !== 'uploader';
 
   const hasAllocationBillDetails = useCallback((group: GroupedRelease) => {
-    const amount = Number(group.amount ?? 0);
-    return group.totalBoxes > 0 || group.totalQty > 0 || amount > 0;
+    return group.items.some(isImportedStockReleaseProductRow);
   }, []);
 
   const openAllocationBill = useCallback((group: GroupedRelease) => {
