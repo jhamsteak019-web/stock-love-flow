@@ -178,9 +178,15 @@ const History = () => {
   const canDelete = isAdmin; // Only admin can delete
   const canExport = userRole !== 'uploader';
 
-  const openAllocationBill = useCallback((group: GroupedRelease) => {
-    setSelectedBatch(group);
+  const hasAllocationBillDetails = useCallback((group: GroupedRelease) => {
+    const amount = Number(group.amount ?? 0);
+    return group.totalBoxes > 0 || group.totalQty > 0 || amount > 0;
   }, []);
+
+  const openAllocationBill = useCallback((group: GroupedRelease) => {
+    if (!hasAllocationBillDetails(group)) return;
+    setSelectedBatch(group);
+  }, [hasAllocationBillDetails]);
 
   const formatAmount = useCallback((value: number | null | undefined) => {
     if (value === null || value === undefined) return '-';
@@ -827,10 +833,16 @@ const History = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedReleases.map((group, index) => (
+                  paginatedReleases.map((group, index) => {
+                    const canOpenBill = hasAllocationBillDetails(group);
+
+                    return (
                     <TableRow 
                       key={group.batch_id} 
-                      className="cursor-pointer transition-colors hover:bg-muted/50" 
+                      className={cn(
+                        "transition-colors hover:bg-muted/50",
+                        canOpenBill ? "cursor-pointer" : "cursor-default"
+                      )}
                       onClick={() => openAllocationBill(group)}
                     >
                       {isColumnVisible('allocation') && (
@@ -847,7 +859,13 @@ const History = () => {
                             </div>
                             <button
                               type="button"
-                              className="min-w-0 truncate text-left font-mono underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+                              disabled={!canOpenBill}
+                              className={cn(
+                                "min-w-0 truncate text-left font-mono rounded-sm",
+                                canOpenBill
+                                  ? "underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                  : "cursor-default"
+                              )}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openAllocationBill(group);
@@ -904,6 +922,7 @@ const History = () => {
                             size="icon"
                             onClick={() => openAllocationBill(group)}
                             title="View allocation bill"
+                            disabled={!canOpenBill}
                             className="h-7 w-7"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -958,7 +977,8 @@ const History = () => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
