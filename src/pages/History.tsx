@@ -649,8 +649,8 @@ const History = () => {
   const notifyReportersAfterFix = useCallback(async (group: GroupedRelease) => {
     const allocationLabel = getGroupLabel(group);
     await notifyUsersByRoles(REPORTER_NOTIFICATION_ROLES, () => ({
-      title: 'History Record Updated',
-      message: `${allocationLabel} has been edited/fixed by Admin or Assistant.`,
+      title: 'Discrepancy Resolved',
+      message: `${allocationLabel} has been resolved by Admin or Assistant.`,
       type: 'success',
       link: getHistoryNotificationLink(group, 'viewRelease'),
     }));
@@ -725,18 +725,6 @@ const History = () => {
         type: 'warning',
         link: getHistoryNotificationLink(reportingBatch, 'editRelease'),
       }));
-
-      const { error: reporterNotificationError } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          title: 'Report Submitted',
-          message: `${allocationLabel} was sent to Admin and Assistant for checking.`,
-          type: 'info',
-          link: getHistoryNotificationLink(reportingBatch, 'viewRelease'),
-          created_by: user.id,
-        });
-      if (reporterNotificationError) throw reporterNotificationError;
 
       setReportingBatch(null);
       setReportNotes('');

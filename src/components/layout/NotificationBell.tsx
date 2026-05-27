@@ -54,9 +54,11 @@ export const NotificationBell = () => {
   const [discrepancies, setDiscrepancies] = useState<DiscrepancyPreview[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
+  const canViewDiscrepancyReports = userRole === 'admin' || userRole === 'assistant';
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const unreadRegularCount = notifications.filter(n => !n.is_read && n.title !== 'History Issue Reported').length;
-  const badgeCount = discrepancyCount + unreadRegularCount;
+  const activeDiscrepancyCount = canViewDiscrepancyReports ? discrepancyCount : 0;
+  const badgeCount = activeDiscrepancyCount + unreadRegularCount;
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -76,6 +78,11 @@ export const NotificationBell = () => {
 
   const fetchDiscrepancyReports = useCallback(async () => {
     if (!user?.id) return;
+    if (!canViewDiscrepancyReports) {
+      setDiscrepancyCount(0);
+      setDiscrepancies([]);
+      return;
+    }
 
     let query = supabase
       .from('discrepancies')
@@ -94,7 +101,7 @@ export const NotificationBell = () => {
       setDiscrepancyCount(count || 0);
       setDiscrepancies((data || []) as DiscrepancyPreview[]);
     }
-  }, [selectedBranch?.id, user?.id]);
+  }, [canViewDiscrepancyReports, selectedBranch?.id, user?.id]);
 
   // Mark notification as read
   const markAsRead = async (id: string) => {
@@ -230,14 +237,14 @@ export const NotificationBell = () => {
           </div>
         </div>
         <ScrollArea className="h-[300px]">
-          {notifications.length === 0 && discrepancyCount === 0 ? (
+          {notifications.length === 0 && activeDiscrepancyCount === 0 ? (
             <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
               <Bell className="h-8 w-8 mb-2 opacity-50" />
               <p className="text-sm">No notifications</p>
             </div>
           ) : (
             <div className="divide-y">
-              {discrepancyCount > 0 && (
+              {canViewDiscrepancyReports && discrepancyCount > 0 && (
                 <div className="bg-destructive/5">
                   <div
                     className="p-3 cursor-pointer hover:bg-destructive/10 transition-colors"

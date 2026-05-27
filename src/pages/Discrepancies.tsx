@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +20,9 @@ import { exportToExcel } from '@/lib/excelExport';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { notifyDiscrepanciesChanged } from '@/lib/discrepancyEvents';
+import type { UserRole } from '@/types/inventory';
+
+const REPORTER_NOTIFICATION_ROLES: UserRole[] = ['staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder'];
 
 interface Discrepancy {
   id: string;
@@ -55,8 +58,42 @@ const Discrepancies = () => {
   const [monthFilter, setMonthFilter] = useState<string>('all');
 
   const isAdmin = userRole === 'admin';
+  const isAssistant = userRole === 'assistant';
   const canEdit = ['admin', 'staff', 'assistant', 'encoder'].includes(userRole || '');
   const canDelete = isAdmin;
+  const canNotifyReporterRoles = isAdmin || isAssistant;
+
+  const notifyReporterRolesAfterResolve = useCallback(async (item: Discrepancy) => {
+    const { data: recipients, error } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', REPORTER_NOTIFICATION_ROLES);
+
+    if (error) throw error;
+
+    const recipientIds = Array.from(
+      new Set((recipients || [])
+        .map(recipient => recipient.user_id)
+        .filter((userId): userId is string => Boolean(userId) && userId !== user?.id))
+    );
+
+    if (recipientIds.length === 0) return;
+
+    const allocationLabel = item.allocation_bill || item.batch_id?.slice(0, 8).toUpperCase() || 'Discrepancy';
+    const destinationLabel = item.destination ? ` - ${item.destination}` : '';
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert(recipientIds.map(userId => ({
+        user_id: userId,
+        title: 'Discrepancy Resolved',
+        message: `${allocationLabel}${destinationLabel} has been resolved by Admin or Assistant.`,
+        type: 'success',
+        link: '/discrepancies',
+        created_by: user?.id ?? null,
+      })));
+
+    if (notificationError) throw notificationError;
+  }, [user?.id]);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['discrepancies', selectedBranch?.id],
@@ -104,9 +141,17 @@ const Discrepancies = () => {
       const { error } = await supabase.from('discrepancies').update(rest).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['discrepancies'] });
       notifyDiscrepanciesChanged();
+      if (canNotifyReporterRoles && variables.resolution_status === 'resolved' && editing?.id === variables.id && editing.resolution_status !== 'resolved') {
+        try {
+          await notifyReporterRolesAfterResolve({ ...editing, ...variables });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to notify reporter roles';
+          toast({ title: 'Notification Error', description: message, variant: 'destructive' });
+        }
+      }
       toast({ title: 'Updated', description: 'Discrepancy saved' });
       setEditing(null);
     },
