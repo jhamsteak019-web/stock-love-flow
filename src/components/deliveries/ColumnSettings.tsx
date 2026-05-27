@@ -23,9 +23,10 @@ interface ColumnSettingsProps {
   columns: ColumnConfig[];
   onColumnChange: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
+  allowWidthSettings?: boolean;
 }
 
-const ColumnSettings = ({ columns, onColumnChange, defaultColumns }: ColumnSettingsProps) => {
+const ColumnSettings = ({ columns, onColumnChange, defaultColumns, allowWidthSettings = true }: ColumnSettingsProps) => {
   const [open, setOpen] = useState(false);
 
   const handleVisibilityChange = (key: ColumnKey, visible: boolean) => {
@@ -89,35 +90,39 @@ const ColumnSettings = ({ columns, onColumnChange, defaultColumns }: ColumnSetti
         
         <ScrollArea className="max-h-[400px]">
           <div className="p-4 space-y-4">
-            {/* Column Widths Section */}
-            <div>
-              <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Column Widths
-              </h5>
-              <div className="space-y-4">
-                {columns.filter(col => col.visible && col.key !== 'photo').map(col => (
-                  <div key={col.key} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">{col.label}</Label>
-                      <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">{col.width}px</span>
-                    </div>
-                    <Slider
-                      value={[col.width]}
-                      onValueChange={([value]) => handleWidthChange(col.key, value)}
-                      min={col.minWidth}
-                      max={col.maxWidth}
-                      step={5}
-                      className="w-full"
-                    />
+            {allowWidthSettings && (
+              <>
+                {/* Column Widths Section */}
+                <div>
+                  <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Column Widths
+                  </h5>
+                  <div className="space-y-4">
+                    {columns.filter(col => col.visible && col.key !== 'photo').map(col => (
+                      <div key={col.key} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">{col.label}</Label>
+                          <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded">{col.width}px</span>
+                        </div>
+                        <Slider
+                          value={[col.width]}
+                          onValueChange={([value]) => handleWidthChange(col.key, value)}
+                          min={col.minWidth}
+                          max={col.maxWidth}
+                          step={5}
+                          className="w-full"
+                        />
+                      </div>
+                    ))}
+                    {columns.filter(col => col.visible && col.key !== 'photo').length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-2">No visible columns</p>
+                    )}
                   </div>
-                ))}
-                {columns.filter(col => col.visible && col.key !== 'photo').length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-2">No visible columns</p>
-                )}
-              </div>
-            </div>
+                </div>
 
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             {/* Visibility Section */}
             <div>
