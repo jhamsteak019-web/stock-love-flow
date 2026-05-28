@@ -47,12 +47,22 @@ const formatDateTime = (value: string | null | undefined) => {
   return format(new Date(value), 'MMM dd, yyyy h:mm a');
 };
 
+const blankProfileForm = {
+  fullName: '',
+  email: '',
+  position: '',
+  telephone: '',
+  ipAddress: '',
+  anyDesk: '',
+  printer: '',
+};
+
 const Profile = () => {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [fullName, setFullName] = useState('');
+  const [profileForm, setProfileForm] = useState(blankProfileForm);
 
   const profileQuery = useQuery({
     queryKey: ['current-profile-page', user?.id],
@@ -72,7 +82,14 @@ const Profile = () => {
   });
 
   const profile = profileQuery.data;
+  const userMetadata = user?.user_metadata || {};
+  const position = typeof userMetadata.position === 'string' ? userMetadata.position : '';
+  const telephone = typeof userMetadata.telephone === 'string' ? userMetadata.telephone : '';
+  const ipAddress = typeof userMetadata.ip_address === 'string' ? userMetadata.ip_address : '';
+  const anyDesk = typeof userMetadata.anydesk === 'string' ? userMetadata.anydesk : '';
+  const printer = typeof userMetadata.printer === 'string' ? userMetadata.printer : '';
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const displayEmail = profile?.email || user?.email || '';
   const initials = useMemo(() => {
     return displayName
       .split(/\s+/)
@@ -84,28 +101,59 @@ const Profile = () => {
   }, [displayName]);
 
   useEffect(() => {
-    setFullName(displayName);
-  }, [displayName]);
+    setProfileForm({
+      fullName: displayName,
+      email: displayEmail,
+      position,
+      telephone,
+      ipAddress,
+      anyDesk,
+      printer,
+    });
+  }, [anyDesk, displayEmail, displayName, ipAddress, position, printer, telephone]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('User is not logged in');
-      const nextName = fullName.trim();
+      const nextName = profileForm.fullName.trim();
+      const nextEmail = profileForm.email.trim();
       if (!nextName) throw new Error('Full name is required');
+      if (!nextEmail) throw new Error('Email is required');
+
+      const nextMetadata = {
+        ...user.user_metadata,
+        full_name: nextName,
+        position: profileForm.position.trim(),
+        telephone: profileForm.telephone.trim(),
+        ip_address: profileForm.ipAddress.trim(),
+        anydesk: profileForm.anyDesk.trim(),
+        printer: profileForm.printer.trim(),
+      };
+
+      const authUpdates: {
+        email?: string;
+        data: typeof nextMetadata;
+      } = {
+        data: nextMetadata,
+      };
+
+      if (nextEmail !== user.email) {
+        authUpdates.email = nextEmail;
+      }
+
+      const { error: authError } = await supabase.auth.updateUser(authUpdates);
+      if (authError) throw authError;
 
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: nextName,
+          email: nextEmail,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
       if (error) throw error;
-
-      await supabase.auth.updateUser({
-        data: { full_name: nextName },
-      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['current-profile-page'] });
@@ -134,6 +182,11 @@ const Profile = () => {
       icon: Building2,
     },
     {
+      label: 'Position',
+      value: position || 'N/A',
+      icon: Briefcase,
+    },
+    {
       label: 'Last Activity',
       value: formatDateTime(user?.last_sign_in_at),
       icon: Clock3,
@@ -145,7 +198,7 @@ const Profile = () => {
     },
     {
       label: 'Account Email',
-      value: profile?.email || user?.email || 'N/A',
+      value: displayEmail || 'N/A',
       icon: Mail,
     },
   ];
@@ -180,7 +233,7 @@ const Profile = () => {
                 </AvatarFallback>
               </Avatar>
               <h3 className="mt-5 text-xl font-semibold">{displayName}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{profile?.email || user?.email}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{displayEmail}</p>
               <Badge variant="outline" className="mt-3">
                 {getRoleDisplayName(userRole)}
               </Badge>
@@ -223,28 +276,28 @@ const Profile = () => {
           <CardContent className="p-5">
             <Phone className="mb-4 h-5 w-5 text-muted-foreground" />
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Telephone</p>
-            <p className="mt-2 text-lg font-semibold">N/A</p>
+            <p className="mt-2 text-lg font-semibold">{telephone || 'N/A'}</p>
           </CardContent>
         </Card>
         <Card className="rounded-lg">
           <CardContent className="p-5">
             <Network className="mb-4 h-5 w-5 text-muted-foreground" />
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">IP Address</p>
-            <p className="mt-2 text-lg font-semibold">N/A</p>
+            <p className="mt-2 text-lg font-semibold">{ipAddress || 'N/A'}</p>
           </CardContent>
         </Card>
         <Card className="rounded-lg">
           <CardContent className="p-5">
             <Monitor className="mb-4 h-5 w-5 text-muted-foreground" />
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">AnyDesk</p>
-            <p className="mt-2 text-lg font-semibold">N/A</p>
+            <p className="mt-2 text-lg font-semibold">{anyDesk || 'N/A'}</p>
           </CardContent>
         </Card>
         <Card className="rounded-lg">
           <CardContent className="p-5">
             <Briefcase className="mb-4 h-5 w-5 text-muted-foreground" />
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Assigned Branch</p>
-            <p className="mt-2 text-lg font-semibold">{profile?.branches?.code || 'N/A'}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Printer</p>
+            <p className="mt-2 text-lg font-semibold">{printer || 'N/A'}</p>
           </CardContent>
         </Card>
       </div>
@@ -258,19 +311,82 @@ const Profile = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="full-name">Full Name</Label>
-            <Input id="full-name" value={fullName} onChange={(event) => setFullName(event.target.value)} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="full-name">Full Name</Label>
+              <Input
+                id="full-name"
+                value={profileForm.fullName}
+                onChange={(event) => setProfileForm((current) => ({ ...current, fullName: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-email">Email</Label>
+              <Input
+                id="profile-email"
+                type="email"
+                value={profileForm.email}
+                onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-position">Position</Label>
+              <Input
+                id="profile-position"
+                value={profileForm.position}
+                onChange={(event) => setProfileForm((current) => ({ ...current, position: event.target.value }))}
+                placeholder="Position"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-telephone">Telephone</Label>
+              <Input
+                id="profile-telephone"
+                value={profileForm.telephone}
+                onChange={(event) => setProfileForm((current) => ({ ...current, telephone: event.target.value }))}
+                placeholder="Telephone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-ip-address">IP Address</Label>
+              <Input
+                id="profile-ip-address"
+                value={profileForm.ipAddress}
+                onChange={(event) => setProfileForm((current) => ({ ...current, ipAddress: event.target.value }))}
+                placeholder="IP address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-anydesk">AnyDesk</Label>
+              <Input
+                id="profile-anydesk"
+                value={profileForm.anyDesk}
+                onChange={(event) => setProfileForm((current) => ({ ...current, anyDesk: event.target.value }))}
+                placeholder="AnyDesk"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="profile-printer">Printer</Label>
+              <Input
+                id="profile-printer"
+                value={profileForm.printer}
+                onChange={(event) => setProfileForm((current) => ({ ...current, printer: event.target.value }))}
+                placeholder="Printer"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => updateProfileMutation.mutate()} disabled={updateProfileMutation.isPending || !fullName.trim()}>
+            <Button
+              onClick={() => updateProfileMutation.mutate()}
+              disabled={updateProfileMutation.isPending || !profileForm.fullName.trim() || !profileForm.email.trim()}
+            >
               {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
