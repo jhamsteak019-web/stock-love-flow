@@ -316,7 +316,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   <button
                     onClick={signOut}
                     className={cn(
-                      "flex w-full items-center rounded-lg text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive",
+                      "flex w-full items-center rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90",
                       isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
                     )}
                   >
@@ -337,7 +337,6 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               <nav className={cn("space-y-1", isCollapsed ? "p-2" : "p-4")}>
                 {filteredNavItems.map((item) => {
                   const isActive = location.pathname === item.to;
-                  const isBlueShortcut = item.to === '/notifications' || item.to === '/profile';
                   const itemBadgeCount = item.to === '/notifications' ? notificationBadgeCount : 0;
                   const navLink = (
                     <NavLink
@@ -345,23 +344,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       to={item.to}
                       onClick={onClose}
                       className={cn(
-                        "relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
+                        "relative flex items-center rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90",
                         isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-                        isBlueShortcut
-                          ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                          : isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        isActive && "ring-1 ring-primary-foreground/35"
                       )}
                     >
                       {item.icon && (
-                        <item.icon
-                          className={cn(
-                            "h-5 w-5 flex-shrink-0",
-                            isActive && (isBlueShortcut ? "text-primary-foreground" : "text-sidebar-primary"),
-                            !isActive && isBlueShortcut && "text-primary-foreground"
-                          )}
-                        />
+                        <item.icon className="h-5 w-5 flex-shrink-0 text-primary-foreground" />
                       )}
                       {!isCollapsed && <span className="flex-1">{item.label}</span>}
                       {!isCollapsed && itemBadgeCount > 0 && (
@@ -401,11 +390,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         <button
                           onClick={() => setIsDMOpen(true)}
                           className={cn(
-                            "w-full flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 px-2 py-2.5",
-                            "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground relative"
+                            "relative flex w-full items-center justify-center rounded-lg bg-primary px-2 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
                           )}
                         >
-                          <Mail className="h-5 w-5 flex-shrink-0" />
+                          <Mail className="h-5 w-5 flex-shrink-0 text-primary-foreground" />
                           {unreadDMCount > 0 && (
                             <Badge 
                               variant="destructive" 
@@ -424,11 +412,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <button
                       onClick={() => setIsDMOpen(true)}
                       className={cn(
-                        "w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200 px-3 py-2.5",
-                        "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        "flex w-full items-center gap-3 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
                       )}
                     >
-                      <Mail className="h-5 w-5 flex-shrink-0" />
+                      <Mail className="h-5 w-5 flex-shrink-0 text-primary-foreground" />
                       <span className="flex-1 text-left">Direct Messages</span>
                       {unreadDMCount > 0 && (
                         <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center text-xs">
@@ -475,10 +462,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 <NavLink
                   to="/profile"
                   onClick={onClose}
-                  className="block rounded-lg border border-blue-400/30 bg-blue-500/15 p-3 text-blue-100 transition-colors hover:bg-blue-500/25"
+                  className="block rounded-lg bg-primary p-3 text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                 >
                   <p className="text-sm font-medium truncate">{user?.email}</p>
-                  <p className="text-xs text-blue-200/80">{getRoleDisplayName(userRole)}</p>
+                  <p className="text-xs text-primary-foreground/80">{getRoleDisplayName(userRole)}</p>
                 </NavLink>
               )}
             </div>
