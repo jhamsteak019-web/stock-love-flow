@@ -38,12 +38,14 @@ import {
   UserRound
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { getRoleDisplayName } from '@/lib/roleUtils';
 import { PrivateMessageBox } from '@/components/chat/PrivateMessageBox';
+import { canViewDiscrepancyNotifications, canViewNotifications } from '@/lib/notificationUtils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -52,6 +54,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { userRole, signOut, user } = useAuth();
+  const { selectedBranch } = useBranch();
   const location = useLocation();
   const isAdmin = userRole === 'admin';
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -75,6 +78,42 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       return count || 0;
     },
     enabled: !!user?.id,
+    refetchInterval: 10000,
+  });
+
+  const { data: notificationBadgeCount = 0 } = useQuery({
+    queryKey: ['sidebar-notification-count', user?.id, userRole, selectedBranch?.id],
+    queryFn: async () => {
+      if (!user?.id || !canViewNotifications(userRole)) return 0;
+
+      const { data: notifications } = await supabase
+        .from('notifications')
+        .select('id, is_read, title')
+        .eq('user_id', user.id);
+
+      const unreadRegularCount = (notifications || []).filter(
+        (notification) => !notification.is_read && notification.title !== 'History Issue Reported'
+      ).length;
+
+      let discrepancyCount = 0;
+      if (canViewDiscrepancyNotifications(userRole)) {
+        let query = supabase
+          .from('discrepancies')
+          .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .or('resolution_status.is.null,resolution_status.neq.resolved');
+
+        if (selectedBranch?.id) {
+          query = query.eq('branch_id', selectedBranch.id);
+        }
+
+        const { count } = await query;
+        discrepancyCount = count || 0;
+      }
+
+      return unreadRegularCount + discrepancyCount;
+    },
+    enabled: !!user?.id && canViewNotifications(userRole),
     refetchInterval: 10000,
   });
 
@@ -298,21 +337,45 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               <nav className={cn("space-y-1", isCollapsed ? "p-2" : "p-4")}>
                 {filteredNavItems.map((item) => {
                   const isActive = location.pathname === item.to;
+                  const isBlueShortcut = item.to === '/notifications' || item.to === '/profile';
+                  const itemBadgeCount = item.to === '/notifications' ? notificationBadgeCount : 0;
                   const navLink = (
                     <NavLink
                       key={item.to}
                       to={item.to}
                       onClick={onClose}
                       className={cn(
-                        "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
+                        "relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                         isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-                        isActive
+                        isActive && isBlueShortcut
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : isActive
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : isBlueShortcut
+                          ? "text-blue-300 hover:bg-blue-500/15 hover:text-blue-100"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                       )}
                     >
-                      {item.icon && <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />}
-                      {!isCollapsed && item.label}
+                      {item.icon && (
+                        <item.icon
+                          className={cn(
+                            "h-5 w-5 flex-shrink-0",
+                            isActive && (isBlueShortcut ? "text-primary-foreground" : "text-sidebar-primary"),
+                            !isActive && isBlueShortcut && "text-blue-300"
+                          )}
+                        />
+                      )}
+                      {!isCollapsed && <span className="flex-1">{item.label}</span>}
+                      {!isCollapsed && itemBadgeCount > 0 && (
+                        <Badge className="h-5 min-w-5 justify-center bg-primary px-1.5 text-[11px] text-primary-foreground">
+                          {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
+                        </Badge>
+                      )}
+                      {isCollapsed && itemBadgeCount > 0 && (
+                        <Badge className="absolute -right-1 -top-1 h-4 min-w-4 justify-center bg-primary px-1 text-[10px] text-primary-foreground">
+                          {itemBadgeCount > 9 ? '9+' : itemBadgeCount}
+                        </Badge>
+                      )}
                     </NavLink>
                   );
 
@@ -414,10 +477,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 <NavLink
                   to="/profile"
                   onClick={onClose}
-                  className="block rounded-lg bg-sidebar-accent/50 p-3 transition-colors hover:bg-sidebar-accent"
+                  className="block rounded-lg border border-blue-400/30 bg-blue-500/15 p-3 text-blue-100 transition-colors hover:bg-blue-500/25"
                 >
                   <p className="text-sm font-medium truncate">{user?.email}</p>
-                  <p className="text-xs text-sidebar-foreground/60">{getRoleDisplayName(userRole)}</p>
+                  <p className="text-xs text-blue-200/80">{getRoleDisplayName(userRole)}</p>
                 </NavLink>
               )}
             </div>

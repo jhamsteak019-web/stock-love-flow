@@ -254,12 +254,13 @@ const Notifications = () => {
     <div className="mx-auto w-full max-w-[1500px] space-y-6">
       <div className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-foreground text-background">
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
             <Bell className="h-7 w-7" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-semibold tracking-tight">Notifications</h2>
+              <Badge className="bg-primary text-primary-foreground hover:bg-primary">{totalSignals} total</Badge>
               {unreadCount > 0 && <Badge variant="secondary">{unreadCount} new</Badge>}
             </div>
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">

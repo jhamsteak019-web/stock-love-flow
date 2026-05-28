@@ -153,7 +153,7 @@ const Profile = () => {
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-6">
       <div className="flex items-center gap-4 border-b pb-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-foreground text-background">
+        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
           <UserRound className="h-7 w-7" />
         </div>
         <div>
@@ -175,7 +175,7 @@ const Profile = () => {
           <CardContent className="p-6">
             <div className="flex flex-col items-center text-center">
               <Avatar className="h-28 w-28 rounded-2xl">
-                <AvatarFallback className="rounded-2xl bg-foreground text-3xl font-semibold text-background">
+                <AvatarFallback className="rounded-2xl bg-primary text-3xl font-semibold text-primary-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
