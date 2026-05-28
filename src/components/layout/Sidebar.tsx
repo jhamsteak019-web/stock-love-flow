@@ -290,8 +290,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               isCollapsed ? "justify-center px-2" : "justify-between px-4"
             )}>
             <div className={cn("flex items-center gap-3", isCollapsed && "hidden")}>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 shadow-lg">
-                  <Package className="h-5 w-5 text-sidebar-primary-foreground" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-accent shadow-sm">
+                  <Package className="h-5 w-5 text-sidebar-foreground" />
                 </div>
                 <div>
                   <h1 className="text-sm font-bold tracking-tight">MONITORING DELIVERY</h1>
@@ -316,7 +316,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   <button
                     onClick={signOut}
                     className={cn(
-                      "flex w-full items-center rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90",
+                      "flex w-full items-center rounded-lg text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive",
                       isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
                     )}
                   >
@@ -344,22 +344,24 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       to={item.to}
                       onClick={onClose}
                       className={cn(
-                        "relative flex items-center rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90",
+                        "relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                         isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-                        isActive && "ring-1 ring-primary-foreground/35"
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                       )}
                     >
                       {item.icon && (
-                        <item.icon className="h-5 w-5 flex-shrink-0 text-primary-foreground" />
+                        <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
                       )}
                       {!isCollapsed && <span className="flex-1">{item.label}</span>}
                       {!isCollapsed && itemBadgeCount > 0 && (
-                        <Badge className="h-5 min-w-5 justify-center bg-primary-foreground px-1.5 text-[11px] text-primary hover:bg-primary-foreground">
+                        <Badge variant="destructive" className="h-5 min-w-5 justify-center px-1.5 text-[11px]">
                           {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
                         </Badge>
                       )}
                       {isCollapsed && itemBadgeCount > 0 && (
-                        <Badge className="absolute -right-1 -top-1 h-4 min-w-4 justify-center bg-primary-foreground px-1 text-[10px] text-primary hover:bg-primary-foreground">
+                        <Badge variant="destructive" className="absolute -right-1 -top-1 h-4 min-w-4 justify-center px-1 text-[10px]">
                           {itemBadgeCount > 9 ? '9+' : itemBadgeCount}
                         </Badge>
                       )}
@@ -390,10 +392,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         <button
                           onClick={() => setIsDMOpen(true)}
                           className={cn(
-                            "relative flex w-full items-center justify-center rounded-lg bg-primary px-2 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
+                            "relative flex w-full items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all duration-200 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                           )}
                         >
-                          <Mail className="h-5 w-5 flex-shrink-0 text-primary-foreground" />
+                          <Mail className="h-5 w-5 flex-shrink-0" />
                           {unreadDMCount > 0 && (
                             <Badge 
                               variant="destructive" 
@@ -412,10 +414,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <button
                       onClick={() => setIsDMOpen(true)}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90"
+                        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-all duration-200 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                       )}
                     >
-                      <Mail className="h-5 w-5 flex-shrink-0 text-primary-foreground" />
+                      <Mail className="h-5 w-5 flex-shrink-0" />
                       <span className="flex-1 text-left">Direct Messages</span>
                       {unreadDMCount > 0 && (
                         <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center text-xs">
@@ -433,7 +435,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className={cn(
-                    "rounded-lg bg-primary text-primary-foreground",
+                    "rounded-lg bg-sidebar-accent/60 text-sidebar-foreground",
                     isCollapsed ? "p-2 flex justify-center" : "px-3 py-2"
                   )}>
                     {isCollapsed ? (
@@ -442,7 +444,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       <p className="text-sm font-medium">Date & Time</p>
                     )}
                     {!isCollapsed && (
-                      <p className="text-xs text-primary-foreground/80">
+                      <p className="text-xs text-sidebar-foreground/60">
                         {format(currentDateTime, 'MMMM dd, yyyy hh:mm:ss a')}
                       </p>
                     )}
@@ -462,10 +464,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 <NavLink
                   to="/profile"
                   onClick={onClose}
-                  className="block rounded-lg bg-primary p-3 text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                  className="block rounded-lg bg-sidebar-accent/50 p-3 transition-colors hover:bg-sidebar-accent"
                 >
                   <p className="text-sm font-medium truncate">{user?.email}</p>
-                  <p className="text-xs text-primary-foreground/80">{getRoleDisplayName(userRole)}</p>
+                  <p className="text-xs text-sidebar-foreground/60">{getRoleDisplayName(userRole)}</p>
                 </NavLink>
               )}
             </div>
