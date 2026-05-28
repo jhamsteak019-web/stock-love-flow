@@ -33,7 +33,7 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'dateOut' as ColumnKey, label: 'Date Out Warehouse', visible: true, width: 130, minWidth: 100, maxWidth: 200 },
 ];
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
@@ -665,7 +665,7 @@ const ReleaseStock = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-[min(96vw,1600px)] mx-auto space-y-6 px-2">
       {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
@@ -716,7 +716,7 @@ const ReleaseStock = () => {
                     placeholder="Search..."
                     value={sheetNoSearch}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="h-8 w-[160px] pl-8 pr-8 text-sm"
+                    className="h-9 w-[260px] pl-8 pr-8 text-sm"
                   />
                   {sheetNoSearch && (
                     <Button
@@ -736,8 +736,8 @@ const ReleaseStock = () => {
               </div>
             </div>
             <div className="rounded-lg border overflow-hidden">
-              <div className="max-h-[400px] overflow-y-auto overflow-x-scroll scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                <Table className="min-w-[1200px]">
+              <div className="max-h-[68vh] min-h-[520px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                <Table className="min-w-[1500px]">
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead className="w-10 px-5">
