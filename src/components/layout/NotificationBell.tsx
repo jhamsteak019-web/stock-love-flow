@@ -208,80 +208,80 @@ export const NotificationBell = () => {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button variant="ghost" size="icon" className="relative h-11 w-11">
+          <Bell className="h-6 w-6" />
           {badgeCount > 0 && (
             <Badge 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 hover:bg-red-500"
+              className="absolute -top-1.5 -right-1.5 h-6 min-w-6 flex items-center justify-center px-1 text-xs bg-red-500 hover:bg-red-500"
             >
               {badgeCount > 9 ? '9+' : badgeCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-3 border-b">
-          <h4 className="font-semibold">Notifications</h4>
+      <PopoverContent className="w-96 max-w-[calc(100vw-1rem)] p-0" align="end">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h4 className="font-semibold text-base">Notifications</h4>
           <div className="flex gap-1">
             {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllAsRead}>
+              <Button variant="ghost" size="sm" className="text-xs h-8" onClick={markAllAsRead}>
                 Mark all read
               </Button>
             )}
             {notifications.length > 0 && (
-              <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive" onClick={clearAll}>
+              <Button variant="ghost" size="sm" className="text-xs h-8 text-destructive" onClick={clearAll}>
                 Clear all
               </Button>
             )}
           </div>
         </div>
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="h-[420px]">
           {notifications.length === 0 && activeDiscrepancyCount === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-              <Bell className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm">No notifications</p>
+            <div className="flex flex-col items-center justify-center h-[260px] text-muted-foreground">
+              <Bell className="h-10 w-10 mb-3 opacity-50" />
+              <p className="text-base">No notifications</p>
             </div>
           ) : (
             <div className="divide-y">
               {canViewDiscrepancyReports && discrepancyCount > 0 && (
                 <div className="bg-destructive/5">
                   <div
-                    className="p-3 cursor-pointer hover:bg-destructive/10 transition-colors"
+                    className="p-4 cursor-pointer hover:bg-destructive/10 transition-colors"
                     onClick={() => {
                       navigate('/discrepancies');
                       setIsOpen(false);
                     }}
                   >
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-destructive">
+                        <p className="text-base font-semibold text-destructive">
                           {discrepancyCount} active discrepancy report{discrepancyCount > 1 ? 's' : ''}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-sm text-muted-foreground mt-1">
                           Reports are shown below. Resolved reports are removed from this count.
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="px-3 pb-3 space-y-1.5">
+                  <div className="px-4 pb-4 space-y-2">
                     {discrepancies.map((item) => (
                       <button
                         key={item.id}
                         type="button"
-                        className="w-full rounded-md border bg-background/80 p-2 text-left hover:bg-background transition-colors"
+                        className="w-full rounded-md border bg-background/80 p-3 text-left hover:bg-background transition-colors"
                         onClick={() => {
                           navigate('/discrepancies');
                           setIsOpen(false);
                         }}
                       >
-                        <p className="text-xs font-medium truncate">
+                        <p className="text-sm font-medium truncate">
                           {item.allocation_bill || 'No allocation'} {item.destination ? `- ${item.destination}` : ''}
                         </p>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                           {item.discrepancy_notes || 'No discrepancy notes'}
                         </p>
-                        <p className="text-[11px] text-muted-foreground/70 mt-1">
+                        <p className="text-xs text-muted-foreground/70 mt-1.5">
                           {format(new Date(item.created_at), 'MMM d, h:mm a')}
                         </p>
                       </button>
@@ -304,23 +304,23 @@ export const NotificationBell = () => {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
+                  className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
                     !notification.is_read ? 'bg-primary/5' : ''
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-3">
                     {!notification.is_read && (
-                      <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-primary mt-2 flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!notification.is_read ? 'font-medium' : ''}`}>
+                      <p className={`text-base ${!notification.is_read ? 'font-medium' : ''}`}>
                         {notification.title}
                       </p>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">
+                      <p className="text-xs text-muted-foreground/70 mt-1.5">
                         {format(new Date(notification.created_at), 'MMM d, h:mm a')}
                       </p>
                     </div>

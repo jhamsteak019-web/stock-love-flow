@@ -554,16 +554,16 @@ export const TeamChatBox = () => {
       <Button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50",
+          "fixed bottom-7 right-7 h-16 w-16 rounded-full shadow-lg z-50",
           isOpen && "hidden"
         )}
         size="icon"
       >
-        <MessageCircle className="h-6 w-6" />
+        <MessageCircle className="h-7 w-7" />
         {unreadCount > 0 && (
           <Badge 
             variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+            className="absolute -top-1.5 -right-1.5 h-6 min-w-6 px-1 flex items-center justify-center text-xs"
           >
             {unreadCount > 9 ? '9+' : unreadCount}
           </Badge>
@@ -572,38 +572,38 @@ export const TeamChatBox = () => {
 
       {/* Chat Box */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-[380px] h-[500px] bg-background border rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden">
+        <div className="fixed bottom-6 right-6 w-[460px] max-w-[calc(100vw-2rem)] h-[640px] max-h-[calc(100vh-2rem)] bg-background border rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex flex-col border-b bg-primary text-primary-foreground">
-            <div className="flex items-center justify-between px-4 py-2">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
-                <span className="font-semibold">Team Chat</span>
+            <div className="flex items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <MessageCircle className="h-6 w-6" />
+                <span className="text-lg font-semibold">Team Chat</span>
               </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={toggleSound}
-                  className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
+                  className="h-9 w-9 hover:bg-primary-foreground/20 text-primary-foreground"
                   title={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
                 >
-                  {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsOpen(false)}
-                  className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
+                  className="h-9 w-9 hover:bg-primary-foreground/20 text-primary-foreground"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </Button>
               </div>
             </div>
             {/* Branch indicator */}
-            <div className="px-4 pb-2 flex items-center gap-1.5">
-              <Building2 className="h-3 w-3 text-primary-foreground/70" />
-              <span className="text-xs text-primary-foreground/80">
+            <div className="px-5 pb-3 flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary-foreground/70" />
+              <span className="text-sm text-primary-foreground/80">
                 {isAdmin ? (
                   <>All Branches <span className="opacity-60">(Admin)</span></>
                 ) : (
@@ -614,19 +614,19 @@ export const TeamChatBox = () => {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-3 bg-chat-surface">
+          <ScrollArea className="flex-1 p-4 bg-chat-surface">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
-                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+                <div className="animate-spin h-7 w-7 border-2 border-primary border-t-transparent rounded-full" />
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <MessageCircle className="h-12 w-12 mb-2 opacity-50" />
-                <p>No messages yet</p>
+                <MessageCircle className="h-14 w-14 mb-3 opacity-50" />
+                <p className="text-base">No messages yet</p>
                 <p className="text-sm">Start the conversation!</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -635,23 +635,23 @@ export const TeamChatBox = () => {
                       isOwnMessage(msg.user_id) && "flex-row-reverse"
                     )}
                   >
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                      <AvatarFallback className="text-xs bg-primary/10">
+                    <Avatar className="h-9 w-9 flex-shrink-0">
+                      <AvatarFallback className="text-sm bg-primary/10">
                         {getInitials(msg.profiles?.full_name || null, msg.profiles?.email || '')}
                       </AvatarFallback>
                     </Avatar>
                     <div className={cn(
-                      "max-w-[70%] min-w-0",
+                      "max-w-[78%] min-w-0",
                       isOwnMessage(msg.user_id) && "items-end"
                     )}>
                       <div className={cn(
                         "flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-0.5",
                         isOwnMessage(msg.user_id) && "flex-row-reverse justify-start"
                       )}>
-                        <span className="text-xs font-medium truncate">
+                        <span className="text-sm font-medium truncate">
                           {msg.profiles?.full_name || msg.profiles?.email?.split('@')[0]}
                         </span>
-                        <span className="text-[10px] text-muted-foreground flex-shrink-0 whitespace-nowrap">
+                        <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">
                           {format(new Date(msg.created_at), CHAT_TIMESTAMP_FORMAT)}
                         </span>
                         <Button
@@ -706,7 +706,7 @@ export const TeamChatBox = () => {
                       </div>
                       <div
                         className={cn(
-                          "px-3 py-2 rounded-lg text-sm relative break-words whitespace-pre-wrap",
+                          "px-4 py-2.5 rounded-lg text-base relative break-words whitespace-pre-wrap",
                           isOwnMessage(msg.user_id)
                             ? "bg-chat-own text-chat-own-foreground"
                             : "bg-chat-bubble text-chat-bubble-foreground",
@@ -834,7 +834,7 @@ export const TeamChatBox = () => {
           )}
 
           {/* Input */}
-          <div className="p-3 border-t bg-background">
+          <div className="p-4 border-t bg-background">
             <div className="flex items-center gap-2">
               <input
                 type="file"
@@ -846,28 +846,28 @@ export const TeamChatBox = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 flex-shrink-0"
+                className="h-9 w-9 flex-shrink-0"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                <Paperclip className="h-4 w-4" />
+                <Paperclip className="h-5 w-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 flex-shrink-0"
+                className="h-9 w-9 flex-shrink-0"
                 onClick={() => setShowMentions(!showMentions)}
               >
-                <AtSign className="h-4 w-4" />
+                <AtSign className="h-5 w-5" />
               </Button>
               <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 flex-shrink-0"
+                    className="h-9 w-9 flex-shrink-0"
                   >
-                    <Smile className="h-4 w-4" />
+                    <Smile className="h-5 w-5" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent 
@@ -900,16 +900,16 @@ export const TeamChatBox = () => {
                 }}
                 onKeyDown={handleKeyPress}
                 placeholder="Type a message..."
-                className="flex-1"
+                className="h-10 flex-1 text-base"
                 disabled={uploading}
               />
               <Button
                 size="icon"
-                className="h-8 w-8 flex-shrink-0"
+                className="h-10 w-10 flex-shrink-0"
                 onClick={handleSend}
                 disabled={!message.trim() || sendMessage.isPending || uploading}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               </Button>
             </div>
           </div>
