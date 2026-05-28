@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,12 +16,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2, CalendarDays, Users, Trash2, Printer } from 'lucide-react';
+import { Search, RefreshCcw, Upload, X, Eye, ZoomIn, ZoomOut, Check, Clock, AlertTriangle, Store, Building2, CalendarDays, Users, Trash2, Printer, FileText } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 const officePositions = ['Manager', 'Assistant Manager', 'Sales Assistant', 'Stock Merchandising', 'Encoder Inventory', 'Stock Support Event', 'Team Leader'];
+const isImageProof = (value: string) => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(value);
 
 interface RenewalEmployee {
   id: string;
@@ -38,6 +39,8 @@ interface RenewalEmployee {
   renewal_photos: string[] | null;
   id_expired: string | null;
 }
+
+const isActiveRenewalEmployee = (emp: RenewalEmployee) => emp.employment_status?.trim().toLowerCase() !== 'resigned';
 
 const Renewal = () => {
   const { user, userRole } = useAuth();
@@ -80,13 +83,33 @@ const Renewal = () => {
         .select('id, employee_id, full_name, branch, branch_id, category, position, employment_status, date_hired, photo_url, last_renewal_date, renewal_photos, id_expired')
         .is('deleted_at', null)
         .eq('is_active', true)
-        .neq('employment_status', 'Resigned')
         .order('full_name');
 
       if (error) throw error;
-      return (data || []) as RenewalEmployee[];
+      return ((data || []) as RenewalEmployee[]).filter(isActiveRenewalEmployee);
     }
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('renewal-employees-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'employees',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['renewal-employees'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const isOfficePosition = (position: string | null) => {
     if (!position) return false;
@@ -156,7 +179,7 @@ const Renewal = () => {
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (renewalPhotos.length + files.length > 3) {
-      toast({ title: 'Maximum 3 photos allowed', variant: 'destructive' });
+      toast({ title: 'Maximum 3 proof files allowed', variant: 'destructive' });
       return;
     }
     const newPhotos = [...renewalPhotos, ...files].slice(0, 3);
@@ -179,26 +202,31 @@ const Renewal = () => {
   const renewMutation = useMutation({
     mutationFn: async () => {
       if (!selectedEmployee || !newEmployeeId.trim()) throw new Error('Employee ID is required');
-      if (renewalPhotos.length === 0) throw new Error('At least 1 photo is required as proof');
+      if (renewalPhotos.length === 0) throw new Error('At least 1 proof file is required');
       setUploading(true);
       const photoUrls: string[] = [];
       for (const file of renewalPhotos) {
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.name.split('.').pop() || 'bin';
         const fileName = `${selectedEmployee.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('renewal-photos').upload(fileName, file);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from('renewal-photos').getPublicUrl(fileName);
         photoUrls.push(urlData.publicUrl);
       }
+      const updatePayload: Partial<RenewalEmployee> & { updated_at: string } = {
+        employee_id: newEmployeeId.trim(),
+        last_renewal_date: new Date().toISOString().split('T')[0],
+        renewal_photos: photoUrls,
+        updated_at: new Date().toISOString()
+      };
+
+      if (nextExpiryDate) {
+        updatePayload.id_expired = format(nextExpiryDate, 'yyyy-MM-dd');
+      }
+
       const { error } = await supabase
         .from('employees')
-        .update({
-          employee_id: newEmployeeId.trim(),
-          last_renewal_date: new Date().toISOString().split('T')[0],
-          renewal_photos: photoUrls,
-          id_expired: nextExpiryDate ? format(nextExpiryDate, 'yyyy-MM-dd') : null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', selectedEmployee.id);
       if (error) throw error;
       return { employeeName: selectedEmployee.full_name, newId: newEmployeeId };
@@ -353,10 +381,6 @@ const Renewal = () => {
     setTimeout(() => printWindow.print(), 250);
   };
 
-  // All employees for the current tab (to set expiry dates)
-  const allEmployeesForTab = filterByTab(searchFiltered, activeTab);
-
-
   const PaginationControls = ({ currentPage, totalItems, onPageChange }: { currentPage: number; totalItems: number; onPageChange: (p: number) => void }) => {
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
     if (totalPages <= 1) return null;
@@ -478,7 +502,7 @@ const Renewal = () => {
                             )}
                             {emp.renewal_photos && emp.renewal_photos.length > 0 && (
                               <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
-                                <Eye className="h-3 w-3" /> Photos
+                                <Eye className="h-3 w-3" /> Files
                               </Button>
                             )}
                           </div>
@@ -551,10 +575,10 @@ const Renewal = () => {
                       <TableCell>
                         {emp.renewal_photos && emp.renewal_photos.length > 0 ? (
                           <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setViewingEmployee(emp)}>
-                            <Eye className="h-3 w-3" /> {emp.renewal_photos.length} Photo{emp.renewal_photos.length > 1 ? 's' : ''}
+                            <Eye className="h-3 w-3" /> {emp.renewal_photos.length} File{emp.renewal_photos.length > 1 ? 's' : ''}
                           </Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">No photos</span>
+                          <span className="text-xs text-muted-foreground">No files</span>
                         )}
                       </TableCell>
                       {canRenew && (
@@ -590,7 +614,7 @@ const Renewal = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
             {title} ({data.length})
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Set or update ID expiry dates for employees</p>
+          <p className="text-xs text-muted-foreground">Renew IDs early or update ID expiry dates for employees</p>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="w-full">
@@ -629,9 +653,14 @@ const Renewal = () => {
                       </TableCell>
                       <TableCell>
                         {canRenew && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleOpenSetExpiry(emp)}>
-                            <CalendarDays className="h-3 w-3" /> Set Expiry
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleOpenRenew(emp)}>
+                              <RefreshCcw className="h-3 w-3" /> Renew
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleOpenSetExpiry(emp)}>
+                              <CalendarDays className="h-3 w-3" /> Set Expiry
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -759,11 +788,20 @@ const Renewal = () => {
                 <Input value={newEmployeeId} onChange={e => setNewEmployeeId(e.target.value)} placeholder="Enter new employee ID" className="mt-1" />
               </div>
               <div>
-                <Label>Upload Proof Photos (max 3) <span className="text-destructive">*</span></Label>
+                <Label>Upload Proof Files / Photos (max 3) <span className="text-destructive">*</span></Label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {renewalPhotoPreviews.map((preview, i) => (
                     <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border">
-                      <img src={preview} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                      {renewalPhotos[i]?.type.startsWith('image/') ? (
+                        <img src={preview} alt={`Proof ${i + 1}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-muted p-2 flex flex-col items-center justify-center text-center">
+                          <FileText className="h-6 w-6 text-muted-foreground mb-1" />
+                          <span className="text-[10px] text-muted-foreground line-clamp-2 break-all">
+                            {renewalPhotos[i]?.name || `File ${i + 1}`}
+                          </span>
+                        </div>
+                      )}
                       <button onClick={() => removePhoto(i)} className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5">
                         <X className="h-3 w-3" />
                       </button>
@@ -811,7 +849,7 @@ const Renewal = () => {
                   </Button>
                 )}
               </div>
-                <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoSelect} />
+                <input ref={photoInputRef} type="file" accept="image/*,.pdf,.doc,.docx" multiple className="hidden" onChange={handlePhotoSelect} />
               </div>
             </div>
           )}
@@ -828,13 +866,26 @@ const Renewal = () => {
       <Dialog open={!!viewingEmployee} onOpenChange={() => setViewingEmployee(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Renewal Photos - {viewingEmployee?.full_name}</DialogTitle>
+            <DialogTitle>Renewal Files - {viewingEmployee?.full_name}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-3">
             {viewingEmployee?.renewal_photos?.map((url, i) => (
-              <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all" onClick={() => setViewingPhoto({ url, name: `Renewal Photo ${i + 1}` })}>
-                <img src={url} alt={`Renewal ${i + 1}`} className="w-full h-full object-cover" />
-              </div>
+              isImageProof(url) ? (
+                <div key={i} className="aspect-square rounded-lg overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all" onClick={() => setViewingPhoto({ url, name: `Renewal Proof ${i + 1}` })}>
+                  <img src={url} alt={`Renewal ${i + 1}`} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <a
+                  key={i}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="aspect-square rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors p-3 flex flex-col items-center justify-center text-center"
+                >
+                  <FileText className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-xs font-medium">Open File {i + 1}</span>
+                </a>
+              )
             ))}
           </div>
         </DialogContent>
