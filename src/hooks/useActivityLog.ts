@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { useCallback } from 'react';
 
 export type ActionType = 
@@ -45,6 +46,7 @@ const formatLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g,
 
 export const useActivityLog = () => {
   const { user, userRole } = useAuth();
+  const { selectedBranch, userBranch } = useBranch();
 
   const logActivity = useCallback(async ({
     actionType,
@@ -70,6 +72,23 @@ export const useActivityLog = () => {
         currentUser.user_metadata?.full_name ||
         currentUser.email?.split('@')[0] ||
         'User';
+      const metadataBranchId = typeof metadata.branch_id === 'string' ? metadata.branch_id : null;
+      let activityBranchId = metadataBranchId || selectedBranch?.id || userBranch?.id || null;
+      let activityBranchName =
+        typeof metadata.branch === 'string'
+          ? metadata.branch
+          : selectedBranch?.name || userBranch?.name || null;
+
+      if (!activityBranchId) {
+        const { data: actorProfile } = await supabase
+          .from('profiles')
+          .select('branch_id, branches(name)')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        activityBranchId = actorProfile?.branch_id || null;
+        activityBranchName = activityBranchName || actorProfile?.branches?.name || null;
+      }
 
       const { error } = await supabase
         .from('activity_logs')
@@ -82,6 +101,8 @@ export const useActivityLog = () => {
           description,
           metadata: {
             ...metadata,
+            branch_id: activityBranchId,
+            branch: activityBranchName,
             role: userRole,
           }
         });
@@ -90,10 +111,15 @@ export const useActivityLog = () => {
         console.error('Failed to log activity:', error);
       }
 
-      const { data: recipients, error: recipientsError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('role', ['admin', 'assistant']);
+      let recipientsQuery = supabase
+        .from('profiles')
+        .select('id, branch_id');
+
+      if (!activityBranchId) return;
+
+      recipientsQuery = recipientsQuery.eq('branch_id', activityBranchId);
+
+      const { data: recipients, error: recipientsError } = await recipientsQuery;
 
       if (recipientsError) {
         console.error('Failed to fetch notification recipients:', recipientsError);
@@ -101,7 +127,7 @@ export const useActivityLog = () => {
       }
 
       const recipientIds = Array.from(
-        new Set((recipients || []).map((recipient) => recipient.user_id).filter((id) => id && id !== currentUser.id))
+        new Set((recipients || []).map((recipient) => recipient.id).filter(Boolean))
       );
 
       if (recipientIds.length === 0) return;
@@ -125,7 +151,7 @@ export const useActivityLog = () => {
     } catch (err) {
       console.error('Activity log error:', err);
     }
-  }, [user, userRole]);
+  }, [selectedBranch?.id, selectedBranch?.name, user, userBranch?.id, userBranch?.name, userRole]);
 
   return { logActivity };
 };

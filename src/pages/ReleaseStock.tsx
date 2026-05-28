@@ -518,6 +518,7 @@ const ReleaseStock = () => {
         metadata: {
           items_count: validItems.length,
           courier: firstItem.courier,
+          branch_id: selectedBranch?.id,
           branch: selectedBranch?.name,
           allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
         }
