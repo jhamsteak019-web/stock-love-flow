@@ -781,12 +781,13 @@ const ReleaseStock = () => {
                             <TableCell className="px-5">
                               <Input 
                                 defaultValue={item.sheetNo}
+                                readOnly
                                 onBlur={(e) => {
                                   if (e.target.value !== item.sheetNo) {
                                     updateParsedItem(item.id, 'sheetNo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs font-mono min-w-[130px] px-3 rounded-lg"
+                                className="h-8 text-xs font-mono min-w-[130px] px-3 rounded-lg bg-muted/50 cursor-default focus-visible:ring-0"
                                 placeholder="Allocation Bill"
                               />
                             </TableCell>
@@ -795,12 +796,13 @@ const ReleaseStock = () => {
                             <TableCell className="px-5">
                               <Input 
                                 defaultValue={item.deliverTo}
+                                readOnly
                                 onBlur={(e) => {
                                   if (e.target.value !== item.deliverTo) {
                                     updateParsedItem(item.id, 'deliverTo', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[140px] px-3 rounded-lg"
+                                className="h-8 text-xs min-w-[140px] px-3 rounded-lg bg-muted/50 cursor-default focus-visible:ring-0"
                                 placeholder="Destination"
                               />
                             </TableCell>
@@ -809,12 +811,13 @@ const ReleaseStock = () => {
                             <TableCell className="px-5">
                               <Input 
                                 defaultValue={item.category}
+                                readOnly
                                 onBlur={(e) => {
                                   if (e.target.value !== item.category) {
                                     updateParsedItem(item.id, 'category', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[100px] px-3 rounded-lg"
+                                className="h-8 text-xs min-w-[100px] px-3 rounded-lg bg-muted/50 cursor-default focus-visible:ring-0"
                                 placeholder="Category"
                               />
                             </TableCell>
@@ -824,13 +827,14 @@ const ReleaseStock = () => {
                               <Input 
                                 type="number"
                                 defaultValue={item.qtyBoxes}
+                                readOnly
                                 onBlur={(e) => {
                                   const val = parseInt(e.target.value) || 0;
                                   if (val !== item.qtyBoxes) {
                                     updateParsedItem(item.id, 'qtyBoxes', val);
                                   }
                                 }}
-                                className="h-7 text-xs w-[60px] px-2 rounded"
+                                className="h-7 text-xs w-[60px] px-2 rounded bg-muted/50 cursor-default focus-visible:ring-0"
                                 min={0}
                               />
                             </TableCell>
@@ -840,13 +844,14 @@ const ReleaseStock = () => {
                               <Input 
                                 type="number"
                                 defaultValue={item.amount || 0}
+                                readOnly
                                 onBlur={(e) => {
                                   const val = parseFloat(e.target.value) || 0;
                                   if (val !== item.amount) {
                                     updateParsedItemWithBulk(item.id, 'amount', val);
                                   }
                                 }}
-                                className="h-7 text-xs w-[80px] px-2 rounded"
+                                className="h-7 text-xs w-[80px] px-2 rounded bg-muted/50 cursor-default focus-visible:ring-0"
                                 min={0}
                                 step="0.01"
                                 placeholder="Amount"
@@ -858,13 +863,14 @@ const ReleaseStock = () => {
                               <Input 
                                 type="number"
                                 defaultValue={item.qtyItem}
+                                readOnly
                                 onBlur={(e) => {
                                   const val = parseInt(e.target.value) || 0;
                                   if (val !== item.qtyItem) {
                                     updateParsedItem(item.id, 'qtyItem', val);
                                   }
                                 }}
-                                className="h-7 text-xs w-[60px] px-2 rounded"
+                                className="h-7 text-xs w-[60px] px-2 rounded bg-muted/50 cursor-default focus-visible:ring-0"
                                 min={0}
                               />
                             </TableCell>
@@ -873,12 +879,13 @@ const ReleaseStock = () => {
                             <TableCell className="px-5">
                               <Input 
                                 defaultValue={item.remarks}
+                                readOnly
                                 onBlur={(e) => {
                                   if (e.target.value !== item.remarks) {
                                     updateParsedItem(item.id, 'remarks', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[120px] px-3 rounded-lg"
+                                className="h-8 text-xs min-w-[120px] px-3 rounded-lg bg-muted/50 cursor-default focus-visible:ring-0"
                                 placeholder="Remarks"
                               />
                             </TableCell>

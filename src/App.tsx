@@ -34,6 +34,7 @@ import DamageClaims from "./pages/DamageClaims";
 import Discrepancies from "./pages/Discrepancies";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
+import TeamOverview from "./pages/TeamOverview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -85,6 +86,7 @@ const App = () => (
                 <Route path="/discrepancies" element={<Discrepancies />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/team-overview" element={<TeamOverview />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

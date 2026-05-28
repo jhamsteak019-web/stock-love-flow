@@ -35,7 +35,8 @@ import {
   AlertTriangle,
   FileWarning,
   Bell,
-  UserRound
+  UserRound,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -247,6 +248,12 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       roles: ['admin']
     },
     {
+      to: '/team-overview',
+      icon: Activity,
+      label: 'Team Overview',
+      roles: ['admin', 'assistant', 'teamleader', 'oic']
+    },
+    {
       to: '/notifications',
       icon: Bell,
       label: 'Notifications',
@@ -352,7 +359,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       )}
                     >
                       {item.icon && (
-                        <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                        <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-foreground")} />
                       )}
                       {!isCollapsed && <span className="flex-1">{item.label}</span>}
                       {!isCollapsed && itemBadgeCount > 0 && (

@@ -19,6 +19,7 @@ const pageTitles: Record<string, string> = {
   '/repeat-order': 'Repeat Order',
   '/allocation': 'Allocation',
   '/activity-history': 'Activity History',
+  '/team-overview': 'Team Overview',
   '/reports': 'Reports',
   '/notifications': 'Notifications',
   '/profile': 'User Profile',
