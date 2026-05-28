@@ -20,6 +20,8 @@ const pageTitles: Record<string, string> = {
   '/allocation': 'Allocation',
   '/activity-history': 'Activity History',
   '/reports': 'Reports',
+  '/notifications': 'Notifications',
+  '/profile': 'User Profile',
 };
 
 // Role-based route restrictions

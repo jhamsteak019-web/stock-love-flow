@@ -33,7 +33,9 @@ import {
   Mail,
   Presentation,
   AlertTriangle,
-  FileWarning
+  FileWarning,
+  Bell,
+  UserRound
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -56,6 +58,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [isDMOpen, setIsDMOpen] = useState(false);
+  const allSignedInRoles = ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'hr'];
 
   // Fetch unread DM count
   const { data: unreadDMCount = 0 } = useQuery({
@@ -203,6 +206,18 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       icon: History, 
       label: 'Activity History',
       roles: ['admin']
+    },
+    {
+      to: '/notifications',
+      icon: Bell,
+      label: 'Notifications',
+      roles: ['admin', 'assistant', 'staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder']
+    },
+    {
+      to: '/profile',
+      icon: UserRound,
+      label: 'User Profile',
+      roles: allSignedInRoles
     },
   ];
 
@@ -396,10 +411,14 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             {/* User info */}
             <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-4")}>
               {!isCollapsed && (
-                <div className="rounded-lg bg-sidebar-accent/50 p-3">
+                <NavLink
+                  to="/profile"
+                  onClick={onClose}
+                  className="block rounded-lg bg-sidebar-accent/50 p-3 transition-colors hover:bg-sidebar-accent"
+                >
                   <p className="text-sm font-medium truncate">{user?.email}</p>
                   <p className="text-xs text-sidebar-foreground/60">{getRoleDisplayName(userRole)}</p>
-                </div>
+                </NavLink>
               )}
             </div>
           </div>

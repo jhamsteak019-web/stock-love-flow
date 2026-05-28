@@ -32,6 +32,8 @@ import ActivityHistory from "./pages/ActivityHistory";
 import Reports from "./pages/Reports";
 import DamageClaims from "./pages/DamageClaims";
 import Discrepancies from "./pages/Discrepancies";
+import Notifications from "./pages/Notifications";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -81,6 +83,8 @@ const App = () => (
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/damage-claims" element={<DamageClaims />} />
                 <Route path="/discrepancies" element={<Discrepancies />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
