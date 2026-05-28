@@ -347,12 +347,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                       className={cn(
                         "relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                         isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
-                        isActive && isBlueShortcut
-                          ? "bg-primary text-primary-foreground shadow-sm"
+                        isBlueShortcut
+                          ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
                           : isActive
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : isBlueShortcut
-                          ? "text-blue-300 hover:bg-blue-500/15 hover:text-blue-100"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                       )}
                     >
@@ -361,18 +359,18 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                           className={cn(
                             "h-5 w-5 flex-shrink-0",
                             isActive && (isBlueShortcut ? "text-primary-foreground" : "text-sidebar-primary"),
-                            !isActive && isBlueShortcut && "text-blue-300"
+                            !isActive && isBlueShortcut && "text-primary-foreground"
                           )}
                         />
                       )}
                       {!isCollapsed && <span className="flex-1">{item.label}</span>}
                       {!isCollapsed && itemBadgeCount > 0 && (
-                        <Badge className="h-5 min-w-5 justify-center bg-primary px-1.5 text-[11px] text-primary-foreground">
+                        <Badge className="h-5 min-w-5 justify-center bg-primary-foreground px-1.5 text-[11px] text-primary hover:bg-primary-foreground">
                           {itemBadgeCount > 99 ? '99+' : itemBadgeCount}
                         </Badge>
                       )}
                       {isCollapsed && itemBadgeCount > 0 && (
-                        <Badge className="absolute -right-1 -top-1 h-4 min-w-4 justify-center bg-primary px-1 text-[10px] text-primary-foreground">
+                        <Badge className="absolute -right-1 -top-1 h-4 min-w-4 justify-center bg-primary-foreground px-1 text-[10px] text-primary hover:bg-primary-foreground">
                           {itemBadgeCount > 9 ? '9+' : itemBadgeCount}
                         </Badge>
                       )}
