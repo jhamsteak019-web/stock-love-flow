@@ -5,6 +5,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import {
   AlertTriangle,
   Bell,
+  CheckCheck,
   CheckCircle2,
   Circle,
   Clock3,
@@ -105,6 +106,7 @@ const Notifications = () => {
   const invalidateNotifications = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['notifications-page'] });
     queryClient.invalidateQueries({ queryKey: ['notification-discrepancies'] });
+    queryClient.invalidateQueries({ queryKey: ['sidebar-notification-count'] });
   }, [queryClient]);
 
   useEffect(() => {
@@ -190,13 +192,33 @@ const Notifications = () => {
   }, [canViewDiscrepancies, categoryFilter, discrepancyRows, searchQuery, stateFilter]);
 
   const markAllAsRead = async () => {
+    if (!user?.id) return;
+
     const unreadIds = notifications.filter((notification) => !notification.is_read).map((notification) => notification.id);
     if (unreadIds.length === 0) return;
 
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
+      .eq('user_id', user.id)
       .in('id', unreadIds);
+
+    if (error) {
+      toast({ title: 'Notification Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    invalidateNotifications();
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    if (!user?.id) return;
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .eq('user_id', user.id);
 
     if (error) {
       toast({ title: 'Notification Error', description: error.message, variant: 'destructive' });
@@ -269,10 +291,10 @@ const Notifications = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead} className="gap-2">
+          {notifications.length > 0 && (
+            <Button variant="outline" onClick={markAllAsRead} disabled={unreadCount === 0} className="gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              Mark all read
+              Mark all as read
             </Button>
           )}
           {notifications.length > 0 && (
@@ -416,16 +438,18 @@ const Notifications = () => {
               const isUnread = !notification.is_read;
 
               return (
-                <button
+                <div
                   key={notification.id}
-                  type="button"
-                  onClick={() => openNotification(notification)}
                   className={cn(
                     'grid w-full gap-4 p-5 text-left transition-colors hover:bg-muted/50 lg:grid-cols-[1fr_220px]',
                     isUnread && 'bg-primary/5'
                   )}
                 >
-                  <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => openNotification(notification)}
+                    className="flex min-w-0 gap-4 text-left"
+                  >
                     <div className={cn(
                       'mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-lg',
                       isUnread ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
@@ -442,15 +466,27 @@ const Notifications = () => {
                         {cleanMessage || 'No details provided'}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground lg:justify-end">
+                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground lg:flex-col lg:items-end lg:justify-center">
                     <span className="flex items-center gap-2">
                       <Clock3 className="h-4 w-4" />
                       {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                     </span>
                     <Badge variant="outline">{format(new Date(notification.created_at), 'MMM d, h:mm a')}</Badge>
+                    {isUnread && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => markNotificationAsRead(notification.id)}
+                        className="gap-2"
+                      >
+                        <CheckCheck className="h-4 w-4" />
+                        Mark as read
+                      </Button>
+                    )}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
