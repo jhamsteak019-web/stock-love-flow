@@ -278,7 +278,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       <TooltipProvider delayDuration={0}>
         <aside
           className={cn(
-            "fixed top-0 left-0 z-50 h-full bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out lg:translate-x-0",
+            "fixed top-0 left-0 z-50 h-full max-w-[calc(100vw-1rem)] bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out lg:translate-x-0",
             isCollapsed ? "w-16" : "w-64",
             isOpen ? "translate-x-0" : "-translate-x-full"
           )}

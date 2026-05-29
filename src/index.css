@@ -157,6 +157,13 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }
 
@@ -294,7 +301,7 @@ button, a, input, select, textarea {
 
 /* Smooth table rendering */
 table {
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 /* Optimize rendering for large lists */
@@ -323,6 +330,8 @@ table {
 /* Page transition */
 .page-transition {
   animation: page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  min-width: 0;
+  max-width: 100%;
 }
 
 @keyframes page-enter {
@@ -440,6 +449,7 @@ img, video {
 /* Smooth input focus */
 input, textarea, select {
   @apply transition-all duration-150;
+  max-width: 100%;
 }
 
 input:focus, textarea:focus, select:focus {
@@ -630,4 +640,63 @@ aside {
 
 .animate-glow {
   animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Responsive containment for dense admin pages */
+main,
+main > *,
+.page-transition > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+main [class*="grid"],
+main [class*="flex"] {
+  min-width: 0;
+}
+
+main [class*="rounded"],
+main [class*="border"],
+main [class*="shadow"] {
+  min-width: 0;
+}
+
+main img,
+main canvas,
+main svg,
+main video {
+  max-width: 100%;
+}
+
+[data-radix-popper-content-wrapper] {
+  max-width: calc(100vw - 1rem) !important;
+}
+
+@media (max-width: 640px) {
+  main h1,
+  main h2 {
+    overflow-wrap: anywhere;
+  }
+
+  main button,
+  main [role="button"],
+  main input,
+  main textarea,
+  main select {
+    max-width: 100%;
+  }
+
+  main .recharts-responsive-container,
+  main .recharts-wrapper {
+    max-width: 100% !important;
+  }
+
+  [role="dialog"] {
+    max-width: calc(100vw - 1.5rem) !important;
+  }
+
+  [role="dialog"] form,
+  [role="dialog"] [class*="grid"] {
+    min-width: 0;
+  }
 }

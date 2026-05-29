@@ -89,18 +89,18 @@ export const DashboardLayout = () => {
   const title = pageTitles[location.pathname] || 'MONITORING DELIVERY';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
-      <div className="lg:pl-64">
+      <div className="min-w-0 lg:pl-64">
         <Header 
           onMenuClick={() => setSidebarOpen(true)} 
           title={title}
         />
         
-        <main className="p-4 lg:p-6">
+        <main className="min-w-0 max-w-full p-3 sm:p-4 lg:p-6">
           <ErrorBoundary>
-            <div className="page-transition">
+            <div className="page-transition min-w-0 max-w-full">
               <Outlet />
             </div>
           </ErrorBoundary>

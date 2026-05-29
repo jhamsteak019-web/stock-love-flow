@@ -18,7 +18,7 @@ export const BranchSelector = () => {
 
   if (loading) {
     return (
-      <div className="h-9 w-32 bg-muted animate-pulse rounded-md" />
+      <div className="h-9 w-32 max-w-full bg-muted animate-pulse rounded-md" />
     );
   }
 
@@ -29,9 +29,9 @@ export const BranchSelector = () => {
   // Non-admins and non-HR see a read-only badge showing their assigned branch
   if (!canSwitchBranch) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border">
-        <Building2 className="h-4 w-4 text-primary" />
-        <span className="font-medium text-sm">
+      <div className="flex max-w-[calc(100vw-7rem)] items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 sm:max-w-none">
+        <Building2 className="h-4 w-4 shrink-0 text-primary" />
+        <span className="truncate text-sm font-medium">
           {selectedBranch?.name || 'No Branch Assigned'}
         </span>
       </div>
@@ -44,15 +44,15 @@ export const BranchSelector = () => {
       <DropdownMenuTrigger asChild>
         <Button 
           variant="outline" 
-          className="gap-2 min-w-[140px] justify-between bg-background border-primary/20 hover:border-primary/40 hover:bg-primary/5"
+          className="min-w-0 max-w-[calc(100vw-7rem)] justify-between gap-2 border-primary/20 bg-background hover:border-primary/40 hover:bg-primary/5 sm:min-w-[140px] sm:max-w-[220px]"
         >
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" />
-            <span className="font-medium truncate max-w-[120px]">
+          <div className="flex min-w-0 items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate text-sm font-medium sm:max-w-[140px]">
               {selectedBranch?.name || 'Select Branch'}
             </span>
           </div>
-          <ChevronDown className="h-4 w-4 opacity-50" />
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[200px] bg-popover z-50">
