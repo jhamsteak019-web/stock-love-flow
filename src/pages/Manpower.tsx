@@ -1932,29 +1932,29 @@ const Manpower = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-6xl grid-cols-7">
-          <TabsTrigger value="manpower" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
+        <TabsList className="grid h-auto w-full max-w-6xl grid-cols-2 gap-1 sm:grid-cols-3 xl:grid-cols-6">
+          <TabsTrigger value="manpower" className="flex min-h-10 items-center gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm">
+            <Database className="h-4 w-4 shrink-0" />
             Store Manpower
           </TabsTrigger>
-          <TabsTrigger value="office-manpower" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="office-manpower" className="flex min-h-10 items-center gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm">
+            <Building2 className="h-4 w-4 shrink-0" />
             Office Manpower
           </TabsTrigger>
-          <TabsTrigger value="manpower-summary" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="manpower-summary" className="flex min-h-10 items-center gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm">
+            <Building2 className="h-4 w-4 shrink-0" />
             Manpower Summary
           </TabsTrigger>
-          <TabsTrigger value="office-attendance" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="office-attendance" className="flex min-h-10 items-center gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm">
+            <Building2 className="h-4 w-4 shrink-0" />
             Office Attendance
           </TabsTrigger>
-          <TabsTrigger value="resigned" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <TabsTrigger value="resigned" className="flex min-h-10 items-center gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm">
+            <Users className="h-4 w-4 shrink-0" />
             Resign ({resignedEmployees.length})
           </TabsTrigger>
-          <TabsTrigger value="recently-deleted" className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4" />
+          <TabsTrigger value="recently-deleted" className="flex min-h-10 items-center gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm">
+            <Trash2 className="h-4 w-4 shrink-0" />
             Deleted ({deletedEmployees.length})
           </TabsTrigger>
         </TabsList>

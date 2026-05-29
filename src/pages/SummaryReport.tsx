@@ -1205,21 +1205,21 @@ const SummaryReport = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
-          <TabsTrigger value="branch-report" className="flex items-center gap-2">
-            <Store className="h-4 w-4" />
+        <TabsList className="grid h-auto w-full max-w-3xl grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
+          <TabsTrigger value="branch-report" className="flex min-h-10 items-center gap-2 text-xs sm:text-sm">
+            <Store className="h-4 w-4 shrink-0" />
             Branch Report
           </TabsTrigger>
-          <TabsTrigger value="category-report" className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4" />
+          <TabsTrigger value="category-report" className="flex min-h-10 items-center gap-2 text-xs sm:text-sm">
+            <ShoppingBag className="h-4 w-4 shrink-0" />
             Category per Store
           </TabsTrigger>
-          <TabsTrigger value="delivered-summary" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
+          <TabsTrigger value="delivered-summary" className="flex min-h-10 items-center gap-2 text-xs sm:text-sm">
+            <CheckCircle className="h-4 w-4 shrink-0" />
             Delivered Summary
           </TabsTrigger>
-          <TabsTrigger value="attendance-summary" className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" />
+          <TabsTrigger value="attendance-summary" className="flex min-h-10 items-center gap-2 text-xs sm:text-sm">
+            <ClipboardList className="h-4 w-4 shrink-0" />
             Attendance Summary
           </TabsTrigger>
         </TabsList>
