@@ -28,7 +28,6 @@ import ResumeToWork from "./pages/ResumeToWork";
 import Manpower from "./pages/Manpower";
 import Renewal from "./pages/Renewal";
 import StoreVisitSchedule from "./pages/StoreVisitSchedule";
-import ActivityHistory from "./pages/ActivityHistory";
 import Reports from "./pages/Reports";
 import DamageClaims from "./pages/DamageClaims";
 import Discrepancies from "./pages/Discrepancies";
@@ -80,7 +79,6 @@ const App = () => (
                 <Route path="/manpower" element={<Manpower />} />
                 <Route path="/renewal" element={<Renewal />} />
                 <Route path="/store-visit-schedule" element={<StoreVisitSchedule />} />
-                <Route path="/activity-history" element={<ActivityHistory />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/damage-claims" element={<DamageClaims />} />
                 <Route path="/discrepancies" element={<Discrepancies />} />

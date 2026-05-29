@@ -811,13 +811,12 @@ const ReleaseStock = () => {
                             <TableCell className="px-5">
                               <Input 
                                 defaultValue={item.category}
-                                readOnly
                                 onBlur={(e) => {
                                   if (e.target.value !== item.category) {
                                     updateParsedItem(item.id, 'category', e.target.value);
                                   }
                                 }}
-                                className="h-8 text-xs min-w-[100px] px-3 rounded-lg bg-muted/50 cursor-default focus-visible:ring-0"
+                                className="h-8 text-xs min-w-[100px] px-3 rounded-lg"
                                 placeholder="Category"
                               />
                             </TableCell>
@@ -827,14 +826,13 @@ const ReleaseStock = () => {
                               <Input 
                                 type="number"
                                 defaultValue={item.qtyBoxes}
-                                readOnly
                                 onBlur={(e) => {
                                   const val = parseInt(e.target.value) || 0;
                                   if (val !== item.qtyBoxes) {
                                     updateParsedItem(item.id, 'qtyBoxes', val);
                                   }
                                 }}
-                                className="h-7 text-xs w-[60px] px-2 rounded bg-muted/50 cursor-default focus-visible:ring-0"
+                                className="h-7 text-xs w-[60px] px-2 rounded"
                                 min={0}
                               />
                             </TableCell>

@@ -39,7 +39,7 @@ const moduleLinks: Record<ModuleType, string> = {
   notes: '/notes',
   repeat_orders: '/repeat-order',
   containers: '/container',
-  auth: '/activity-history',
+  auth: '/team-overview',
 };
 
 const formatLabel = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
@@ -137,7 +137,7 @@ export const useActivityLog = () => {
         title: `${formatLabel(actionType)} ${formatLabel(module)}`,
         message: `${actorName}: ${description}`,
         type: 'activity',
-        link: moduleLinks[module] || '/activity-history',
+        link: moduleLinks[module] || '/team-overview',
         created_by: currentUser.id,
       }));
 

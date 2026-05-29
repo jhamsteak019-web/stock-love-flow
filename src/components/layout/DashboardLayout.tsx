@@ -18,7 +18,6 @@ const pageTitles: Record<string, string> = {
   '/container': 'Container',
   '/repeat-order': 'Repeat Order',
   '/allocation': 'Allocation',
-  '/activity-history': 'Activity History',
   '/team-overview': 'Team Overview',
   '/reports': 'Reports',
   '/notifications': 'Notifications',
