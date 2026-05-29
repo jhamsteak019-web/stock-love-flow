@@ -50,14 +50,15 @@ import { canViewDiscrepancyNotifications, canViewNotifications } from '@/lib/not
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  isCollapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
-export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: SidebarProps) => {
   const { userRole, signOut, user } = useAuth();
   const { selectedBranch } = useBranch();
   const location = useLocation();
   const isAdmin = userRole === 'admin';
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [isDMOpen, setIsDMOpen] = useState(false);
@@ -127,7 +128,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   const handleToggleCollapse = () => {
     setIsAnimating(true);
-    setIsCollapsed(!isCollapsed);
+    onCollapsedChange(!isCollapsed);
     setTimeout(() => setIsAnimating(false), 300);
   };
 

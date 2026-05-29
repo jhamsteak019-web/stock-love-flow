@@ -37,6 +37,7 @@ const roleRestrictedRoutes: Record<string, string[]> = {
 
 export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
   const { user, loading, userRole } = useAuth();
 
@@ -90,11 +91,19 @@ export const DashboardLayout = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+      />
       
-      <div className="min-w-0 lg:pl-64">
+      <div className={`min-w-0 transition-[padding-left] duration-300 ${sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'}`}>
         <Header 
-          onMenuClick={() => setSidebarOpen(true)} 
+          onMenuClick={() => {
+            setSidebarCollapsed(false);
+            setSidebarOpen(true);
+          }}
           title={title}
         />
         
