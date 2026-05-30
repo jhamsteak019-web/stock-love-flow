@@ -1,9 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
-import { BarChart3, TrendingUp, Package, Truck, Calendar, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, Truck, Calendar as CalendarIcon, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign, Filter, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
@@ -31,6 +33,13 @@ import {
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const getWarehouseDateValue = (release: StockRelease) => {
+  const rawDate = release.set_date || release.date_released;
+  if (!rawDate) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
+  return format(new Date(rawDate), 'yyyy-MM-dd');
+};
 
 interface DeliveredSummaryItem {
   batch_id: string;
@@ -66,6 +75,7 @@ const SummaryReport = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
   const [showAllYear, setShowAllYear] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedWarehouseDate, setSelectedWarehouseDate] = useState('all');
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
@@ -188,18 +198,50 @@ const SummaryReport = () => {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [periodReleases, currentYear]);
 
-  // Filter releases by category only (month/year/branch already filtered by the hook)
+  const categoryFilterOptions = useMemo(() => {
+    const categories = new Set(CATEGORY_OPTIONS);
+    periodReleases.forEach(release => {
+      const category = release.category?.trim().toUpperCase();
+      if (category) categories.add(category);
+    });
+    return Array.from(categories).sort();
+  }, [periodReleases]);
+
+  const availableWarehouseDates = useMemo(() => {
+    const counts = new Map<string, number>();
+    periodReleases.forEach(release => {
+      const dateValue = getWarehouseDateValue(release);
+      if (!dateValue) return;
+      counts.set(dateValue, (counts.get(dateValue) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([value, count]) => ({
+        value,
+        count,
+        label: format(parseISO(value), 'MMM d, yyyy'),
+      }));
+  }, [periodReleases]);
+
+  const availableWarehouseDateSet = useMemo(
+    () => new Set(availableWarehouseDates.map(date => date.value)),
+    [availableWarehouseDates]
+  );
+
+  // Filter releases by category/date (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
     const categoryReleases = periodReleases.filter(release => {
-      // Category filter
       const matchesCategory = selectedCategory === 'all' || 
         (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
+      const matchesDate = selectedWarehouseDate === 'all' ||
+        getWarehouseDateValue(release) === selectedWarehouseDate;
       
-      return matchesCategory;
+      return matchesCategory && matchesDate;
     });
 
     return dedupeStockReleasesForDisplay(categoryReleases);
-  }, [periodReleases, selectedCategory]);
+  }, [periodReleases, selectedCategory, selectedWarehouseDate]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -418,7 +460,7 @@ const SummaryReport = () => {
       .sort((a, b) => a.branch.localeCompare(b.branch));
   }, [filteredReleases]);
 
-  // Filter delivered branches by search (branch name or allocation bill)
+  // Filter delivered branches by search (branch name, allocation bill, category, remarks, or courier)
   const filteredDeliveredByBranch = useMemo(() => {
     const searchLower = branchSearch.trim().toLowerCase();
     const matchesRemarks = (remarks: string | null | undefined) => {
@@ -436,7 +478,11 @@ const SummaryReport = () => {
           const matchesSearch =
             !searchLower ||
             branchMatches ||
-            item.allocation_bill?.toLowerCase().includes(searchLower);
+            item.allocation_bill?.toLowerCase().includes(searchLower) ||
+            item.category?.toLowerCase().includes(searchLower) ||
+            item.categories.some(category => category.toLowerCase().includes(searchLower)) ||
+            item.remarks?.toLowerCase().includes(searchLower) ||
+            item.courier?.toLowerCase().includes(searchLower);
           return matchesSearch && matchesRemarks(item.remarks);
         });
         if (filteredItems.length === 0) return null;
@@ -912,7 +958,7 @@ const SummaryReport = () => {
             <p className="text-muted-foreground">Delivery statistics by branch and category</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canExport && (
             <Button variant="outline" size="sm" onClick={handleExportExcel}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -925,10 +971,10 @@ const SummaryReport = () => {
               Save PDF
             </Button>
           )}
-          <div className="flex items-center gap-2 bg-card border rounded-lg p-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); }}>
-              <SelectTrigger className="w-[130px] border-0 shadow-none focus:ring-0 h-8">
+          <div className="flex flex-wrap items-center gap-2 bg-card border rounded-lg p-2">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setSelectedWarehouseDate('all'); }}>
+              <SelectTrigger className="w-[132px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover z-50">
@@ -937,7 +983,7 @@ const SummaryReport = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setSelectedWarehouseDate('all'); }}>
               <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -947,22 +993,72 @@ const SummaryReport = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-[120px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-50">
                 <SelectItem value="all">All Categories</SelectItem>
-                {CATEGORY_OPTIONS.map(cat => (
+                {categoryFilterOptions.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Select value={selectedWarehouseDate} onValueChange={setSelectedWarehouseDate}>
+              <SelectTrigger className="w-[152px] border-0 shadow-none focus:ring-0 h-8">
+                <SelectValue placeholder="Filter date" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All Date Out</SelectItem>
+                {availableWarehouseDates.map(date => (
+                  <SelectItem key={date.value} value={date.value}>
+                    {date.label} ({date.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {selectedWarehouseDate === 'all' ? 'Calendar' : format(parseISO(selectedWarehouseDate), 'MMM d')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedWarehouseDate === 'all' ? undefined : parseISO(selectedWarehouseDate)}
+                  onSelect={(date) => {
+                    if (!date) return;
+                    const dateValue = format(date, 'yyyy-MM-dd');
+                    if (availableWarehouseDateSet.has(dateValue)) {
+                      setSelectedWarehouseDate(dateValue);
+                    }
+                  }}
+                  disabled={(date) => !availableWarehouseDateSet.has(format(date, 'yyyy-MM-dd'))}
+                  modifiers={{ hasRelease: availableWarehouseDates.map(date => parseISO(date.value)) }}
+                  modifiersClassNames={{ hasRelease: 'font-bold text-primary' }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {selectedWarehouseDate !== 'all' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSelectedWarehouseDate('all')}
+                title="Clear date filter"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
           <Button 
             variant={showAllYear ? "default" : "outline"} 
             size="sm"
-            onClick={() => setShowAllYear(!showAllYear)}
+            onClick={() => { setShowAllYear(!showAllYear); setSelectedWarehouseDate('all'); }}
           >
             {showAllYear ? 'Showing All Year' : 'All Year'}
           </Button>
@@ -1040,91 +1136,6 @@ const SummaryReport = () => {
           <CardContent>
             <div className="text-2xl font-bold text-primary">{totalStats.deliveryPercentage}%</div>
             <p className="text-xs text-muted-foreground">delivery success</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts for Amount and Qty */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Total Amount by Branch Chart */}
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Total Amount by Branch
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={branchReport.slice(0, 10).map(b => ({
-                    name: b.branch.length > 15 ? b.branch.substring(0, 15) + '...' : b.branch,
-                    amount: b.totalAmount,
-                  }))}
-                  margin={{ top: 10, right: 10, left: 10, bottom: 60 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 10 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => '₱' + (value / 1000).toFixed(0) + 'k'}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => ['₱' + value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'Amount']}
-                    labelFormatter={(label) => `Branch: ${label}`}
-                  />
-                  <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Total Qty by Branch Chart */}
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Total Qty/Items by Branch
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={branchReport.slice(0, 10).map(b => ({
-                    name: b.branch.length > 15 ? b.branch.substring(0, 15) + '...' : b.branch,
-                    qty: b.totalQty,
-                  }))}
-                  margin={{ top: 10, right: 10, left: 10, bottom: 60 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 10 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => value.toLocaleString()}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [value.toLocaleString(), 'Qty/Items']}
-                    labelFormatter={(label) => `Branch: ${label}`}
-                  />
-                  <Bar dataKey="qty" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -1534,7 +1545,7 @@ const SummaryReport = () => {
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search branch or allocation bill..."
+                    placeholder="Search branch, bill, category, remarks, courier..."
                     value={branchSearch}
                     onChange={(e) => setBranchSearch(e.target.value)}
                     className="pl-9"

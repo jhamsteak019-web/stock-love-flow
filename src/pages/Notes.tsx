@@ -74,6 +74,7 @@ const Notes = () => {
   const canExport = userRole !== 'uploader';
   const canAdd = isAdmin || isStaff || isAssistant; // Staff and Assistant can input
   const canEdit = isAdmin || isAssistant; // Admin and Assistant can edit
+  const canManageStatus = isAdmin || isAssistant;
   const canDelete = isAdmin; // Only admin can delete
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -381,19 +382,21 @@ const Notes = () => {
 
         setNotes([{ ...data, status: data.status as NoteStatus, is_public: data.is_public }, ...notes]);
         
-        // Notify all admins when non-admin creates a note
+        // Notify admins and assistants when non-admin creates a note
         if (!isAdmin) {
-          const { data: adminUsers } = await supabase
+          const { data: approverUsers } = await supabase
             .from('user_roles')
             .select('user_id')
-            .eq('role', 'admin');
+            .in('role', ['admin', 'assistant']);
           
-          if (adminUsers && adminUsers.length > 0) {
-            const notifications = adminUsers.map(admin => ({
-              user_id: admin.user_id,
-              title: 'New Reminder Created',
-              message: `${user.email} created a new reminder: "${formTitle.trim() || 'Untitled'}"`,
-              type: 'info',
+          const recipientIds = Array.from(new Set((approverUsers || []).map(approver => approver.user_id).filter(id => id !== user.id)));
+
+          if (recipientIds.length > 0) {
+            const notifications = recipientIds.map(userId => ({
+              user_id: userId,
+              title: 'New Ticket / Reminder Created',
+              message: `${user.email} created a new ticket/reminder: "${formTitle.trim() || 'Untitled'}"`,
+              type: formConcern.trim().toLowerCase().includes('ticket') ? 'ticket' : 'info',
               link: '/notes',
               created_by: user.id,
             }));
@@ -497,6 +500,7 @@ const Notes = () => {
     if (!statusChangeNote) return;
     
     try {
+      const note = notes.find(n => n.id === statusChangeNote.id);
       const updateData: { status: NoteStatus; updated_at?: string } = { 
         status: statusChangeNote.status 
       };
@@ -522,6 +526,21 @@ const Notes = () => {
             } 
           : note
       ));
+
+      if (note && user && note.user_id !== user.id) {
+        const statusLabel = STATUS_OPTIONS.find(option => option.value === statusChangeNote.status)?.label || statusChangeNote.status;
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: note.user_id,
+            title: statusChangeNote.status === 'approved' ? 'Ticket Approved' : 'Ticket Status Updated',
+            message: `${user.email || 'Admin/Assistant'} updated "${note.title}" to ${statusLabel}.`,
+            type: 'ticket',
+            link: '/notes',
+            created_by: user.id,
+          });
+      }
+
       toast({ title: 'Success', description: 'Status updated' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -697,7 +716,7 @@ const Notes = () => {
                     {note.profiles?.full_name || note.profiles?.email?.split('@')[0] || 'Unknown'}
                   </TableCell>
                   <TableCell>
-                    {isAdmin && note.status !== 'approved' ? (
+                    {canManageStatus && note.status !== 'approved' ? (
                       <Select
                         value={note.status}
                         onValueChange={(value: NoteStatus) => handleStatusChange(note.id, value)}

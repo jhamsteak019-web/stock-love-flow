@@ -3,6 +3,7 @@ import { Menu, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { BranchSelector } from './BranchSelector';
+import { TicketRequestButton } from './TicketRequestButton';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -40,6 +41,7 @@ export const Header = ({ onMenuClick, title }: HeaderProps) => {
       </div>
       
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <TicketRequestButton />
         <NotificationBell />
         <Button
           variant="ghost"
