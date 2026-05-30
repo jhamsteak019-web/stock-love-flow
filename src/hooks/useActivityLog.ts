@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useCallback } from 'react';
+import { getNotificationRecipientIdsByRoles } from '@/lib/notificationRecipients';
 
 export type ActionType = 
   | 'create' 
@@ -126,9 +127,12 @@ export const useActivityLog = () => {
         return;
       }
 
-      const recipientIds = Array.from(
-        new Set((recipients || []).map((recipient) => recipient.id).filter(Boolean))
-      );
+      const branchRecipientIds = (recipients || []).map((recipient) => recipient.id).filter(Boolean);
+      const approverRecipientIds = await getNotificationRecipientIdsByRoles(['admin', 'assistant'], {
+        branchId: activityBranchId,
+        includeUnassigned: true,
+      });
+      const recipientIds = Array.from(new Set([...branchRecipientIds, ...approverRecipientIds]));
 
       if (recipientIds.length === 0) return;
 

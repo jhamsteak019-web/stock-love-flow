@@ -25,15 +25,15 @@ const PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_PERIOD_SELECT =
   "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
 
-const getUtcMonthRange = (month: number, year: number) => {
-  const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
-  const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0)).toISOString();
+const getLocalMonthRange = (month: number, year: number) => {
+  const start = new Date(year, month, 1, 0, 0, 0, 0).toISOString();
+  const end = new Date(year, month + 1, 1, 0, 0, 0, 0).toISOString();
   return { start, end };
 };
 
-const getUtcYearRange = (year: number) => {
-  const start = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)).toISOString();
-  const end = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0)).toISOString();
+const getLocalYearRange = (year: number) => {
+  const start = new Date(year, 0, 1, 0, 0, 0, 0).toISOString();
+  const end = new Date(year + 1, 0, 1, 0, 0, 0, 0).toISOString();
   return { start, end };
 };
 
@@ -115,8 +115,8 @@ export const useStockReleasesForPeriod = ({
 
       if (!silentRefresh) setLoading(true);
       const { start, end } = allYear
-        ? getUtcYearRange(year)
-        : getUtcMonthRange(month, year);
+        ? getLocalYearRange(year)
+        : getLocalMonthRange(month, year);
 
       // OR condition:
       // 1) set_date in range

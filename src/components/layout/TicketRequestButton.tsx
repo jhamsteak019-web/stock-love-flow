@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getNotificationRecipientIdsByRoles } from '@/lib/notificationRecipients';
 import { toast } from 'sonner';
 
 const ticketTypes = [
@@ -82,16 +83,11 @@ export const TicketRequestButton = () => {
 
       if (ticketError) throw ticketError;
 
-      const { data: approvers, error: approverError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('role', ['admin', 'assistant']);
-
-      if (approverError) throw approverError;
-
-      const recipientIds = Array.from(
-        new Set((approvers || []).map((approver) => approver.user_id).filter((id) => id !== user.id))
-      );
+      const recipientIds = await getNotificationRecipientIdsByRoles(['admin', 'assistant'], {
+        branchId: selectedBranch?.id || null,
+        includeUnassigned: true,
+        excludeUserId: user.id,
+      });
 
       if (recipientIds.length > 0) {
         const notifications = recipientIds.map((userId) => ({

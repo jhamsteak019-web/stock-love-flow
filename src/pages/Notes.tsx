@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { getNotificationRecipientIdsByRoles } from '@/lib/notificationRecipients';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -384,12 +385,11 @@ const Notes = () => {
         
         // Notify admins and assistants when non-admin creates a note
         if (!isAdmin) {
-          const { data: approverUsers } = await supabase
-            .from('user_roles')
-            .select('user_id')
-            .in('role', ['admin', 'assistant']);
-          
-          const recipientIds = Array.from(new Set((approverUsers || []).map(approver => approver.user_id).filter(id => id !== user.id)));
+          const recipientIds = await getNotificationRecipientIdsByRoles(['admin', 'assistant'], {
+            branchId: selectedBranch?.id || null,
+            includeUnassigned: true,
+            excludeUserId: user.id,
+          });
 
           if (recipientIds.length > 0) {
             const notifications = recipientIds.map(userId => ({

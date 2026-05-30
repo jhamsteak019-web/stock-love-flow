@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
-import { format } from 'date-fns';
+import { format, isValid, parse } from 'date-fns';
 import * as XLSX from 'xlsx';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -37,6 +37,48 @@ const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
+
+const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00:00.000Z`;
+
+const parseImportedDateValue = (value: unknown) => {
+  if (value === undefined || value === null || value === '') return '';
+
+  if (value instanceof Date && isValid(value)) {
+    return toStableReleaseDate(value);
+  }
+
+  if (typeof value === 'number') {
+    const excelDate = new Date((value - 25569) * 86400 * 1000);
+    return isValid(excelDate) ? toStableReleaseDate(excelDate) : '';
+  }
+
+  const text = String(value).trim();
+  if (!text) return '';
+
+  const parsedByPattern = [
+    'yyyy-MM-dd',
+    'yyyy/M/d',
+    'MM/dd/yyyy',
+    'M/d/yyyy',
+    'MM/dd/yy',
+    'M/d/yy',
+    'MM-dd-yyyy',
+    'M-d-yyyy',
+    'MM-dd-yy',
+    'M-d-yy',
+    'dd/MM/yyyy',
+    'd/M/yyyy',
+    'dd/MM/yy',
+    'd/M/yy',
+  ]
+    .map(pattern => parse(text, pattern, new Date()))
+    .find(date => isValid(date));
+
+  if (parsedByPattern) return toStableReleaseDate(parsedByPattern);
+
+  const parsed = new Date(text);
+  return isValid(parsed) ? toStableReleaseDate(parsed) : '';
+};
 
 interface ParsedReleaseItem {
   id: string;
@@ -350,26 +392,14 @@ const ReleaseStock = () => {
         }
         
         // Parse BILL DATE - keep as string for manual input
-        let billDateStr = '';
+        let billDateIso = '';
         const billDateKeys = ['BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE'];
         for (const key of billDateKeys) {
           const val = row[key];
-          if (val !== undefined && val !== null && val !== '') {
-            if (val instanceof Date) {
-              // Format as readable date string
-              billDateStr = format(val, 'MM/dd/yyyy');
-            } else if (typeof val === 'string') {
-              billDateStr = val;
-            } else if (typeof val === 'number') {
-              // Excel serial date number
-              const excelDate = new Date((val - 25569) * 86400 * 1000);
-              if (!isNaN(excelDate.getTime())) {
-                billDateStr = format(excelDate, 'MM/dd/yyyy');
-              }
-            }
-            if (billDateStr) break;
-          }
+          billDateIso = parseImportedDateValue(val);
+          if (billDateIso) break;
         }
+        const billDateStr = billDateIso ? format(new Date(billDateIso), 'MM/dd/yyyy') : '';
 
         // Try to match with inventory item by item_code or item_name
         const matchedItem = items.find(i => 
@@ -392,7 +422,7 @@ const ReleaseStock = () => {
           productCode,
           productDescription,
           billDate: billDateStr,
-          setDate: '',
+          setDate: billDateIso,
           courier: '',
           matchedItemId: matchedItem?.id || null,
           matchedItemName: matchedItem?.item_name || null,
@@ -901,7 +931,7 @@ const ReleaseStock = () => {
                                   <Calendar
                                     mode="single"
                                     selected={item.setDate ? new Date(item.setDate) : undefined}
-                                    onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date?.toISOString() || '')}
+                                    onSelect={(date) => updateParsedItemWithBulk(item.id, 'setDate', date ? toStableReleaseDate(date) : '')}
                                     initialFocus
                                     className={cn("p-3 pointer-events-auto")}
                                   />
