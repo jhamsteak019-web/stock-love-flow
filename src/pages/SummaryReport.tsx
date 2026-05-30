@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { exportToExcel } from '@/lib/excelExport';
 import { toast } from 'sonner';
 import AllocationBillModal from '@/components/deliveries/AllocationBillModal';
@@ -114,45 +114,48 @@ const SummaryReport = () => {
 
   // Export to PDF function
   const handleExportPDF = () => {
-    const doc = new jsPDF();
-    
-    doc.setFontSize(16);
-    doc.text('Summary Report', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
-    doc.text(`Category: ${categorySearch.trim() || 'All Categories'}`, 14, 28);
-    doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 34);
+    try {
+      const doc = new jsPDF();
 
-    // Stats summary
-    doc.setFontSize(12);
-    doc.text('Overview', 14, 44);
-    doc.setFontSize(9);
-    doc.text(`Total Boxes: ${totalStats.totalBoxes.toLocaleString()}`, 14, 51);
-    doc.text(`Total Qty: ${totalStats.totalQty.toLocaleString()}`, 60, 51);
-    doc.text(`Delivered: ${totalStats.deliveredCount}`, 110, 51);
-    doc.text(`Pending: ${totalStats.pendingCount}`, 150, 51);
+      doc.setFontSize(16);
+      doc.text('Summary Report', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
+      doc.text(`Category: ${categorySearch.trim() || 'All Categories'}`, 14, 28);
+      doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 34);
 
-    // Branch Report Table
-    const branchColumns = ['Branch', 'Total', 'Delivered', 'Pending', 'Boxes', 'Qty'];
-    const branchRows = branchReport.map(b => [
-      b.branch,
-      b.totalDeliveries.toString(),
-      b.deliveredCount.toString(),
-      (b.pendingCount + b.inTransitCount + b.outForDeliveryCount).toString(),
-      b.totalBoxes.toString(),
-      b.totalQty.toString()
-    ]);
+      doc.setFontSize(12);
+      doc.text('Overview', 14, 44);
+      doc.setFontSize(9);
+      doc.text(`Total Boxes: ${totalStats.totalBoxes.toLocaleString()}`, 14, 51);
+      doc.text(`Total Qty: ${totalStats.totalQty.toLocaleString()}`, 60, 51);
+      doc.text(`Delivered: ${totalStats.deliveredCount}`, 110, 51);
+      doc.text(`Pending: ${totalStats.pendingCount}`, 150, 51);
 
-    (doc as any).autoTable({
-      head: [branchColumns],
-      body: branchRows,
-      startY: 58,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
-    });
+      const branchColumns = ['Branch', 'Total', 'Delivered', 'Pending', 'Boxes', 'Qty'];
+      const branchRows = branchReport.map(b => [
+        b.branch,
+        b.totalDeliveries.toString(),
+        b.deliveredCount.toString(),
+        (b.pendingCount + b.inTransitCount + b.outForDeliveryCount).toString(),
+        b.totalBoxes.toString(),
+        b.totalQty.toString()
+      ]);
 
-    doc.save(`summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
-    toast.success('PDF exported successfully!');
+      autoTable(doc, {
+        head: [branchColumns],
+        body: branchRows,
+        startY: 58,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      doc.save(`summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
+      toast.success('PDF exported successfully!');
+    } catch (error) {
+      console.error('Summary PDF export error:', error);
+      toast.error('Failed to export PDF');
+    }
   };
 
   // Export to Excel function
