@@ -1770,7 +1770,7 @@ const History = () => {
           initialMonth={selectedMonth.toString()}
           initialYear={selectedYear.toString()}
           dateOutDates={selectedDateOutDates}
-          periodLabel={selectedDateOutLabel || undefined}
+          periodLabel={historyExportPeriodLabel}
         />
       )}
     </div>
