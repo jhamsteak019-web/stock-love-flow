@@ -94,6 +94,18 @@ const formatDateOutDisplayValue = (dateValue?: string | null) => {
   return format(toLocalDateOnly(normalizedDate), 'MMM d, yyyy');
 };
 
+const getPeriodLabelFromDateOutValues = (dateValues: string[]) => {
+  const uniqueDateValues = Array.from(new Set(dateValues.filter(Boolean))).sort();
+  if (uniqueDateValues.length === 0) return '';
+  if (uniqueDateValues.length <= 3) {
+    return uniqueDateValues
+      .map(dateValue => format(toLocalDateOnly(dateValue), 'MMMM d, yyyy'))
+      .join(', ');
+  }
+
+  return `${format(toLocalDateOnly(uniqueDateValues[0]), 'MMMM d, yyyy')} - ${format(toLocalDateOnly(uniqueDateValues[uniqueDateValues.length - 1]), 'MMMM d, yyyy')} (${uniqueDateValues.length} dates)`;
+};
+
 const SummaryDeliveryModal = ({
   open,
   onOpenChange,
@@ -142,7 +154,6 @@ const SummaryDeliveryModal = ({
     return new Set(dateOutDates.map(getDateKey));
   }, [dateOutDates]);
   const hasSelectedDateOutFilter = selectedDateOutKeys.size > 0;
-  const reportPeriodLabel = periodLabel || `${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`;
 
   // Filter releases by selected Date Out dates or selected year and month
   const filteredReleases = useMemo(() => {
@@ -161,6 +172,11 @@ const SummaryDeliveryModal = ({
     });
     return dedupeStockReleasesForDisplay(monthReleases);
   }, [releases, selectedDateOutKeys, selectedYear, selectedMonth]);
+
+  const visibleDateOutLabel = useMemo(() => {
+    return getPeriodLabelFromDateOutValues(filteredReleases.map(getReleaseDateOutValue));
+  }, [filteredReleases]);
+  const reportPeriodLabel = periodLabel || visibleDateOutLabel || `${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`;
 
   // Branch/Store Report
   const branchReport = useMemo(() => {
@@ -422,7 +438,7 @@ const SummaryDeliveryModal = ({
             ${branch.items.map(item => `
               <tr>
                 <td>${item.allocation_bill || '-'}</td>
-                <td>${formatDateOutValue(item.set_date)}</td>
+                <td>${formatDateOutValue(item.set_date || item.releases[0]?.date_released)}</td>
                 <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                 <td>${item.courier || '-'}</td>
                 <td>${item.waybill_no || '-'}</td>
@@ -544,7 +560,7 @@ const SummaryDeliveryModal = ({
               ${branch.items.map(item => `
                 <tr>
                   <td>${item.allocation_bill || '-'}</td>
-                  <td>${formatDateOutValue(item.set_date)}</td>
+                  <td>${formatDateOutValue(item.set_date || item.releases[0]?.date_released)}</td>
                   <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                   <td>${item.courier || '-'}</td>
                   <td>${item.waybill_no || '-'}</td>
@@ -856,7 +872,7 @@ const SummaryDeliveryModal = ({
                                       <span className="font-mono">{item.allocation_bill || '-'}</span>
                                     )}
                                   </TableCell>
-                                  <TableCell>{formatDateOutDisplayValue(item.set_date)}</TableCell>
+                                  <TableCell>{formatDateOutDisplayValue(item.set_date || item.releases[0]?.date_released)}</TableCell>
                                   <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                                   <TableCell>{deliveryDays}</TableCell>
                                   <TableCell>{item.courier || '-'}</TableCell>
