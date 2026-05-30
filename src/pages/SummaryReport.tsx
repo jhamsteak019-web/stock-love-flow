@@ -37,8 +37,11 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const getWarehouseDateValue = (release: StockRelease) => {
   const rawDate = release.set_date || release.date_released;
   if (!rawDate) return '';
-  if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
-  return format(new Date(rawDate), 'yyyy-MM-dd');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return rawDate;
+
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return rawDate.slice(0, 10);
+  return format(date, 'yyyy-MM-dd');
 };
 
 const toLocalDateOnly = (dateValue: string) => {
@@ -218,6 +221,12 @@ const SummaryReport = () => {
   const dateOutHighlightDates = useMemo(() => {
     const dates = new Map<string, Date>();
     periodReleases.forEach(release => {
+      const hasActualItems =
+        release.boxes_released > 0 ||
+        getStockReleaseQty(release) > 0 ||
+        getStockReleaseAmount(release) > 0;
+      if (!hasActualItems) return;
+
       const dateValue = getWarehouseDateValue(release);
       if (!dateValue || dates.has(dateValue)) return;
       dates.set(dateValue, toLocalDateOnly(dateValue));

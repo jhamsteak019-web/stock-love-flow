@@ -142,8 +142,11 @@ interface GroupedRelease {
 const getGroupDateOutValue = (group: GroupedRelease) => {
   const rawDate = group.set_date || group.date_released;
   if (!rawDate) return '';
-  if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
-  return format(new Date(rawDate), 'yyyy-MM-dd');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return rawDate;
+
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return rawDate.slice(0, 10);
+  return format(date, 'yyyy-MM-dd');
 };
 
 const History = () => {
@@ -617,6 +620,12 @@ const History = () => {
   const dateOutHighlightDates = useMemo(() => {
     const dates = new Map<string, Date>();
     groupedReleases.forEach(group => {
+      const hasActualItems =
+        group.totalBoxes > 0 ||
+        group.totalQty > 0 ||
+        (group.amount ?? 0) > 0;
+      if (!hasActualItems) return;
+
       const dateValue = getGroupDateOutValue(group);
       if (!dateValue || dates.has(dateValue)) return;
       dates.set(dateValue, toLocalDateOnly(dateValue));
