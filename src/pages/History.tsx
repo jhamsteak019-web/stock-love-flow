@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight, Check, XCircle, MessageSquareWarning } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -101,6 +102,12 @@ const HISTORY_COLUMN_WIDTHS: Record<HistoryColumnKey, number> = {
 
 const HISTORY_ACTIONS_WIDTH = 280;
 
+const getHistoryDateRangeLabel = (range: DateRange | undefined) => {
+  if (!range?.from) return 'Date Out Range';
+  if (!range.to) return format(range.from, 'MMM d, yyyy');
+  return `${format(range.from, 'MMM d')} - ${format(range.to, 'MMM d, yyyy')}`;
+};
+
 interface GroupedRelease {
   batch_id: string;
   allocation_bill: string | null;
@@ -141,6 +148,8 @@ const History = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [categorySearch, setCategorySearch] = useState('');
+  const debouncedCategorySearch = useDebounce(categorySearch, 300);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -486,6 +495,7 @@ const History = () => {
   // Filter grouped releases based on search query, date range, month/year (or all year), and status
   const filteredReleases = useMemo(() => {
     const hasSearch = Boolean(debouncedSearchQuery.trim());
+    const categoryQuery = debouncedCategorySearch.trim().toLowerCase();
 
     return groupedReleases.filter(group => {
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
@@ -520,6 +530,10 @@ const History = () => {
       if (statusFilter !== 'all' && group.delivery_status !== statusFilter) {
         return false;
       }
+
+      if (categoryQuery && !group.category?.toLowerCase().includes(categoryQuery)) {
+        return false;
+      }
       
       // Search filter
       if (debouncedSearchQuery.trim()) {
@@ -546,12 +560,12 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, debouncedSearchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
+  }, [groupedReleases, debouncedSearchQuery, debouncedCategorySearch, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
+  }, [debouncedSearchQuery, debouncedCategorySearch, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
 
   // Pagination for active releases
   const totalPages = Math.ceil(filteredReleases.length / ITEMS_PER_PAGE);
@@ -585,11 +599,16 @@ const History = () => {
   };
 
   const clearFilters = () => {
+    setCategorySearch('');
     setStartDate(undefined);
     setEndDate(undefined);
     setStatusFilter('all');
     setCurrentPage(1);
   };
+
+  const selectedDateRange: DateRange | undefined = startDate || endDate
+    ? { from: startDate, to: endDate }
+    : undefined;
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1119,7 +1138,7 @@ const History = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by allocation bill, waybill, destination, courier..."
+                placeholder="Search allocation, waybill, destination, courier..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -1130,7 +1149,15 @@ const History = () => {
               {/* Month/Year Filter */}
               <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
                 <CalendarLucide className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedMonth.toString()} onValueChange={(val) => { setSelectedMonth(parseInt(val)); setShowAllYear(false); }}>
+                <Select
+                  value={selectedMonth.toString()}
+                  onValueChange={(val) => {
+                    setSelectedMonth(parseInt(val));
+                    setShowAllYear(false);
+                    setStartDate(undefined);
+                    setEndDate(undefined);
+                  }}
+                >
                   <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
@@ -1140,7 +1167,14 @@ const History = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+                <Select
+                  value={selectedYear.toString()}
+                  onValueChange={(val) => {
+                    setSelectedYear(parseInt(val));
+                    setStartDate(undefined);
+                    setEndDate(undefined);
+                  }}
+                >
                   <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
@@ -1155,10 +1189,45 @@ const History = () => {
               <Button 
                 variant={showAllYear ? "default" : "outline"} 
                 size="sm"
-                onClick={() => setShowAllYear(!showAllYear)}
+                onClick={() => {
+                  setShowAllYear(!showAllYear);
+                  setStartDate(undefined);
+                  setEndDate(undefined);
+                }}
               >
                 {showAllYear ? 'Showing All Year' : 'All Year'}
               </Button>
+
+              <div className="relative w-full sm:w-[180px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search category"
+                  value={categorySearch}
+                  onChange={(event) => setCategorySearch(event.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 min-w-[160px] justify-start gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {getHistoryDateRangeLabel(selectedDateRange)}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={selectedDateRange}
+                    onSelect={(range) => {
+                      setStartDate(range?.from);
+                      setEndDate(range?.to);
+                    }}
+                    defaultMonth={startDate || new Date(selectedYear, selectedMonth, 1)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[160px]">
@@ -1173,7 +1242,7 @@ const History = () => {
                 </SelectContent>
               </Select>
 
-              {statusFilter !== 'all' && (
+              {(categorySearch.trim() || startDate || endDate || statusFilter !== 'all') && (
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
                   <X className="h-4 w-4 mr-1" />
                   Clear filters
@@ -1207,7 +1276,7 @@ const History = () => {
                     <TableCell colSpan={visibleColumnCount} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
-                        {searchQuery || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
+                        {searchQuery || categorySearch || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
                       </p>
                     </TableCell>
                   </TableRow>

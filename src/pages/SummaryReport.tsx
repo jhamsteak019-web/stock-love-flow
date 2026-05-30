@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { BarChart3, TrendingUp, Package, Truck, Calendar as CalendarIcon, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign, Filter, X } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,8 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
-import { format, differenceInDays, startOfMonth, parseISO } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { format, differenceInDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,12 @@ const getWarehouseDateValue = (release: StockRelease) => {
   if (!rawDate) return '';
   if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
   return format(new Date(rawDate), 'yyyy-MM-dd');
+};
+
+const getDateRangeLabel = (range: DateRange | undefined) => {
+  if (!range?.from) return 'Date Out Range';
+  if (!range.to) return format(range.from, 'MMM d, yyyy');
+  return `${format(range.from, 'MMM d')} - ${format(range.to, 'MMM d, yyyy')}`;
 };
 
 interface DeliveredSummaryItem {
@@ -74,8 +81,8 @@ const SummaryReport = () => {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
   const [showAllYear, setShowAllYear] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedWarehouseDate, setSelectedWarehouseDate] = useState('all');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [warehouseDateRange, setWarehouseDateRange] = useState<DateRange | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
@@ -113,7 +120,7 @@ const SummaryReport = () => {
     doc.text('Summary Report', 14, 15);
     doc.setFontSize(10);
     doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
-    doc.text(`Category: ${selectedCategory === 'all' ? 'All Categories' : selectedCategory}`, 14, 28);
+    doc.text(`Category: ${categorySearch.trim() || 'All Categories'}`, 14, 28);
     doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 34);
 
     // Stats summary
@@ -162,7 +169,7 @@ const SummaryReport = () => {
 
       await exportToExcel({
         title: 'Summary Report',
-        subtitle: `${MONTHS[parseInt(selectedMonth)]} ${selectedYear} - ${selectedCategory === 'all' ? 'All Categories' : selectedCategory}`,
+        subtitle: `${MONTHS[parseInt(selectedMonth)]} ${selectedYear} - ${categorySearch.trim() || 'All Categories'}`,
         filename: `summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}`,
         columns: [
           { header: 'Branch', key: 'branch', width: 25 },
@@ -198,50 +205,29 @@ const SummaryReport = () => {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [periodReleases, currentYear]);
 
-  const categoryFilterOptions = useMemo(() => {
-    const categories = new Set(CATEGORY_OPTIONS);
-    periodReleases.forEach(release => {
-      const category = release.category?.trim().toUpperCase();
-      if (category) categories.add(category);
-    });
-    return Array.from(categories).sort();
-  }, [periodReleases]);
-
-  const availableWarehouseDates = useMemo(() => {
-    const counts = new Map<string, number>();
-    periodReleases.forEach(release => {
-      const dateValue = getWarehouseDateValue(release);
-      if (!dateValue) return;
-      counts.set(dateValue, (counts.get(dateValue) || 0) + 1);
-    });
-
-    return Array.from(counts.entries())
-      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-      .map(([value, count]) => ({
-        value,
-        count,
-        label: format(parseISO(value), 'MMM d, yyyy'),
-      }));
-  }, [periodReleases]);
-
-  const availableWarehouseDateSet = useMemo(
-    () => new Set(availableWarehouseDates.map(date => date.value)),
-    [availableWarehouseDates]
-  );
-
   // Filter releases by category/date (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
+    const categoryQuery = categorySearch.trim().toLowerCase();
     const categoryReleases = periodReleases.filter(release => {
-      const matchesCategory = selectedCategory === 'all' || 
-        (release.category?.trim().toUpperCase() === selectedCategory.toUpperCase());
-      const matchesDate = selectedWarehouseDate === 'all' ||
-        getWarehouseDateValue(release) === selectedWarehouseDate;
+      const releaseCategory = release.category?.trim().toLowerCase() || '';
+      const matchesCategory = !categoryQuery || releaseCategory.includes(categoryQuery);
+
+      const dateValue = getWarehouseDateValue(release);
+      const dateToFilter = dateValue ? new Date(dateValue) : null;
+      const matchesDate = !warehouseDateRange?.from
+        ? true
+        : dateToFilter
+          ? isWithinInterval(dateToFilter, {
+              start: startOfDay(warehouseDateRange.from),
+              end: endOfDay(warehouseDateRange.to || warehouseDateRange.from),
+            })
+          : false;
       
       return matchesCategory && matchesDate;
     });
 
     return dedupeStockReleasesForDisplay(categoryReleases);
-  }, [periodReleases, selectedCategory, selectedWarehouseDate]);
+  }, [periodReleases, categorySearch, warehouseDateRange]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -291,16 +277,6 @@ const SummaryReport = () => {
       };
     });
   }, [filteredReleases]);
-
-  // Filter releases by year only (for yearly stats) - use periodReleases
-  const yearlyReleases = useMemo(() => {
-    return periodReleases.filter(release => {
-      // Use set_date (Date Out Warehouse) for filtering, fallback to date_released
-      const dateToUse = release.set_date || release.date_released;
-      const releaseYear = new Date(dateToUse).getFullYear().toString();
-      return releaseYear === selectedYear;
-    });
-  }, [periodReleases, selectedYear]);
 
   // Branch/Store Report - Pending vs Delivered per branch
   const branchReport = useMemo(() => {
@@ -592,53 +568,6 @@ const SummaryReport = () => {
       deliveryPercentage,
     };
   }, [groupedByBatch, filteredReleases]);
-
-  // Monthly summary for chart - group by batch first
-  const monthlySummary = useMemo(() => {
-    const monthlyData = MONTHS.map((month, index) => ({
-      month: month.substring(0, 3),
-      delivered: 0,
-      pending: 0,
-    }));
-
-    // Group yearly releases by batch first
-    const yearlyBatches: Record<string, {
-      boxes_released: number;
-      delivery_status: string;
-      set_date: string | null;
-      date_released: string;
-    }> = {};
-
-    yearlyReleases.forEach(release => {
-      const normalizedAllocation = release.allocation_bill?.trim().toLowerCase();
-      const batchKey = normalizedAllocation ? `allocation:${normalizedAllocation}` : release.batch_id || release.id;
-      const effectiveStatus = getEffectiveDeliveryStatus(release.delivery_status, release.date_delivered);
-      if (!yearlyBatches[batchKey]) {
-        yearlyBatches[batchKey] = {
-          boxes_released: 0,
-          delivery_status: effectiveStatus,
-          set_date: release.set_date,
-          date_released: release.date_released,
-        };
-      }
-      yearlyBatches[batchKey].boxes_released += release.boxes_released;
-      if (effectiveStatus === 'delivered') {
-        yearlyBatches[batchKey].delivery_status = 'delivered';
-      }
-    });
-
-    Object.values(yearlyBatches).forEach(batch => {
-      const dateToUse = batch.set_date || batch.date_released;
-      const monthIndex = new Date(dateToUse).getMonth();
-      if (batch.delivery_status === 'delivered') {
-        monthlyData[monthIndex].delivered += batch.boxes_released;
-      } else {
-        monthlyData[monthIndex].pending += batch.boxes_released;
-      }
-    });
-
-    return monthlyData;
-  }, [yearlyReleases]);
 
   // Top stores per category - use groupedByBatch to avoid duplicates
   const topStoresPerCategory = useMemo(() => {
@@ -973,7 +902,7 @@ const SummaryReport = () => {
           )}
           <div className="flex flex-wrap items-center gap-2 bg-card border rounded-lg p-2">
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setSelectedWarehouseDate('all'); }}>
+            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setWarehouseDateRange(undefined); }}>
               <SelectTrigger className="w-[132px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -983,7 +912,7 @@ const SummaryReport = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setSelectedWarehouseDate('all'); }}>
+            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setWarehouseDateRange(undefined); }}>
               <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -994,62 +923,42 @@ const SummaryReport = () => {
               </SelectContent>
             </Select>
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[120px] border-0 shadow-none focus:ring-0 h-8">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                <SelectItem value="all">All Categories</SelectItem>
-                {categoryFilterOptions.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedWarehouseDate} onValueChange={setSelectedWarehouseDate}>
-              <SelectTrigger className="w-[152px] border-0 shadow-none focus:ring-0 h-8">
-                <SelectValue placeholder="Filter date" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                <SelectItem value="all">All Date Out</SelectItem>
-                {availableWarehouseDates.map(date => (
-                  <SelectItem key={date.value} value={date.value}>
-                    {date.label} ({date.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={categorySearch}
+                onChange={(event) => setCategorySearch(event.target.value)}
+                placeholder="Search category"
+                className="h-8 w-[150px] border-0 bg-transparent pl-8 shadow-none focus-visible:ring-0"
+              />
+            </div>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-2">
+                <Button variant="outline" size="sm" className="h-8 min-w-[150px] justify-start gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  {selectedWarehouseDate === 'all' ? 'Calendar' : format(parseISO(selectedWarehouseDate), 'MMM d')}
+                  {getDateRangeLabel(warehouseDateRange)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
                 <CalendarComponent
-                  mode="single"
-                  selected={selectedWarehouseDate === 'all' ? undefined : parseISO(selectedWarehouseDate)}
-                  onSelect={(date) => {
-                    if (!date) return;
-                    const dateValue = format(date, 'yyyy-MM-dd');
-                    if (availableWarehouseDateSet.has(dateValue)) {
-                      setSelectedWarehouseDate(dateValue);
-                    }
-                  }}
-                  disabled={(date) => !availableWarehouseDateSet.has(format(date, 'yyyy-MM-dd'))}
-                  modifiers={{ hasRelease: availableWarehouseDates.map(date => parseISO(date.value)) }}
-                  modifiersClassNames={{ hasRelease: 'font-bold text-primary' }}
+                  mode="range"
+                  selected={warehouseDateRange}
+                  onSelect={setWarehouseDateRange}
+                  defaultMonth={warehouseDateRange?.from || new Date(parseInt(selectedYear), parseInt(selectedMonth), 1)}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
-            {selectedWarehouseDate !== 'all' && (
+            {(warehouseDateRange?.from || categorySearch.trim()) && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setSelectedWarehouseDate('all')}
-                title="Clear date filter"
+                onClick={() => {
+                  setWarehouseDateRange(undefined);
+                  setCategorySearch('');
+                }}
+                title="Clear filters"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -1058,7 +967,7 @@ const SummaryReport = () => {
           <Button 
             variant={showAllYear ? "default" : "outline"} 
             size="sm"
-            onClick={() => { setShowAllYear(!showAllYear); setSelectedWarehouseDate('all'); }}
+            onClick={() => { setShowAllYear(!showAllYear); setWarehouseDateRange(undefined); }}
           >
             {showAllYear ? 'Showing All Year' : 'All Year'}
           </Button>
@@ -1158,35 +1067,6 @@ const SummaryReport = () => {
 
         {/* Branch Report Tab */}
         <TabsContent value="branch-report" className="space-y-6">
-          {/* Monthly Chart */}
-          <Card className="animate-fade-in">
-            <CardHeader>
-              <CardTitle>Monthly Delivery Status ({selectedYear})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlySummary}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="month" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    />
-                    <Legend />
-                    <Bar dataKey="delivered" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} name="Delivered" />
-                    <Bar dataKey="pending" fill="hsl(45, 93%, 47%)" radius={[4, 4, 0, 0]} name="Pending" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Category Distribution & Delivery Percentage */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Category Distribution Pie Chart */}
