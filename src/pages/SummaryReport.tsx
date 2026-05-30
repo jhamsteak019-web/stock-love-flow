@@ -42,6 +42,12 @@ const getWarehouseDateValue = (release: StockRelease) => {
   return format(new Date(rawDate), 'yyyy-MM-dd');
 };
 
+const toLocalDateOnly = (dateValue: string) => {
+  const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return new Date(dateValue);
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+};
+
 const getDateRangeLabel = (range: DateRange | undefined) => {
   if (!range?.from) return 'Date Out Range';
   if (!range.to) return format(range.from, 'MMM d, yyyy');
@@ -208,6 +214,16 @@ const SummaryReport = () => {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [periodReleases, currentYear]);
 
+  const dateOutHighlightDates = useMemo(() => {
+    const dates = new Map<string, Date>();
+    periodReleases.forEach(release => {
+      const dateValue = getWarehouseDateValue(release);
+      if (!dateValue || dates.has(dateValue)) return;
+      dates.set(dateValue, toLocalDateOnly(dateValue));
+    });
+    return Array.from(dates.values());
+  }, [periodReleases]);
+
   // Filter releases by category/date (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
     const categoryQuery = categorySearch.trim().toLowerCase();
@@ -216,7 +232,7 @@ const SummaryReport = () => {
       const matchesCategory = !categoryQuery || releaseCategory.includes(categoryQuery);
 
       const dateValue = getWarehouseDateValue(release);
-      const dateToFilter = dateValue ? new Date(dateValue) : null;
+      const dateToFilter = dateValue ? toLocalDateOnly(dateValue) : null;
       const matchesDate = !warehouseDateRange?.from
         ? true
         : dateToFilter
@@ -948,6 +964,10 @@ const SummaryReport = () => {
                   selected={warehouseDateRange}
                   onSelect={setWarehouseDateRange}
                   defaultMonth={warehouseDateRange?.from || new Date(parseInt(selectedYear), parseInt(selectedMonth), 1)}
+                  modifiers={{ dateOut: dateOutHighlightDates }}
+                  modifiersClassNames={{
+                    dateOut: 'relative bg-primary/10 font-semibold text-primary ring-1 ring-primary/35 hover:bg-primary/20',
+                  }}
                   initialFocus
                 />
               </PopoverContent>

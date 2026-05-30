@@ -108,6 +108,12 @@ const getHistoryDateRangeLabel = (range: DateRange | undefined) => {
   return `${format(range.from, 'MMM d')} - ${format(range.to, 'MMM d, yyyy')}`;
 };
 
+const toLocalDateOnly = (dateValue: string) => {
+  const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return new Date(dateValue);
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+};
+
 interface GroupedRelease {
   batch_id: string;
   allocation_bill: string | null;
@@ -131,6 +137,13 @@ interface GroupedRelease {
   photo_status: string | null;
   action_status: string | null;
 }
+
+const getGroupDateOutValue = (group: GroupedRelease) => {
+  const rawDate = group.set_date || group.date_released;
+  if (!rawDate) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) return rawDate.slice(0, 10);
+  return format(new Date(rawDate), 'yyyy-MM-dd');
+};
 
 const History = () => {
   const { deleteAllReleases, fetchDeletedReleases, permanentlyDeleteAllDeleted } = useInventory({ autoFetch: false });
@@ -609,6 +622,16 @@ const History = () => {
   const selectedDateRange: DateRange | undefined = startDate || endDate
     ? { from: startDate, to: endDate }
     : undefined;
+
+  const dateOutHighlightDates = useMemo(() => {
+    const dates = new Map<string, Date>();
+    groupedReleases.forEach(group => {
+      const dateValue = getGroupDateOutValue(group);
+      if (!dateValue || dates.has(dateValue)) return;
+      dates.set(dateValue, toLocalDateOnly(dateValue));
+    });
+    return Array.from(dates.values());
+  }, [groupedReleases]);
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1224,6 +1247,10 @@ const History = () => {
                       setEndDate(range?.to);
                     }}
                     defaultMonth={startDate || new Date(selectedYear, selectedMonth, 1)}
+                    modifiers={{ dateOut: dateOutHighlightDates }}
+                    modifiersClassNames={{
+                      dateOut: 'relative bg-primary/10 font-semibold text-primary ring-1 ring-primary/35 hover:bg-primary/20',
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
