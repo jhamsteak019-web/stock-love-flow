@@ -109,6 +109,23 @@ const getHistoryDatePickerLabel = (dates: Date[]) => {
   return `${dates.length} dates selected`;
 };
 
+const getExportDateOutLabel = (dates: Date[]) => {
+  if (dates.length === 0) return '';
+  const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
+  if (sortedDates.length <= 3) {
+    return sortedDates.map(date => format(date, 'MMMM d, yyyy')).join(', ');
+  }
+
+  return `${format(sortedDates[0], 'MMMM d, yyyy')} - ${format(sortedDates[sortedDates.length - 1], 'MMMM d, yyyy')} (${sortedDates.length} selected dates)`;
+};
+
+const getExportFilenamePeriod = (label: string) => {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
 const toLocalDateOnly = (dateValue: string) => {
   const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!match) return new Date(dateValue);
@@ -632,6 +649,9 @@ const History = () => {
     });
     return Array.from(dates.values());
   }, [groupedReleases]);
+  const selectedDateOutLabel = getExportDateOutLabel(selectedDateOutDates);
+  const historyExportPeriodLabel = selectedDateOutLabel || `${MONTHS[selectedMonth]} ${selectedYear}`;
+  const historyExportFilenamePeriod = getExportFilenamePeriod(historyExportPeriodLabel);
 
   const handleDelete = async (group: GroupedRelease, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -959,7 +979,7 @@ const History = () => {
         totalBoxes: group.totalBoxes,
         amount: group.amount ?? null,
         totalQty: group.totalQty,
-        dateOut: group.set_date ? format(new Date(group.set_date), 'MMM dd, yyyy') : '-',
+        dateOut: getGroupDateOutValue(group) ? format(toLocalDateOnly(getGroupDateOutValue(group)), 'MMM dd, yyyy') : '-',
         dateReceived: group.date_delivered ? format(new Date(group.date_delivered), 'MMM dd, yyyy') : '-',
         deliveryDays: group.set_date && group.date_delivered
           ? differenceInDays(new Date(group.date_delivered), new Date(group.set_date)) + ' days'
@@ -970,8 +990,8 @@ const History = () => {
 
       await exportToExcel({
         title: 'Transaction History',
-        subtitle: `${MONTHS[selectedMonth]} ${selectedYear}`,
-        filename: `transaction-history-${MONTHS[selectedMonth]}-${selectedYear}`,
+        subtitle: historyExportPeriodLabel,
+        filename: `transaction-history-${historyExportFilenamePeriod}`,
         columns: [
           { header: 'Allocation', key: 'allocation', width: 22 },
           { header: 'Destination', key: 'destination', width: 18 },
@@ -1747,6 +1767,10 @@ const History = () => {
           open={showSummaryModal}
           onOpenChange={setShowSummaryModal}
           isViewer={isViewer}
+          initialMonth={selectedMonth.toString()}
+          initialYear={selectedYear.toString()}
+          dateOutDates={selectedDateOutDates}
+          periodLabel={historyExportPeriodLabel}
         />
       )}
     </div>

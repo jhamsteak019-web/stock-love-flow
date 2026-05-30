@@ -29,6 +29,10 @@ interface SummaryDeliveryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isViewer?: boolean;
+  initialMonth?: string;
+  initialYear?: string;
+  dateOutDates?: Date[];
+  periodLabel?: string;
 }
 
 interface DeliveredSummaryItem {
@@ -56,7 +60,49 @@ const isEffectivelyDelivered = (status?: string | null, dateDelivered?: string |
   return getEffectiveDeliveryStatus(status, dateDelivered) === 'delivered';
 };
 
-const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryDeliveryModalProps) => {
+const getDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
+
+const toLocalDateOnly = (dateValue: string) => {
+  const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return new Date(dateValue);
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+};
+
+const normalizeRawDateValue = (dateValue?: string | null) => {
+  if (!dateValue) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue;
+
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return dateValue.slice(0, 10);
+  return format(date, 'yyyy-MM-dd');
+};
+
+const getReleaseDateOutValue = (release: StockRelease) => {
+  const rawDate = release.set_date || release.date_released;
+  return normalizeRawDateValue(rawDate);
+};
+
+const formatDateOutValue = (dateValue?: string | null) => {
+  const normalizedDate = normalizeRawDateValue(dateValue);
+  if (!normalizedDate) return '-';
+  return format(toLocalDateOnly(normalizedDate), 'yyyy-MM-dd');
+};
+
+const formatDateOutDisplayValue = (dateValue?: string | null) => {
+  const normalizedDate = normalizeRawDateValue(dateValue);
+  if (!normalizedDate) return '-';
+  return format(toLocalDateOnly(normalizedDate), 'MMM d, yyyy');
+};
+
+const SummaryDeliveryModal = ({
+  open,
+  onOpenChange,
+  isViewer = false,
+  initialMonth,
+  initialYear,
+  dateOutDates = [],
+  periodLabel,
+}: SummaryDeliveryModalProps) => {
   const { releases, loading } = useInventory({
     autoFetch: open,
     loadItems: false,
@@ -66,8 +112,8 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
 
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
+  const [selectedYear, setSelectedYear] = useState(initialYear || currentYear.toString());
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth || currentMonth.toString());
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [selectedSummaryItem, setSelectedSummaryItem] = useState<DeliveredSummaryItem | null>(null);
@@ -92,17 +138,29 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [releases, currentYear]);
 
-  // Filter releases by selected year and month
+  const selectedDateOutKeys = useMemo(() => {
+    return new Set(dateOutDates.map(getDateKey));
+  }, [dateOutDates]);
+  const hasSelectedDateOutFilter = selectedDateOutKeys.size > 0;
+  const reportPeriodLabel = periodLabel || `${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`;
+
+  // Filter releases by selected Date Out dates or selected year and month
   const filteredReleases = useMemo(() => {
     const monthReleases = releases.filter(release => {
-      const dateToUse = release.set_date || release.date_released;
-      const releaseDate = new Date(dateToUse);
+      const dateValue = getReleaseDateOutValue(release);
+      if (!dateValue) return false;
+
+      if (selectedDateOutKeys.size > 0) {
+        return selectedDateOutKeys.has(dateValue);
+      }
+
+      const releaseDate = toLocalDateOnly(dateValue);
       const releaseYear = releaseDate.getFullYear().toString();
       const releaseMonth = releaseDate.getMonth().toString();
       return releaseYear === selectedYear && releaseMonth === selectedMonth;
     });
     return dedupeStockReleasesForDisplay(monthReleases);
-  }, [releases, selectedYear, selectedMonth]);
+  }, [releases, selectedDateOutKeys, selectedYear, selectedMonth]);
 
   // Branch/Store Report
   const branchReport = useMemo(() => {
@@ -364,7 +422,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
             ${branch.items.map(item => `
               <tr>
                 <td>${item.allocation_bill || '-'}</td>
-                <td>${item.set_date ? format(new Date(item.set_date), 'yyyy-MM-dd') : '-'}</td>
+                <td>${formatDateOutValue(item.set_date)}</td>
                 <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                 <td>${item.courier || '-'}</td>
                 <td>${item.waybill_no || '-'}</td>
@@ -392,7 +450,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Summary Delivery - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</title>
+          <title>Summary Delivery - ${reportPeriodLabel}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
@@ -418,7 +476,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         <body>
           <div class="header">
             <h1>SUMMARY DELIVERY BY BRANCH</h1>
-            <p>${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</p>
+            <p>${reportPeriodLabel}</p>
           </div>
           ${branchesHtml}
           <div class="grand-total">
@@ -445,7 +503,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Summary Delivery - ${branch.branch} - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</title>
+          <title>Summary Delivery - ${branch.branch} - ${reportPeriodLabel}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
@@ -464,7 +522,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         <body>
           <div class="header">
             <h1>SUMMARY DELIVERY</h1>
-            <p>${branch.branch} - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</p>
+            <p>${branch.branch} - ${reportPeriodLabel}</p>
           </div>
           <h2 class="branch-title">${branch.branch}</h2>
           <table>
@@ -486,7 +544,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
               ${branch.items.map(item => `
                 <tr>
                   <td>${item.allocation_bill || '-'}</td>
-                  <td>${item.set_date ? format(new Date(item.set_date), 'yyyy-MM-dd') : '-'}</td>
+                  <td>${formatDateOutValue(item.set_date)}</td>
                   <td>${item.date_delivered ? format(new Date(item.date_delivered), 'yyyy-MM-dd') : '-'}</td>
                   <td>${item.courier || '-'}</td>
                   <td>${item.waybill_no || '-'}</td>
@@ -539,27 +597,35 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
         ) : (
         <>
         <div className="flex flex-wrap items-center gap-2 py-2">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((month, index) => (
-                <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {hasSelectedDateOutFilter ? (
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+              Date Out: {reportPeriodLabel}
+            </div>
+          ) : (
+            <>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((month, index) => (
+                    <SelectItem key={index} value={index.toString()}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[100px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
         </div>
 
         {/* Summary Stats */}
@@ -790,7 +856,7 @@ const SummaryDeliveryModal = ({ open, onOpenChange, isViewer = false }: SummaryD
                                       <span className="font-mono">{item.allocation_bill || '-'}</span>
                                     )}
                                   </TableCell>
-                                  <TableCell>{item.set_date ? format(new Date(item.set_date), 'MMM d, yyyy') : '-'}</TableCell>
+                                  <TableCell>{formatDateOutDisplayValue(item.set_date)}</TableCell>
                                   <TableCell>{item.date_delivered ? format(new Date(item.date_delivered), 'MMM d, yyyy') : '-'}</TableCell>
                                   <TableCell>{deliveryDays}</TableCell>
                                   <TableCell>{item.courier || '-'}</TableCell>
