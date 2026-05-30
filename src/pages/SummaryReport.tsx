@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { BarChart3, TrendingUp, Package, Truck, Calendar as CalendarIcon, Store, ShoppingBag, Printer, CheckCircle, Search, FileDown, FileSpreadsheet, DollarSign, Filter, X } from 'lucide-react';
-import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
-import { format, differenceInDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,10 +47,12 @@ const toLocalDateOnly = (dateValue: string) => {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 };
 
-const getDateRangeLabel = (range: DateRange | undefined) => {
-  if (!range?.from) return 'Date Out Range';
-  if (!range.to) return format(range.from, 'MMM d, yyyy');
-  return `${format(range.from, 'MMM d')} - ${format(range.to, 'MMM d, yyyy')}`;
+const getDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
+
+const getDatePickerLabel = (dates: Date[]) => {
+  if (dates.length === 0) return 'Pick Date Out';
+  if (dates.length === 1) return format(dates[0], 'MMM d, yyyy');
+  return `${dates.length} dates selected`;
 };
 
 interface DeliveredSummaryItem {
@@ -88,7 +89,7 @@ const SummaryReport = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
   const [showAllYear, setShowAllYear] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
-  const [warehouseDateRange, setWarehouseDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedDateOutDates, setSelectedDateOutDates] = useState<Date[]>([]);
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
@@ -224,6 +225,10 @@ const SummaryReport = () => {
     return Array.from(dates.values());
   }, [periodReleases]);
 
+  const selectedDateOutKeys = useMemo(() => {
+    return new Set(selectedDateOutDates.map(getDateKey));
+  }, [selectedDateOutDates]);
+
   // Filter releases by category/date (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
     const categoryQuery = categorySearch.trim().toLowerCase();
@@ -232,21 +237,13 @@ const SummaryReport = () => {
       const matchesCategory = !categoryQuery || releaseCategory.includes(categoryQuery);
 
       const dateValue = getWarehouseDateValue(release);
-      const dateToFilter = dateValue ? toLocalDateOnly(dateValue) : null;
-      const matchesDate = !warehouseDateRange?.from
-        ? true
-        : dateToFilter
-          ? isWithinInterval(dateToFilter, {
-              start: startOfDay(warehouseDateRange.from),
-              end: endOfDay(warehouseDateRange.to || warehouseDateRange.from),
-            })
-          : false;
+      const matchesDate = selectedDateOutKeys.size === 0 || selectedDateOutKeys.has(dateValue);
       
       return matchesCategory && matchesDate;
     });
 
     return dedupeStockReleasesForDisplay(categoryReleases);
-  }, [periodReleases, categorySearch, warehouseDateRange]);
+  }, [periodReleases, categorySearch, selectedDateOutKeys]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -921,7 +918,7 @@ const SummaryReport = () => {
           )}
           <div className="flex flex-wrap items-center gap-2 bg-card border rounded-lg p-2">
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setWarehouseDateRange(undefined); }}>
+            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setSelectedDateOutDates([]); }}>
               <SelectTrigger className="w-[132px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -931,7 +928,7 @@ const SummaryReport = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setWarehouseDateRange(undefined); }}>
+            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setSelectedDateOutDates([]); }}>
               <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -955,30 +952,30 @@ const SummaryReport = () => {
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 min-w-[150px] justify-start gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  {getDateRangeLabel(warehouseDateRange)}
+                  {getDatePickerLabel(selectedDateOutDates)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
                 <CalendarComponent
-                  mode="range"
-                  selected={warehouseDateRange}
-                  onSelect={setWarehouseDateRange}
-                  defaultMonth={warehouseDateRange?.from || new Date(parseInt(selectedYear), parseInt(selectedMonth), 1)}
+                  mode="multiple"
+                  selected={selectedDateOutDates}
+                  onSelect={(dates) => setSelectedDateOutDates(dates || [])}
+                  defaultMonth={selectedDateOutDates[0] || new Date(parseInt(selectedYear), parseInt(selectedMonth), 1)}
                   modifiers={{ dateOut: dateOutHighlightDates }}
                   modifiersClassNames={{
-                    dateOut: 'relative bg-primary/10 font-semibold text-primary ring-1 ring-primary/35 hover:bg-primary/20',
+                    dateOut: 'font-semibold ring-1 ring-primary/35',
                   }}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
-            {(warehouseDateRange?.from || categorySearch.trim()) && (
+            {(selectedDateOutDates.length > 0 || categorySearch.trim()) && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => {
-                  setWarehouseDateRange(undefined);
+                  setSelectedDateOutDates([]);
                   setCategorySearch('');
                 }}
                 title="Clear filters"
@@ -990,7 +987,7 @@ const SummaryReport = () => {
           <Button 
             variant={showAllYear ? "default" : "outline"} 
             size="sm"
-            onClick={() => { setShowAllYear(!showAllYear); setWarehouseDateRange(undefined); }}
+            onClick={() => { setShowAllYear(!showAllYear); setSelectedDateOutDates([]); }}
           >
             {showAllYear ? 'Showing All Year' : 'All Year'}
           </Button>

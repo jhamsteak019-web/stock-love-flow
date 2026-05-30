@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ClipboardList, Eye, Trash2, AlertTriangle, Search, CalendarIcon, X, RotateCcw, Archive, Pencil, FileDown, Calendar as CalendarLucide, FileSpreadsheet, ChevronLeft, ChevronRight, Check, XCircle, MessageSquareWarning } from 'lucide-react';
-import type { DateRange } from 'react-day-picker';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,7 +11,7 @@ import { useStockReleasesForPeriod } from '@/hooks/useStockReleasesForPeriod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 import { DeliveryStatus, StockRelease, UserRole } from '@/types/inventory';
-import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -102,10 +101,12 @@ const HISTORY_COLUMN_WIDTHS: Record<HistoryColumnKey, number> = {
 
 const HISTORY_ACTIONS_WIDTH = 280;
 
-const getHistoryDateRangeLabel = (range: DateRange | undefined) => {
-  if (!range?.from) return 'Date Out Range';
-  if (!range.to) return format(range.from, 'MMM d, yyyy');
-  return `${format(range.from, 'MMM d')} - ${format(range.to, 'MMM d, yyyy')}`;
+const getDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
+
+const getHistoryDatePickerLabel = (dates: Date[]) => {
+  if (dates.length === 0) return 'Pick Date Out';
+  if (dates.length === 1) return format(dates[0], 'MMM d, yyyy');
+  return `${dates.length} dates selected`;
 };
 
 const toLocalDateOnly = (dateValue: string) => {
@@ -163,8 +164,7 @@ const History = () => {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [categorySearch, setCategorySearch] = useState('');
   const debouncedCategorySearch = useDebounce(categorySearch, 300);
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [selectedDateOutDates, setSelectedDateOutDates] = useState<Date[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   // Get saved filter from localStorage or use current date
@@ -442,6 +442,9 @@ const History = () => {
 
   const groupedReleases = useMemo(() => groupReleases(releases, true), [releases, selectedBranch]);
   const groupedDeletedReleases = useMemo(() => groupReleases(deletedReleases, false), [deletedReleases]);
+  const selectedDateOutKeys = useMemo(() => {
+    return new Set(selectedDateOutDates.map(getDateKey));
+  }, [selectedDateOutDates]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -512,7 +515,8 @@ const History = () => {
 
     return groupedReleases.filter(group => {
       // Month/Year filter - use set_date (Date Out) if available, otherwise date_released
-      const dateToFilter = group.set_date ? new Date(group.set_date) : new Date(group.date_released);
+      const dateValue = getGroupDateOutValue(group);
+      const dateToFilter = dateValue ? toLocalDateOnly(dateValue) : new Date(group.date_released);
       
       if (!hasSearch) {
         // Year filter always applies
@@ -526,17 +530,9 @@ const History = () => {
         }
       }
 
-      // Date range filter
-      if (startDate || endDate) {
-        if (startDate && endDate) {
-          if (!isWithinInterval(dateToFilter, { start: startOfDay(startDate), end: endOfDay(endDate) })) {
-            return false;
-          }
-        } else if (startDate && dateToFilter < startOfDay(startDate)) {
-          return false;
-        } else if (endDate && dateToFilter > endOfDay(endDate)) {
-          return false;
-        }
+      // Picked Date Out filter
+      if (selectedDateOutKeys.size > 0 && !selectedDateOutKeys.has(getDateKey(dateToFilter))) {
+        return false;
       }
       
       // Status filter
@@ -573,12 +569,12 @@ const History = () => {
       
       return true;
     });
-  }, [groupedReleases, debouncedSearchQuery, debouncedCategorySearch, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
+  }, [groupedReleases, debouncedSearchQuery, debouncedCategorySearch, selectedDateOutKeys, statusFilter, selectedMonth, selectedYear, showAllYear]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, debouncedCategorySearch, startDate, endDate, statusFilter, selectedMonth, selectedYear, showAllYear]);
+  }, [debouncedSearchQuery, debouncedCategorySearch, selectedDateOutDates, statusFilter, selectedMonth, selectedYear, showAllYear]);
 
   // Pagination for active releases
   const totalPages = Math.ceil(filteredReleases.length / ITEMS_PER_PAGE);
@@ -613,15 +609,10 @@ const History = () => {
 
   const clearFilters = () => {
     setCategorySearch('');
-    setStartDate(undefined);
-    setEndDate(undefined);
+    setSelectedDateOutDates([]);
     setStatusFilter('all');
     setCurrentPage(1);
   };
-
-  const selectedDateRange: DateRange | undefined = startDate || endDate
-    ? { from: startDate, to: endDate }
-    : undefined;
 
   const dateOutHighlightDates = useMemo(() => {
     const dates = new Map<string, Date>();
@@ -1177,8 +1168,7 @@ const History = () => {
                   onValueChange={(val) => {
                     setSelectedMonth(parseInt(val));
                     setShowAllYear(false);
-                    setStartDate(undefined);
-                    setEndDate(undefined);
+                    setSelectedDateOutDates([]);
                   }}
                 >
                   <SelectTrigger className="w-[110px] h-8 border-0 bg-transparent focus:ring-0">
@@ -1194,8 +1184,7 @@ const History = () => {
                   value={selectedYear.toString()}
                   onValueChange={(val) => {
                     setSelectedYear(parseInt(val));
-                    setStartDate(undefined);
-                    setEndDate(undefined);
+                    setSelectedDateOutDates([]);
                   }}
                 >
                   <SelectTrigger className="w-[80px] h-8 border-0 bg-transparent focus:ring-0">
@@ -1214,8 +1203,7 @@ const History = () => {
                 size="sm"
                 onClick={() => {
                   setShowAllYear(!showAllYear);
-                  setStartDate(undefined);
-                  setEndDate(undefined);
+                  setSelectedDateOutDates([]);
                 }}
               >
                 {showAllYear ? 'Showing All Year' : 'All Year'}
@@ -1235,21 +1223,18 @@ const History = () => {
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9 min-w-[160px] justify-start gap-2">
                     <CalendarIcon className="h-4 w-4" />
-                    {getHistoryDateRangeLabel(selectedDateRange)}
+                    {getHistoryDatePickerLabel(selectedDateOutDates)}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
-                    mode="range"
-                    selected={selectedDateRange}
-                    onSelect={(range) => {
-                      setStartDate(range?.from);
-                      setEndDate(range?.to);
-                    }}
-                    defaultMonth={startDate || new Date(selectedYear, selectedMonth, 1)}
+                    mode="multiple"
+                    selected={selectedDateOutDates}
+                    onSelect={(dates) => setSelectedDateOutDates(dates || [])}
+                    defaultMonth={selectedDateOutDates[0] || new Date(selectedYear, selectedMonth, 1)}
                     modifiers={{ dateOut: dateOutHighlightDates }}
                     modifiersClassNames={{
-                      dateOut: 'relative bg-primary/10 font-semibold text-primary ring-1 ring-primary/35 hover:bg-primary/20',
+                      dateOut: 'font-semibold ring-1 ring-primary/35',
                     }}
                     initialFocus
                   />
@@ -1269,7 +1254,7 @@ const History = () => {
                 </SelectContent>
               </Select>
 
-              {(categorySearch.trim() || startDate || endDate || statusFilter !== 'all') && (
+              {(categorySearch.trim() || selectedDateOutDates.length > 0 || statusFilter !== 'all') && (
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
                   <X className="h-4 w-4 mr-1" />
                   Clear filters
@@ -1303,7 +1288,7 @@ const History = () => {
                     <TableCell colSpan={visibleColumnCount} className="text-center py-12">
                       <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
                       <p className="text-muted-foreground">
-                        {searchQuery || categorySearch || startDate || endDate || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
+                        {searchQuery || categorySearch || selectedDateOutDates.length > 0 || statusFilter !== 'all' ? 'No results found' : 'No transaction history'}
                       </p>
                     </TableCell>
                   </TableRow>
