@@ -58,6 +58,23 @@ const getDatePickerLabel = (dates: Date[]) => {
   return `${dates.length} dates selected`;
 };
 
+const getDateOutPeriodLabel = (dates: Date[]) => {
+  if (dates.length === 0) return '';
+  const sortedDates = [...dates].sort((a, b) => a.getTime() - b.getTime());
+  if (sortedDates.length <= 3) {
+    return sortedDates.map(date => format(date, 'MMMM d, yyyy')).join(', ');
+  }
+
+  return `${format(sortedDates[0], 'MMMM d, yyyy')} - ${format(sortedDates[sortedDates.length - 1], 'MMMM d, yyyy')} (${sortedDates.length} selected dates)`;
+};
+
+const getFilenamePeriod = (label: string) => {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
 interface DeliveredSummaryItem {
   batch_id: string;
   allocation_bill: string | null;
@@ -130,7 +147,7 @@ const SummaryReport = () => {
       doc.setFontSize(16);
       doc.text('Summary Report', 14, 15);
       doc.setFontSize(10);
-      doc.text(`${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`, 14, 22);
+      doc.text(summaryPeriodLabel, 14, 22);
       doc.text(`Category: ${categorySearch.trim() || 'All Categories'}`, 14, 28);
       doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 34);
 
@@ -160,7 +177,7 @@ const SummaryReport = () => {
         headStyles: { fillColor: [59, 130, 246] },
       });
 
-      doc.save(`summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}.pdf`);
+      doc.save(`summary-report-${summaryFilenamePeriod}.pdf`);
       toast.success('PDF exported successfully!');
     } catch (error) {
       console.error('Summary PDF export error:', error);
@@ -182,8 +199,8 @@ const SummaryReport = () => {
 
       await exportToExcel({
         title: 'Summary Report',
-        subtitle: `${MONTHS[parseInt(selectedMonth)]} ${selectedYear} - ${categorySearch.trim() || 'All Categories'}`,
-        filename: `summary-report-${MONTHS[parseInt(selectedMonth)]}-${selectedYear}`,
+        subtitle: `${summaryPeriodLabel} - ${categorySearch.trim() || 'All Categories'}`,
+        filename: `summary-report-${summaryFilenamePeriod}`,
         columns: [
           { header: 'Branch', key: 'branch', width: 25 },
           { header: 'Total Deliveries', key: 'totalDeliveries', width: 18 },
@@ -237,6 +254,9 @@ const SummaryReport = () => {
   const selectedDateOutKeys = useMemo(() => {
     return new Set(selectedDateOutDates.map(getDateKey));
   }, [selectedDateOutDates]);
+  const selectedDateOutPeriodLabel = getDateOutPeriodLabel(selectedDateOutDates);
+  const summaryPeriodLabel = selectedDateOutPeriodLabel || `${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`;
+  const summaryFilenamePeriod = getFilenamePeriod(summaryPeriodLabel);
 
   // Filter releases by category/date (month/year/branch already filtered by the hook)
   const filteredReleases = useMemo(() => {
@@ -736,7 +756,7 @@ const SummaryReport = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Delivered Summary - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</title>
+          <title>Delivered Summary - ${summaryPeriodLabel}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
@@ -762,7 +782,7 @@ const SummaryReport = () => {
         <body>
           <div class="header">
             <h1>DELIVERED SUMMARY BY BRANCH</h1>
-            <p>${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</p>
+            <p>${summaryPeriodLabel}</p>
           </div>
 
           ${branchesHtml}
@@ -791,7 +811,7 @@ const SummaryReport = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Delivered Summary - ${branch.branch} - ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</title>
+          <title>Delivered Summary - ${branch.branch} - ${summaryPeriodLabel}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
@@ -819,7 +839,7 @@ const SummaryReport = () => {
         <body>
           <div class="header">
             <h1>DELIVERED SUMMARY - ${branch.branch}</h1>
-            <p>${MONTHS[parseInt(selectedMonth)]} ${selectedYear}</p>
+            <p>${summaryPeriodLabel}</p>
           </div>
 
           <div class="branch-section">
@@ -1101,7 +1121,7 @@ const SummaryReport = () => {
             {/* Category Distribution Pie Chart */}
             <Card className="animate-fade-in">
               <CardHeader>
-                <CardTitle>Category Distribution - {MONTHS[parseInt(selectedMonth)]}</CardTitle>
+                <CardTitle>Category Distribution - {summaryPeriodLabel}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
@@ -1183,7 +1203,7 @@ const SummaryReport = () => {
           {/* Top Stores per Category */}
           <Card className="animate-fade-in">
             <CardHeader>
-              <CardTitle>Top Stores by Category - {MONTHS[parseInt(selectedMonth)]}</CardTitle>
+              <CardTitle>Top Stores by Category - {summaryPeriodLabel}</CardTitle>
             </CardHeader>
             <CardContent>
               {topStoresPerCategory.length > 0 ? (
@@ -1237,7 +1257,7 @@ const SummaryReport = () => {
 
           <Card className="animate-fade-in">
             <CardHeader>
-              <CardTitle>Branch Delivery Status - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+              <CardTitle>Branch Delivery Status - {summaryPeriodLabel}</CardTitle>
             </CardHeader>
             <CardContent>
               {branchReport.length > 0 ? (
@@ -1316,7 +1336,7 @@ const SummaryReport = () => {
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Store className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium">No deliveries found</h3>
-                  <p className="text-muted-foreground">No releases recorded for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
+                  <p className="text-muted-foreground">No releases recorded for {summaryPeriodLabel}</p>
                 </div>
               )}
             </CardContent>
@@ -1327,7 +1347,7 @@ const SummaryReport = () => {
         <TabsContent value="category-report" className="space-y-6">
           <Card className="animate-fade-in">
             <CardHeader>
-              <CardTitle>Items Received per Store - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+              <CardTitle>Items Received per Store - {summaryPeriodLabel}</CardTitle>
             </CardHeader>
             <CardContent>
               {categoryByStore.length > 0 ? (
@@ -1404,7 +1424,7 @@ const SummaryReport = () => {
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <ShoppingBag className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium">No category data found</h3>
-                  <p className="text-muted-foreground">No releases with categories recorded for {MONTHS[parseInt(selectedMonth)]} {selectedYear}</p>
+                  <p className="text-muted-foreground">No releases with categories recorded for {summaryPeriodLabel}</p>
                 </div>
               )}
             </CardContent>
@@ -1438,7 +1458,7 @@ const SummaryReport = () => {
             <CardHeader>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle>Delivered Items by Branch - {MONTHS[parseInt(selectedMonth)]} {selectedYear}</CardTitle>
+                  <CardTitle>Delivered Items by Branch - {summaryPeriodLabel}</CardTitle>
                   {!isViewer && (
                     <Button 
                       variant="outline" 
@@ -1662,7 +1682,7 @@ const SummaryReport = () => {
                   <p className="text-muted-foreground">
                     {branchSearch 
                       ? `No branches matching "${branchSearch}"` 
-                      : `No deliveries marked as delivered for ${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`}
+                      : `No deliveries marked as delivered for ${summaryPeriodLabel}`}
                   </p>
                 </div>
               )}
