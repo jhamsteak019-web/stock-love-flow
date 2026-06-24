@@ -408,17 +408,11 @@ const PendingAllocation = () => {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2">
         <Card className="rounded-lg">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Pending Bills</p>
             <p className="mt-2 text-2xl font-semibold">{filteredAllocations.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Boxes / Qty</p>
-            <p className="mt-2 text-2xl font-semibold">{totals.boxes} / {totals.qty}</p>
           </CardContent>
         </Card>
         <Card className="rounded-lg">
