@@ -10,6 +10,7 @@ const pageTitles: Record<string, string> = {
   '/inventory': 'Inventory',
   '/release': 'OUT WAREHOUSE DELIVERY',
   '/deliveries': 'Deliveries',
+  '/pending-allocation': 'Pending Allocation',
   '/history': 'Transaction History',
   '/import': 'Bucket',
   '/users': 'Manage Users',

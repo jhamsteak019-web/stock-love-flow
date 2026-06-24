@@ -34,6 +34,7 @@ import Discrepancies from "./pages/Discrepancies";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
 import TeamOverview from "./pages/TeamOverview";
+import PendingAllocation from "./pages/PendingAllocation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -63,6 +64,7 @@ const App = () => (
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/release" element={<ReleaseStock />} />
                 <Route path="/deliveries" element={<Deliveries />} />
+                <Route path="/pending-allocation" element={<PendingAllocation />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/summary" element={<SummaryReport />} />
                 <Route path="/import" element={<ImportExcel />} />

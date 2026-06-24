@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
-import { Truck, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Truck, CalendarIcon, Pencil, Search, X, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, ClipboardList } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -454,6 +455,12 @@ const Deliveries = () => {
             {(isPending || loading) && (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             )}
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/pending-allocation">
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Pending Allocation
+              </Link>
+            </Button>
             {!isViewer && canExport && (
               <Button variant="outline" size="sm" onClick={handleExportExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
