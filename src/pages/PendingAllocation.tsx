@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ClipboardList, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardList, FileDown, FileSpreadsheet, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { format, isValid } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { exportToExcel } from '@/lib/excelExport';
 import type { StockRelease } from '@/types/inventory';
 import type { Database } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +23,7 @@ type PendingAllocationRow = StockRelease;
 type ActivityLogRow = Database['public']['Tables']['activity_logs']['Row'];
 
 const STOCK_RELEASE_SELECT = 'id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price';
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 12;
 
 interface PendingAllocationGroup {
   key: string;
@@ -452,19 +455,80 @@ const PendingAllocation = () => {
     }
   };
 
-  const totals = useMemo(() => {
-    return filteredAllocations.reduce(
-      (acc, group) => ({
-        boxes: acc.boxes + group.boxes,
-        qty: acc.qty + group.totalQty,
-        amount: acc.amount + group.amount,
-      }),
-      { boxes: 0, qty: 0, amount: 0 },
-    );
-  }, [filteredAllocations]);
+  const buildExportRows = () => filteredAllocations.map(group => ({
+    bill: group.allocation_bill || '-',
+    destination: group.destination || '-',
+    amount: Number(group.amount) || 0,
+    amountDisplay: formatCurrency(group.amount),
+    qty: group.totalQty,
+    remarks: group.remarks || '-',
+    status: 'Pending',
+    createdDate: formatDate(group.created_at),
+  }));
+
+  const handleExportExcel = async () => {
+    const exportRows = buildExportRows();
+    if (exportRows.length === 0) {
+      toast({ title: 'No data', description: 'No pending allocations to export.' });
+      return;
+    }
+
+    await exportToExcel({
+      title: 'Pending Allocation',
+      subtitle: `Generated on ${format(new Date(), 'MMMM dd, yyyy')}`,
+      filename: `pending-allocation-${format(new Date(), 'yyyy-MM-dd')}`,
+      columns: [
+        { header: 'BILL', key: 'bill', width: 22 },
+        { header: 'DESTINATION', key: 'destination', width: 24 },
+        { header: 'AMOUNT', key: 'amount', width: 16 },
+        { header: 'QTY', key: 'qty', width: 10 },
+        { header: 'REMARKS', key: 'remarks', width: 42 },
+        { header: 'STATUS', key: 'status', width: 14 },
+        { header: 'CREATE DATE', key: 'createdDate', width: 16 },
+      ],
+      data: exportRows,
+    });
+    toast({ title: 'Exported', description: 'Excel file downloaded.' });
+  };
+
+  const handleExportPDF = () => {
+    const exportRows = buildExportRows();
+    if (exportRows.length === 0) {
+      toast({ title: 'No data', description: 'No pending allocations to export.' });
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(15);
+    doc.text('Pending Allocation', 14, 14);
+    doc.setFontSize(9);
+    doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy h:mm a')} | Total: ${exportRows.length}`, 14, 20);
+
+    autoTable(doc, {
+      startY: 25,
+      head: [['BILL', 'DESTINATION', 'AMOUNT', 'QTY', 'REMARKS', 'STATUS', 'CREATE DATE']],
+      body: exportRows.map(row => [
+        row.bill,
+        row.destination,
+        row.amountDisplay,
+        String(row.qty),
+        row.remarks,
+        row.status,
+        row.createdDate,
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [37, 99, 235] },
+      columnStyles: {
+        4: { cellWidth: 72 },
+      },
+    });
+
+    doc.save(`pending-allocation-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast({ title: 'Exported', description: 'PDF file downloaded.' });
+  };
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5">
+    <div className="mx-auto w-full max-w-[min(98vw,1900px)] space-y-5 px-2">
       <div className="flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -476,6 +540,14 @@ const PendingAllocation = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleExportExcel} disabled={filteredAllocations.length === 0}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Save Excel
+          </Button>
+          <Button variant="outline" onClick={handleExportPDF} disabled={filteredAllocations.length === 0}>
+            <FileDown className="mr-2 h-4 w-4" />
+            Save PDF
+          </Button>
           <Button variant="outline" onClick={fetchPendingAllocations} disabled={loading || branchLoading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -489,26 +561,11 @@ const PendingAllocation = () => {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Card className="rounded-lg">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Pending Bills</p>
-            <p className="mt-2 text-2xl font-semibold">{filteredAllocations.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total Amount</p>
-            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.amount)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="rounded-lg">
-        <CardContent className="space-y-4 p-4">
+        <CardContent className="space-y-5 p-4 sm:p-5">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
-              <div className="relative w-full lg:w-[340px]">
+              <div className="relative w-full lg:w-[420px]">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -582,8 +639,8 @@ const PendingAllocation = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
+          <div className="min-h-[560px] overflow-x-auto rounded-lg border">
+            <Table className="text-sm lg:text-[15px] [&_td]:py-4 [&_th]:py-4">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -593,11 +650,11 @@ const PendingAllocation = () => {
                       aria-label="Select all pending allocations"
                     />
                   </TableHead>
-                  <TableHead className="min-w-[160px]">BILL</TableHead>
-                  <TableHead className="min-w-[170px]">DESTINATION</TableHead>
-                  <TableHead className="min-w-[130px] text-right">AMOUNT</TableHead>
-                  <TableHead className="min-w-[100px] text-center">QTY</TableHead>
-                  <TableHead className="min-w-[280px]">REMARKS</TableHead>
+                  <TableHead className="min-w-[180px]">BILL</TableHead>
+                  <TableHead className="min-w-[210px]">DESTINATION</TableHead>
+                  <TableHead className="min-w-[150px] text-right">AMOUNT</TableHead>
+                  <TableHead className="min-w-[110px] text-center">QTY</TableHead>
+                  <TableHead className="min-w-[360px]">REMARKS</TableHead>
                   <TableHead className="min-w-[110px]">STATUS</TableHead>
                   <TableHead className="min-w-[140px]">CREATE DATE</TableHead>
                 </TableRow>
@@ -629,7 +686,7 @@ const PendingAllocation = () => {
                       <TableCell>{group.destination}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(group.amount)}</TableCell>
                       <TableCell className="text-center">{group.totalQty}</TableCell>
-                      <TableCell className="max-w-[340px] whitespace-normal text-sm">{group.remarks || '-'}</TableCell>
+                      <TableCell className="max-w-[520px] whitespace-normal">{group.remarks || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">Pending</Badge>
                       </TableCell>
