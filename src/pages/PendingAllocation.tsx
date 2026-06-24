@@ -3,16 +3,16 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ClipboardList, RefreshCw, Search } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
+import type { StockRelease } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-type PendingAllocationRow = Database['public']['Tables']['pending_allocations']['Row'];
+type PendingAllocationRow = StockRelease;
 
 interface PendingAllocationGroup {
   key: string;
@@ -25,7 +25,6 @@ interface PendingAllocationGroup {
   set_date: string | null;
   courier: string | null;
   remarks: string | null;
-  source_file: string | null;
   lineCount: number;
   created_at: string;
 }
@@ -66,10 +65,10 @@ const PendingAllocation = () => {
     setLoading(true);
     try {
       let query = supabase
-        .from('pending_allocations')
-        .select('*')
+        .from('stock_releases')
+        .select('id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price')
         .is('deleted_at', null)
-        .eq('status', 'pending')
+        .eq('action_status', 'pending_allocation')
         .order('created_at', { ascending: false })
         .limit(5000);
 
@@ -102,9 +101,9 @@ const PendingAllocation = () => {
 
     rows.forEach((row) => {
       const allocationKey = normalizeAllocation(row.allocation_bill);
-      const key = allocationKey ? `bill:${allocationKey}` : `batch:${row.batch_id}`;
+      const key = allocationKey ? `bill:${allocationKey}` : `batch:${row.batch_id || row.id}`;
       const existing = groups.get(key);
-      const remarks = row.remarks?.trim() || null;
+      const remarks = row.notes?.trim() || null;
 
       if (!existing) {
         groups.set(key, {
@@ -112,26 +111,24 @@ const PendingAllocation = () => {
           allocation_bill: row.allocation_bill,
           destination: row.destination,
           category: row.category,
-          boxes: Number(row.boxes) || 0,
+          boxes: Number(row.boxes_released) || 0,
           amount: Number(row.amount) || 0,
           totalQty: Number(row.total_qty) || 0,
           set_date: row.set_date,
           courier: row.courier,
           remarks,
-          source_file: row.source_file,
           lineCount: 1,
           created_at: row.created_at,
         });
         return;
       }
 
-      existing.boxes += Number(row.boxes) || 0;
+      existing.boxes += Number(row.boxes_released) || 0;
       existing.amount += Number(row.amount) || 0;
       existing.totalQty += Number(row.total_qty) || 0;
       existing.category = existing.category || row.category;
       existing.set_date = existing.set_date || row.set_date;
       existing.courier = existing.courier || row.courier;
-      existing.source_file = existing.source_file || row.source_file;
       existing.lineCount += 1;
 
       if (remarks && !existing.remarks?.includes(remarks)) {
@@ -157,7 +154,6 @@ const PendingAllocation = () => {
         group.category,
         group.courier,
         group.remarks,
-        group.source_file,
       ]
         .filter(Boolean)
         .join(' ')
