@@ -64,6 +64,53 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+const getPendingAllocationDuplicateCleanup = (pendingRows: PendingAllocationRow[]) => {
+  const rowsByBill = new Map<string, PendingAllocationRow[]>();
+
+  pendingRows.forEach((row) => {
+    const billKey = normalizeAllocation(row.allocation_bill);
+    if (!billKey) return;
+
+    const billRows = rowsByBill.get(billKey) || [];
+    billRows.push(row);
+    rowsByBill.set(billKey, billRows);
+  });
+
+  const duplicateIds = new Set<string>();
+  const duplicateBills = new Set<string>();
+
+  rowsByBill.forEach((billRows) => {
+    const batches = new Map<string, PendingAllocationRow[]>();
+
+    billRows.forEach((row) => {
+      const batchKey = row.batch_id || row.id;
+      const batchRows = batches.get(batchKey) || [];
+      batchRows.push(row);
+      batches.set(batchKey, batchRows);
+    });
+
+    if (batches.size <= 1) return;
+
+    const sortedBatches = Array.from(batches.values()).sort((a, b) => {
+      const aCreated = Math.min(...a.map(row => new Date(row.created_at).getTime()));
+      const bCreated = Math.min(...b.map(row => new Date(row.created_at).getTime()));
+      return aCreated - bCreated;
+    });
+
+    sortedBatches.slice(1).forEach((batchRows) => {
+      batchRows.forEach((row) => duplicateIds.add(row.id));
+      const bill = batchRows[0]?.allocation_bill?.trim();
+      if (bill) duplicateBills.add(bill);
+    });
+  });
+
+  return {
+    cleanRows: pendingRows.filter(row => !duplicateIds.has(row.id)),
+    duplicateIds: Array.from(duplicateIds),
+    duplicateBills: Array.from(duplicateBills),
+  };
+};
+
 const PendingAllocation = () => {
   const { selectedBranch, loading: branchLoading } = useBranch();
   const { toast } = useToast();
@@ -196,7 +243,32 @@ const PendingAllocation = () => {
         byId.set(row.id, row);
       });
 
-      setRows(Array.from(byId.values()));
+      const mergedRows = Array.from(byId.values());
+      const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(mergedRows);
+
+      if (duplicateIds.length > 0) {
+        const deletedAt = new Date().toISOString();
+
+        for (let index = 0; index < duplicateIds.length; index += 100) {
+          const chunk = duplicateIds.slice(index, index + 100);
+          const { error: cleanupError } = await supabase
+            .from('stock_releases')
+            .update({ deleted_at: deletedAt })
+            .in('id', chunk);
+
+          if (cleanupError) {
+            console.warn('Unable to remove duplicate pending allocation bills:', cleanupError);
+            break;
+          }
+        }
+
+        toast({
+          title: 'Duplicates Removed',
+          description: `${duplicateBills.length} duplicate bill(s) were removed from Pending Allocation.`,
+        });
+      }
+
+      setRows(cleanRows);
     } catch (error) {
       console.error('Error fetching pending allocations:', error);
       toast({
