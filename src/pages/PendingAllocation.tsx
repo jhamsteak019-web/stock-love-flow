@@ -37,7 +37,8 @@ type PendingAllocationRow = Pick<
   | 'action_status'
 >;
 
-const PENDING_ALLOCATION_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,import_created_at,action_status';
+const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
+const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
 const ITEMS_PER_PAGE = 12;
 
 interface PendingAllocationGroup {
@@ -79,6 +80,14 @@ const getCreatedDateTime = (value?: string | null) => {
   const normalized = value.includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value;
   const parsed = new Date(normalized).getTime();
   return Number.isNaN(parsed) ? Number.NaN : parsed;
+};
+
+const isMissingImportCreatedAtError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+  const details = error as { code?: string; message?: string; details?: string; hint?: string };
+  return [details.message, details.details, details.hint]
+    .filter(Boolean)
+    .some(text => String(text).toLowerCase().includes('import_created_at'));
 };
 
 const formatCurrency = (value: number) => {
@@ -180,22 +189,36 @@ const PendingAllocation = () => {
 
     setLoading(true);
     try {
-      let query = supabase
-        .from('stock_releases')
-        .select(PENDING_ALLOCATION_SELECT)
-        .is('deleted_at', null)
-        .eq('action_status', 'pending_allocation')
-        .order('created_at', { ascending: false })
-        .limit(5000);
+      const fetchRows = async (selectColumns: string) => {
+        let query = supabase
+          .from('stock_releases')
+          .select(selectColumns)
+          .is('deleted_at', null)
+          .eq('action_status', 'pending_allocation')
+          .order('created_at', { ascending: false })
+          .limit(5000);
 
-      if (selectedBranch?.id) {
-        query = query.eq('branch_id', selectedBranch.id);
+        if (selectedBranch?.id) {
+          query = query.eq('branch_id', selectedBranch.id);
+        }
+
+        return query;
+      };
+
+      let { data, error } = await fetchRows(PENDING_ALLOCATION_SELECT);
+
+      if (error && isMissingImportCreatedAtError(error)) {
+        const retry = await fetchRows(PENDING_ALLOCATION_BASE_SELECT);
+        data = retry.data;
+        error = retry.error;
       }
 
-      const { data, error } = await query;
       if (error) throw error;
 
-      const currentRows = (data || []) as PendingAllocationRow[];
+      const currentRows = ((data || []) as PendingAllocationRow[]).map(row => ({
+        ...row,
+        import_created_at: row.import_created_at || null,
+      }));
       const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(currentRows);
       setRows(cleanRows);
 

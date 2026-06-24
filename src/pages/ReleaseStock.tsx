@@ -42,6 +42,14 @@ const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00
 const toImportedDateTime = (date: Date) => (isValid(date) ? date.toISOString() : '');
 const toImportedDateTimeDisplay = (date: Date) => (isValid(date) ? format(date, 'yyyy-MM-dd HH:mm:ss') : '');
 
+const isMissingImportCreatedAtError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+  const details = error as { code?: string; message?: string; details?: string; hint?: string };
+  return [details.message, details.details, details.hint]
+    .filter(Boolean)
+    .some(text => String(text).toLowerCase().includes('import_created_at'));
+};
+
 const parseImportedDateValue = (value: unknown) => {
   if (value === undefined || value === null || value === '') return '';
 
@@ -344,7 +352,13 @@ const ReleaseStock = () => {
     for (let index = 0; index < rows.length; index += STOCK_RELEASE_INSERT_CHUNK_SIZE) {
       const chunk = rows.slice(index, index + STOCK_RELEASE_INSERT_CHUNK_SIZE);
       const { error } = await supabase.from('stock_releases').insert(chunk);
-      if (error) throw error;
+      if (!error) continue;
+
+      if (!isMissingImportCreatedAtError(error)) throw error;
+
+      const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
+      const { error: fallbackError } = await supabase.from('stock_releases').insert(fallbackChunk);
+      if (fallbackError) throw fallbackError;
     }
   };
 
@@ -407,7 +421,19 @@ const ReleaseStock = () => {
         .in('id', ids);
 
       if (updateError) {
-        console.warn('Unable to update pending allocation Created Date:', updateError);
+        if (!isMissingImportCreatedAtError(updateError) || !entry.createdAt) {
+          console.warn('Unable to update pending allocation Created Date:', updateError);
+          continue;
+        }
+
+        const { error: fallbackError } = await supabase
+          .from('stock_releases')
+          .update({ created_at: entry.createdAt })
+          .in('id', ids);
+
+        if (fallbackError) {
+          console.warn('Unable to update pending allocation Created Date:', fallbackError);
+        }
       }
     }
   };
