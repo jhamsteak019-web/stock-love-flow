@@ -226,8 +226,10 @@ const ReleaseStock = () => {
     const keys = new Set<string>();
     const PAGE_SIZE = 1000;
     const requestedAllocations = (allocations || []).map(bill => bill.trim()).filter(Boolean);
+    const requestedKeys = new Set(requestedAllocations.map(bill => normalizeAllocation(bill)).filter(Boolean));
 
     if (requestedAllocations.length > 0) {
+      // Fast exact lookup first.
       for (let index = 0; index < requestedAllocations.length; index += 100) {
         const chunk = requestedAllocations.slice(index, index + 100);
         const { data, error } = await supabase
@@ -244,7 +246,9 @@ const ReleaseStock = () => {
         });
       }
 
-      return keys;
+      if (Array.from(requestedKeys).every(key => keys.has(key))) {
+        return keys;
+      }
     }
 
     let from = 0;
@@ -261,9 +265,10 @@ const ReleaseStock = () => {
       const chunk = data || [];
       chunk.forEach((release) => {
         const key = normalizeAllocation(release.allocation_bill);
-        if (key) keys.add(key);
+        if (key && (requestedKeys.size === 0 || requestedKeys.has(key))) keys.add(key);
       });
 
+      if (requestedKeys.size > 0 && Array.from(requestedKeys).every(key => keys.has(key))) break;
       if (chunk.length < PAGE_SIZE) break;
       from += PAGE_SIZE;
     }

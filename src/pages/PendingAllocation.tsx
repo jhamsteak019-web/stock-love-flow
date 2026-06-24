@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ClipboardList, RefreshCw, Search } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardList, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
@@ -13,12 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PendingAllocationRow = StockRelease;
 type ActivityLogRow = Database['public']['Tables']['activity_logs']['Row'];
 
 const STOCK_RELEASE_SELECT = 'id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price';
+const ITEMS_PER_PAGE = 10;
 
 interface PendingAllocationGroup {
   key: string;
@@ -66,7 +68,12 @@ const PendingAllocation = () => {
   const [rows, setRows] = useState<PendingAllocationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [moving, setMoving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
 
   const getLegacyPImportBills = (logs: ActivityLogRow[]) => {
@@ -254,23 +261,32 @@ const PendingAllocation = () => {
 
   const filteredAllocations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return groupedAllocations;
+    const fromTime = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
+    const toTime = createdTo ? new Date(`${createdTo}T23:59:59`).getTime() : null;
 
     return groupedAllocations.filter((group) => {
       const searchable = [
         group.allocation_bill,
         group.destination,
-        group.category,
-        group.courier,
         group.remarks,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
 
-      return searchable.includes(query);
+      const createdTime = new Date(group.created_at).getTime();
+      const matchesSearch = !query || searchable.includes(query);
+      const matchesStatus = statusFilter === 'all' || statusFilter === 'pending';
+      const matchesFrom = fromTime === null || createdTime >= fromTime;
+      const matchesTo = toTime === null || createdTime <= toTime;
+
+      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
     });
-  }, [groupedAllocations, searchQuery]);
+  }, [createdFrom, createdTo, groupedAllocations, searchQuery, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [createdFrom, createdTo, searchQuery, statusFilter]);
 
   useEffect(() => {
     const visibleKeys = new Set(groupedAllocations.map(group => group.key));
@@ -290,9 +306,23 @@ const PendingAllocation = () => {
     [selectedGroups],
   );
 
-  const someVisibleSelected = filteredAllocations.some(group => selectedGroupKeys.has(group.key));
-  const allVisibleSelected = filteredAllocations.length > 0
-    && filteredAllocations.every(group => selectedGroupKeys.has(group.key));
+  const totalPages = Math.max(1, Math.ceil(filteredAllocations.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedAllocations = useMemo(() => {
+    const start = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAllocations.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAllocations, safeCurrentPage]);
+
+  const pageNumbers = useMemo(() => {
+    const maxButtons = 5;
+    const start = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - maxButtons + 1));
+    const end = Math.min(totalPages, start + maxButtons - 1);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [safeCurrentPage, totalPages]);
+
+  const someVisibleSelected = paginatedAllocations.some(group => selectedGroupKeys.has(group.key));
+  const allVisibleSelected = paginatedAllocations.length > 0
+    && paginatedAllocations.every(group => selectedGroupKeys.has(group.key));
 
   const toggleGroupSelection = (key: string, checked: boolean) => {
     setSelectedGroupKeys(prev => {
@@ -309,7 +339,7 @@ const PendingAllocation = () => {
   const toggleVisibleSelection = (checked: boolean) => {
     setSelectedGroupKeys(prev => {
       const next = new Set(prev);
-      filteredAllocations.forEach(group => {
+      paginatedAllocations.forEach(group => {
         if (checked) {
           next.add(group.key);
         } else {
@@ -371,6 +401,57 @@ const PendingAllocation = () => {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedReleaseIds.length === 0 || deleting) return;
+
+    setDeleting(true);
+    try {
+      const deletedAt = new Date().toISOString();
+      for (let index = 0; index < selectedReleaseIds.length; index += 100) {
+        const chunk = selectedReleaseIds.slice(index, index + 100);
+        const { error } = await supabase
+          .from('stock_releases')
+          .update({ deleted_at: deletedAt })
+          .in('id', chunk);
+
+        if (error) throw error;
+      }
+
+      const allocationBills = selectedGroups
+        .map(group => group.allocation_bill)
+        .filter(Boolean) as string[];
+
+      await logActivity({
+        actionType: 'delete',
+        module: 'pending_allocations',
+        description: `Deleted ${selectedGroups.length} pending allocation bill(s)`,
+        metadata: {
+          items_count: selectedReleaseIds.length,
+          branch_id: selectedBranch?.id,
+          branch: selectedBranch?.name,
+          allocation_bills: allocationBills,
+        },
+      });
+
+      setRows(prev => prev.filter(row => !selectedReleaseIds.includes(row.id)));
+      setSelectedGroupKeys(new Set());
+
+      toast({
+        title: 'Deleted',
+        description: `${selectedGroups.length} pending allocation bill(s) removed.`,
+      });
+    } catch (error) {
+      console.error('Error deleting pending allocations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete selected allocations.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const totals = useMemo(() => {
     return filteredAllocations.reduce(
       (acc, group) => ({
@@ -425,25 +506,72 @@ const PendingAllocation = () => {
 
       <Card className="rounded-lg">
         <CardContent className="space-y-4 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full max-w-xl">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+              <div className="relative w-full lg:w-[340px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search bill, destination, remarks..."
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full lg:w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
               <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search bill, destination, category, remarks, courier..."
-                className="pl-9"
+                type="date"
+                value={createdFrom}
+                onChange={(event) => setCreatedFrom(event.target.value)}
+                className="w-full lg:w-[150px]"
+                aria-label="Created from"
               />
+              <Input
+                type="date"
+                value={createdTo}
+                onChange={(event) => setCreatedTo(event.target.value)}
+                className="w-full lg:w-[150px]"
+                aria-label="Created to"
+              />
+              {(searchQuery || statusFilter !== 'all' || createdFrom || createdTo) && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('all');
+                    setCreatedFrom('');
+                    setCreatedTo('');
+                  }}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="w-fit">
-                {rows.length} pending line{rows.length === 1 ? '' : 's'}
+                {filteredAllocations.length} pending bill{filteredAllocations.length === 1 ? '' : 's'}
               </Badge>
               {selectedGroups.length > 0 && (
                 <Badge variant="secondary" className="w-fit">
                   {selectedGroups.length} selected
                 </Badge>
               )}
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSelected}
+                disabled={selectedReleaseIds.length === 0 || deleting || loading}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
               <Button
                 onClick={handleMoveToDeliveries}
                 disabled={selectedReleaseIds.length === 0 || moving || loading}
@@ -465,33 +593,30 @@ const PendingAllocation = () => {
                       aria-label="Select all pending allocations"
                     />
                   </TableHead>
-                  <TableHead className="min-w-[160px]">Allocation Bill</TableHead>
-                  <TableHead className="min-w-[150px]">Destination</TableHead>
-                  <TableHead className="min-w-[100px]">Category</TableHead>
-                  <TableHead className="min-w-[90px] text-center">Boxes</TableHead>
-                  <TableHead className="min-w-[130px] text-right">Amount</TableHead>
-                  <TableHead className="min-w-[110px] text-center">Qty/Item</TableHead>
-                  <TableHead className="min-w-[130px]">Date Out</TableHead>
-                  <TableHead className="min-w-[110px]">Courier</TableHead>
-                  <TableHead className="min-w-[220px]">Remarks</TableHead>
-                  <TableHead className="min-w-[110px]">Status</TableHead>
+                  <TableHead className="min-w-[160px]">BILL</TableHead>
+                  <TableHead className="min-w-[170px]">DESTINATION</TableHead>
+                  <TableHead className="min-w-[130px] text-right">AMOUNT</TableHead>
+                  <TableHead className="min-w-[100px] text-center">QTY</TableHead>
+                  <TableHead className="min-w-[280px]">REMARKS</TableHead>
+                  <TableHead className="min-w-[110px]">STATUS</TableHead>
+                  <TableHead className="min-w-[140px]">CREATE DATE</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-40 text-center">
+                    <TableCell colSpan={8} className="h-40 text-center">
                       <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     </TableCell>
                   </TableRow>
                 ) : filteredAllocations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-40 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-40 text-center text-muted-foreground">
                       No pending allocations found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAllocations.map((group) => (
+                  paginatedAllocations.map((group) => (
                     <TableRow key={group.key} data-state={selectedGroupKeys.has(group.key) ? 'selected' : undefined}>
                       <TableCell>
                         <Checkbox
@@ -502,21 +627,53 @@ const PendingAllocation = () => {
                       </TableCell>
                       <TableCell className="font-mono text-xs font-medium">{group.allocation_bill || '-'}</TableCell>
                       <TableCell>{group.destination}</TableCell>
-                      <TableCell>{group.category || '-'}</TableCell>
-                      <TableCell className="text-center">{group.boxes}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(group.amount)}</TableCell>
                       <TableCell className="text-center">{group.totalQty}</TableCell>
-                      <TableCell>{formatDate(group.set_date)}</TableCell>
-                      <TableCell>{group.courier || '-'}</TableCell>
                       <TableCell className="max-w-[340px] whitespace-normal text-sm">{group.remarks || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">Pending</Badge>
                       </TableCell>
+                      <TableCell>{formatDate(group.created_at)}</TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Page {safeCurrentPage} of {totalPages} ({filteredAllocations.length} bill{filteredAllocations.length === 1 ? '' : 's'})
+            </p>
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={safeCurrentPage <= 1}
+              >
+                Previous
+              </Button>
+              {pageNumbers.map((page) => (
+                <Button
+                  key={page}
+                  variant={page === safeCurrentPage ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </Button>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
