@@ -857,6 +857,86 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_allocations: {
+        Row: {
+          allocation_bill: string | null
+          amount: number | null
+          batch_id: string
+          boxes: number
+          branch_id: string | null
+          category: string | null
+          courier: string | null
+          created_at: string
+          deleted_at: string | null
+          destination: string
+          id: string
+          imported_by: string
+          product_code: string | null
+          product_description: string | null
+          remarks: string | null
+          set_date: string | null
+          source_file: string | null
+          status: string
+          total_qty: number | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          allocation_bill?: string | null
+          amount?: number | null
+          batch_id?: string
+          boxes?: number
+          branch_id?: string | null
+          category?: string | null
+          courier?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          destination: string
+          id?: string
+          imported_by: string
+          product_code?: string | null
+          product_description?: string | null
+          remarks?: string | null
+          set_date?: string | null
+          source_file?: string | null
+          status?: string
+          total_qty?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allocation_bill?: string | null
+          amount?: number | null
+          batch_id?: string
+          boxes?: number
+          branch_id?: string | null
+          category?: string | null
+          courier?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          destination?: string
+          id?: string
+          imported_by?: string
+          product_code?: string | null
+          product_description?: string | null
+          remarks?: string | null
+          set_date?: string | null
+          source_file?: string | null
+          status?: string
+          total_qty?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_allocations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       page_access_pins: {
         Row: {
           created_at: string

@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback, useTransition, memo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { PackagePlus, Plus, Trash2, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
+const PENDING_ALLOCATION_INSERT_CHUNK_SIZE = 500;
 
 const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00:00.000Z`;
 
@@ -126,6 +128,8 @@ type StockReleaseInsertRow = {
   product_description: string | null;
   unit_price: number | null;
 };
+
+type PendingAllocationInsertRow = Database['public']['Tables']['pending_allocations']['Insert'];
 
 const getSavedParsedItems = () => {
   try {
@@ -271,10 +275,41 @@ const ReleaseStock = () => {
     return keys;
   };
 
+  const fetchExistingPendingAllocationKeys = async (allocations: string[]) => {
+    const keys = new Set<string>();
+    const requestedAllocations = allocations.map(bill => bill.trim()).filter(Boolean);
+
+    for (let index = 0; index < requestedAllocations.length; index += 100) {
+      const chunk = requestedAllocations.slice(index, index + 100);
+      const { data, error } = await supabase
+        .from('pending_allocations')
+        .select('allocation_bill')
+        .is('deleted_at', null)
+        .in('allocation_bill', chunk);
+
+      if (error) throw error;
+
+      (data || []).forEach((allocation) => {
+        const key = normalizeAllocation(allocation.allocation_bill);
+        if (key) keys.add(key);
+      });
+    }
+
+    return keys;
+  };
+
   const insertStockReleaseRows = async (rows: StockReleaseInsertRow[]) => {
     for (let index = 0; index < rows.length; index += STOCK_RELEASE_INSERT_CHUNK_SIZE) {
       const chunk = rows.slice(index, index + STOCK_RELEASE_INSERT_CHUNK_SIZE);
       const { error } = await supabase.from('stock_releases').insert(chunk);
+      if (error) throw error;
+    }
+  };
+
+  const insertPendingAllocationRows = async (rows: PendingAllocationInsertRow[]) => {
+    for (let index = 0; index < rows.length; index += PENDING_ALLOCATION_INSERT_CHUNK_SIZE) {
+      const chunk = rows.slice(index, index + PENDING_ALLOCATION_INSERT_CHUNK_SIZE);
+      const { error } = await supabase.from('pending_allocations').insert(chunk);
       if (error) throw error;
     }
   };
@@ -471,6 +506,50 @@ const ReleaseStock = () => {
     return rowsToInsert;
   };
 
+  const buildPendingAllocationRowsFromItems = (releaseItems: ParsedReleaseItem[], sourceFile: string) => {
+    const groups = new Map<string, ParsedReleaseItem[]>();
+    for (const item of releaseItems) {
+      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+      const key = normalizedSheetNo
+        ? `bill:${normalizedSheetNo}`
+        : `row:${item.id}`;
+      const arr = groups.get(key) || [];
+      arr.push(item);
+      groups.set(key, arr);
+    }
+
+    const rowsToInsert: PendingAllocationInsertRow[] = [];
+    for (const group of groups.values()) {
+      const head = group[0];
+      const batchId = crypto.randomUUID();
+      const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
+
+      group.forEach(item => {
+        rowsToInsert.push({
+          batch_id: batchId,
+          allocation_bill: head.sheetNo || null,
+          destination: head.deliverTo || 'Unknown',
+          category: item.category || head.category || null,
+          boxes: item.qtyBoxes,
+          amount: item.amount || null,
+          total_qty: item.qtyItem || item.qtyBoxes || 0,
+          remarks: combinedNotes || null,
+          set_date: head.setDate || null,
+          courier: head.courier || null,
+          product_code: item.productCode || null,
+          product_description: item.productDescription || null,
+          unit_price: item.unitPrice || null,
+          status: 'pending',
+          source_file: sourceFile,
+          branch_id: selectedBranch?.id || null,
+          imported_by: user!.id,
+        });
+      });
+    }
+
+    return rowsToInsert;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -527,11 +606,15 @@ const ReleaseStock = () => {
         return;
       }
 
-      const existingAllocationKeys = await fetchExistingAllocationKeys(getUniqueAllocationBills(parsed));
+      const parsedBills = getUniqueAllocationBills(parsed);
+      const [existingReleaseKeys, existingPendingKeys] = await Promise.all([
+        fetchExistingAllocationKeys(parsedBills),
+        fetchExistingPendingAllocationKeys(parsedBills),
+      ]);
       const skippedBillKeys = new Set<string>();
       const importableItems = parsed.filter(item => {
         const key = normalizeAllocation(item.sheetNo);
-        if (!key || existingAllocationKeys.has(key)) {
+        if (!key || existingReleaseKeys.has(key) || existingPendingKeys.has(key)) {
           if (key) skippedBillKeys.add(key);
           return false;
         }
@@ -547,13 +630,13 @@ const ReleaseStock = () => {
         return;
       }
 
-      await insertStockReleaseRows(buildStockReleaseRowsFromItems(importableItems));
+      await insertPendingAllocationRows(buildPendingAllocationRowsFromItems(importableItems, file.name));
 
       const importedBills = getUniqueAllocationBills(importableItems);
       await logActivity({
         actionType: 'import',
-        module: 'stock_releases',
-        description: `P Imported ${importableItems.length} pending delivery item(s) via Excel`,
+        module: 'pending_allocations',
+        description: `P Imported ${importableItems.length} pending allocation item(s) via Excel`,
         metadata: {
           items_count: importableItems.length,
           skipped_existing_bills: skippedBillKeys.size,
@@ -565,7 +648,7 @@ const ReleaseStock = () => {
 
       toast({
         title: 'P Import Complete',
-        description: `${importableItems.length} item(s) added to pending deliveries. ${skippedBillKeys.size} existing bill(s) skipped.`,
+        description: `${importableItems.length} item(s) added to Pending Allocation. ${skippedBillKeys.size} existing bill(s) skipped.`,
       });
     } catch (error) {
       console.error('P Import error:', error);

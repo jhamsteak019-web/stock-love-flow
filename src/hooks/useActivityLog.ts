@@ -15,6 +15,7 @@ export type ActionType =
 
 export type ModuleType = 
   | 'deliveries'
+  | 'pending_allocations'
   | 'stock_releases'
   | 'inventory'
   | 'attendance'
@@ -33,6 +34,7 @@ interface LogActivityParams {
 
 const moduleLinks: Record<ModuleType, string> = {
   deliveries: '/deliveries',
+  pending_allocations: '/pending-allocation',
   stock_releases: '/history',
   inventory: '/inventory',
   attendance: '/attendance',

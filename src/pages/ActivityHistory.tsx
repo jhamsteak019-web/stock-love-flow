@@ -28,7 +28,7 @@ interface ActivityLog {
 }
 
 const ACTION_TYPES = ['create', 'update', 'delete', 'login', 'logout', 'import', 'export'];
-const MODULES = ['deliveries', 'stock_releases', 'inventory', 'attendance', 'manpower', 'notes', 'repeat_orders', 'containers', 'auth'];
+const MODULES = ['deliveries', 'pending_allocations', 'stock_releases', 'inventory', 'attendance', 'manpower', 'notes', 'repeat_orders', 'containers', 'auth'];
 
 const getActionBadgeVariant = (action: string) => {
   switch (action) {
