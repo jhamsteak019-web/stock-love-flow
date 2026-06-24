@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import type { StockRelease } from '@/types/inventory';
+import type { Database } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +14,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PendingAllocationRow = StockRelease;
+type ActivityLogRow = Database['public']['Tables']['activity_logs']['Row'];
+
+const STOCK_RELEASE_SELECT = 'id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price';
 
 interface PendingAllocationGroup {
   key: string;
@@ -59,6 +63,83 @@ const PendingAllocation = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const getLegacyPImportBills = (logs: ActivityLogRow[]) => {
+    const bills = new Set<string>();
+
+    logs.forEach((log) => {
+      const metadata = (log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata))
+        ? log.metadata as Record<string, unknown>
+        : {};
+      const allocationBills = metadata.allocation_bills;
+
+      if (Array.isArray(allocationBills)) {
+        allocationBills.forEach((bill) => {
+          const value = String(bill || '').trim();
+          if (value) bills.add(value);
+        });
+      }
+    });
+
+    return Array.from(bills);
+  };
+
+  const fetchLegacyPendingAllocationRows = useCallback(async () => {
+    const { data: logs, error: logsError } = await supabase
+      .from('activity_logs')
+      .select('id,action_type,module,description,metadata,created_at,user_id,user_email,user_name,ip_address')
+      .eq('action_type', 'import')
+      .in('module', ['stock_releases', 'pending_allocations'])
+      .ilike('description', 'P Imported%')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (logsError) {
+      console.warn('Unable to check legacy P Import activity logs:', logsError);
+      return [];
+    }
+
+    const bills = getLegacyPImportBills((logs || []) as ActivityLogRow[]);
+    if (bills.length === 0) return [];
+
+    const legacyRows: PendingAllocationRow[] = [];
+    for (let index = 0; index < bills.length; index += 100) {
+      const chunk = bills.slice(index, index + 100);
+      let query = supabase
+        .from('stock_releases')
+        .select(STOCK_RELEASE_SELECT)
+        .is('deleted_at', null)
+        .neq('delivery_status', 'delivered')
+        .in('allocation_bill', chunk);
+
+      if (selectedBranch?.id) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      legacyRows.push(...((data || []) as PendingAllocationRow[]));
+    }
+
+    const idsToBackfill = legacyRows
+      .filter(row => row.action_status !== 'pending_allocation')
+      .map(row => row.id);
+
+    for (let index = 0; index < idsToBackfill.length; index += 100) {
+      const chunk = idsToBackfill.slice(index, index + 100);
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ action_status: 'pending_allocation' })
+        .in('id', chunk);
+
+      if (error) {
+        console.warn('Unable to backfill legacy P Import rows:', error);
+        break;
+      }
+    }
+
+    return legacyRows.map(row => ({ ...row, action_status: 'pending_allocation' }));
+  }, [selectedBranch?.id]);
+
   const fetchPendingAllocations = useCallback(async () => {
     if (branchLoading) return;
 
@@ -66,7 +147,7 @@ const PendingAllocation = () => {
     try {
       let query = supabase
         .from('stock_releases')
-        .select('id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price')
+        .select(STOCK_RELEASE_SELECT)
         .is('deleted_at', null)
         .eq('action_status', 'pending_allocation')
         .order('created_at', { ascending: false })
@@ -79,7 +160,15 @@ const PendingAllocation = () => {
       const { data, error } = await query;
       if (error) throw error;
 
-      setRows((data || []) as PendingAllocationRow[]);
+      const currentRows = (data || []) as PendingAllocationRow[];
+      const legacyRows = await fetchLegacyPendingAllocationRows();
+      const byId = new Map<string, PendingAllocationRow>();
+
+      [...currentRows, ...legacyRows].forEach((row) => {
+        byId.set(row.id, row);
+      });
+
+      setRows(Array.from(byId.values()));
     } catch (error) {
       console.error('Error fetching pending allocations:', error);
       toast({
@@ -90,7 +179,7 @@ const PendingAllocation = () => {
     } finally {
       setLoading(false);
     }
-  }, [branchLoading, selectedBranch?.id, toast]);
+  }, [branchLoading, fetchLegacyPendingAllocationRows, selectedBranch?.id, toast]);
 
   useEffect(() => {
     fetchPendingAllocations();
