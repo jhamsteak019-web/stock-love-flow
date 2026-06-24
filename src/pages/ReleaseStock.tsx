@@ -120,6 +120,7 @@ type StockReleaseInsertRow = {
   total_qty: number | null;
   branch_id: string | null;
   amount: number | null;
+  delivery_status?: 'pending';
   action_status: 'yes' | 'no' | null;
   product_code: string | null;
   product_description: string | null;
@@ -164,6 +165,7 @@ const ReleaseStock = () => {
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingImportFileInputRef = useRef<HTMLInputElement>(null);
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
   const isColumnVisible = (key: string) => {
@@ -176,6 +178,7 @@ const ReleaseStock = () => {
   
   // Import Excel state - initialize from localStorage
   const [importing, setImporting] = useState(false);
+  const [pendingImporting, setPendingImporting] = useState(false);
   const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>(getSavedParsedItems);
   const [showImportPreview, setShowImportPreview] = useState(() => {
     return getSavedParsedItems().length > 0;
@@ -332,6 +335,142 @@ const ReleaseStock = () => {
     return { value: 0, matchedColumn: '' };
   };
 
+  const readReleaseImportRows = async (file: File) => {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { cellDates: true });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+    let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
+
+    if (rows.length === 0) {
+      rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown as Record<string, unknown>[];
+      if (Array.isArray(rows) && rows.length > 1) {
+        const headers = rows[0] as unknown as string[];
+        rows = (rows.slice(1) as unknown as unknown[][]).map(row => {
+          const obj: Record<string, unknown> = {};
+          headers.forEach((header, i) => {
+            if (header) obj[String(header)] = row[i];
+          });
+          return obj;
+        });
+      }
+    }
+
+    return rows;
+  };
+
+  const parseReleaseRows = (rows: Record<string, unknown>[]) => {
+    if (rows.length > 0) {
+      console.log('Excel column names detected:', Object.keys(rows[0]));
+    }
+
+    return rows.map((row, index) => {
+      if (index === 0) {
+        console.log('First row data:', row);
+      }
+
+      const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL', 'Bill No', 'BILL NO', 'Bill', 'BILL');
+      const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER', 'Supplier', 'SUPPLIER');
+      const qtyBoxes = 1;
+      const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
+      const productCode = findColumnValue(row, 'Product Code', 'PRODUCT CODE', 'ProductCode', 'Item Code', 'ITEM CODE', 'ItemCode', 'Code', 'CODE', 'SKU', 'Product Name', 'PRODUCT NAME', 'Product');
+      const productDescription = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Product Desc', 'PRODUCT DESC', 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Model', 'MODEL');
+      const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
+      const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
+      const courier = findColumnValue(row, 'Courier', 'COURIER', 'Delivery Courier', 'DELIVERY COURIER');
+      const amountInfo = findNumericColumnValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE', 'Unit Price', 'UNIT PRICE');
+      const amountHeader = amountInfo.matchedColumn.toLowerCase();
+      const amountIsUnitPrice = amountHeader.includes('price') && !amountHeader.includes('amount') && !amountHeader.includes('total');
+      const amountVal = amountIsUnitPrice && qtyItem > 0 ? amountInfo.value * qtyItem : amountInfo.value;
+      const unitPrice = amountIsUnitPrice ? amountInfo.value : null;
+
+      if (index === 0) {
+        console.log('Parsed first row - sheetNo:', sheetNo, 'deliverTo:', deliverTo, 'category:', category, 'remarks:', rem);
+      }
+
+      let billDateIso = '';
+      const billDateKeys = ['BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE'];
+      for (const key of billDateKeys) {
+        const val = row[key];
+        billDateIso = parseImportedDateValue(val);
+        if (billDateIso) break;
+      }
+      const billDateStr = billDateIso ? format(new Date(billDateIso), 'MM/dd/yyyy') : '';
+
+      const matchedItem = items.find(i =>
+        i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
+        i.item_name?.toLowerCase() === sheetNo.toLowerCase() ||
+        i.item_code?.toLowerCase().includes(sheetNo.toLowerCase()) ||
+        i.item_name?.toLowerCase().includes(sheetNo.toLowerCase())
+      );
+
+      return {
+        id: `parsed-${index}-${Date.now()}`,
+        sheetNo,
+        deliverTo,
+        qtyBoxes,
+        amount: amountVal,
+        unitPrice,
+        qtyItem,
+        category,
+        remarks: rem,
+        productCode,
+        productDescription,
+        billDate: billDateStr,
+        setDate: billDateIso,
+        courier,
+        matchedItemId: matchedItem?.id || null,
+        matchedItemName: matchedItem?.item_name || null,
+      };
+    }).filter(item => item.sheetNo || item.deliverTo);
+  };
+
+  const buildStockReleaseRowsFromItems = (releaseItems: ParsedReleaseItem[]) => {
+    const groups = new Map<string, ParsedReleaseItem[]>();
+    for (const item of releaseItems) {
+      const normalizedSheetNo = normalizeAllocation(item.sheetNo);
+      const key = normalizedSheetNo
+        ? `bill:${normalizedSheetNo}`
+        : `row:${item.id}`;
+      const arr = groups.get(key) || [];
+      arr.push(item);
+      groups.set(key, arr);
+    }
+
+    const rowsToInsert: StockReleaseInsertRow[] = [];
+    for (const group of groups.values()) {
+      const head = group[0];
+      const batchId = crypto.randomUUID();
+      const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
+
+      group.forEach(item => {
+        rowsToInsert.push({
+          item_id: null,
+          boxes_released: item.qtyBoxes,
+          destination: head.deliverTo || 'Unknown',
+          released_by: user!.id,
+          notes: combinedNotes || null,
+          courier: head.courier || null,
+          allocation_bill: head.sheetNo || null,
+          batch_id: batchId,
+          category: item.category || head.category || null,
+          waybill_no: null,
+          set_date: head.setDate || null,
+          total_qty: item.qtyItem || item.qtyBoxes || 0,
+          branch_id: selectedBranch?.id || null,
+          amount: item.amount || null,
+          delivery_status: 'pending',
+          action_status: 'yes',
+          product_code: item.productCode || null,
+          product_description: item.productDescription || null,
+          unit_price: item.unitPrice || null,
+        });
+      });
+    }
+
+    return rowsToInsert;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -340,94 +479,8 @@ const ReleaseStock = () => {
     // Don't clear existing items - we'll append to them
 
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { cellDates: true });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      
-      let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
-      
-      if (rows.length === 0) {
-        rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown as Record<string, unknown>[];
-        if (Array.isArray(rows) && rows.length > 1) {
-          const headers = rows[0] as unknown as string[];
-          rows = (rows.slice(1) as unknown as unknown[][]).map(row => {
-            const obj: Record<string, unknown> = {};
-            headers.forEach((header, i) => {
-              if (header) obj[String(header)] = row[i];
-            });
-            return obj;
-          });
-        }
-      }
-
-      // Log the column names from the first row for debugging
-      if (rows.length > 0) {
-        console.log('Excel column names detected:', Object.keys(rows[0]));
-      }
-
-      // Parse rows into release items - Format: Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE
-      const parsed: ParsedReleaseItem[] = rows.map((row, index) => {
-        // Log each row for debugging if index is 0
-        if (index === 0) {
-          console.log('First row data:', row);
-        }
-        
-        const sheetNo = findColumnValue(row, 'Sheet No.', 'Sheet No', 'SHEET NO', 'Sheet', 'SheetNo', 'Allocation', 'ALLOCATION', 'Allocation Bill', 'ALLOCATION BILL', 'Bill No', 'BILL NO', 'Bill', 'BILL');
-        const deliverTo = findColumnValue(row, 'Deliver To', 'DeliverTo', 'DELIVER TO', 'Deliver_To', 'DELIVER_TO', 'Destination', 'DESTINATION', 'Branch', 'BRANCH', 'Store', 'STORE', 'To Branch', 'TO BRANCH', 'Ship To', 'SHIP TO', 'Location', 'LOCATION', 'Deliver', 'DELIVER', 'Supplier', 'SUPPLIER');
-        const qtyBoxes = 1; // Default to 1 box when importing
-        const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
-        const productCode = findColumnValue(row, 'Product Code', 'PRODUCT CODE', 'ProductCode', 'Item Code', 'ITEM CODE', 'ItemCode', 'Code', 'CODE', 'SKU', 'Product Name', 'PRODUCT NAME', 'Product');
-        const productDescription = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Product Desc', 'PRODUCT DESC', 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Model', 'MODEL');
-        const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
-        const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
-        const amountInfo = findNumericColumnValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE', 'Unit Price', 'UNIT PRICE');
-        const amountHeader = amountInfo.matchedColumn.toLowerCase();
-        const amountIsUnitPrice = amountHeader.includes('price') && !amountHeader.includes('amount') && !amountHeader.includes('total');
-        const amountVal = amountIsUnitPrice && qtyItem > 0 ? amountInfo.value * qtyItem : amountInfo.value;
-        const unitPrice = amountIsUnitPrice ? amountInfo.value : null;
-        
-        // Log parsed values for first row
-        if (index === 0) {
-          console.log('Parsed first row - sheetNo:', sheetNo, 'deliverTo:', deliverTo, 'category:', category, 'remarks:', rem);
-        }
-        
-        // Parse BILL DATE - keep as string for manual input
-        let billDateIso = '';
-        const billDateKeys = ['BILL DATE', 'Bill Date', 'Set Date', 'SET DATE', 'Date', 'DATE'];
-        for (const key of billDateKeys) {
-          const val = row[key];
-          billDateIso = parseImportedDateValue(val);
-          if (billDateIso) break;
-        }
-        const billDateStr = billDateIso ? format(new Date(billDateIso), 'MM/dd/yyyy') : '';
-
-        // Try to match with inventory item by item_code or item_name
-        const matchedItem = items.find(i => 
-          i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
-          i.item_name?.toLowerCase() === sheetNo.toLowerCase() ||
-          i.item_code?.toLowerCase().includes(sheetNo.toLowerCase()) ||
-          i.item_name?.toLowerCase().includes(sheetNo.toLowerCase())
-        );
-
-        return {
-          id: `parsed-${index}-${Date.now()}`,
-          sheetNo,
-          deliverTo,
-          qtyBoxes,
-          amount: amountVal,
-          unitPrice,
-          qtyItem,
-          category,
-          remarks: rem,
-          productCode,
-          productDescription,
-          billDate: billDateStr,
-          setDate: billDateIso,
-          courier: '',
-          matchedItemId: matchedItem?.id || null,
-          matchedItemName: matchedItem?.item_name || null,
-        };
-      }).filter(item => item.sheetNo || item.deliverTo);
+      const rows = await readReleaseImportRows(file);
+      const parsed = parseReleaseRows(rows);
 
       if (parsed.length === 0) {
         toast({ title: 'No Items Found', description: 'Check column headers (Sheet No., Deliver To, BOX, Qty, Remarks, BILL DATE).', variant: 'destructive' });
@@ -450,6 +503,77 @@ const ReleaseStock = () => {
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handlePendingImportUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (isReleasingRef.current) {
+      toast({ title: 'Please wait', description: 'Another release import is already in progress.', variant: 'default' });
+      return;
+    }
+
+    setPendingImporting(true);
+    isReleasingRef.current = true;
+
+    try {
+      const rows = await readReleaseImportRows(file);
+      const parsed = parseReleaseRows(rows).filter(item => item.sheetNo.trim());
+
+      if (parsed.length === 0) {
+        toast({ title: 'No Bills Found', description: 'P Import needs rows with Allocation Bill / Sheet No.', variant: 'destructive' });
+        return;
+      }
+
+      const existingAllocationKeys = await fetchExistingAllocationKeys(getUniqueAllocationBills(parsed));
+      const skippedBillKeys = new Set<string>();
+      const importableItems = parsed.filter(item => {
+        const key = normalizeAllocation(item.sheetNo);
+        if (!key || existingAllocationKeys.has(key)) {
+          if (key) skippedBillKeys.add(key);
+          return false;
+        }
+        return true;
+      });
+
+      if (importableItems.length === 0) {
+        toast({
+          title: 'No New Bills Imported',
+          description: `${skippedBillKeys.size} existing bill(s) were skipped.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await insertStockReleaseRows(buildStockReleaseRowsFromItems(importableItems));
+
+      const importedBills = getUniqueAllocationBills(importableItems);
+      await logActivity({
+        actionType: 'import',
+        module: 'stock_releases',
+        description: `P Imported ${importableItems.length} pending delivery item(s) via Excel`,
+        metadata: {
+          items_count: importableItems.length,
+          skipped_existing_bills: skippedBillKeys.size,
+          branch_id: selectedBranch?.id,
+          branch: selectedBranch?.name,
+          allocation_bills: importedBills,
+        },
+      });
+
+      toast({
+        title: 'P Import Complete',
+        description: `${importableItems.length} item(s) added to pending deliveries. ${skippedBillKeys.size} existing bill(s) skipped.`,
+      });
+    } catch (error) {
+      console.error('P Import error:', error);
+      toast({ title: 'Error', description: 'Failed to P Import file.', variant: 'destructive' });
+    } finally {
+      setPendingImporting(false);
+      isReleasingRef.current = false;
+      if (pendingImportFileInputRef.current) pendingImportFileInputRef.current.value = '';
     }
   };
 
@@ -489,48 +613,7 @@ const ReleaseStock = () => {
     try {
       const firstItem = validItems[0];
 
-      const groups = new Map<string, ParsedReleaseItem[]>();
-      for (const item of validItems) {
-        const normalizedSheetNo = normalizeAllocation(item.sheetNo);
-        const key = normalizedSheetNo
-          ? `bill:${normalizedSheetNo}`
-          : `row:${item.id}`;
-        const arr = groups.get(key) || [];
-        arr.push(item);
-        groups.set(key, arr);
-      }
-
-      const rowsToInsert: StockReleaseInsertRow[] = [];
-      for (const group of groups.values()) {
-        const head = group[0];
-        const batchId = crypto.randomUUID();
-        const combinedNotes = group.map(g => g.remarks).filter(Boolean).join(' | ');
-
-        group.forEach(item => {
-          rowsToInsert.push({
-            item_id: null,
-            boxes_released: item.qtyBoxes,
-            destination: head.deliverTo || 'Unknown',
-            released_by: user!.id,
-            notes: combinedNotes || null,
-            courier: head.courier || null,
-            allocation_bill: head.sheetNo || null,
-            batch_id: batchId,
-            category: item.category || head.category || null,
-            waybill_no: null,
-            set_date: head.setDate || null,
-            total_qty: item.qtyItem || item.qtyBoxes || 0,
-            branch_id: selectedBranch?.id || null,
-            amount: item.amount || null,
-            action_status: 'yes',
-            product_code: item.productCode || null,
-            product_description: item.productDescription || null,
-            unit_price: item.unitPrice || null,
-          });
-        });
-      }
-
-      await insertStockReleaseRows(rowsToInsert);
+      await insertStockReleaseRows(buildStockReleaseRowsFromItems(validItems));
 
       // Remove released items from preview
       const releasedIds = new Set(validItems.map(i => i.id));
@@ -717,10 +800,26 @@ const ReleaseStock = () => {
               onChange={handleFileUpload}
               className="hidden"
             />
+            <input
+              ref={pendingImportFileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handlePendingImportUpload}
+              className="hidden"
+            />
+            <Button
+              variant="default"
+              onClick={() => pendingImportFileInputRef.current?.click()}
+              disabled={pendingImporting || importing || submitting}
+              className="mr-2"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {pendingImporting ? 'P Importing...' : 'P Import'}
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
+              disabled={importing || pendingImporting}
             >
               <Upload className="h-4 w-4 mr-2" />
               {importing ? 'Importing...' : 'Upload File'}
