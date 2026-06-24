@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ClipboardList, RefreshCw, Search } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardList, RefreshCw, Search } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import type { StockRelease } from '@/types/inventory';
 import type { Database } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -31,6 +33,7 @@ interface PendingAllocationGroup {
   remarks: string | null;
   lineCount: number;
   created_at: string;
+  releaseIds: string[];
 }
 
 const normalizeAllocation = (allocation?: string | null) =>
@@ -59,39 +62,54 @@ const formatCurrency = (value: number) => {
 const PendingAllocation = () => {
   const { selectedBranch, loading: branchLoading } = useBranch();
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [rows, setRows] = useState<PendingAllocationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [moving, setMoving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
 
   const getLegacyPImportBills = (logs: ActivityLogRow[]) => {
-    const bills = new Set<string>();
+    const importedBills = new Set<string>();
+    const movedBills = new Set<string>();
 
-    logs.forEach((log) => {
+    const collectBills = (log: ActivityLogRow) => {
       const metadata = (log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata))
         ? log.metadata as Record<string, unknown>
         : {};
       const allocationBills = metadata.allocation_bills;
 
-      if (Array.isArray(allocationBills)) {
-        allocationBills.forEach((bill) => {
-          const value = String(bill || '').trim();
-          if (value) bills.add(value);
-        });
+      if (!Array.isArray(allocationBills)) return [];
+
+      return allocationBills
+        .map((bill) => String(bill || '').trim())
+        .filter(Boolean);
+    };
+
+    logs.forEach((log) => {
+      const description = (log.description || '').toLowerCase();
+      const bills = collectBills(log);
+
+      if (log.action_type === 'import' && description.startsWith('p imported')) {
+        bills.forEach((bill) => importedBills.add(bill));
+      }
+
+      if (log.action_type === 'update' && description.includes('pending allocation') && description.includes('deliveries')) {
+        bills.forEach((bill) => movedBills.add(bill));
       }
     });
 
-    return Array.from(bills);
+    movedBills.forEach((bill) => importedBills.delete(bill));
+    return Array.from(importedBills);
   };
 
   const fetchLegacyPendingAllocationRows = useCallback(async () => {
     const { data: logs, error: logsError } = await supabase
       .from('activity_logs')
       .select('id,action_type,module,description,metadata,created_at,user_id,user_email,user_name,ip_address')
-      .eq('action_type', 'import')
       .in('module', ['stock_releases', 'pending_allocations'])
-      .ilike('description', 'P Imported%')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(500);
 
     if (logsError) {
       console.warn('Unable to check legacy P Import activity logs:', logsError);
@@ -208,6 +226,7 @@ const PendingAllocation = () => {
           remarks,
           lineCount: 1,
           created_at: row.created_at,
+          releaseIds: [row.id],
         });
         return;
       }
@@ -219,6 +238,7 @@ const PendingAllocation = () => {
       existing.set_date = existing.set_date || row.set_date;
       existing.courier = existing.courier || row.courier;
       existing.lineCount += 1;
+      existing.releaseIds.push(row.id);
 
       if (remarks && !existing.remarks?.includes(remarks)) {
         existing.remarks = existing.remarks ? `${existing.remarks} | ${remarks}` : remarks;
@@ -251,6 +271,105 @@ const PendingAllocation = () => {
       return searchable.includes(query);
     });
   }, [groupedAllocations, searchQuery]);
+
+  useEffect(() => {
+    const visibleKeys = new Set(groupedAllocations.map(group => group.key));
+    setSelectedGroupKeys(prev => {
+      const next = new Set(Array.from(prev).filter(key => visibleKeys.has(key)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [groupedAllocations]);
+
+  const selectedGroups = useMemo(
+    () => groupedAllocations.filter(group => selectedGroupKeys.has(group.key)),
+    [groupedAllocations, selectedGroupKeys],
+  );
+
+  const selectedReleaseIds = useMemo(
+    () => selectedGroups.flatMap(group => group.releaseIds),
+    [selectedGroups],
+  );
+
+  const someVisibleSelected = filteredAllocations.some(group => selectedGroupKeys.has(group.key));
+  const allVisibleSelected = filteredAllocations.length > 0
+    && filteredAllocations.every(group => selectedGroupKeys.has(group.key));
+
+  const toggleGroupSelection = (key: string, checked: boolean) => {
+    setSelectedGroupKeys(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = (checked: boolean) => {
+    setSelectedGroupKeys(prev => {
+      const next = new Set(prev);
+      filteredAllocations.forEach(group => {
+        if (checked) {
+          next.add(group.key);
+        } else {
+          next.delete(group.key);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleMoveToDeliveries = async () => {
+    if (selectedReleaseIds.length === 0 || moving) return;
+
+    setMoving(true);
+    try {
+      for (let index = 0; index < selectedReleaseIds.length; index += 100) {
+        const chunk = selectedReleaseIds.slice(index, index + 100);
+        const { error } = await supabase
+          .from('stock_releases')
+          .update({ action_status: 'yes' })
+          .in('id', chunk);
+
+        if (error) throw error;
+      }
+
+      const allocationBills = selectedGroups
+        .map(group => group.allocation_bill)
+        .filter(Boolean) as string[];
+
+      await logActivity({
+        actionType: 'update',
+        module: 'pending_allocations',
+        description: `Moved ${selectedGroups.length} pending allocation bill(s) to deliveries`,
+        metadata: {
+          items_count: selectedReleaseIds.length,
+          branch_id: selectedBranch?.id,
+          branch: selectedBranch?.name,
+          allocation_bills: allocationBills,
+        },
+      });
+
+      setRows(prev => prev.filter(row => !selectedReleaseIds.includes(row.id)));
+      setSelectedGroupKeys(new Set());
+      window.dispatchEvent(new CustomEvent('app:soft-refresh'));
+
+      toast({
+        title: 'Moved to Deliveries',
+        description: `${selectedGroups.length} bill(s) are now visible in Deliveries.`,
+      });
+    } catch (error) {
+      console.error('Error moving pending allocations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to move selected allocations to deliveries.',
+        variant: 'destructive',
+      });
+    } finally {
+      setMoving(false);
+    }
+  };
 
   const totals = useMemo(() => {
     return filteredAllocations.reduce(
@@ -322,15 +441,36 @@ const PendingAllocation = () => {
                 className="pl-9"
               />
             </div>
-            <Badge variant="outline" className="w-fit">
-              {rows.length} pending line{rows.length === 1 ? '' : 's'}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="w-fit">
+                {rows.length} pending line{rows.length === 1 ? '' : 's'}
+              </Badge>
+              {selectedGroups.length > 0 && (
+                <Badge variant="secondary" className="w-fit">
+                  {selectedGroups.length} selected
+                </Badge>
+              )}
+              <Button
+                onClick={handleMoveToDeliveries}
+                disabled={selectedReleaseIds.length === 0 || moving || loading}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {moving ? 'Moving...' : 'Move to Deliveries'}
+              </Button>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                      onCheckedChange={(checked) => toggleVisibleSelection(checked === true)}
+                      aria-label="Select all pending allocations"
+                    />
+                  </TableHead>
                   <TableHead className="min-w-[160px]">Allocation Bill</TableHead>
                   <TableHead className="min-w-[150px]">Destination</TableHead>
                   <TableHead className="min-w-[100px]">Category</TableHead>
@@ -346,19 +486,26 @@ const PendingAllocation = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-40 text-center">
+                    <TableCell colSpan={11} className="h-40 text-center">
                       <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     </TableCell>
                   </TableRow>
                 ) : filteredAllocations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-40 text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="h-40 text-center text-muted-foreground">
                       No pending allocations found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredAllocations.map((group) => (
-                    <TableRow key={group.key}>
+                    <TableRow key={group.key} data-state={selectedGroupKeys.has(group.key) ? 'selected' : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedGroupKeys.has(group.key)}
+                          onCheckedChange={(checked) => toggleGroupSelection(group.key, checked === true)}
+                          aria-label={`Select ${group.allocation_bill || group.destination}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs font-medium">{group.allocation_bill || '-'}</TableCell>
                       <TableCell>{group.destination}</TableCell>
                       <TableCell>{group.category || '-'}</TableCell>
