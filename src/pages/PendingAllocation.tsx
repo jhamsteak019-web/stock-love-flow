@@ -33,10 +33,11 @@ type PendingAllocationRow = Pick<
   | 'amount'
   | 'branch_id'
   | 'created_at'
+  | 'import_created_at'
   | 'action_status'
 >;
 
-const PENDING_ALLOCATION_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
+const PENDING_ALLOCATION_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,import_created_at,action_status';
 const ITEMS_PER_PAGE = 12;
 
 interface PendingAllocationGroup {
@@ -52,6 +53,7 @@ interface PendingAllocationGroup {
   remarks: string | null;
   lineCount: number;
   created_at: string;
+  import_created_at: string | null;
   releaseIds: string[];
 }
 
@@ -66,7 +68,17 @@ const normalizeAllocation = (allocation?: string | null) =>
 const formatDateTime = (value?: string | null) => {
   if (!value) return '-';
   const date = new Date(value);
-  return isValid(date) ? format(date, 'MMM d, yyyy h:mm a') : '-';
+  return isValid(date) ? format(date, 'yyyy-MM-dd HH:mm:ss') : value;
+};
+
+const getCreatedDateDisplay = (group: Pick<PendingAllocationGroup, 'created_at' | 'import_created_at'>) =>
+  group.import_created_at?.trim() || formatDateTime(group.created_at);
+
+const getCreatedDateTime = (value?: string | null) => {
+  if (!value) return Number.NaN;
+  const normalized = value.includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value;
+  const parsed = new Date(normalized).getTime();
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
 };
 
 const formatCurrency = (value: number) => {
@@ -229,6 +241,7 @@ const PendingAllocation = () => {
           remarks,
           lineCount: 1,
           created_at: row.created_at,
+          import_created_at: row.import_created_at || null,
           releaseIds: [row.id],
         });
         return;
@@ -240,6 +253,7 @@ const PendingAllocation = () => {
       existing.category = existing.category || row.category;
       existing.set_date = existing.set_date || row.set_date;
       existing.courier = existing.courier || row.courier;
+      existing.import_created_at = existing.import_created_at || row.import_created_at || null;
       existing.lineCount += 1;
       existing.releaseIds.push(row.id);
 
@@ -251,7 +265,7 @@ const PendingAllocation = () => {
     return Array.from(groups.values()).sort((a, b) => {
       const aDate = a.set_date || a.created_at;
       const bDate = b.set_date || b.created_at;
-      return new Date(bDate).getTime() - new Date(aDate).getTime();
+      return getCreatedDateTime(b.import_created_at || bDate) - getCreatedDateTime(a.import_created_at || aDate);
     });
   }, [rows]);
 
@@ -270,7 +284,7 @@ const PendingAllocation = () => {
         .join(' ')
         .toLowerCase();
 
-      const createdTime = new Date(group.created_at).getTime();
+      const createdTime = getCreatedDateTime(group.import_created_at || group.created_at);
       const matchesSearch = !query || searchable.includes(query);
       const matchesStatus = statusFilter === 'all' || statusFilter === 'pending';
       const matchesFrom = fromTime === null || createdTime >= fromTime;
@@ -456,7 +470,7 @@ const PendingAllocation = () => {
     qty: group.totalQty,
     remarks: group.remarks || '-',
     status: 'Pending',
-    createdDate: formatDateTime(group.created_at),
+    createdDate: getCreatedDateDisplay(group),
   }));
 
   const handleExportExcel = async () => {
@@ -683,7 +697,7 @@ const PendingAllocation = () => {
                       <TableCell>
                         <Badge variant="secondary">Pending</Badge>
                       </TableCell>
-                      <TableCell>{formatDateTime(group.created_at)}</TableCell>
+                      <TableCell>{getCreatedDateDisplay(group)}</TableCell>
                     </TableRow>
                   ))
                 )}

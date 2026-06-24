@@ -40,6 +40,7 @@ const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 
 const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00:00.000Z`;
 const toImportedDateTime = (date: Date) => (isValid(date) ? date.toISOString() : '');
+const toImportedDateTimeDisplay = (date: Date) => (isValid(date) ? format(date, 'yyyy-MM-dd HH:mm:ss') : '');
 
 const parseImportedDateValue = (value: unknown) => {
   if (value === undefined || value === null || value === '') return '';
@@ -82,19 +83,25 @@ const parseImportedDateValue = (value: unknown) => {
 };
 
 const parseImportedDateTimeValue = (value: unknown) => {
-  if (value === undefined || value === null || value === '') return '';
+  if (value === undefined || value === null || value === '') return { iso: '', display: '' };
 
   if (value instanceof Date && isValid(value)) {
-    return toImportedDateTime(value);
+    return {
+      iso: toImportedDateTime(value),
+      display: toImportedDateTimeDisplay(value),
+    };
   }
 
   if (typeof value === 'number') {
     const excelDate = new Date((value - 25569) * 86400 * 1000);
-    return toImportedDateTime(excelDate);
+    return {
+      iso: toImportedDateTime(excelDate),
+      display: toImportedDateTimeDisplay(excelDate),
+    };
   }
 
   const text = String(value).trim();
-  if (!text) return '';
+  if (!text) return { iso: '', display: '' };
 
   const parsedByPattern = [
     'yyyy-MM-dd HH:mm:ss',
@@ -117,10 +124,20 @@ const parseImportedDateTimeValue = (value: unknown) => {
     .map(pattern => parse(text, pattern, new Date()))
     .find(date => isValid(date));
 
-  if (parsedByPattern) return toImportedDateTime(parsedByPattern);
+  if (parsedByPattern) {
+    return {
+      iso: toImportedDateTime(parsedByPattern),
+      display: text,
+    };
+  }
 
   const parsed = new Date(text);
-  return toImportedDateTime(parsed);
+  if (!isValid(parsed)) return { iso: '', display: text };
+
+  return {
+    iso: toImportedDateTime(parsed),
+    display: text,
+  };
 };
 
 interface ParsedReleaseItem {
@@ -138,6 +155,7 @@ interface ParsedReleaseItem {
   billDate: string;
   setDate: string;
   createdAt: string;
+  createdAtDisplay: string;
   courier: string;
   matchedItemId: string | null;
   matchedItemName: string | null;
@@ -170,6 +188,7 @@ type StockReleaseInsertRow = {
   product_description: string | null;
   unit_price: number | null;
   created_at?: string;
+  import_created_at?: string | null;
 };
 
 const getSavedParsedItems = () => {
@@ -329,6 +348,70 @@ const ReleaseStock = () => {
     }
   };
 
+  const syncExistingPendingAllocationCreatedDates = async (
+    releaseItems: ParsedReleaseItem[],
+    existingKeys: Set<string>,
+  ) => {
+    const datesByBill = new Map<string, { bills: Set<string>; createdAt: string; createdAtDisplay: string }>();
+
+    releaseItems.forEach((item) => {
+      const key = normalizeAllocation(item.sheetNo);
+      if (!key || !existingKeys.has(key) || !item.createdAtDisplay) return;
+
+      const current = datesByBill.get(key) || {
+        bills: new Set<string>(),
+        createdAt: item.createdAt,
+        createdAtDisplay: item.createdAtDisplay,
+      };
+
+      current.bills.add(item.sheetNo.trim());
+      if (!current.createdAtDisplay) {
+        current.createdAt = item.createdAt;
+        current.createdAtDisplay = item.createdAtDisplay;
+      }
+      datesByBill.set(key, current);
+    });
+
+    for (const [key, entry] of datesByBill.entries()) {
+      let query = supabase
+        .from('stock_releases')
+        .select('id,allocation_bill')
+        .is('deleted_at', null)
+        .eq('action_status', 'pending_allocation')
+        .in('allocation_bill', Array.from(entry.bills));
+
+      if (selectedBranch?.id) {
+        query = query.eq('branch_id', selectedBranch.id);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.warn('Unable to sync pending allocation Created Date:', error);
+        continue;
+      }
+
+      const ids = (data || [])
+        .filter(row => normalizeAllocation(row.allocation_bill) === key)
+        .map(row => row.id);
+
+      if (ids.length === 0) continue;
+
+      const updatePayload: { import_created_at: string; created_at?: string } = {
+        import_created_at: entry.createdAtDisplay,
+      };
+      if (entry.createdAt) updatePayload.created_at = entry.createdAt;
+
+      const { error: updateError } = await supabase
+        .from('stock_releases')
+        .update(updatePayload)
+        .in('id', ids);
+
+      if (updateError) {
+        console.warn('Unable to update pending allocation Created Date:', updateError);
+      }
+    }
+  };
+
   // Excel Import Functions
   const findColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]): string => {
     const keys = Object.keys(row);
@@ -448,12 +531,15 @@ const ReleaseStock = () => {
       const billDateStr = billDateIso ? format(new Date(billDateIso), 'MM/dd/yyyy') : '';
 
       let createdAtIso = '';
+      let createdAtDisplay = '';
       const createdDateKeys = ['Created Date', 'CREATED DATE', 'Create Date', 'CREATE DATE', 'Created At', 'CREATED AT', 'created_at'];
       for (const key of createdDateKeys) {
         const exactKey = Object.keys(row).find(rowKey => rowKey.toLowerCase().trim() === key.toLowerCase().trim());
         const val = exactKey ? row[exactKey] : row[key];
-        createdAtIso = parseImportedDateTimeValue(val);
-        if (createdAtIso) break;
+        const parsedCreatedAt = parseImportedDateTimeValue(val);
+        createdAtIso = parsedCreatedAt.iso;
+        createdAtDisplay = parsedCreatedAt.display;
+        if (createdAtIso || createdAtDisplay) break;
       }
 
       const matchedItem = items.find(i =>
@@ -478,6 +564,7 @@ const ReleaseStock = () => {
         billDate: billDateStr,
         setDate: billDateIso,
         createdAt: createdAtIso,
+        createdAtDisplay,
         courier,
         matchedItemId: matchedItem?.id || null,
         matchedItemName: matchedItem?.item_name || null,
@@ -525,6 +612,7 @@ const ReleaseStock = () => {
           product_description: item.productDescription || null,
           unit_price: item.unitPrice || null,
           created_at: head.createdAt || undefined,
+          import_created_at: head.createdAtDisplay || null,
         });
       });
     }
@@ -572,6 +660,7 @@ const ReleaseStock = () => {
           product_description: item.productDescription || null,
           unit_price: item.unitPrice || null,
           created_at: head.createdAt || undefined,
+          import_created_at: head.createdAtDisplay || null,
         });
       });
     }
@@ -637,6 +726,7 @@ const ReleaseStock = () => {
 
       const parsedBills = getUniqueAllocationBills(parsed);
       const existingReleaseKeys = await fetchExistingAllocationKeys(parsedBills);
+      await syncExistingPendingAllocationCreatedDates(parsed, existingReleaseKeys);
       const skippedBillKeys = new Set<string>();
       const importableItems = parsed.filter(item => {
         const key = normalizeAllocation(item.sheetNo);

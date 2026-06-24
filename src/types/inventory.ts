@@ -75,6 +75,7 @@ export interface StockRelease {
   product_code?: string | null;
   product_description?: string | null;
   unit_price?: number | null;
+  import_created_at?: string | null;
   inventory_item?: InventoryItem;
   profile?: Profile;
 }

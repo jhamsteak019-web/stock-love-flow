@@ -1126,6 +1126,7 @@ export type Database = {
           delivery_status: Database["public"]["Enums"]["delivery_status"]
           destination: string
           id: string
+          import_created_at: string | null
           item_id: string | null
           notes: string | null
           photo_status: string | null
@@ -1155,6 +1156,7 @@ export type Database = {
           delivery_status?: Database["public"]["Enums"]["delivery_status"]
           destination: string
           id?: string
+          import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
           photo_status?: string | null
@@ -1184,6 +1186,7 @@ export type Database = {
           delivery_status?: Database["public"]["Enums"]["delivery_status"]
           destination?: string
           id?: string
+          import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
           photo_status?: string | null
