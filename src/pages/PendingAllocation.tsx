@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { exportToExcel } from '@/lib/excelExport';
 import type { StockRelease } from '@/types/inventory';
-import type { Database } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,10 +18,25 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-type PendingAllocationRow = StockRelease;
-type ActivityLogRow = Database['public']['Tables']['activity_logs']['Row'];
+type PendingAllocationRow = Pick<
+  StockRelease,
+  | 'id'
+  | 'boxes_released'
+  | 'destination'
+  | 'courier'
+  | 'allocation_bill'
+  | 'notes'
+  | 'batch_id'
+  | 'category'
+  | 'set_date'
+  | 'total_qty'
+  | 'amount'
+  | 'branch_id'
+  | 'created_at'
+  | 'action_status'
+>;
 
-const STOCK_RELEASE_SELECT = 'id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price';
+const PENDING_ALLOCATION_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
 const ITEMS_PER_PAGE = 12;
 
 interface PendingAllocationGroup {
@@ -49,10 +63,10 @@ const normalizeAllocation = (allocation?: string | null) =>
     .replace(/[^a-z0-9]/gi, '')
     .toLowerCase();
 
-const formatDate = (value?: string | null) => {
+const formatDateTime = (value?: string | null) => {
   if (!value) return '-';
   const date = new Date(value);
-  return isValid(date) ? format(date, 'MMM d, yyyy') : '-';
+  return isValid(date) ? format(date, 'MMM d, yyyy h:mm a') : '-';
 };
 
 const formatCurrency = (value: number) => {
@@ -126,94 +140,28 @@ const PendingAllocation = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
 
-  const getLegacyPImportBills = (logs: ActivityLogRow[]) => {
-    const importedBills = new Set<string>();
-    const movedBills = new Set<string>();
+  const cleanupDuplicatePendingAllocations = useCallback(async (duplicateIds: string[], duplicateBills: string[]) => {
+    if (duplicateIds.length === 0) return;
 
-    const collectBills = (log: ActivityLogRow) => {
-      const metadata = (log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata))
-        ? log.metadata as Record<string, unknown>
-        : {};
-      const allocationBills = metadata.allocation_bills;
-
-      if (!Array.isArray(allocationBills)) return [];
-
-      return allocationBills
-        .map((bill) => String(bill || '').trim())
-        .filter(Boolean);
-    };
-
-    logs.forEach((log) => {
-      const description = (log.description || '').toLowerCase();
-      const bills = collectBills(log);
-
-      if (log.action_type === 'import' && description.startsWith('p imported')) {
-        bills.forEach((bill) => importedBills.add(bill));
-      }
-
-      if (log.action_type === 'update' && description.includes('pending allocation') && description.includes('deliveries')) {
-        bills.forEach((bill) => movedBills.add(bill));
-      }
-    });
-
-    movedBills.forEach((bill) => importedBills.delete(bill));
-    return Array.from(importedBills);
-  };
-
-  const fetchLegacyPendingAllocationRows = useCallback(async () => {
-    const { data: logs, error: logsError } = await supabase
-      .from('activity_logs')
-      .select('id,action_type,module,description,metadata,created_at,user_id,user_email,user_name,ip_address')
-      .in('module', ['stock_releases', 'pending_allocations'])
-      .order('created_at', { ascending: false })
-      .limit(500);
-
-    if (logsError) {
-      console.warn('Unable to check legacy P Import activity logs:', logsError);
-      return [];
-    }
-
-    const bills = getLegacyPImportBills((logs || []) as ActivityLogRow[]);
-    if (bills.length === 0) return [];
-
-    const legacyRows: PendingAllocationRow[] = [];
-    for (let index = 0; index < bills.length; index += 100) {
-      const chunk = bills.slice(index, index + 100);
-      let query = supabase
+    const deletedAt = new Date().toISOString();
+    for (let index = 0; index < duplicateIds.length; index += 100) {
+      const chunk = duplicateIds.slice(index, index + 100);
+      const { error: cleanupError } = await supabase
         .from('stock_releases')
-        .select(STOCK_RELEASE_SELECT)
-        .is('deleted_at', null)
-        .neq('delivery_status', 'delivered')
-        .in('allocation_bill', chunk);
-
-      if (selectedBranch?.id) {
-        query = query.eq('branch_id', selectedBranch.id);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      legacyRows.push(...((data || []) as PendingAllocationRow[]));
-    }
-
-    const idsToBackfill = legacyRows
-      .filter(row => row.action_status !== 'pending_allocation')
-      .map(row => row.id);
-
-    for (let index = 0; index < idsToBackfill.length; index += 100) {
-      const chunk = idsToBackfill.slice(index, index + 100);
-      const { error } = await supabase
-        .from('stock_releases')
-        .update({ action_status: 'pending_allocation' })
+        .update({ deleted_at: deletedAt })
         .in('id', chunk);
 
-      if (error) {
-        console.warn('Unable to backfill legacy P Import rows:', error);
-        break;
+      if (cleanupError) {
+        console.warn('Unable to remove duplicate pending allocation bills:', cleanupError);
+        return;
       }
     }
 
-    return legacyRows.map(row => ({ ...row, action_status: 'pending_allocation' }));
-  }, [selectedBranch?.id]);
+    toast({
+      title: 'Duplicates Removed',
+      description: `${duplicateBills.length} duplicate bill(s) were removed from Pending Allocation.`,
+    });
+  }, [toast]);
 
   const fetchPendingAllocations = useCallback(async () => {
     if (branchLoading) return;
@@ -222,7 +170,7 @@ const PendingAllocation = () => {
     try {
       let query = supabase
         .from('stock_releases')
-        .select(STOCK_RELEASE_SELECT)
+        .select(PENDING_ALLOCATION_SELECT)
         .is('deleted_at', null)
         .eq('action_status', 'pending_allocation')
         .order('created_at', { ascending: false })
@@ -236,39 +184,12 @@ const PendingAllocation = () => {
       if (error) throw error;
 
       const currentRows = (data || []) as PendingAllocationRow[];
-      const legacyRows = await fetchLegacyPendingAllocationRows();
-      const byId = new Map<string, PendingAllocationRow>();
-
-      [...currentRows, ...legacyRows].forEach((row) => {
-        byId.set(row.id, row);
-      });
-
-      const mergedRows = Array.from(byId.values());
-      const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(mergedRows);
+      const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(currentRows);
+      setRows(cleanRows);
 
       if (duplicateIds.length > 0) {
-        const deletedAt = new Date().toISOString();
-
-        for (let index = 0; index < duplicateIds.length; index += 100) {
-          const chunk = duplicateIds.slice(index, index + 100);
-          const { error: cleanupError } = await supabase
-            .from('stock_releases')
-            .update({ deleted_at: deletedAt })
-            .in('id', chunk);
-
-          if (cleanupError) {
-            console.warn('Unable to remove duplicate pending allocation bills:', cleanupError);
-            break;
-          }
-        }
-
-        toast({
-          title: 'Duplicates Removed',
-          description: `${duplicateBills.length} duplicate bill(s) were removed from Pending Allocation.`,
-        });
+        void cleanupDuplicatePendingAllocations(duplicateIds, duplicateBills);
       }
-
-      setRows(cleanRows);
     } catch (error) {
       console.error('Error fetching pending allocations:', error);
       toast({
@@ -279,7 +200,7 @@ const PendingAllocation = () => {
     } finally {
       setLoading(false);
     }
-  }, [branchLoading, fetchLegacyPendingAllocationRows, selectedBranch?.id, toast]);
+  }, [branchLoading, cleanupDuplicatePendingAllocations, selectedBranch?.id, toast]);
 
   useEffect(() => {
     fetchPendingAllocations();
@@ -535,7 +456,7 @@ const PendingAllocation = () => {
     qty: group.totalQty,
     remarks: group.remarks || '-',
     status: 'Pending',
-    createdDate: formatDate(group.created_at),
+    createdDate: formatDateTime(group.created_at),
   }));
 
   const handleExportExcel = async () => {
@@ -762,7 +683,7 @@ const PendingAllocation = () => {
                       <TableCell>
                         <Badge variant="secondary">Pending</Badge>
                       </TableCell>
-                      <TableCell>{formatDate(group.created_at)}</TableCell>
+                      <TableCell>{formatDateTime(group.created_at)}</TableCell>
                     </TableRow>
                   ))
                 )}

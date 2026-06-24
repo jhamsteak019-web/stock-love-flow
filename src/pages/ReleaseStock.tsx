@@ -39,6 +39,7 @@ const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 
 const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00:00.000Z`;
+const toImportedDateTime = (date: Date) => (isValid(date) ? date.toISOString() : '');
 
 const parseImportedDateValue = (value: unknown) => {
   if (value === undefined || value === null || value === '') return '';
@@ -80,6 +81,48 @@ const parseImportedDateValue = (value: unknown) => {
   return isValid(parsed) ? toStableReleaseDate(parsed) : '';
 };
 
+const parseImportedDateTimeValue = (value: unknown) => {
+  if (value === undefined || value === null || value === '') return '';
+
+  if (value instanceof Date && isValid(value)) {
+    return toImportedDateTime(value);
+  }
+
+  if (typeof value === 'number') {
+    const excelDate = new Date((value - 25569) * 86400 * 1000);
+    return toImportedDateTime(excelDate);
+  }
+
+  const text = String(value).trim();
+  if (!text) return '';
+
+  const parsedByPattern = [
+    'yyyy-MM-dd HH:mm:ss',
+    'yyyy-MM-dd H:mm:ss',
+    'yyyy-MM-dd HH:mm',
+    'yyyy-MM-dd H:mm',
+    'yyyy/M/d HH:mm:ss',
+    'yyyy/M/d H:mm:ss',
+    'yyyy/M/d HH:mm',
+    'yyyy/M/d H:mm',
+    'MM/dd/yyyy HH:mm:ss',
+    'M/d/yyyy H:mm:ss',
+    'MM/dd/yyyy HH:mm',
+    'M/d/yyyy H:mm',
+    'MM/dd/yyyy h:mm:ss a',
+    'M/d/yyyy h:mm:ss a',
+    'MM/dd/yyyy h:mm a',
+    'M/d/yyyy h:mm a',
+  ]
+    .map(pattern => parse(text, pattern, new Date()))
+    .find(date => isValid(date));
+
+  if (parsedByPattern) return toImportedDateTime(parsedByPattern);
+
+  const parsed = new Date(text);
+  return toImportedDateTime(parsed);
+};
+
 interface ParsedReleaseItem {
   id: string;
   sheetNo: string;
@@ -94,6 +137,7 @@ interface ParsedReleaseItem {
   category: string;
   billDate: string;
   setDate: string;
+  createdAt: string;
   courier: string;
   matchedItemId: string | null;
   matchedItemName: string | null;
@@ -125,6 +169,7 @@ type StockReleaseInsertRow = {
   product_code: string | null;
   product_description: string | null;
   unit_price: number | null;
+  created_at?: string;
 };
 
 const getSavedParsedItems = () => {
@@ -402,6 +447,15 @@ const ReleaseStock = () => {
       }
       const billDateStr = billDateIso ? format(new Date(billDateIso), 'MM/dd/yyyy') : '';
 
+      let createdAtIso = '';
+      const createdDateKeys = ['Created Date', 'CREATED DATE', 'Create Date', 'CREATE DATE', 'Created At', 'CREATED AT', 'created_at'];
+      for (const key of createdDateKeys) {
+        const exactKey = Object.keys(row).find(rowKey => rowKey.toLowerCase().trim() === key.toLowerCase().trim());
+        const val = exactKey ? row[exactKey] : row[key];
+        createdAtIso = parseImportedDateTimeValue(val);
+        if (createdAtIso) break;
+      }
+
       const matchedItem = items.find(i =>
         i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
         i.item_name?.toLowerCase() === sheetNo.toLowerCase() ||
@@ -423,6 +477,7 @@ const ReleaseStock = () => {
         productDescription,
         billDate: billDateStr,
         setDate: billDateIso,
+        createdAt: createdAtIso,
         courier,
         matchedItemId: matchedItem?.id || null,
         matchedItemName: matchedItem?.item_name || null,
@@ -469,6 +524,7 @@ const ReleaseStock = () => {
           product_code: item.productCode || null,
           product_description: item.productDescription || null,
           unit_price: item.unitPrice || null,
+          created_at: head.createdAt || undefined,
         });
       });
     }
@@ -515,6 +571,7 @@ const ReleaseStock = () => {
           product_code: item.productCode || null,
           product_description: item.productDescription || null,
           unit_price: item.unitPrice || null,
+          created_at: head.createdAt || undefined,
         });
       });
     }
