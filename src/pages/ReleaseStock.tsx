@@ -37,6 +37,7 @@ const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
+const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
 
 const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00:00.000Z`;
 const toImportedDateTime = (date: Date) => (isValid(date) ? date.toISOString() : '');
@@ -347,53 +348,24 @@ const ReleaseStock = () => {
 
   const fetchExistingAllocationKeys = async (allocations?: string[]) => {
     const keys = new Set<string>();
-    const PAGE_SIZE = 1000;
     const requestedAllocations = (allocations || []).map(bill => bill.trim()).filter(Boolean);
-    const requestedKeys = new Set(requestedAllocations.map(bill => normalizeAllocation(bill)).filter(Boolean));
 
-    if (requestedAllocations.length > 0) {
-      // Fast exact lookup first.
-      for (let index = 0; index < requestedAllocations.length; index += 100) {
-        const chunk = requestedAllocations.slice(index, index + 100);
-        const { data, error } = await supabase
-          .from('stock_releases')
-          .select('allocation_bill')
-          .is('deleted_at', null)
-          .in('allocation_bill', chunk);
+    if (requestedAllocations.length === 0) return keys;
 
-        if (error) throw error;
-
-        (data || []).forEach((release) => {
-          const key = normalizeAllocation(release.allocation_bill);
-          if (key) keys.add(key);
-        });
-      }
-
-      if (Array.from(requestedKeys).every(key => keys.has(key))) {
-        return keys;
-      }
-    }
-
-    let from = 0;
-
-    while (true) {
+    for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
       const { data, error } = await supabase
         .from('stock_releases')
         .select('allocation_bill')
         .is('deleted_at', null)
-        .range(from, from + PAGE_SIZE - 1);
+        .in('allocation_bill', chunk);
 
       if (error) throw error;
 
-      const chunk = data || [];
-      chunk.forEach((release) => {
+      (data || []).forEach((release) => {
         const key = normalizeAllocation(release.allocation_bill);
-        if (key && (requestedKeys.size === 0 || requestedKeys.has(key))) keys.add(key);
+        if (key) keys.add(key);
       });
-
-      if (requestedKeys.size > 0 && Array.from(requestedKeys).every(key => keys.has(key))) break;
-      if (chunk.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
     }
 
     return keys;
@@ -437,13 +409,25 @@ const ReleaseStock = () => {
       datesByBill.set(key, current);
     });
 
-    for (const [key, entry] of datesByBill.entries()) {
+    if (datesByBill.size === 0) return;
+
+    const bills = Array.from(
+      new Set(
+        Array.from(datesByBill.values())
+          .flatMap(entry => Array.from(entry.bills))
+          .filter(Boolean),
+      ),
+    );
+    const existingRows: { id: string; allocation_bill: string | null }[] = [];
+
+    for (let index = 0; index < bills.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      const chunk = bills.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
       let query = supabase
         .from('stock_releases')
         .select('id,allocation_bill')
         .is('deleted_at', null)
         .eq('action_status', 'pending_allocation')
-        .in('allocation_bill', Array.from(entry.bills));
+        .in('allocation_bill', chunk);
 
       if (selectedBranch?.id) {
         query = query.eq('branch_id', selectedBranch.id);
@@ -455,35 +439,55 @@ const ReleaseStock = () => {
         continue;
       }
 
-      const ids = (data || [])
-        .filter(row => normalizeAllocation(row.allocation_bill) === key)
-        .map(row => row.id);
+      existingRows.push(...(data || []));
+    }
 
-      if (ids.length === 0) continue;
+    const updatesByPayload = new Map<string, { ids: string[]; createdAt?: string; createdAtDisplay: string }>();
+    existingRows.forEach((row) => {
+      const key = normalizeAllocation(row.allocation_bill);
+      const entry = datesByBill.get(key);
+      if (!entry) return;
+
+      const payloadKey = `${entry.createdAt || ''}|${entry.createdAtDisplay}`;
+      const current = updatesByPayload.get(payloadKey) || {
+        ids: [],
+        createdAt: entry.createdAt || undefined,
+        createdAtDisplay: entry.createdAtDisplay,
+      };
+      current.ids.push(row.id);
+      updatesByPayload.set(payloadKey, current);
+    });
+
+    for (const update of updatesByPayload.values()) {
+      if (update.ids.length === 0) continue;
 
       const updatePayload: { import_created_at: string; created_at?: string } = {
-        import_created_at: entry.createdAtDisplay,
+        import_created_at: update.createdAtDisplay,
       };
-      if (entry.createdAt) updatePayload.created_at = entry.createdAt;
 
-      const { error: updateError } = await supabase
-        .from('stock_releases')
-        .update(updatePayload)
-        .in('id', ids);
+      if (update.createdAt) updatePayload.created_at = update.createdAt;
 
-      if (updateError) {
-        if (!isMissingImportCreatedAtError(updateError) || !entry.createdAt) {
-          console.warn('Unable to update pending allocation Created Date:', updateError);
-          continue;
-        }
-
-        const { error: fallbackError } = await supabase
+      for (let index = 0; index < update.ids.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+        const chunk = update.ids.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
+        const { error: updateError } = await supabase
           .from('stock_releases')
-          .update({ created_at: entry.createdAt })
-          .in('id', ids);
+          .update(updatePayload)
+          .in('id', chunk);
 
-        if (fallbackError) {
-          console.warn('Unable to update pending allocation Created Date:', fallbackError);
+        if (updateError) {
+          if (!isMissingImportCreatedAtError(updateError) || !update.createdAt) {
+            console.warn('Unable to update pending allocation Created Date:', updateError);
+            continue;
+          }
+
+          const { error: fallbackError } = await supabase
+            .from('stock_releases')
+            .update({ created_at: update.createdAt })
+            .in('id', chunk);
+
+          if (fallbackError) {
+            console.warn('Unable to update pending allocation Created Date:', fallbackError);
+          }
         }
       }
     }
