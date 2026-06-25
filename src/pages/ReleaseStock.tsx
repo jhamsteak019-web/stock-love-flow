@@ -50,6 +50,16 @@ const isMissingImportCreatedAtError = (error: unknown) => {
     .some(text => String(text).toLowerCase().includes('import_created_at'));
 };
 
+const normalizeImportHeader = (value: string) =>
+  value
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const hasCellValue = (value: unknown) =>
+  value !== undefined && value !== null && String(value).trim() !== '';
+
 const parseImportedDateValue = (value: unknown) => {
   if (value === undefined || value === null || value === '') return '';
 
@@ -146,6 +156,47 @@ const parseImportedDateTimeValue = (value: unknown) => {
     iso: toImportedDateTime(parsed),
     display: text,
   };
+};
+
+const findRawColumnValue = (row: Record<string, unknown>, ...possibleNames: string[]) => {
+  const keys = Object.keys(row);
+  const normalizedNames = possibleNames.map(normalizeImportHeader).filter(Boolean);
+
+  for (const key of keys) {
+    const normalizedKey = normalizeImportHeader(key);
+    if (normalizedNames.includes(normalizedKey) && hasCellValue(row[key])) {
+      return row[key];
+    }
+  }
+
+  for (const key of keys) {
+    const normalizedKey = normalizeImportHeader(key);
+    const matched = normalizedNames.some(name => normalizedKey.includes(name) || name.includes(normalizedKey));
+    if (matched && hasCellValue(row[key])) {
+      return row[key];
+    }
+  }
+
+  return undefined;
+};
+
+const findLikelyCreatedDateValue = (row: Record<string, unknown>) => {
+  const entries = Object.entries(row).filter(([, value]) => hasCellValue(value));
+
+  for (const [, value] of [...entries].reverse()) {
+    if (value instanceof Date && isValid(value)) return value;
+    if (typeof value !== 'string') continue;
+
+    const text = value.trim();
+    if (
+      /^\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T]\d{1,2}:\d{2}/.test(text) ||
+      /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}[ T]\d{1,2}:\d{2}/.test(text)
+    ) {
+      return value;
+    }
+  }
+
+  return undefined;
 };
 
 interface ParsedReleaseItem {
@@ -556,17 +607,22 @@ const ReleaseStock = () => {
       }
       const billDateStr = billDateIso ? format(new Date(billDateIso), 'MM/dd/yyyy') : '';
 
-      let createdAtIso = '';
-      let createdAtDisplay = '';
-      const createdDateKeys = ['Created Date', 'CREATED DATE', 'Create Date', 'CREATE DATE', 'Created At', 'CREATED AT', 'created_at'];
-      for (const key of createdDateKeys) {
-        const exactKey = Object.keys(row).find(rowKey => rowKey.toLowerCase().trim() === key.toLowerCase().trim());
-        const val = exactKey ? row[exactKey] : row[key];
-        const parsedCreatedAt = parseImportedDateTimeValue(val);
-        createdAtIso = parsedCreatedAt.iso;
-        createdAtDisplay = parsedCreatedAt.display;
-        if (createdAtIso || createdAtDisplay) break;
-      }
+      const createdAtValue =
+        findRawColumnValue(
+          row,
+          'Created Date',
+          'Create Date',
+          'Date Created',
+          'Created At',
+          'CreatedDate',
+          'CreateDate',
+          'DateCreated',
+          'created_at',
+          'IMPORT CREATED DATE',
+        ) ?? findLikelyCreatedDateValue(row);
+      const parsedCreatedAt = parseImportedDateTimeValue(createdAtValue);
+      const createdAtIso = parsedCreatedAt.iso;
+      const createdAtDisplay = parsedCreatedAt.display;
 
       const matchedItem = items.find(i =>
         i.item_code?.toLowerCase() === sheetNo.toLowerCase() ||
