@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback, useTransition, memo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PackagePlus, Plus, Trash2, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CheckCircle2, Loader2, PackagePlus, Plus, Trash2, Upload, FileSpreadsheet, Search, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,45 @@ const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
+const PENDING_IMPORT_PREVIEW_LIMIT = 8;
+
+type PendingImportProgress = {
+  active: boolean;
+  fileName: string;
+  stage: string;
+  message: string;
+  percent: number;
+  totalRows: number;
+  parsedItems: number;
+  totalBills: number;
+  importableItems: number;
+  importableBills: number;
+  skippedItems: number;
+  skippedBills: number;
+  importedItems: number;
+  importablePreview: string[];
+  skippedPreview: string[];
+};
+
+const createPendingImportProgress = (): PendingImportProgress => ({
+  active: false,
+  fileName: '',
+  stage: 'Preparing',
+  message: '',
+  percent: 0,
+  totalRows: 0,
+  parsedItems: 0,
+  totalBills: 0,
+  importableItems: 0,
+  importableBills: 0,
+  skippedItems: 0,
+  skippedBills: 0,
+  importedItems: 0,
+  importablePreview: [],
+  skippedPreview: [],
+});
+
+const waitForProgressScreen = (ms = 900) => new Promise(resolve => window.setTimeout(resolve, ms));
 
 const toStableReleaseDate = (date: Date) => `${format(date, 'yyyy-MM-dd')}T12:00:00.000Z`;
 const toImportedDateTime = (date: Date) => (isValid(date) ? date.toISOString() : '');
@@ -303,6 +343,7 @@ const ReleaseStock = () => {
   // Import Excel state - initialize from localStorage
   const [importing, setImporting] = useState(false);
   const [pendingImporting, setPendingImporting] = useState(false);
+  const [pendingImportProgress, setPendingImportProgress] = useState<PendingImportProgress>(createPendingImportProgress);
   const [parsedItems, setParsedItems] = useState<ParsedReleaseItem[]>(getSavedParsedItems);
   const [showImportPreview, setShowImportPreview] = useState(() => {
     return getSavedParsedItems().length > 0;
@@ -800,30 +841,90 @@ const ReleaseStock = () => {
 
     setPendingImporting(true);
     isReleasingRef.current = true;
+    setPendingImportProgress({
+      ...createPendingImportProgress(),
+      active: true,
+      fileName: file.name,
+      stage: 'Reading Excel',
+      message: 'Binabasa ang file at kinukuha ang rows...',
+      percent: 12,
+    });
 
     try {
+      await waitForProgressScreen(100);
       const rows = await readReleaseImportRows(file);
+      setPendingImportProgress(prev => ({
+        ...prev,
+        totalRows: rows.length,
+        stage: 'Parsing rows',
+        message: `${rows.length} raw row(s) found. Inaayos ang bill, amount, qty, remarks, at created date.`,
+        percent: 25,
+      }));
+
       const parsed = parseReleaseRows(rows).filter(item => item.sheetNo.trim());
+      const parsedBills = getUniqueAllocationBills(parsed);
+      setPendingImportProgress(prev => ({
+        ...prev,
+        parsedItems: parsed.length,
+        totalBills: parsedBills.length,
+        stage: 'Checking duplicates',
+        message: `${parsedBills.length} bill(s) chine-check kung existing na sa website.`,
+        percent: 45,
+      }));
 
       if (parsed.length === 0) {
+        setPendingImportProgress(prev => ({
+          ...prev,
+          stage: 'No valid bills',
+          message: 'Walang valid Allocation Bill / Sheet No. na nakita sa file.',
+          percent: 100,
+        }));
+        await waitForProgressScreen(1200);
         toast({ title: 'No Bills Found', description: 'P Import needs rows with Allocation Bill / Sheet No.', variant: 'destructive' });
         return;
       }
 
-      const parsedBills = getUniqueAllocationBills(parsed);
       const existingReleaseKeys = await fetchExistingAllocationKeys(parsedBills);
+      setPendingImportProgress(prev => ({
+        ...prev,
+        stage: 'Syncing skipped bills',
+        message: 'Ina-update ang Created Date ng existing pending bills, tapos ii-skip sila.',
+        percent: 58,
+      }));
+
       await syncExistingPendingAllocationCreatedDates(parsed, existingReleaseKeys);
       const skippedBillKeys = new Set<string>();
+      const skippedBillsByKey = new Map<string, string>();
+      const importableBillsByKey = new Map<string, string>();
       const importableItems = parsed.filter(item => {
         const key = normalizeAllocation(item.sheetNo);
         if (!key || existingReleaseKeys.has(key)) {
           if (key) skippedBillKeys.add(key);
+          if (key && !skippedBillsByKey.has(key)) skippedBillsByKey.set(key, item.sheetNo.trim());
           return false;
         }
+        if (key && !importableBillsByKey.has(key)) importableBillsByKey.set(key, item.sheetNo.trim());
         return true;
       });
+      const skippedItems = parsed.length - importableItems.length;
+      const importableBills = Array.from(importableBillsByKey.values());
+      const skippedBills = Array.from(skippedBillsByKey.values());
+
+      setPendingImportProgress(prev => ({
+        ...prev,
+        importableItems: importableItems.length,
+        importableBills: importableBills.length,
+        skippedItems,
+        skippedBills: skippedBillKeys.size,
+        importablePreview: importableBills.slice(0, PENDING_IMPORT_PREVIEW_LIMIT),
+        skippedPreview: skippedBills.slice(0, PENDING_IMPORT_PREVIEW_LIMIT),
+        stage: importableItems.length > 0 ? 'Importing new bills' : 'All bills skipped',
+        message: `${importableItems.length} item(s) papasok. ${skippedItems} item(s) skipped dahil existing na.`,
+        percent: importableItems.length > 0 ? 72 : 100,
+      }));
 
       if (importableItems.length === 0) {
+        await waitForProgressScreen(1400);
         toast({
           title: 'No New Bills Imported',
           description: `${skippedBillKeys.size} existing bill(s) were skipped.`,
@@ -833,6 +934,13 @@ const ReleaseStock = () => {
       }
 
       await insertStockReleaseRows(buildPendingAllocationRowsFromItems(importableItems));
+      setPendingImportProgress(prev => ({
+        ...prev,
+        importedItems: importableItems.length,
+        stage: 'Saving activity',
+        message: 'Naka-save na ang new bills. Nilalagay na sa activity log.',
+        percent: 92,
+      }));
 
       const importedBills = getUniqueAllocationBills(importableItems);
       await logActivity({
@@ -848,16 +956,33 @@ const ReleaseStock = () => {
         },
       });
 
+      setPendingImportProgress(prev => ({
+        ...prev,
+        importedItems: importableItems.length,
+        stage: 'P Import Complete',
+        message: `${importableItems.length} item(s) added. ${skippedItems} item(s) skipped.`,
+        percent: 100,
+      }));
+
       toast({
         title: 'P Import Complete',
         description: `${importableItems.length} item(s) added to Pending Allocation. ${skippedBillKeys.size} existing bill(s) skipped.`,
       });
+      await waitForProgressScreen(1200);
     } catch (error) {
       console.error('P Import error:', error);
+      setPendingImportProgress(prev => ({
+        ...prev,
+        stage: 'Import failed',
+        message: 'May error habang nag-P Import. Walang dapat i-double import.',
+        percent: 100,
+      }));
+      await waitForProgressScreen(1200);
       toast({ title: 'Error', description: 'Failed to P Import file.', variant: 'destructive' });
     } finally {
       setPendingImporting(false);
       isReleasingRef.current = false;
+      setPendingImportProgress(createPendingImportProgress());
       if (pendingImportFileInputRef.current) pendingImportFileInputRef.current.value = '';
     }
   };
@@ -1065,6 +1190,105 @@ const ReleaseStock = () => {
 
   return (
     <div className="w-full max-w-[min(96vw,1600px)] mx-auto space-y-6 px-2">
+      {pendingImportProgress.active && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-xl border bg-card p-5 shadow-2xl sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  {pendingImportProgress.percent >= 100 ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">P Import Progress</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {pendingImportProgress.fileName || 'Excel file'}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-md border px-3 py-2 text-sm font-medium">
+                {pendingImportProgress.percent}%
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-medium">{pendingImportProgress.stage}</p>
+                <p className="text-sm text-muted-foreground">{pendingImportProgress.message}</p>
+              </div>
+              <Progress value={pendingImportProgress.percent} className="h-2" />
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs font-medium uppercase text-muted-foreground">Parsed</p>
+                <p className="mt-1 text-2xl font-semibold">{pendingImportProgress.parsedItems}</p>
+                <p className="text-xs text-muted-foreground">{pendingImportProgress.totalBills} bill(s)</p>
+              </div>
+              <div className="rounded-lg border bg-green-50 p-3 text-green-900">
+                <p className="text-xs font-medium uppercase">Papasok</p>
+                <p className="mt-1 text-2xl font-semibold">{pendingImportProgress.importableItems}</p>
+                <p className="text-xs">{pendingImportProgress.importableBills} bill(s)</p>
+              </div>
+              <div className="rounded-lg border bg-amber-50 p-3 text-amber-900">
+                <p className="text-xs font-medium uppercase">Skipped</p>
+                <p className="mt-1 text-2xl font-semibold">{pendingImportProgress.skippedItems}</p>
+                <p className="text-xs">{pendingImportProgress.skippedBills} existing bill(s)</p>
+              </div>
+              <div className="rounded-lg border bg-blue-50 p-3 text-blue-900">
+                <p className="text-xs font-medium uppercase">Saved</p>
+                <p className="mt-1 text-2xl font-semibold">{pendingImportProgress.importedItems}</p>
+                <p className="text-xs">pending item(s)</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <div className="rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-green-700">Hindi skipped / papasok</p>
+                  <span className="text-xs text-muted-foreground">{pendingImportProgress.importableBills} bill(s)</span>
+                </div>
+                <div className="mt-3 max-h-36 space-y-2 overflow-auto">
+                  {pendingImportProgress.importablePreview.length > 0 ? (
+                    pendingImportProgress.importablePreview.map((bill) => (
+                      <div key={`import-${bill}`} className="rounded-md bg-green-50 px-2 py-1.5 font-mono text-xs text-green-900">
+                        {bill}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Wala pang bagong bill na papasok.</p>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-amber-700">Skipped / existing na</p>
+                  <span className="text-xs text-muted-foreground">{pendingImportProgress.skippedBills} bill(s)</span>
+                </div>
+                <div className="mt-3 max-h-36 space-y-2 overflow-auto">
+                  {pendingImportProgress.skippedPreview.length > 0 ? (
+                    pendingImportProgress.skippedPreview.map((bill) => (
+                      <div key={`skip-${bill}`} className="rounded-md bg-amber-50 px-2 py-1.5 font-mono text-xs text-amber-900">
+                        {bill}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Wala pang skipped bill.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs text-muted-foreground">
+              Hint: kapag existing bill na, hindi siya papasok ulit para iwas duplicate. Created Date lang ang ina-sync kapag kailangan.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Import Excel Section */}
       <div className="rounded-xl border bg-card p-6 shadow-sm animate-fade-in">
         <div className="flex items-center justify-between mb-4">
