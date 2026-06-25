@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { PENDING_ALLOCATION_ACTION_STATUSES } from '@/lib/pendingAllocationStatus';
 
 const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'allocation' as ColumnKey, label: 'Allocation Bill', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
@@ -283,7 +284,7 @@ type StockReleaseInsertRow = {
   branch_id: string | null;
   amount: number | null;
   delivery_status?: 'pending';
-  action_status: 'yes' | 'no' | 'pending_allocation' | null;
+  action_status: string | null;
   product_code: string | null;
   product_description: string | null;
   unit_price: number | null;
@@ -467,7 +468,7 @@ const ReleaseStock = () => {
         .from('stock_releases')
         .select('id,allocation_bill')
         .is('deleted_at', null)
-        .eq('action_status', 'pending_allocation')
+        .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
         .in('allocation_bill', chunk);
 
       if (selectedBranch?.id) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { isPendingAllocationActionStatus } from "@/lib/pendingAllocationStatus";
 import type { DeliveryStatus, StockRelease } from "@/types/inventory";
 
 type Params = {
@@ -24,7 +25,6 @@ const PROGRESSIVE_FIRST_PAGE_SIZE = 1000;
 const PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_PERIOD_SELECT =
   "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,action_status,product_code,product_description,unit_price,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
-const PENDING_ALLOCATION_ACTION_STATUS = "pending_allocation";
 
 const getLocalMonthRange = (month: number, year: number) => {
   const start = new Date(year, month, 1, 0, 0, 0, 0).toISOString();
@@ -181,7 +181,7 @@ export const useStockReleasesForPeriod = ({
 
       const excludePendingAllocationRows = (rows: StockRelease[]) => {
         if (actionStatus !== undefined) return rows;
-        return rows.filter(release => release.action_status !== PENDING_ALLOCATION_ACTION_STATUS);
+        return rows.filter(release => !isPendingAllocationActionStatus(release.action_status));
       };
 
       const publishRows = (rows: StockRelease[]) => {

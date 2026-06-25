@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InventoryItem, Category, StockRelease, DashboardStats, DeliveryStatus } from '@/types/inventory';
 import { useToast } from '@/hooks/use-toast';
+import { isPendingAllocationActionStatus } from '@/lib/pendingAllocationStatus';
 
 const STOCK_RELEASE_PAGE_SIZE = 1000;
 const STOCK_RELEASE_PAGE_BATCH_SIZE = 4;
 const STOCK_RELEASE_SELECT = "id,item_id,boxes_released,destination,courier,allocation_bill,released_by,delivery_status,date_released,date_delivered,deleted_at,notes,batch_id,category,waybill_no,set_date,total_qty,amount,photo_url,photo_status,branch_id,created_at,updated_at,product_code,product_description,unit_price,action_status,inventory_item:inventory_items(id,item_code,item_name,description,price,pieces_per_box)";
-const PENDING_ALLOCATION_ACTION_STATUS = 'pending_allocation';
 
 type UseInventoryOptions = {
   autoFetch?: boolean;
@@ -98,7 +98,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
         from += STOCK_RELEASE_PAGE_BATCH_SIZE * STOCK_RELEASE_PAGE_SIZE;
       }
 
-      setReleases(allReleases.filter(release => release.action_status !== PENDING_ALLOCATION_ACTION_STATUS));
+      setReleases(allReleases.filter(release => !isPendingAllocationActionStatus(release.action_status)));
     } catch (error) {
       console.error('Error fetching releases:', error);
     }
@@ -383,7 +383,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
     const totalItems = items.length;
     const totalStock = items.reduce((sum, item) => sum + item.available_stock, 0);
     const lowStockItems = items.filter(item => item.available_stock <= item.low_stock_threshold).length;
-    const visibleReleases = releases.filter(r => r.action_status !== PENDING_ALLOCATION_ACTION_STATUS);
+    const visibleReleases = releases.filter(r => !isPendingAllocationActionStatus(r.action_status));
     const pendingDeliveries = visibleReleases.filter(r => r.delivery_status === 'pending').length;
     const inTransitDeliveries = visibleReleases.filter(r => r.delivery_status === 'out_for_delivery').length;
     const deliveredCount = visibleReleases.filter(r => r.delivery_status === 'delivered').length;

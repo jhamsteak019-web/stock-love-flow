@@ -9,6 +9,14 @@ import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { exportToExcel } from '@/lib/excelExport';
+import {
+  getPendingAllocationActionStatus,
+  getPendingAllocationStatus,
+  getPendingAllocationStatusLabel,
+  PENDING_ALLOCATION_ACTION_STATUSES,
+  PENDING_ALLOCATION_STATUS_OPTIONS,
+  type PendingAllocationStatus,
+} from '@/lib/pendingAllocationStatus';
 import type { StockRelease } from '@/types/inventory';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,15 +45,6 @@ type PendingAllocationRow = Pick<
   | 'action_status'
   | 'pending_allocation_status'
 >;
-
-type PendingAllocationStatus = 'pending' | 'warehouse_process' | 'cancelled' | 'for_delete';
-
-const PENDING_ALLOCATION_STATUS_OPTIONS: Array<{ value: PendingAllocationStatus; label: string }> = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'warehouse_process', label: 'Warehouse Process' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'for_delete', label: 'For Delete' },
-];
 
 const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
 const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
@@ -101,16 +100,6 @@ const isMissingOptionalColumnError = (error: unknown, columnName: string) => {
     .filter(Boolean)
     .some(text => String(text).toLowerCase().includes(columnName.toLowerCase()));
 };
-
-const getPendingAllocationStatus = (value?: string | null): PendingAllocationStatus => {
-  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
-  return PENDING_ALLOCATION_STATUS_OPTIONS.some(option => option.value === normalized)
-    ? normalized as PendingAllocationStatus
-    : 'pending';
-};
-
-const getPendingAllocationStatusLabel = (status: PendingAllocationStatus) =>
-  PENDING_ALLOCATION_STATUS_OPTIONS.find(option => option.value === status)?.label || 'Pending';
 
 const getRemarksType = (remarks?: string | null) => {
   const normalized = String(remarks || '').toLowerCase();
@@ -226,7 +215,7 @@ const PendingAllocation = () => {
           .from('stock_releases')
           .select(selectColumns)
           .is('deleted_at', null)
-          .eq('action_status', 'pending_allocation')
+          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
           .order('created_at', { ascending: false })
           .limit(5000);
 
@@ -256,7 +245,7 @@ const PendingAllocation = () => {
       const currentRows = ((data || []) as PendingAllocationRow[]).map(row => ({
         ...row,
         import_created_at: row.import_created_at || null,
-        pending_allocation_status: getPendingAllocationStatus(row.pending_allocation_status),
+        pending_allocation_status: getPendingAllocationStatus(row.pending_allocation_status, row.action_status),
       }));
       const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(currentRows);
       setRows(cleanRows);
@@ -288,7 +277,7 @@ const PendingAllocation = () => {
       const key = allocationKey ? `bill:${allocationKey}` : `batch:${row.batch_id || row.id}`;
       const existing = groups.get(key);
       const remarks = row.notes?.trim() || null;
-      const pendingStatus = getPendingAllocationStatus(row.pending_allocation_status);
+      const pendingStatus = getPendingAllocationStatus(row.pending_allocation_status, row.action_status);
 
       if (!existing) {
         groups.set(key, {
@@ -542,13 +531,21 @@ const PendingAllocation = () => {
   };
 
   const handlePendingStatusChange = async (group: PendingAllocationGroup, nextStatus: PendingAllocationStatus) => {
-    if (group.pendingStatus === nextStatus || statusUpdatingKey) return;
+    const targetGroups = selectedGroupKeys.has(group.key) && selectedGroups.length > 0
+      ? selectedGroups
+      : [group];
+    const targetReleaseIds = Array.from(new Set(targetGroups.flatMap(targetGroup => targetGroup.releaseIds)));
+
+    if (targetReleaseIds.length === 0 || targetGroups.every(targetGroup => targetGroup.pendingStatus === nextStatus) || statusUpdatingKey) {
+      return;
+    }
 
     setStatusUpdatingKey(group.key);
     const previousRows = rows;
+    const fallbackActionStatus = getPendingAllocationActionStatus(nextStatus);
     setRows(prev => prev.map(row => (
-      group.releaseIds.includes(row.id)
-        ? { ...row, pending_allocation_status: nextStatus }
+      targetReleaseIds.includes(row.id)
+        ? { ...row, pending_allocation_status: nextStatus, action_status: fallbackActionStatus }
         : row
     )));
 
@@ -556,16 +553,25 @@ const PendingAllocation = () => {
       const { error } = await supabase
         .from('stock_releases')
         .update({ pending_allocation_status: nextStatus })
-        .in('id', group.releaseIds);
+        .in('id', targetReleaseIds);
 
-      if (error) throw error;
+      if (error && isMissingOptionalColumnError(error, 'pending_allocation_status')) {
+        const fallback = await supabase
+          .from('stock_releases')
+          .update({ action_status: fallbackActionStatus })
+          .in('id', targetReleaseIds);
+
+        if (fallback.error) throw fallback.error;
+      } else if (error) {
+        throw error;
+      }
 
       await logActivity({
         actionType: 'update',
         module: 'pending_allocations',
-        description: `Updated pending allocation status to ${getPendingAllocationStatusLabel(nextStatus)}`,
+        description: `Updated ${targetGroups.length} pending allocation bill(s) to ${getPendingAllocationStatusLabel(nextStatus)}`,
         metadata: {
-          allocation_bill: group.allocation_bill,
+          allocation_bills: targetGroups.map(targetGroup => targetGroup.allocation_bill).filter(Boolean),
           branch_id: selectedBranch?.id,
           branch: selectedBranch?.name,
           status: nextStatus,
@@ -574,16 +580,14 @@ const PendingAllocation = () => {
 
       toast({
         title: 'Status Updated',
-        description: `${group.allocation_bill || group.destination} is now ${getPendingAllocationStatusLabel(nextStatus)}.`,
+        description: `${targetGroups.length} bill(s) set to ${getPendingAllocationStatusLabel(nextStatus)}.`,
       });
     } catch (error) {
       console.error('Error updating pending allocation status:', error);
       setRows(previousRows);
       toast({
         title: 'Error',
-        description: isMissingOptionalColumnError(error, 'pending_allocation_status')
-          ? 'Pending status column is not ready in the database yet.'
-          : 'Failed to update pending allocation status.',
+        description: 'Failed to update pending allocation status.',
         variant: 'destructive',
       });
     } finally {
@@ -852,7 +856,7 @@ const PendingAllocation = () => {
                         <Select
                           value={group.pendingStatus}
                           onValueChange={(value) => handlePendingStatusChange(group, value as PendingAllocationStatus)}
-                          disabled={statusUpdatingKey === group.key}
+                          disabled={Boolean(statusUpdatingKey)}
                         >
                           <SelectTrigger className="h-8 w-[170px] rounded-full bg-secondary px-3 text-xs font-semibold shadow-none">
                             <SelectValue />
