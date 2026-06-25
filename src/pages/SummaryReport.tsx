@@ -110,6 +110,7 @@ const SummaryReport = () => {
   const [showAllYear, setShowAllYear] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
   const [selectedDateOutDates, setSelectedDateOutDates] = useState<Date[]>([]);
+  const [dateOutStatusFilter, setDateOutStatusFilter] = useState<'all' | 'delivered' | 'pending'>('all');
   const [activeTab, setActiveTab] = useState('branch-report');
   const [branchSearch, setBranchSearch] = useState('');
   const [branchCategoryFilters, setBranchCategoryFilters] = useState<Record<string, string>>({});
@@ -149,15 +150,16 @@ const SummaryReport = () => {
       doc.setFontSize(10);
       doc.text(summaryPeriodLabel, 14, 22);
       doc.text(`Category: ${categorySearch.trim() || 'All Categories'}`, 14, 28);
-      doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 34);
+      doc.text(`Status: ${summaryStatusLabel}`, 14, 34);
+      doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 40);
 
       doc.setFontSize(12);
-      doc.text('Overview', 14, 44);
+      doc.text('Overview', 14, 48);
       doc.setFontSize(9);
-      doc.text(`Total Boxes: ${totalStats.totalBoxes.toLocaleString()}`, 14, 51);
-      doc.text(`Total Qty: ${totalStats.totalQty.toLocaleString()}`, 60, 51);
-      doc.text(`Delivered: ${totalStats.deliveredCount}`, 110, 51);
-      doc.text(`Pending: ${totalStats.pendingCount}`, 150, 51);
+      doc.text(`Total Boxes: ${totalStats.totalBoxes.toLocaleString()}`, 14, 55);
+      doc.text(`Total Qty: ${totalStats.totalQty.toLocaleString()}`, 60, 55);
+      doc.text(`Delivered: ${totalStats.deliveredCount}`, 110, 55);
+      doc.text(`Pending: ${totalStats.pendingCount}`, 150, 55);
 
       const branchColumns = ['Branch', 'Total', 'Delivered', 'Pending', 'Boxes', 'Qty'];
       const branchRows = branchReport.map(b => [
@@ -172,7 +174,7 @@ const SummaryReport = () => {
       autoTable(doc, {
         head: [branchColumns],
         body: branchRows,
-        startY: 58,
+        startY: 62,
         styles: { fontSize: 8 },
         headStyles: { fillColor: [59, 130, 246] },
       });
@@ -199,7 +201,7 @@ const SummaryReport = () => {
 
       await exportToExcel({
         title: 'Summary Report',
-        subtitle: `${summaryPeriodLabel} - ${categorySearch.trim() || 'All Categories'}`,
+        subtitle: `${summaryPeriodLabel} - ${categorySearch.trim() || 'All Categories'} - ${summaryStatusLabel}`,
         filename: `summary-report-${summaryFilenamePeriod}`,
         columns: [
           { header: 'Branch', key: 'branch', width: 25 },
@@ -256,6 +258,18 @@ const SummaryReport = () => {
   }, [selectedDateOutDates]);
   const selectedDateOutPeriodLabel = getDateOutPeriodLabel(selectedDateOutDates);
   const summaryPeriodLabel = selectedDateOutPeriodLabel || `${MONTHS[parseInt(selectedMonth)]} ${selectedYear}`;
+  const summaryStatusLabel =
+    dateOutStatusFilter === 'delivered'
+      ? 'Delivered'
+      : dateOutStatusFilter === 'pending'
+        ? 'Pending'
+        : 'All Status';
+  const summaryItemsTitle =
+    dateOutStatusFilter === 'pending'
+      ? 'Pending Items by Branch'
+      : dateOutStatusFilter === 'delivered'
+        ? 'Delivered Items by Branch'
+        : 'Delivery Items by Branch';
   const summaryFilenamePeriod = getFilenamePeriod(summaryPeriodLabel);
 
   // Filter releases by category/date (month/year/branch already filtered by the hook)
@@ -267,12 +281,17 @@ const SummaryReport = () => {
 
       const dateValue = getWarehouseDateValue(release);
       const matchesDate = selectedDateOutKeys.size === 0 || selectedDateOutKeys.has(dateValue);
+      const isDelivered = isEffectivelyDelivered(release.delivery_status, release.date_delivered);
+      const matchesStatus =
+        dateOutStatusFilter === 'all' ||
+        (dateOutStatusFilter === 'delivered' && isDelivered) ||
+        (dateOutStatusFilter === 'pending' && !isDelivered);
       
-      return matchesCategory && matchesDate;
+      return matchesCategory && matchesDate && matchesStatus;
     });
 
     return dedupeStockReleasesForDisplay(categoryReleases);
-  }, [periodReleases, categorySearch, selectedDateOutKeys]);
+  }, [periodReleases, categorySearch, dateOutStatusFilter, selectedDateOutKeys]);
 
   // Group filtered releases by batch_id to avoid counting same delivery multiple times
   const groupedByBatch = useMemo(() => {
@@ -756,7 +775,7 @@ const SummaryReport = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Delivered Summary - ${summaryPeriodLabel}</title>
+          <title>${summaryItemsTitle} - ${summaryPeriodLabel}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
@@ -781,7 +800,7 @@ const SummaryReport = () => {
         </head>
         <body>
           <div class="header">
-            <h1>DELIVERED SUMMARY BY BRANCH</h1>
+            <h1>${summaryItemsTitle.toUpperCase()}</h1>
             <p>${summaryPeriodLabel}</p>
           </div>
 
@@ -811,7 +830,7 @@ const SummaryReport = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Delivered Summary - ${branch.branch} - ${summaryPeriodLabel}</title>
+          <title>${summaryItemsTitle} - ${branch.branch} - ${summaryPeriodLabel}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 11px; }
@@ -838,7 +857,7 @@ const SummaryReport = () => {
         </head>
         <body>
           <div class="header">
-            <h1>DELIVERED SUMMARY - ${branch.branch}</h1>
+            <h1>${summaryItemsTitle.toUpperCase()} - ${branch.branch}</h1>
             <p>${summaryPeriodLabel}</p>
           </div>
 
@@ -947,7 +966,7 @@ const SummaryReport = () => {
           )}
           <div className="flex flex-wrap items-center gap-2 bg-card border rounded-lg p-2">
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setSelectedDateOutDates([]); }}>
+            <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setShowAllYear(false); setSelectedDateOutDates([]); setDateOutStatusFilter('all'); }}>
               <SelectTrigger className="w-[132px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -957,7 +976,7 @@ const SummaryReport = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setSelectedDateOutDates([]); }}>
+            <Select value={selectedYear} onValueChange={(value) => { setSelectedYear(value); setSelectedDateOutDates([]); setDateOutStatusFilter('all'); }}>
               <SelectTrigger className="w-[90px] border-0 shadow-none focus:ring-0 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -998,7 +1017,17 @@ const SummaryReport = () => {
                 />
               </PopoverContent>
             </Popover>
-            {(selectedDateOutDates.length > 0 || categorySearch.trim()) && (
+            <Select value={dateOutStatusFilter} onValueChange={(value) => setDateOutStatusFilter(value as 'all' | 'delivered' | 'pending')}>
+              <SelectTrigger className="h-8 w-[150px] border-0 bg-transparent shadow-none focus:ring-0">
+                <SelectValue placeholder="Delivery Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
+            {(selectedDateOutDates.length > 0 || categorySearch.trim() || dateOutStatusFilter !== 'all') && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -1006,6 +1035,7 @@ const SummaryReport = () => {
                 onClick={() => {
                   setSelectedDateOutDates([]);
                   setCategorySearch('');
+                  setDateOutStatusFilter('all');
                 }}
                 title="Clear filters"
               >
@@ -1016,7 +1046,7 @@ const SummaryReport = () => {
           <Button 
             variant={showAllYear ? "default" : "outline"} 
             size="sm"
-            onClick={() => { setShowAllYear(!showAllYear); setSelectedDateOutDates([]); }}
+            onClick={() => { setShowAllYear(!showAllYear); setSelectedDateOutDates([]); setDateOutStatusFilter('all'); }}
           >
             {showAllYear ? 'Showing All Year' : 'All Year'}
           </Button>
@@ -1458,7 +1488,7 @@ const SummaryReport = () => {
             <CardHeader>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle>Delivered Items by Branch - {summaryPeriodLabel}</CardTitle>
+                  <CardTitle>{summaryItemsTitle} - {summaryPeriodLabel}</CardTitle>
                   {!isViewer && (
                     <Button 
                       variant="outline" 
@@ -1682,7 +1712,7 @@ const SummaryReport = () => {
                   <p className="text-muted-foreground">
                     {branchSearch 
                       ? `No branches matching "${branchSearch}"` 
-                      : `No deliveries marked as delivered for ${summaryPeriodLabel}`}
+                      : `No ${summaryStatusLabel.toLowerCase()} deliveries found for ${summaryPeriodLabel}`}
                   </p>
                 </div>
               )}

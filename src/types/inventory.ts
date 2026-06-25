@@ -72,6 +72,7 @@ export interface StockRelease {
   created_at: string;
   updated_at: string;
   action_status?: string | null;
+  pending_allocation_status?: string | null;
   product_code?: string | null;
   product_description?: string | null;
   unit_price?: number | null;

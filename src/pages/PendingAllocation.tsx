@@ -35,10 +35,21 @@ type PendingAllocationRow = Pick<
   | 'created_at'
   | 'import_created_at'
   | 'action_status'
+  | 'pending_allocation_status'
 >;
 
+type PendingAllocationStatus = 'pending' | 'warehouse_process' | 'cancelled' | 'for_delete';
+
+const PENDING_ALLOCATION_STATUS_OPTIONS: Array<{ value: PendingAllocationStatus; label: string }> = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'warehouse_process', label: 'Warehouse Process' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'for_delete', label: 'For Delete' },
+];
+
 const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
-const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
+const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
+const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_allocation_status`;
 const ITEMS_PER_PAGE = 12;
 
 interface PendingAllocationGroup {
@@ -55,6 +66,7 @@ interface PendingAllocationGroup {
   lineCount: number;
   created_at: string;
   import_created_at: string | null;
+  pendingStatus: PendingAllocationStatus;
   releaseIds: string[];
 }
 
@@ -82,12 +94,29 @@ const getCreatedDateTime = (value?: string | null) => {
   return Number.isNaN(parsed) ? Number.NaN : parsed;
 };
 
-const isMissingImportCreatedAtError = (error: unknown) => {
+const isMissingOptionalColumnError = (error: unknown, columnName: string) => {
   if (!error || typeof error !== 'object') return false;
   const details = error as { code?: string; message?: string; details?: string; hint?: string };
   return [details.message, details.details, details.hint]
     .filter(Boolean)
-    .some(text => String(text).toLowerCase().includes('import_created_at'));
+    .some(text => String(text).toLowerCase().includes(columnName.toLowerCase()));
+};
+
+const getPendingAllocationStatus = (value?: string | null): PendingAllocationStatus => {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+  return PENDING_ALLOCATION_STATUS_OPTIONS.some(option => option.value === normalized)
+    ? normalized as PendingAllocationStatus
+    : 'pending';
+};
+
+const getPendingAllocationStatusLabel = (status: PendingAllocationStatus) =>
+  PENDING_ALLOCATION_STATUS_OPTIONS.find(option => option.value === status)?.label || 'Pending';
+
+const getRemarksType = (remarks?: string | null) => {
+  const normalized = String(remarks || '').toLowerCase();
+  if (normalized.includes('r.o') || /\bro\b/.test(normalized) || normalized.includes('repeat')) return 'ro';
+  if (normalized.includes('new arrival') || normalized.includes('new')) return 'new';
+  return 'other';
 };
 
 const formatCurrency = (value: number) => {
@@ -156,10 +185,13 @@ const PendingAllocation = () => {
   const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [arrivalFilter, setArrivalFilter] = useState('all');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
+  const [statusUpdatingKey, setStatusUpdatingKey] = useState<string | null>(null);
 
   const cleanupDuplicatePendingAllocations = useCallback(async (duplicateIds: string[], duplicateBills: string[]) => {
     if (duplicateIds.length === 0) return;
@@ -207,7 +239,13 @@ const PendingAllocation = () => {
 
       let { data, error } = await fetchRows(PENDING_ALLOCATION_SELECT);
 
-      if (error && isMissingImportCreatedAtError(error)) {
+      if (error && isMissingOptionalColumnError(error, 'pending_allocation_status')) {
+        const retry = await fetchRows(PENDING_ALLOCATION_IMPORT_SELECT);
+        data = retry.data;
+        error = retry.error;
+      }
+
+      if (error && isMissingOptionalColumnError(error, 'import_created_at')) {
         const retry = await fetchRows(PENDING_ALLOCATION_BASE_SELECT);
         data = retry.data;
         error = retry.error;
@@ -218,6 +256,7 @@ const PendingAllocation = () => {
       const currentRows = ((data || []) as PendingAllocationRow[]).map(row => ({
         ...row,
         import_created_at: row.import_created_at || null,
+        pending_allocation_status: getPendingAllocationStatus(row.pending_allocation_status),
       }));
       const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(currentRows);
       setRows(cleanRows);
@@ -249,6 +288,7 @@ const PendingAllocation = () => {
       const key = allocationKey ? `bill:${allocationKey}` : `batch:${row.batch_id || row.id}`;
       const existing = groups.get(key);
       const remarks = row.notes?.trim() || null;
+      const pendingStatus = getPendingAllocationStatus(row.pending_allocation_status);
 
       if (!existing) {
         groups.set(key, {
@@ -265,6 +305,7 @@ const PendingAllocation = () => {
           lineCount: 1,
           created_at: row.created_at,
           import_created_at: row.import_created_at || null,
+          pendingStatus,
           releaseIds: [row.id],
         });
         return;
@@ -277,6 +318,9 @@ const PendingAllocation = () => {
       existing.set_date = existing.set_date || row.set_date;
       existing.courier = existing.courier || row.courier;
       existing.import_created_at = existing.import_created_at || row.import_created_at || null;
+      if (existing.pendingStatus === 'pending' && pendingStatus !== 'pending') {
+        existing.pendingStatus = pendingStatus;
+      }
       existing.lineCount += 1;
       existing.releaseIds.push(row.id);
 
@@ -292,6 +336,15 @@ const PendingAllocation = () => {
     });
   }, [rows]);
 
+  const categoryOptions = useMemo(() => {
+    const categories = new Set<string>();
+    groupedAllocations.forEach(group => {
+      const category = group.category?.trim();
+      if (category) categories.add(category);
+    });
+    return Array.from(categories).sort((a, b) => a.localeCompare(b));
+  }, [groupedAllocations]);
+
   const filteredAllocations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const fromTime = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
@@ -301,6 +354,7 @@ const PendingAllocation = () => {
       const searchable = [
         group.allocation_bill,
         group.destination,
+        group.category,
         group.remarks,
       ]
         .filter(Boolean)
@@ -309,17 +363,19 @@ const PendingAllocation = () => {
 
       const createdTime = getCreatedDateTime(group.import_created_at || group.created_at);
       const matchesSearch = !query || searchable.includes(query);
-      const matchesStatus = statusFilter === 'all' || statusFilter === 'pending';
+      const matchesStatus = statusFilter === 'all' || group.pendingStatus === statusFilter;
+      const matchesCategory = categoryFilter === 'all' || group.category?.trim() === categoryFilter;
+      const matchesArrival = arrivalFilter === 'all' || getRemarksType(group.remarks) === arrivalFilter;
       const matchesFrom = fromTime === null || createdTime >= fromTime;
       const matchesTo = toTime === null || createdTime <= toTime;
 
-      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
+      return matchesSearch && matchesStatus && matchesCategory && matchesArrival && matchesFrom && matchesTo;
     });
-  }, [createdFrom, createdTo, groupedAllocations, searchQuery, statusFilter]);
+  }, [arrivalFilter, categoryFilter, createdFrom, createdTo, groupedAllocations, searchQuery, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [createdFrom, createdTo, searchQuery, statusFilter]);
+  }, [arrivalFilter, categoryFilter, createdFrom, createdTo, searchQuery, statusFilter]);
 
   useEffect(() => {
     const visibleKeys = new Set(groupedAllocations.map(group => group.key));
@@ -485,6 +541,56 @@ const PendingAllocation = () => {
     }
   };
 
+  const handlePendingStatusChange = async (group: PendingAllocationGroup, nextStatus: PendingAllocationStatus) => {
+    if (group.pendingStatus === nextStatus || statusUpdatingKey) return;
+
+    setStatusUpdatingKey(group.key);
+    const previousRows = rows;
+    setRows(prev => prev.map(row => (
+      group.releaseIds.includes(row.id)
+        ? { ...row, pending_allocation_status: nextStatus }
+        : row
+    )));
+
+    try {
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ pending_allocation_status: nextStatus })
+        .in('id', group.releaseIds);
+
+      if (error) throw error;
+
+      await logActivity({
+        actionType: 'update',
+        module: 'pending_allocations',
+        description: `Updated pending allocation status to ${getPendingAllocationStatusLabel(nextStatus)}`,
+        metadata: {
+          allocation_bill: group.allocation_bill,
+          branch_id: selectedBranch?.id,
+          branch: selectedBranch?.name,
+          status: nextStatus,
+        },
+      });
+
+      toast({
+        title: 'Status Updated',
+        description: `${group.allocation_bill || group.destination} is now ${getPendingAllocationStatusLabel(nextStatus)}.`,
+      });
+    } catch (error) {
+      console.error('Error updating pending allocation status:', error);
+      setRows(previousRows);
+      toast({
+        title: 'Error',
+        description: isMissingOptionalColumnError(error, 'pending_allocation_status')
+          ? 'Pending status column is not ready in the database yet.'
+          : 'Failed to update pending allocation status.',
+        variant: 'destructive',
+      });
+    } finally {
+      setStatusUpdatingKey(null);
+    }
+  };
+
   const buildExportRows = () => filteredAllocations.map(group => ({
     bill: group.allocation_bill || '-',
     destination: group.destination || '-',
@@ -492,7 +598,7 @@ const PendingAllocation = () => {
     amountDisplay: formatCurrency(group.amount),
     qty: group.totalQty,
     remarks: group.remarks || '-',
-    status: 'Pending',
+    status: getPendingAllocationStatusLabel(group.pendingStatus),
     createdDate: getCreatedDateDisplay(group),
   }));
 
@@ -605,12 +711,14 @@ const PendingAllocation = () => {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full lg:w-[150px]">
+                <SelectTrigger className="w-full lg:w-[175px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
+                  {PENDING_ALLOCATION_STATUS_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Input
@@ -627,12 +735,35 @@ const PendingAllocation = () => {
                 className="w-full lg:w-[150px]"
                 aria-label="Created to"
               />
-              {(searchQuery || statusFilter !== 'all' || createdFrom || createdTo) && (
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full lg:w-[150px]">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Category</SelectItem>
+                  {categoryOptions.map(category => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={arrivalFilter} onValueChange={setArrivalFilter}>
+                <SelectTrigger className="w-full lg:w-[170px]">
+                  <SelectValue placeholder="R.O / New Arrival" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Remarks Type</SelectItem>
+                  <SelectItem value="ro">R.O</SelectItem>
+                  <SelectItem value="new">New Arrival</SelectItem>
+                </SelectContent>
+              </Select>
+              {(searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || arrivalFilter !== 'all' || createdFrom || createdTo) && (
                 <Button
                   variant="ghost"
                   onClick={() => {
                     setSearchQuery('');
                     setStatusFilter('all');
+                    setCategoryFilter('all');
+                    setArrivalFilter('all');
                     setCreatedFrom('');
                     setCreatedTo('');
                   }}
@@ -718,7 +849,22 @@ const PendingAllocation = () => {
                       <TableCell className="text-center">{group.totalQty}</TableCell>
                       <TableCell className="max-w-[520px] whitespace-normal">{group.remarks || '-'}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">Pending</Badge>
+                        <Select
+                          value={group.pendingStatus}
+                          onValueChange={(value) => handlePendingStatusChange(group, value as PendingAllocationStatus)}
+                          disabled={statusUpdatingKey === group.key}
+                        >
+                          <SelectTrigger className="h-8 w-[170px] rounded-full bg-secondary px-3 text-xs font-semibold shadow-none">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PENDING_ALLOCATION_STATUS_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>{getCreatedDateDisplay(group)}</TableCell>
                     </TableRow>

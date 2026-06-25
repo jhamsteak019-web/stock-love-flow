@@ -1129,6 +1129,7 @@ export type Database = {
           import_created_at: string | null
           item_id: string | null
           notes: string | null
+          pending_allocation_status: string | null
           photo_status: string | null
           photo_url: string | null
           product_code: string | null
@@ -1159,6 +1160,7 @@ export type Database = {
           import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
+          pending_allocation_status?: string | null
           photo_status?: string | null
           photo_url?: string | null
           product_code?: string | null
@@ -1189,6 +1191,7 @@ export type Database = {
           import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
+          pending_allocation_status?: string | null
           photo_status?: string | null
           photo_url?: string | null
           product_code?: string | null
