@@ -353,9 +353,9 @@ const PendingAllocation = () => {
     return Array.from({ length: end - start + 1 }, (_, index) => start + index);
   }, [safeCurrentPage, totalPages]);
 
-  const someVisibleSelected = paginatedAllocations.some(group => selectedGroupKeys.has(group.key));
-  const allVisibleSelected = paginatedAllocations.length > 0
-    && paginatedAllocations.every(group => selectedGroupKeys.has(group.key));
+  const someFilteredSelected = filteredAllocations.some(group => selectedGroupKeys.has(group.key));
+  const allFilteredSelected = filteredAllocations.length > 0
+    && filteredAllocations.every(group => selectedGroupKeys.has(group.key));
 
   const toggleGroupSelection = (key: string, checked: boolean) => {
     setSelectedGroupKeys(prev => {
@@ -369,10 +369,10 @@ const PendingAllocation = () => {
     });
   };
 
-  const toggleVisibleSelection = (checked: boolean) => {
+  const toggleFilteredSelection = (checked: boolean) => {
     setSelectedGroupKeys(prev => {
       const next = new Set(prev);
-      paginatedAllocations.forEach(group => {
+      filteredAllocations.forEach(group => {
         if (checked) {
           next.add(group.key);
         } else {
@@ -675,9 +675,9 @@ const PendingAllocation = () => {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
-                      onCheckedChange={(checked) => toggleVisibleSelection(checked === true)}
-                      aria-label="Select all pending allocations"
+                      checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
+                      onCheckedChange={(checked) => toggleFilteredSelection(checked === true)}
+                      aria-label="Select all filtered pending allocations"
                     />
                   </TableHead>
                   <TableHead className="min-w-[180px]">BILL</TableHead>
