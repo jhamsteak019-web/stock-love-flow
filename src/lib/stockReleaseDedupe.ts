@@ -87,10 +87,11 @@ export const getStockReleaseDisplayKey = (release: StockRelease) => {
     return `imported-product:${normalizeText(release.id)}`;
   }
 
-  const baseKey = [
+  const productBaseKey = [
     normalizeAllocationKey(release.allocation_bill),
     normalizeText(release.destination),
     normalizeText(release.branch_id),
+    normalizeText(release.category),
     normalizeText(release.courier),
     normalizeText(release.waybill_no),
     normalizeText(release.notes),
@@ -99,8 +100,7 @@ export const getStockReleaseDisplayKey = (release: StockRelease) => {
   if (hasStockReleaseProductDetails(release)) {
     return [
       'product',
-      ...baseKey,
-      normalizeText(release.category),
+      ...productBaseKey,
       normalizeText(release.item_id),
       normalizeText(release.product_code || release.inventory_item?.item_code),
       normalizeText(release.product_description || release.inventory_item?.description || release.inventory_item?.item_name),
@@ -110,7 +110,9 @@ export const getStockReleaseDisplayKey = (release: StockRelease) => {
 
   return [
     'summary',
-    ...baseKey,
+    normalizeAllocationKey(release.allocation_bill),
+    normalizeText(release.destination),
+    normalizeText(release.branch_id),
     normalizeNumber(release.boxes_released),
     normalizeNumber(release.total_qty),
     normalizeNumber(release.amount),
