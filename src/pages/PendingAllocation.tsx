@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ClipboardList, FileDown, FileSpreadsheet, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { format, isValid } from 'date-fns';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
@@ -116,6 +114,14 @@ const formatCurrency = (value: number) => {
     minimumFractionDigits: 2,
   }).format(value);
 };
+
+const escapeHtml = (value: string | number | null | undefined) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const getPendingAllocationDuplicateCleanup = (pendingRows: PendingAllocationRow[]) => {
   const rowsByBill = new Map<string, PendingAllocationRow[]>();
@@ -638,33 +644,213 @@ const PendingAllocation = () => {
       return;
     }
 
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    doc.setFontSize(15);
-    doc.text('Pending Allocation', 14, 14);
-    doc.setFontSize(9);
-    doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy h:mm a')} | Total: ${exportRows.length}`, 14, 20);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: 'Popup blocked',
+        description: 'Please allow popups to save the Pending Allocation PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    autoTable(doc, {
-      startY: 25,
-      head: [['BILL', 'DESTINATION', 'AMOUNT', 'QTY', 'REMARKS', 'STATUS', 'CREATE DATE']],
-      body: exportRows.map(row => [
-        row.bill,
-        row.destination,
-        row.amountDisplay,
-        String(row.qty),
-        row.remarks,
-        row.status,
-        row.createdDate,
-      ]),
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [37, 99, 235] },
-      columnStyles: {
-        4: { cellWidth: 72 },
-      },
-    });
+    const totalQty = exportRows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+    const totalAmount = exportRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const generatedAt = format(new Date(), 'MMM d, yyyy h:mm a');
+    const branchName = selectedBranch?.name || 'All Branches';
+    const rowsHtml = exportRows.map((row) => `
+      <tr>
+        <td class="mono">${escapeHtml(row.bill)}</td>
+        <td>${escapeHtml(row.destination)}</td>
+        <td class="num">${escapeHtml(row.amountDisplay)}</td>
+        <td class="num">${escapeHtml(row.qty)}</td>
+        <td>${escapeHtml(row.remarks)}</td>
+        <td class="status">${escapeHtml(row.status)}</td>
+        <td class="mono">${escapeHtml(row.createdDate)}</td>
+      </tr>
+    `).join('');
 
-    doc.save(`pending-allocation-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-    toast({ title: 'Exported', description: 'PDF file downloaded.' });
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Pending Allocation - ${escapeHtml(format(new Date(), 'yyyy-MM-dd'))}</title>
+          <style>
+            @page { size: A4 landscape; margin: 10mm; }
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              color: #111827;
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 10px;
+              background: #ffffff;
+            }
+            .report { width: 100%; }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              gap: 16px;
+              align-items: flex-end;
+              border-bottom: 2px solid #111827;
+              padding-bottom: 8px;
+              margin-bottom: 10px;
+            }
+            .title {
+              font-size: 18px;
+              font-weight: 800;
+              letter-spacing: 0.04em;
+              text-transform: uppercase;
+            }
+            .subtitle {
+              margin-top: 3px;
+              color: #4b5563;
+              font-size: 9px;
+            }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(0, 1fr));
+              gap: 6px;
+              margin-bottom: 10px;
+            }
+            .summary div {
+              border: 1px solid #cbd5e1;
+              background: #f8fafc;
+              padding: 6px 8px;
+            }
+            .summary span {
+              display: block;
+              color: #64748b;
+              font-size: 8px;
+              font-weight: 700;
+              letter-spacing: 0.06em;
+              text-transform: uppercase;
+            }
+            .summary strong {
+              display: block;
+              margin-top: 2px;
+              font-size: 12px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+            }
+            thead { display: table-header-group; }
+            tr { page-break-inside: avoid; }
+            th, td {
+              border: 1px solid #b8c0cc;
+              padding: 4px 5px;
+              vertical-align: middle;
+              word-wrap: break-word;
+            }
+            th {
+              background: #e5e7eb;
+              color: #111827;
+              font-size: 8px;
+              font-weight: 800;
+              letter-spacing: 0.03em;
+              text-align: left;
+              text-transform: uppercase;
+            }
+            tbody tr:nth-child(even) td { background: #f8fafc; }
+            tfoot td {
+              background: #f1f5f9;
+              font-weight: 800;
+            }
+            .mono {
+              font-family: Consolas, "Courier New", monospace;
+              font-size: 8.5px;
+            }
+            .num {
+              text-align: right;
+              white-space: nowrap;
+            }
+            .status {
+              color: #d97706;
+              font-weight: 700;
+            }
+            .signatures {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 54px;
+              margin-top: 28px;
+              page-break-inside: avoid;
+            }
+            .signature {
+              text-align: center;
+              color: #4b5563;
+              font-size: 9px;
+            }
+            .signature:before {
+              content: "";
+              display: block;
+              height: 1px;
+              background: #111827;
+              margin: 0 auto 6px;
+              width: 62%;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="report">
+            <div class="header">
+              <div>
+                <div class="title">Pending Allocation Report</div>
+                <div class="subtitle">P Import items waiting for allocation review</div>
+              </div>
+              <div class="subtitle" style="text-align:right;">
+                Generated: ${escapeHtml(generatedAt)}<br/>
+                Branch: ${escapeHtml(branchName)}
+              </div>
+            </div>
+
+            <div class="summary">
+              <div><span>Total Bills</span><strong>${escapeHtml(exportRows.length)}</strong></div>
+              <div><span>Total Qty</span><strong>${escapeHtml(totalQty.toLocaleString('en-PH'))}</strong></div>
+              <div><span>Total Amount</span><strong>${escapeHtml(formatCurrency(totalAmount))}</strong></div>
+              <div><span>Status</span><strong>Pending Review</strong></div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 14%;">Bill No</th>
+                  <th style="width: 15%;">Destination</th>
+                  <th style="width: 12%;">Amount</th>
+                  <th style="width: 6%;">Qty</th>
+                  <th style="width: 31%;">Remarks</th>
+                  <th style="width: 9%;">Status</th>
+                  <th style="width: 13%;">Create Date</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2">Total</td>
+                  <td class="num">${escapeHtml(formatCurrency(totalAmount))}</td>
+                  <td class="num">${escapeHtml(totalQty.toLocaleString('en-PH'))}</td>
+                  <td colspan="3"></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div class="signatures">
+              <div class="signature">Checked By</div>
+              <div class="signature">Reviewed By</div>
+              <div class="signature">Received By</div>
+            </div>
+          </div>
+          <script>
+            window.onload = function () {
+              window.focus();
+              setTimeout(function () { window.print(); }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    toast({ title: 'PDF Ready', description: 'Use Save as PDF in the print dialog.' });
   };
 
   return (
