@@ -12,6 +12,7 @@ const pageTitles: Record<string, string> = {
   '/deliveries': 'Deliveries',
   '/pending-allocation': 'Pending Allocation',
   '/history': 'Transaction History',
+  '/summary': 'Summary Report',
   '/import': 'Bucket',
   '/users': 'Manage Users',
   '/notes': 'Reminder',
@@ -21,15 +22,41 @@ const pageTitles: Record<string, string> = {
   '/allocation': 'Allocation',
   '/team-overview': 'Team Overview',
   '/reports': 'Reports',
+  '/damage-claims': 'Damage Claims',
+  '/discrepancies': 'Discrepancy',
   '/notifications': 'Notifications',
   '/profile': 'User Profile',
 };
 
 // Role-based route restrictions
+const limitedViewerRestrictedRoutes = [
+  '/dashboard',
+  '/release',
+  '/pending-allocation',
+  '/import',
+  '/users',
+  '/notes',
+  '/inventory',
+  '/reports',
+  '/collections',
+  '/favorites',
+  '/container',
+  '/repeat-order',
+  '/allocation',
+  '/task-calendar',
+  '/attendance',
+  '/resume-to-work',
+  '/manpower',
+  '/renewal',
+  '/store-visit-schedule',
+  '/team-overview',
+];
+
 const roleRestrictedRoutes: Record<string, string[]> = {
   viewer: ['/release', '/import', '/users', '/notes', '/inventory', '/summary', '/collections', '/container', '/repeat-order', '/allocation'],
-  teamleader: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
-  oic: ['/release', '/import', '/users', '/notes', '/inventory', '/container'],
+  teamleader: limitedViewerRestrictedRoutes,
+  oic: limitedViewerRestrictedRoutes,
+  warehouse: limitedViewerRestrictedRoutes,
   staff: ['/import', '/users', '/inventory', '/container'],
   uploader: ['/users'], // Can view everything except user management
   encoder: ['/import', '/users', '/notes', '/inventory', '/collections', '/container', '/repeat-order', '/allocation', '/attendance', '/resume-to-work', '/manpower', '/summary', '/task-calendar', '/store-visit-schedule'], // Only Dashboard, Monitoring (Deliveries), History
@@ -85,7 +112,8 @@ export const DashboardLayout = () => {
   // Redirect users to dashboard if they try to access restricted routes based on their role
   const restrictedRoutes = roleRestrictedRoutes[userRole || ''] || [];
   if (restrictedRoutes.includes(location.pathname)) {
-    return <Navigate to="/dashboard" replace />;
+    const fallbackPath = ['teamleader', 'oic', 'warehouse'].includes(userRole || '') ? '/deliveries' : '/dashboard';
+    return <Navigate to={fallbackPath} replace />;
   }
 
   const title = pageTitles[location.pathname] || 'MONITORING DELIVERY';

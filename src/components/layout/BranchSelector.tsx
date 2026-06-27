@@ -13,8 +13,8 @@ import { cn } from '@/lib/utils';
 export const BranchSelector = () => {
   const { branches, selectedBranch, setSelectedBranch, loading } = useBranch();
   const { userRole } = useAuth();
-  // Admin and HR can switch branches
-  const canSwitchBranch = userRole === 'admin' || userRole === 'hr';
+  // Admin, HR, and Warehouse can switch branches
+  const canSwitchBranch = userRole === 'admin' || userRole === 'hr' || userRole === 'warehouse';
 
   if (loading) {
     return (

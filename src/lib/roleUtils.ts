@@ -12,6 +12,7 @@ export const roleDisplayNames: Record<string, string> = {
   hr: 'HR',
   encoder: 'Encoder',
   assistant: 'Assistant',
+  warehouse: 'Warehouse',
 };
 
 export const getRoleDisplayName = (role: string | null | undefined): string => {

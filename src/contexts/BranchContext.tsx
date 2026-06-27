@@ -42,6 +42,8 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoading(true);
     
     try {
+      let switchableAssignedBranch: Branch | null = null;
+
       // Fetch all active branches
       const { data: branchesData, error: branchesError } = await supabase
         .from('branches')
@@ -69,17 +71,18 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         if (assignedBranch) {
           setUserBranch(assignedBranch); // Always track the user's assigned branch
-          setSelectedBranchState(assignedBranch);
-          localStorage.setItem('selectedBranchId', assignedBranch.id);
-          // Non-admins stop here - they're locked to their branch
-          if (userRole !== 'admin' && userRole !== 'hr') {
+          // Most users are locked to their branch. Warehouse can switch between SM branches.
+          if (userRole !== 'admin' && userRole !== 'hr' && userRole !== 'warehouse') {
+            setSelectedBranchState(assignedBranch);
+            localStorage.setItem('selectedBranchId', assignedBranch.id);
             return;
           }
+          switchableAssignedBranch = assignedBranch;
         }
       }
 
-      // Admins and HR can use localStorage preference (if no assigned branch)
-      if (userRole === 'admin' || userRole === 'hr') {
+      // Admins, HR, and Warehouse can use localStorage preference
+      if (userRole === 'admin' || userRole === 'hr' || userRole === 'warehouse') {
         const savedBranchId = localStorage.getItem('selectedBranchId');
         if (savedBranchId && branchesData) {
           const savedBranch = branchesData.find(b => b.id === savedBranchId);
@@ -87,6 +90,12 @@ export const BranchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setSelectedBranchState(savedBranch);
             return;
           }
+        }
+
+        if (switchableAssignedBranch) {
+          setSelectedBranchState(switchableAssignedBranch);
+          localStorage.setItem('selectedBranchId', switchableAssignedBranch.id);
+          return;
         }
       }
       

@@ -144,7 +144,8 @@ const Deliveries = () => {
     }));
   }, [selectedMonth, selectedYear, showAllYear, statusFilter]);
 
-  const isViewer = userRole === 'viewer';
+  const viewerOnlyRoles = ['viewer', 'teamleader', 'oic', 'warehouse'];
+  const isViewer = viewerOnlyRoles.includes(userRole || '');
   const isEncoder = userRole === 'encoder';
   const isAssistant = userRole === 'assistant';
   const canEdit = isAdmin || isEncoder || isAssistant; // Admin, encoder, and assistant can edit

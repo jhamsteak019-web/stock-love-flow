@@ -238,7 +238,7 @@ const ManageUsers = () => {
                     <TableCell>
                       {currentUser?.id === user.id ? (
                         <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="gap-1">
-                          {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : user.role === 'viewer' ? <Eye className="h-3 w-3" /> : user.role === 'teamleader' ? <UserCog className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
+                          {user.role === 'admin' ? <ShieldCheck className="h-3 w-3" /> : user.role === 'viewer' || user.role === 'oic' ? <Eye className="h-3 w-3" /> : user.role === 'teamleader' || user.role === 'warehouse' ? <UserCog className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
                           {getRoleDisplayName(user.role)}
                         </Badge>
                       ) : user.role === 'pending' ? (
@@ -281,6 +281,12 @@ const ManageUsers = () => {
                             <SelectItem value="viewer">
                               <div className="flex items-center gap-2">
                                 <Eye className="h-3 w-3" />
+                                Viewer
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="oic">
+                              <div className="flex items-center gap-2">
+                                <Eye className="h-3 w-3" />
                                 OIC
                               </div>
                             </SelectItem>
@@ -312,6 +318,12 @@ const ManageUsers = () => {
                               <div className="flex items-center gap-2">
                                 <UserCog className="h-3 w-3" />
                                 Assistant
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="warehouse">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-3 w-3" />
+                                Warehouse
                               </div>
                             </SelectItem>
                           </SelectContent>

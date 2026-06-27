@@ -40,7 +40,20 @@ const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
+const STOCK_RELEASE_READ_CONCURRENCY = 6;
+const STOCK_RELEASE_WRITE_CONCURRENCY = 3;
+const FAST_CREATED_DATE_SYNC_LIMIT = 750;
 const PENDING_IMPORT_PREVIEW_LIMIT = 8;
+
+const runInConcurrentBatches = async <T,>(
+  items: T[],
+  concurrency: number,
+  runner: (item: T) => Promise<void>,
+) => {
+  for (let index = 0; index < items.length; index += concurrency) {
+    await Promise.all(items.slice(index, index + concurrency).map(runner));
+  }
+};
 
 type PendingImportProgress = {
   active: boolean;
@@ -390,12 +403,19 @@ const ReleaseStock = () => {
 
   const fetchExistingAllocationKeys = async (allocations?: string[]) => {
     const keys = new Set<string>();
-    const requestedAllocations = (allocations || []).map(bill => bill.trim()).filter(Boolean);
+    const requestedAllocations = Array.from(
+      new Set((allocations || []).map(bill => bill.trim()).filter(Boolean)),
+    );
 
     if (requestedAllocations.length === 0) return keys;
 
+    const chunks: string[][] = [];
     for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
       const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
+      chunks.push(chunk);
+    }
+
+    await runInConcurrentBatches(chunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
       const { data, error } = await supabase
         .from('stock_releases')
         .select('allocation_bill')
@@ -408,29 +428,35 @@ const ReleaseStock = () => {
         const key = normalizeAllocation(release.allocation_bill);
         if (key) keys.add(key);
       });
-    }
+    });
 
     return keys;
   };
 
   const insertStockReleaseRows = async (rows: StockReleaseInsertRow[]) => {
+    const chunks: StockReleaseInsertRow[][] = [];
     for (let index = 0; index < rows.length; index += STOCK_RELEASE_INSERT_CHUNK_SIZE) {
-      const chunk = rows.slice(index, index + STOCK_RELEASE_INSERT_CHUNK_SIZE);
+      chunks.push(rows.slice(index, index + STOCK_RELEASE_INSERT_CHUNK_SIZE));
+    }
+
+    await runInConcurrentBatches(chunks, STOCK_RELEASE_WRITE_CONCURRENCY, async (chunk) => {
       const { error } = await supabase.from('stock_releases').insert(chunk);
-      if (!error) continue;
+      if (!error) return;
 
       if (!isMissingImportCreatedAtError(error)) throw error;
 
       const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
       const { error: fallbackError } = await supabase.from('stock_releases').insert(fallbackChunk);
       if (fallbackError) throw fallbackError;
-    }
+    });
   };
 
   const syncExistingPendingAllocationCreatedDates = async (
     releaseItems: ParsedReleaseItem[],
     existingKeys: Set<string>,
   ) => {
+    if (releaseItems.length > FAST_CREATED_DATE_SYNC_LIMIT) return;
+
     const datesByBill = new Map<string, { bills: Set<string>; createdAt: string; createdAtDisplay: string }>();
 
     releaseItems.forEach((item) => {
@@ -888,12 +914,14 @@ const ReleaseStock = () => {
       const existingReleaseKeys = await fetchExistingAllocationKeys(parsedBills);
       setPendingImportProgress(prev => ({
         ...prev,
-        stage: 'Syncing skipped bills',
-        message: 'Ina-update ang Created Date ng existing pending bills, tapos ii-skip sila.',
+        stage: 'Preparing new bills',
+        message: 'Inaayos ang bagong bills. Existing bills ii-skip para hindi madoble.',
         percent: 58,
       }));
 
-      await syncExistingPendingAllocationCreatedDates(parsed, existingReleaseKeys);
+      void syncExistingPendingAllocationCreatedDates(parsed, existingReleaseKeys).catch((error) => {
+        console.warn('Unable to sync skipped pending allocation Created Date:', error);
+      });
       const skippedBillKeys = new Set<string>();
       const skippedBillsByKey = new Map<string, string>();
       const importableBillsByKey = new Map<string, string>();

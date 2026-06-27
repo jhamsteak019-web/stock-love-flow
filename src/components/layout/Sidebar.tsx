@@ -62,7 +62,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [isDMOpen, setIsDMOpen] = useState(false);
-  const allSignedInRoles = ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'hr'];
+  const allSignedInRoles = ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'hr', 'warehouse'];
 
   // Fetch unread DM count
   const { data: unreadDMCount = 0 } = useQuery({
@@ -137,13 +137,13 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/reports',
       icon: Presentation, 
       label: 'Bulletin Report',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
+      roles: ['admin', 'staff', 'uploader', 'hr', 'assistant']
     },
     { 
       to: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant']
+      roles: ['admin', 'staff', 'viewer', 'uploader', 'encoder', 'assistant']
     },
     { 
       to: '/release', 
@@ -155,31 +155,31 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/deliveries', 
       icon: Truck, 
       label: 'Deliveries',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'warehouse']
     },
     { 
       to: '/history', 
       icon: ClipboardList, 
       label: 'History',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant']
+      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'warehouse']
     },
     { 
       to: '/summary', 
       icon: BarChart3, 
       label: 'Summary Report',
-      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'hr', 'assistant']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'hr', 'assistant', 'warehouse']
     },
     { 
       to: '/damage-claims',
       icon: AlertTriangle, 
       label: 'Damage Claims',
-      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'uploader', 'oic']
+      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'uploader', 'oic', 'warehouse']
     },
     { 
       to: '/discrepancies',
       icon: FileWarning, 
       label: 'Discrepancy',
-      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'oic', 'hr']
+      roles: ['admin', 'staff', 'encoder', 'assistant', 'viewer', 'teamleader', 'oic', 'hr', 'warehouse']
     },
     // { 
     //   to: '/import', 
@@ -191,7 +191,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/task-calendar', 
       icon: CalendarDays, 
       label: 'Task Calendar',
-      roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'assistant']
+      roles: ['admin', 'staff', 'viewer', 'uploader', 'assistant']
     },
     // { 
     //   to: '/collections', 
@@ -215,7 +215,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/manpower', 
       icon: Database, 
       label: 'Manpower Database',
-      roles: ['admin', 'staff', 'uploader', 'teamleader', 'oic', 'hr', 'assistant']
+      roles: ['admin', 'staff', 'uploader', 'hr', 'assistant']
     },
     { 
       to: '/renewal', 
@@ -245,13 +245,13 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/team-overview',
       icon: Activity,
       label: 'Team Overview',
-      roles: ['admin', 'assistant', 'teamleader', 'oic']
+      roles: ['admin', 'assistant']
     },
     {
       to: '/notifications',
       icon: Bell,
       label: 'Notifications',
-      roles: ['admin', 'assistant', 'staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder']
+      roles: ['admin', 'assistant', 'staff', 'uploader', 'hr', 'encoder']
     },
     {
       to: '/profile',
