@@ -48,6 +48,7 @@ const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,al
 const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
 const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_allocation_status`;
 const ITEMS_PER_PAGE = 12;
+const SYSTEM_DUPLICATE_SCAN_PAGE_SIZE = 1000;
 
 interface PendingAllocationGroup {
   key: string;
@@ -170,6 +171,72 @@ const getPendingAllocationDuplicateCleanup = (pendingRows: PendingAllocationRow[
   };
 };
 
+const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAllocationRow[]) => {
+  const pendingRowsByBillKey = new Map<string, PendingAllocationRow[]>();
+
+  pendingRows.forEach((row) => {
+    const billKey = normalizeAllocation(row.allocation_bill);
+    if (!billKey) return;
+
+    const billRows = pendingRowsByBillKey.get(billKey) || [];
+    billRows.push(row);
+    pendingRowsByBillKey.set(billKey, billRows);
+  });
+
+  if (pendingRowsByBillKey.size === 0) {
+    return {
+      cleanRows: pendingRows,
+      duplicateIds: [] as string[],
+      duplicateBills: [] as string[],
+    };
+  }
+
+  const duplicateBillKeys = new Set<string>();
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('stock_releases')
+      .select('allocation_bill,action_status,created_at')
+      .is('deleted_at', null)
+      .not('allocation_bill', 'is', null)
+      .order('created_at', { ascending: false })
+      .range(from, from + SYSTEM_DUPLICATE_SCAN_PAGE_SIZE - 1);
+
+    if (error) throw error;
+
+    (data || []).forEach((row) => {
+      const billKey = normalizeAllocation(row.allocation_bill);
+      if (!billKey || !pendingRowsByBillKey.has(billKey)) return;
+
+      const isPendingAllocationRow = (PENDING_ALLOCATION_ACTION_STATUSES as string[]).includes(String(row.action_status || ''));
+      if (!isPendingAllocationRow) duplicateBillKeys.add(billKey);
+    });
+
+    if (duplicateBillKeys.size >= pendingRowsByBillKey.size) break;
+    if (!data || data.length < SYSTEM_DUPLICATE_SCAN_PAGE_SIZE) break;
+    from += SYSTEM_DUPLICATE_SCAN_PAGE_SIZE;
+  }
+
+  const duplicateIds = new Set<string>();
+  const duplicateBills = new Set<string>();
+
+  duplicateBillKeys.forEach((billKey) => {
+    const billRows = pendingRowsByBillKey.get(billKey) || [];
+    billRows.forEach((row) => {
+      duplicateIds.add(row.id);
+      const bill = row.allocation_bill?.trim();
+      if (bill) duplicateBills.add(bill);
+    });
+  });
+
+  return {
+    cleanRows: pendingRows.filter(row => !duplicateIds.has(row.id)),
+    duplicateIds: Array.from(duplicateIds),
+    duplicateBills: Array.from(duplicateBills),
+  };
+};
+
 const PendingAllocation = () => {
   const { selectedBranch, loading: branchLoading } = useBranch();
   const { toast } = useToast();
@@ -253,8 +320,18 @@ const PendingAllocation = () => {
         import_created_at: row.import_created_at || null,
         pending_allocation_status: getPendingAllocationStatus(row.pending_allocation_status, row.action_status),
       }));
-      const { cleanRows, duplicateIds, duplicateBills } = getPendingAllocationDuplicateCleanup(currentRows);
-      setRows(cleanRows);
+      const pendingDuplicateCleanup = getPendingAllocationDuplicateCleanup(currentRows);
+      const systemDuplicateCleanup = await getPendingAllocationSystemDuplicateCleanup(pendingDuplicateCleanup.cleanRows);
+      const duplicateIds = Array.from(new Set([
+        ...pendingDuplicateCleanup.duplicateIds,
+        ...systemDuplicateCleanup.duplicateIds,
+      ]));
+      const duplicateBills = Array.from(new Set([
+        ...pendingDuplicateCleanup.duplicateBills,
+        ...systemDuplicateCleanup.duplicateBills,
+      ]));
+
+      setRows(systemDuplicateCleanup.cleanRows);
 
       if (duplicateIds.length > 0) {
         void cleanupDuplicatePendingAllocations(duplicateIds, duplicateBills);
