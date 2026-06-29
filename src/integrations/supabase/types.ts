@@ -1113,6 +1113,7 @@ export type Database = {
         Row: {
           action_status: string | null
           allocation_bill: string | null
+          allocation_bill_key: string | null
           amount: number | null
           batch_id: string | null
           boxes_released: number
@@ -1128,6 +1129,7 @@ export type Database = {
           id: string
           item_id: string | null
           notes: string | null
+          pending_allocation_status: string | null
           photo_status: string | null
           photo_url: string | null
           product_code: string | null
@@ -1142,6 +1144,7 @@ export type Database = {
         Insert: {
           action_status?: string | null
           allocation_bill?: string | null
+          allocation_bill_key?: string | null
           amount?: number | null
           batch_id?: string | null
           boxes_released: number
@@ -1157,6 +1160,7 @@ export type Database = {
           id?: string
           item_id?: string | null
           notes?: string | null
+          pending_allocation_status?: string | null
           photo_status?: string | null
           photo_url?: string | null
           product_code?: string | null
@@ -1171,6 +1175,7 @@ export type Database = {
         Update: {
           action_status?: string | null
           allocation_bill?: string | null
+          allocation_bill_key?: string | null
           amount?: number | null
           batch_id?: string | null
           boxes_released?: number
@@ -1186,6 +1191,7 @@ export type Database = {
           id?: string
           item_id?: string | null
           notes?: string | null
+          pending_allocation_status?: string | null
           photo_status?: string | null
           photo_url?: string | null
           product_code?: string | null
