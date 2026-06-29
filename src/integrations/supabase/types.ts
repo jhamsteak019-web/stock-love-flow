@@ -1112,7 +1112,6 @@ export type Database = {
       stock_releases: {
         Row: {
           action_status: string | null
-          allocation_bill_key: string | null
           allocation_bill: string | null
           amount: number | null
           batch_id: string | null
@@ -1127,10 +1126,8 @@ export type Database = {
           delivery_status: Database["public"]["Enums"]["delivery_status"]
           destination: string
           id: string
-          import_created_at: string | null
           item_id: string | null
           notes: string | null
-          pending_allocation_status: string | null
           photo_status: string | null
           photo_url: string | null
           product_code: string | null
@@ -1158,10 +1155,8 @@ export type Database = {
           delivery_status?: Database["public"]["Enums"]["delivery_status"]
           destination: string
           id?: string
-          import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
-          pending_allocation_status?: string | null
           photo_status?: string | null
           photo_url?: string | null
           product_code?: string | null
@@ -1189,10 +1184,8 @@ export type Database = {
           delivery_status?: Database["public"]["Enums"]["delivery_status"]
           destination?: string
           id?: string
-          import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
-          pending_allocation_status?: string | null
           photo_status?: string | null
           photo_url?: string | null
           product_code?: string | null
@@ -1446,7 +1439,6 @@ export type Database = {
         | "hr"
         | "encoder"
         | "assistant"
-        | "warehouse"
       delivery_status:
         | "pending"
         | "in_transit"
@@ -1590,7 +1582,6 @@ export const Constants = {
         "hr",
         "encoder",
         "assistant",
-        "warehouse",
       ],
       delivery_status: [
         "pending",
