@@ -8,6 +8,38 @@ export interface UserWithRole extends Profile {
   role_id: string;
 }
 
+const getSupabaseErrorText = (error: unknown) => {
+  if (!error || typeof error !== 'object') return '';
+  const details = error as { message?: string; details?: string; hint?: string; code?: string };
+  return [details.message, details.details, details.hint, details.code]
+    .filter(Boolean)
+    .map(String)
+    .join(' ');
+};
+
+const isMissingRoleRpcError = (error: unknown) => {
+  const message = getSupabaseErrorText(error).toLowerCase();
+  return message.includes('admin_set_user_role') || message.includes('function') && message.includes('not found');
+};
+
+const getRoleUpdateErrorDescription = (error: unknown, newRole: UserRole) => {
+  const message = getSupabaseErrorText(error);
+  const normalized = message.toLowerCase();
+
+  if (
+    newRole === 'warehouse' &&
+    (normalized.includes('invalid input value') || normalized.includes('enum') || normalized.includes('app_role'))
+  ) {
+    return 'Warehouse role is not ready in the database yet. Apply the latest Supabase migration, then try again.';
+  }
+
+  if (normalized.includes('row-level security') || normalized.includes('permission') || normalized.includes('only admins')) {
+    return 'Only an Admin account can update user roles.';
+  }
+
+  return message || 'Failed to update user role';
+};
+
 export const useUsers = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,12 +123,32 @@ export const useUsers = () => {
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
+      const { error: rpcError } = await (supabase as any)
+        .rpc('admin_set_user_role', { _user_id: userId, _role: newRole });
 
-      if (error) throw error;
+      if (rpcError && !isMissingRoleRpcError(rpcError)) throw rpcError;
+
+      if (rpcError && isMissingRoleRpcError(rpcError)) {
+        const { data: existingRoles, error: existingError } = await supabase
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (existingError) throw existingError;
+
+        const existingRoleId = existingRoles?.[0]?.id;
+        const { error } = existingRoleId
+          ? await supabase
+              .from('user_roles')
+              .update({ role: newRole })
+              .eq('id', existingRoleId)
+          : await supabase
+              .from('user_roles')
+              .insert({ user_id: userId, role: newRole });
+
+        if (error) throw error;
+      }
 
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole } : user
@@ -112,7 +164,7 @@ export const useUsers = () => {
       console.error('Error updating role:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update user role',
+        description: getRoleUpdateErrorDescription(error, newRole),
         variant: 'destructive',
       });
       return false;
