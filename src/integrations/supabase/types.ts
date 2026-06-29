@@ -1112,8 +1112,8 @@ export type Database = {
       stock_releases: {
         Row: {
           action_status: string | null
-          allocation_bill_key: string | null
           allocation_bill: string | null
+          allocation_bill_key: string | null
           amount: number | null
           batch_id: string | null
           boxes_released: number
@@ -1127,7 +1127,6 @@ export type Database = {
           delivery_status: Database["public"]["Enums"]["delivery_status"]
           destination: string
           id: string
-          import_created_at: string | null
           item_id: string | null
           notes: string | null
           pending_allocation_status: string | null
@@ -1145,6 +1144,7 @@ export type Database = {
         Insert: {
           action_status?: string | null
           allocation_bill?: string | null
+          allocation_bill_key?: string | null
           amount?: number | null
           batch_id?: string | null
           boxes_released: number
@@ -1158,7 +1158,6 @@ export type Database = {
           delivery_status?: Database["public"]["Enums"]["delivery_status"]
           destination: string
           id?: string
-          import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
           pending_allocation_status?: string | null
@@ -1176,6 +1175,7 @@ export type Database = {
         Update: {
           action_status?: string | null
           allocation_bill?: string | null
+          allocation_bill_key?: string | null
           amount?: number | null
           batch_id?: string | null
           boxes_released?: number
@@ -1189,7 +1189,6 @@ export type Database = {
           delivery_status?: Database["public"]["Enums"]["delivery_status"]
           destination?: string
           id?: string
-          import_created_at?: string | null
           item_id?: string | null
           notes?: string | null
           pending_allocation_status?: string | null
