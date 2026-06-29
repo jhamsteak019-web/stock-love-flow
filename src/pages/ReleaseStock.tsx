@@ -23,7 +23,8 @@ import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { normalizeAllocationBill } from '@/lib/allocationBill';
-import { PENDING_ALLOCATION_ACTION_STATUSES } from '@/lib/pendingAllocationStatus';
+import { resolveCategory } from '@/lib/categoryUtils';
+import { isPendingAllocationActionStatus, PENDING_ALLOCATION_ACTION_STATUSES } from '@/lib/pendingAllocationStatus';
 
 const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
   { key: 'allocation' as ColumnKey, label: 'Allocation Bill', visible: true, width: 130, minWidth: 80, maxWidth: 200 },
@@ -353,8 +354,9 @@ const ReleaseStock = () => {
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImportFileInputRef = useRef<HTMLInputElement>(null);
-  const existingAllocationKeyCacheRef = useRef<{ keys: Set<string>; hasKeyColumn: boolean | null }>({
-    keys: new Set(),
+  const existingAllocationKeyCacheRef = useRef<{ allKeys: Set<string>; releasedKeys: Set<string>; hasKeyColumn: boolean | null }>({
+    allKeys: new Set(),
+    releasedKeys: new Set(),
     hasKeyColumn: null,
   });
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
@@ -407,7 +409,14 @@ const ReleaseStock = () => {
 
   const normalizeAllocation = useCallback(normalizeAllocationBill, []);
 
-  const fetchExistingAllocationKeys = async (allocations?: string[]) => {
+  const fetchExistingAllocationKeys = async (
+    allocations?: string[],
+    options: { includePendingAllocations?: boolean } = {},
+  ) => {
+    const includePendingAllocations = options.includePendingAllocations ?? true;
+    const cache = includePendingAllocations
+      ? existingAllocationKeyCacheRef.current.allKeys
+      : existingAllocationKeyCacheRef.current.releasedKeys;
     const keys = new Set<string>();
     const requestedAllocations = Array.from(
       new Set((allocations || []).map(bill => bill.trim()).filter(Boolean)),
@@ -421,7 +430,7 @@ const ReleaseStock = () => {
     if (requestedKeys.length === 0) return keys;
 
     requestedKeys.forEach((key) => {
-      if (existingAllocationKeyCacheRef.current.keys.has(key)) keys.add(key);
+      if (cache.has(key)) keys.add(key);
     });
 
     if (keys.size === requestedKeys.length) return keys;
@@ -437,7 +446,7 @@ const ReleaseStock = () => {
         await runInConcurrentBatches(keyChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
           const { data, error } = await supabase
             .from('stock_releases')
-            .select('allocation_bill_key')
+            .select('allocation_bill_key,action_status')
             .is('deleted_at', null)
             .in('allocation_bill_key', chunk);
 
@@ -445,10 +454,13 @@ const ReleaseStock = () => {
 
           (data || []).forEach((release) => {
             const key = normalizeAllocation(release.allocation_bill_key);
-            if (key) {
-              keys.add(key);
-              existingAllocationKeyCacheRef.current.keys.add(key);
+            if (!key) return;
+
+            existingAllocationKeyCacheRef.current.allKeys.add(key);
+            if (!isPendingAllocationActionStatus(release.action_status)) {
+              existingAllocationKeyCacheRef.current.releasedKeys.add(key);
             }
+            if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
           });
         });
 
@@ -468,7 +480,7 @@ const ReleaseStock = () => {
     await runInConcurrentBatches(allocationChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
       const { data, error } = await supabase
         .from('stock_releases')
-        .select('allocation_bill')
+        .select('allocation_bill,action_status')
         .is('deleted_at', null)
         .in('allocation_bill', chunk);
 
@@ -476,14 +488,93 @@ const ReleaseStock = () => {
 
       (data || []).forEach((release) => {
         const key = normalizeAllocation(release.allocation_bill);
-        if (key) {
-          keys.add(key);
-          existingAllocationKeyCacheRef.current.keys.add(key);
+        if (!key) return;
+
+        existingAllocationKeyCacheRef.current.allKeys.add(key);
+        if (!isPendingAllocationActionStatus(release.action_status)) {
+          existingAllocationKeyCacheRef.current.releasedKeys.add(key);
         }
+        if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
       });
     });
 
     return keys;
+  };
+
+  const clearPendingAllocationsForBills = async (allocations: string[]) => {
+    const requestedAllocations = Array.from(
+      new Set((allocations || []).map(bill => bill.trim()).filter(Boolean)),
+    );
+    const requestedKeys = Array.from(new Set(
+      requestedAllocations
+        .map(bill => normalizeAllocation(bill))
+        .filter(Boolean),
+    ));
+
+    if (requestedKeys.length === 0) return 0;
+
+    const pendingIds = new Set<string>();
+    const collectPendingIds = (rows: Array<{ id: string }>) => {
+      rows.forEach(row => pendingIds.add(row.id));
+    };
+
+    if (existingAllocationKeyCacheRef.current.hasKeyColumn !== false) {
+      try {
+        for (let index = 0; index < requestedKeys.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+          const chunk = requestedKeys.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
+          let query = supabase
+            .from('stock_releases')
+            .select('id')
+            .is('deleted_at', null)
+            .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+            .in('allocation_bill_key', chunk);
+
+          if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
+
+          const { data, error } = await query;
+          if (error) throw error;
+          collectPendingIds(data || []);
+        }
+        existingAllocationKeyCacheRef.current.hasKeyColumn = true;
+      } catch (error) {
+        if (!isMissingColumnError(error, 'allocation_bill_key')) throw error;
+        existingAllocationKeyCacheRef.current.hasKeyColumn = false;
+      }
+    }
+
+    if (existingAllocationKeyCacheRef.current.hasKeyColumn === false) {
+      for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+        const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
+        let query = supabase
+          .from('stock_releases')
+          .select('id')
+          .is('deleted_at', null)
+          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+          .in('allocation_bill', chunk);
+
+        if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        collectPendingIds(data || []);
+      }
+    }
+
+    const pendingIdList = Array.from(pendingIds);
+    if (pendingIdList.length === 0) return 0;
+
+    const deletedAt = new Date().toISOString();
+    for (let index = 0; index < pendingIdList.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      const chunk = pendingIdList.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
+      const { error } = await supabase
+        .from('stock_releases')
+        .update({ deleted_at: deletedAt })
+        .in('id', chunk);
+
+      if (error) throw error;
+    }
+
+    return pendingIdList.length;
   };
 
   const insertStockReleaseRows = async (rows: StockReleaseInsertRow[]) => {
@@ -710,8 +801,9 @@ const ReleaseStock = () => {
       const qtyItem = findNumericValue(row, 'Qty', 'Qty/Item', 'QTY/ITEM', 'Qty Item', 'QtyItem', 'Quantity', 'QTY');
       const productCode = findColumnValue(row, 'Product Code', 'PRODUCT CODE', 'ProductCode', 'Item Code', 'ITEM CODE', 'ItemCode', 'Code', 'CODE', 'SKU', 'Product Name', 'PRODUCT NAME', 'Product');
       const productDescription = findColumnValue(row, 'Product Description', 'PRODUCT DESCRIPTION', 'Product Desc', 'PRODUCT DESC', 'Description', 'DESCRIPTION', 'Desc', 'DESC', 'Model', 'MODEL');
-      const category = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
       const rem = findColumnValue(row, 'Remarks', 'REMARKS', 'Notes', 'NOTES', 'Remark', 'REMARK', 'Comment', 'COMMENT');
+      const rawCategory = findColumnValue(row, 'Category', 'CATEGORY', 'Cat', 'CAT', 'Type', 'TYPE');
+      const category = resolveCategory(rawCategory, rem);
       const courier = findColumnValue(row, 'Courier', 'COURIER', 'Delivery Courier', 'DELIVERY COURIER');
       const amountInfo = findNumericColumnValue(row, 'Amount', 'AMOUNT', 'Amt', 'AMT', 'Total', 'TOTAL', 'Price', 'PRICE', 'Unit Price', 'UNIT PRICE');
       const amountHeader = amountInfo.matchedColumn.toLowerCase();
@@ -807,7 +899,7 @@ const ReleaseStock = () => {
           courier: head.courier || null,
           allocation_bill: head.sheetNo || null,
           batch_id: batchId,
-          category: item.category || head.category || null,
+          category: resolveCategory(item.category || head.category, item.remarks, head.remarks, combinedNotes) || null,
           waybill_no: null,
           set_date: head.setDate || null,
           total_qty: item.qtyItem || item.qtyBoxes || 0,
@@ -852,7 +944,7 @@ const ReleaseStock = () => {
           allocation_bill: head.sheetNo || null,
           destination: head.deliverTo || 'Unknown',
           released_by: user!.id,
-          category: item.category || head.category || null,
+          category: resolveCategory(item.category || head.category, item.remarks, head.remarks, combinedNotes) || null,
           boxes_released: item.qtyBoxes,
           amount: item.amount || null,
           total_qty: item.qtyItem || item.qtyBoxes || 0,
@@ -1085,7 +1177,10 @@ const ReleaseStock = () => {
     }
 
     // Allow duplicate Sheet No. — additional rows become extra products under the same allocation bill
-    const existingAllocationKeys = await fetchExistingAllocationKeys(getUniqueAllocationBills(validItems));
+    const selectedAllocationBills = getUniqueAllocationBills(validItems);
+    const existingAllocationKeys = await fetchExistingAllocationKeys(selectedAllocationBills, {
+      includePendingAllocations: false,
+    });
     const existingSheetNos = validItems.filter(item => {
       const normalizedSheetNo = normalizeAllocation(item.sheetNo);
       return Boolean(normalizedSheetNo && existingAllocationKeys.has(normalizedSheetNo));
@@ -1106,6 +1201,24 @@ const ReleaseStock = () => {
       const firstItem = validItems[0];
 
       await insertStockReleaseRows(buildStockReleaseRowsFromItems(validItems));
+      let clearedPendingAllocationRows = 0;
+      try {
+        clearedPendingAllocationRows = await clearPendingAllocationsForBills(selectedAllocationBills);
+      } catch (clearError) {
+        console.warn('Unable to clear released pending allocations:', clearError);
+        toast({
+          title: 'Released, but pending cleanup failed',
+          description: 'Na-release ang items, pero hindi na-clear ang matching Pending Allocation. Paki-refresh at i-check ulit.',
+          variant: 'destructive',
+        });
+      }
+
+      selectedAllocationBills.forEach((bill) => {
+        const key = normalizeAllocation(bill);
+        if (!key) return;
+        existingAllocationKeyCacheRef.current.allKeys.add(key);
+        existingAllocationKeyCacheRef.current.releasedKeys.add(key);
+      });
 
       // Remove released items from preview
       const releasedIds = new Set(validItems.map(i => i.id));
@@ -1125,11 +1238,15 @@ const ReleaseStock = () => {
           courier: firstItem.courier,
           branch_id: selectedBranch?.id,
           branch: selectedBranch?.name,
-          allocation_bills: validItems.map(i => i.sheetNo).filter(Boolean)
+          allocation_bills: selectedAllocationBills,
+          cleared_pending_allocation_rows: clearedPendingAllocationRows,
         }
       });
 
-      toast({ title: 'Success', description: `${validItems.length} item(s) released successfully` });
+      toast({
+        title: 'Success',
+        description: `${validItems.length} item(s) released successfully${clearedPendingAllocationRows > 0 ? `; ${clearedPendingAllocationRows} pending allocation row(s) cleared` : ''}.`,
+      });
     } catch (error) {
       console.error('Release error:', error);
       toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });

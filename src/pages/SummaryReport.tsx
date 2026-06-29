@@ -136,7 +136,7 @@ const SummaryReport = () => {
 
   const CATEGORY_OPTIONS = ['MHB', 'MLP', 'MSH', 'MUM', 'CE', 'CL', 'LX', 'CX', 'XD', 'XP'];
   
-  const isViewer = userRole === 'viewer';
+  const isViewer = ['viewer', 'teamleader', 'oic', 'warehouse'].includes(userRole || '');
   const canExport = userRole !== 'uploader';
   const loading = periodLoading;
 

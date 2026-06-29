@@ -9,6 +9,7 @@ export const NOTIFICATION_VISIBLE_ROLES: UserRole[] = [
   'uploader',
   'hr',
   'encoder',
+  'warehouse',
 ];
 
 export const canViewNotifications = (role: UserRole | null | undefined) => {

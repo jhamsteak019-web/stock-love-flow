@@ -251,7 +251,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/notifications',
       icon: Bell,
       label: 'Notifications',
-      roles: ['admin', 'assistant', 'staff', 'uploader', 'hr', 'encoder']
+      roles: ['admin', 'assistant', 'staff', 'uploader', 'hr', 'encoder', 'warehouse']
     },
     {
       to: '/profile',

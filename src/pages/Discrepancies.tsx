@@ -22,7 +22,7 @@ import autoTable from 'jspdf-autotable';
 import { notifyDiscrepanciesChanged } from '@/lib/discrepancyEvents';
 import type { UserRole } from '@/types/inventory';
 
-const REPORTER_NOTIFICATION_ROLES: UserRole[] = ['staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder'];
+const REPORTER_NOTIFICATION_ROLES: UserRole[] = ['staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder', 'warehouse'];
 
 interface Discrepancy {
   id: string;

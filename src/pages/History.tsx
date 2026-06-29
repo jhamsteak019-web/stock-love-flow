@@ -68,7 +68,7 @@ const HISTORY_YEAR_OPTIONS = [2024, 2025, 2026];
 const HISTORY_STORAGE_KEY = 'history_filter';
 const ITEMS_PER_PAGE = 50;
 const REVIEW_NOTIFICATION_ROLES: UserRole[] = ['admin', 'assistant'];
-const REPORTER_NOTIFICATION_ROLES: UserRole[] = ['staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder'];
+const REPORTER_NOTIFICATION_ROLES: UserRole[] = ['staff', 'oic', 'teamleader', 'uploader', 'hr', 'encoder', 'warehouse'];
 type HistoryColumnKey = 'allocation' | 'destination' | 'category' | 'totalBoxes' | 'amount' | 'totalQty' | 'dateOut' | 'dateReceived' | 'deliveryTime' | 'courier' | 'remarks';
 
 const DEFAULT_HISTORY_COLUMNS: ColumnConfig[] = [
@@ -236,7 +236,7 @@ const History = () => {
   });
   
   const { columns, setColumns, isAdmin } = useColumnSettings('history', DEFAULT_HISTORY_COLUMNS);
-  const isViewer = userRole === 'viewer';
+  const isViewer = ['viewer', 'teamleader', 'oic', 'warehouse'].includes(userRole || '');
   const isEncoder = userRole === 'encoder';
   const isAssistant = userRole === 'assistant';
   const canEdit = isAdmin || isEncoder || isAssistant; // Admin, encoder, and assistant can edit

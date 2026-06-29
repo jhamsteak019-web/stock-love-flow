@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { exportToExcel } from '@/lib/excelExport';
 import { normalizeAllocationBill } from '@/lib/allocationBill';
+import { resolveCategory } from '@/lib/categoryUtils';
 import {
   getPendingAllocationActionStatus,
   getPendingAllocationStatus,
@@ -376,6 +377,7 @@ const PendingAllocation = () => {
       const key = allocationKey ? `bill:${allocationKey}` : `batch:${row.batch_id || row.id}`;
       const existing = groups.get(key);
       const remarks = row.notes?.trim() || null;
+      const resolvedCategory = resolveCategory(row.category, remarks);
       const pendingStatus = getPendingAllocationStatus(row.pending_allocation_status, row.action_status);
 
       if (!existing) {
@@ -383,7 +385,7 @@ const PendingAllocation = () => {
           key,
           allocation_bill: row.allocation_bill,
           destination: row.destination,
-          category: row.category,
+          category: resolvedCategory || null,
           boxes: Number(row.boxes_released) || 0,
           amount: Number(row.amount) || 0,
           totalQty: Number(row.total_qty) || 0,
@@ -402,7 +404,7 @@ const PendingAllocation = () => {
       existing.boxes += Number(row.boxes_released) || 0;
       existing.amount += Number(row.amount) || 0;
       existing.totalQty += Number(row.total_qty) || 0;
-      existing.category = existing.category || row.category;
+      existing.category = existing.category || resolvedCategory || row.category;
       existing.set_date = existing.set_date || row.set_date;
       existing.courier = existing.courier || row.courier;
       existing.import_created_at = existing.import_created_at || row.import_created_at || null;
@@ -540,6 +542,27 @@ const PendingAllocation = () => {
           .in('id', chunk);
 
         if (error) throw error;
+      }
+
+      const releaseIdsByCategory = new Map<string, string[]>();
+      selectedGroups.forEach((group) => {
+        const category = resolveCategory(group.category, group.remarks);
+        if (!category) return;
+        const ids = releaseIdsByCategory.get(category) || [];
+        ids.push(...group.releaseIds);
+        releaseIdsByCategory.set(category, ids);
+      });
+
+      for (const [category, ids] of releaseIdsByCategory.entries()) {
+        for (let index = 0; index < ids.length; index += 100) {
+          const chunk = ids.slice(index, index + 100);
+          const { error } = await supabase
+            .from('stock_releases')
+            .update({ category })
+            .in('id', chunk);
+
+          if (error) throw error;
+        }
       }
 
       const allocationBills = selectedGroups
