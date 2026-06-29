@@ -1112,6 +1112,7 @@ export type Database = {
       stock_releases: {
         Row: {
           action_status: string | null
+          allocation_bill_key: string | null
           allocation_bill: string | null
           amount: number | null
           batch_id: string | null

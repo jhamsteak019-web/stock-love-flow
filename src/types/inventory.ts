@@ -54,6 +54,7 @@ export interface StockRelease {
   destination: string;
   courier: string | null;
   allocation_bill: string | null;
+  allocation_bill_key?: string | null;
   released_by: string;
   delivery_status: DeliveryStatus;
   date_released: string;

@@ -7,6 +7,7 @@ import { useBranch } from '@/contexts/BranchContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { exportToExcel } from '@/lib/excelExport';
+import { normalizeAllocationBill } from '@/lib/allocationBill';
 import {
   getPendingAllocationActionStatus,
   getPendingAllocationStatus,
@@ -48,7 +49,7 @@ const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,al
 const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
 const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_allocation_status`;
 const ITEMS_PER_PAGE = 12;
-const SYSTEM_DUPLICATE_SCAN_PAGE_SIZE = 1000;
+const DUPLICATE_LOOKUP_CHUNK_SIZE = 500;
 
 interface PendingAllocationGroup {
   key: string;
@@ -68,13 +69,7 @@ interface PendingAllocationGroup {
   releaseIds: string[];
 }
 
-const normalizeAllocation = (allocation?: string | null) =>
-  String(allocation || '')
-    .normalize('NFKC')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim()
-    .replace(/[^a-z0-9]/gi, '')
-    .toLowerCase();
+const normalizeAllocation = normalizeAllocationBill;
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '-';
@@ -173,6 +168,7 @@ const getPendingAllocationDuplicateCleanup = (pendingRows: PendingAllocationRow[
 
 const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAllocationRow[]) => {
   const pendingRowsByBillKey = new Map<string, PendingAllocationRow[]>();
+  const pendingBillsByKey = new Map<string, Set<string>>();
 
   pendingRows.forEach((row) => {
     const billKey = normalizeAllocation(row.allocation_bill);
@@ -181,6 +177,10 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
     const billRows = pendingRowsByBillKey.get(billKey) || [];
     billRows.push(row);
     pendingRowsByBillKey.set(billKey, billRows);
+
+    const billValues = pendingBillsByKey.get(billKey) || new Set<string>();
+    if (row.allocation_bill?.trim()) billValues.add(row.allocation_bill.trim());
+    pendingBillsByKey.set(billKey, billValues);
   });
 
   if (pendingRowsByBillKey.size === 0) {
@@ -192,30 +192,46 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
   }
 
   const duplicateBillKeys = new Set<string>();
-  let from = 0;
 
-  while (true) {
-    const { data, error } = await supabase
-      .from('stock_releases')
-      .select('allocation_bill,action_status,created_at')
-      .is('deleted_at', null)
-      .not('allocation_bill', 'is', null)
-      .order('created_at', { ascending: false })
-      .range(from, from + SYSTEM_DUPLICATE_SCAN_PAGE_SIZE - 1);
+  const billKeys = Array.from(pendingRowsByBillKey.keys());
+  const scanRows = async (
+    selectColumns: string,
+    columnName: 'allocation_bill_key' | 'allocation_bill',
+    values: string[],
+  ) => {
+    for (let index = 0; index < values.length; index += DUPLICATE_LOOKUP_CHUNK_SIZE) {
+      const chunk = values.slice(index, index + DUPLICATE_LOOKUP_CHUNK_SIZE);
+      const { data, error } = await supabase
+        .from('stock_releases')
+        .select(selectColumns)
+        .is('deleted_at', null)
+        .in(columnName, chunk);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    (data || []).forEach((row) => {
-      const billKey = normalizeAllocation(row.allocation_bill);
-      if (!billKey || !pendingRowsByBillKey.has(billKey)) return;
+      (data || []).forEach((row) => {
+        const billKey = normalizeAllocation(
+          columnName === 'allocation_bill_key'
+            ? row.allocation_bill_key || row.allocation_bill
+            : row.allocation_bill,
+        );
+        if (!billKey || !pendingRowsByBillKey.has(billKey)) return;
 
-      const isPendingAllocationRow = (PENDING_ALLOCATION_ACTION_STATUSES as string[]).includes(String(row.action_status || ''));
-      if (!isPendingAllocationRow) duplicateBillKeys.add(billKey);
-    });
+        const isPendingAllocationRow = (PENDING_ALLOCATION_ACTION_STATUSES as string[]).includes(String(row.action_status || ''));
+        if (!isPendingAllocationRow) duplicateBillKeys.add(billKey);
+      });
+    }
+  };
 
-    if (duplicateBillKeys.size >= pendingRowsByBillKey.size) break;
-    if (!data || data.length < SYSTEM_DUPLICATE_SCAN_PAGE_SIZE) break;
-    from += SYSTEM_DUPLICATE_SCAN_PAGE_SIZE;
+  try {
+    await scanRows('allocation_bill,allocation_bill_key,action_status', 'allocation_bill_key', billKeys);
+  } catch (error) {
+    if (!isMissingOptionalColumnError(error, 'allocation_bill_key')) throw error;
+
+    const billValues = Array.from(new Set(
+      Array.from(pendingBillsByKey.values()).flatMap(values => Array.from(values)),
+    ));
+    await scanRows('allocation_bill,action_status', 'allocation_bill', billValues);
   }
 
   const duplicateIds = new Set<string>();

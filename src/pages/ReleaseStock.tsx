@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import ColumnSettings, { ColumnConfig, ColumnKey } from '@/components/deliveries/ColumnSettings';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { normalizeAllocationBill } from '@/lib/allocationBill';
 import { PENDING_ALLOCATION_ACTION_STATUSES } from '@/lib/pendingAllocationStatus';
 
 const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
@@ -40,7 +41,6 @@ const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
-const STOCK_RELEASE_SCAN_PAGE_SIZE = 1000;
 const STOCK_RELEASE_READ_CONCURRENCY = 6;
 const STOCK_RELEASE_WRITE_CONCURRENCY = 3;
 const FAST_CREATED_DATE_SYNC_LIMIT = 750;
@@ -104,6 +104,14 @@ const isMissingImportCreatedAtError = (error: unknown) => {
   return [details.message, details.details, details.hint]
     .filter(Boolean)
     .some(text => String(text).toLowerCase().includes('import_created_at'));
+};
+
+const isMissingColumnError = (error: unknown, columnName: string) => {
+  if (!error || typeof error !== 'object') return false;
+  const details = error as { code?: string; message?: string; details?: string; hint?: string };
+  return [details.message, details.details, details.hint]
+    .filter(Boolean)
+    .some(text => String(text).toLowerCase().includes(columnName.toLowerCase()));
 };
 
 const normalizeImportHeader = (value: string) =>
@@ -345,9 +353,9 @@ const ReleaseStock = () => {
   const { logActivity } = useActivityLog();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImportFileInputRef = useRef<HTMLInputElement>(null);
-  const existingAllocationKeyCacheRef = useRef<{ keys: Set<string>; scannedAll: boolean }>({
+  const existingAllocationKeyCacheRef = useRef<{ keys: Set<string>; hasKeyColumn: boolean | null }>({
     keys: new Set(),
-    scannedAll: false,
+    hasKeyColumn: null,
   });
   const { columns, setColumns, isAdmin } = useColumnSettings('releaseStock', DEFAULT_RELEASE_COLUMNS);
   
@@ -397,39 +405,67 @@ const ReleaseStock = () => {
     localStorage.removeItem(PARSED_ITEMS_STORAGE_KEY);
   }, [parsedItems]);
 
-  const normalizeAllocation = useCallback((allocation?: string | null) => {
-    return String(allocation || '')
-      .normalize('NFKC')
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .trim()
-      .replace(/[^a-z0-9]/gi, '')
-      .toLowerCase();
-  }, []);
+  const normalizeAllocation = useCallback(normalizeAllocationBill, []);
 
   const fetchExistingAllocationKeys = async (allocations?: string[]) => {
     const keys = new Set<string>();
     const requestedAllocations = Array.from(
       new Set((allocations || []).map(bill => bill.trim()).filter(Boolean)),
     );
-    const requestedKeys = new Set(
+    const requestedKeys = Array.from(new Set(
       requestedAllocations
         .map(bill => normalizeAllocation(bill))
         .filter(Boolean),
-    );
+    ));
 
-    if (requestedAllocations.length === 0) return keys;
+    if (requestedKeys.length === 0) return keys;
 
     requestedKeys.forEach((key) => {
       if (existingAllocationKeyCacheRef.current.keys.has(key)) keys.add(key);
     });
 
-    const chunks: string[][] = [];
-    for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
-      const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
-      chunks.push(chunk);
+    if (keys.size === requestedKeys.length) return keys;
+
+    const missingKeys = requestedKeys.filter(key => !keys.has(key));
+    const keyChunks: string[][] = [];
+    for (let index = 0; index < missingKeys.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      keyChunks.push(missingKeys.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE));
     }
 
-    await runInConcurrentBatches(chunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
+    if (existingAllocationKeyCacheRef.current.hasKeyColumn !== false) {
+      try {
+        await runInConcurrentBatches(keyChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
+          const { data, error } = await supabase
+            .from('stock_releases')
+            .select('allocation_bill_key')
+            .is('deleted_at', null)
+            .in('allocation_bill_key', chunk);
+
+          if (error) throw error;
+
+          (data || []).forEach((release) => {
+            const key = normalizeAllocation(release.allocation_bill_key);
+            if (key) {
+              keys.add(key);
+              existingAllocationKeyCacheRef.current.keys.add(key);
+            }
+          });
+        });
+
+        existingAllocationKeyCacheRef.current.hasKeyColumn = true;
+        return keys;
+      } catch (error) {
+        if (!isMissingColumnError(error, 'allocation_bill_key')) throw error;
+        existingAllocationKeyCacheRef.current.hasKeyColumn = false;
+      }
+    }
+
+    const allocationChunks: string[][] = [];
+    for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      allocationChunks.push(requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE));
+    }
+
+    await runInConcurrentBatches(allocationChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
       const { data, error } = await supabase
         .from('stock_releases')
         .select('allocation_bill')
@@ -445,37 +481,6 @@ const ReleaseStock = () => {
           existingAllocationKeyCacheRef.current.keys.add(key);
         }
       });
-    });
-
-    const hasMissingKeys = Array.from(requestedKeys).some(key => !keys.has(key));
-    if (hasMissingKeys && !existingAllocationKeyCacheRef.current.scannedAll) {
-      let from = 0;
-
-      while (true) {
-        const { data, error } = await supabase
-          .from('stock_releases')
-          .select('allocation_bill,created_at')
-          .is('deleted_at', null)
-          .not('allocation_bill', 'is', null)
-          .order('created_at', { ascending: false })
-          .range(from, from + STOCK_RELEASE_SCAN_PAGE_SIZE - 1);
-
-        if (error) throw error;
-
-        (data || []).forEach((release) => {
-          const key = normalizeAllocation(release.allocation_bill);
-          if (key) existingAllocationKeyCacheRef.current.keys.add(key);
-        });
-
-        if (!data || data.length < STOCK_RELEASE_SCAN_PAGE_SIZE) break;
-        from += STOCK_RELEASE_SCAN_PAGE_SIZE;
-      }
-
-      existingAllocationKeyCacheRef.current.scannedAll = true;
-    }
-
-    requestedKeys.forEach((key) => {
-      if (existingAllocationKeyCacheRef.current.keys.has(key)) keys.add(key);
     });
 
     return keys;
