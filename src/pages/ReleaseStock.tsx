@@ -43,6 +43,7 @@ const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 1000;
+const STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
 const STOCK_RELEASE_READ_CONCURRENCY = 6;
 const STOCK_RELEASE_WRITE_CONCURRENCY = 3;
 const FAST_CREATED_DATE_SYNC_LIMIT = 750;
@@ -265,6 +266,12 @@ const findLikelyCreatedDateValue = (row: Record<string, unknown>) => {
   return undefined;
 };
 
+const getAllocationLookupToken = (allocation: string) => {
+  const normalized = normalizeAllocationBill(allocation);
+  const digitToken = normalized.match(/\d{6,}/g)?.sort((a, b) => b.length - a.length)[0];
+  return digitToken || (normalized.length >= 6 ? normalized : '');
+};
+
 interface ParsedReleaseItem {
   id: string;
   sheetNo: string;
@@ -427,8 +434,32 @@ const ReleaseStock = () => {
         .map(bill => normalizeAllocation(bill))
         .filter(Boolean),
     ));
+    const requestedKeySet = new Set(requestedKeys);
 
     if (requestedKeys.length === 0) return keys;
+
+    const rememberExistingRelease = (allocation: string | null | undefined, actionStatus?: string | null) => {
+      const key = normalizeAllocation(allocation);
+      if (!key || !requestedKeySet.has(key)) return;
+
+      existingAllocationKeyCacheRef.current.allKeys.add(key);
+      const isPendingAllocation = isPendingAllocationActionStatus(actionStatus);
+      if (!isPendingAllocation) {
+        existingAllocationKeyCacheRef.current.releasedKeys.add(key);
+      }
+      if (includePendingAllocations || !isPendingAllocation) keys.add(key);
+    };
+
+    const getMissingRequestedKeys = () => requestedKeys.filter(key => !keys.has(key));
+    const getMissingRequestedAllocations = () => {
+      const missingKeySet = new Set(getMissingRequestedKeys());
+      return Array.from(new Set(
+        requestedAllocations
+          .filter(bill => missingKeySet.has(normalizeAllocation(bill)))
+          .map(bill => bill.trim())
+          .filter(Boolean),
+      ));
+    };
 
     requestedKeys.forEach((key) => {
       if (cache.has(key)) keys.add(key);
@@ -459,11 +490,7 @@ const ReleaseStock = () => {
               const key = normalizeAllocation(release.allocation_bill_key);
               if (!key) return;
 
-              existingAllocationKeyCacheRef.current.allKeys.add(key);
-              if (!isPendingAllocationActionStatus(release.action_status)) {
-                existingAllocationKeyCacheRef.current.releasedKeys.add(key);
-              }
-              if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
+              rememberExistingRelease(key, release.action_status);
             });
 
             if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
@@ -478,9 +505,10 @@ const ReleaseStock = () => {
       }
     }
 
+    const exactAllocations = getMissingRequestedAllocations();
     const allocationChunks: string[][] = [];
-    for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
-      allocationChunks.push(requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE));
+    for (let index = 0; index < exactAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      allocationChunks.push(exactAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE));
     }
 
     await runInConcurrentBatches(allocationChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
@@ -498,11 +526,38 @@ const ReleaseStock = () => {
           const key = normalizeAllocation(release.allocation_bill);
           if (!key) return;
 
-          existingAllocationKeyCacheRef.current.allKeys.add(key);
-          if (!isPendingAllocationActionStatus(release.action_status)) {
-            existingAllocationKeyCacheRef.current.releasedKeys.add(key);
-          }
-          if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
+          rememberExistingRelease(release.allocation_bill, release.action_status);
+        });
+
+        if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
+      }
+    });
+
+    const fuzzyTokens = Array.from(new Set(
+      getMissingRequestedAllocations()
+        .map(getAllocationLookupToken)
+        .filter(Boolean),
+    ));
+    const fuzzyTokenChunks: string[][] = [];
+    for (let index = 0; index < fuzzyTokens.length; index += STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE) {
+      fuzzyTokenChunks.push(fuzzyTokens.slice(index, index + STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE));
+    }
+
+    await runInConcurrentBatches(fuzzyTokenChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
+      const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
+
+      for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select('allocation_bill,action_status')
+          .is('deleted_at', null)
+          .or(orFilter)
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        (data || []).forEach((release) => {
+          rememberExistingRelease(release.allocation_bill, release.action_status);
         });
 
         if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
@@ -542,8 +597,6 @@ const ReleaseStock = () => {
               .in('allocation_bill_key', chunk)
               .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-            if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
-
             const { data, error } = await query;
             if (error) throw error;
             collectPendingIds(data || []);
@@ -558,26 +611,46 @@ const ReleaseStock = () => {
       }
     }
 
-    if (existingAllocationKeyCacheRef.current.hasKeyColumn === false) {
-      for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
-        const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
-        for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
-          let query = supabase
-            .from('stock_releases')
-            .select('id')
-            .is('deleted_at', null)
-            .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
-            .in('allocation_bill', chunk)
-            .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+    for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
+      const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
+      for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select('id')
+          .is('deleted_at', null)
+          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+          .in('allocation_bill', chunk)
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-          if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
+        if (error) throw error;
+        collectPendingIds(data || []);
 
-          const { data, error } = await query;
-          if (error) throw error;
-          collectPendingIds(data || []);
+        if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
+      }
+    }
 
-          if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
-        }
+    const fuzzyTokens = Array.from(new Set(requestedAllocations.map(getAllocationLookupToken).filter(Boolean)));
+    for (let index = 0; index < fuzzyTokens.length; index += STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE) {
+      const chunk = fuzzyTokens.slice(index, index + STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE);
+      const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
+
+      for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select('id,allocation_bill')
+          .is('deleted_at', null)
+          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+          .or(orFilter)
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        (data || []).forEach((row) => {
+          const rowKey = normalizeAllocation(row.allocation_bill);
+          if (requestedKeys.includes(rowKey)) pendingIds.add(row.id);
+        });
+
+        if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
       }
     }
 

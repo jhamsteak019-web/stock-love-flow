@@ -54,6 +54,7 @@ const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_a
 const ITEMS_PER_PAGE = 12;
 const DUPLICATE_LOOKUP_CHUNK_SIZE = 500;
 const DUPLICATE_LOOKUP_PAGE_SIZE = 1000;
+const DUPLICATE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
 
 interface PendingAllocationGroup {
   key: string;
@@ -74,6 +75,12 @@ interface PendingAllocationGroup {
 }
 
 const normalizeAllocation = normalizeAllocationBill;
+
+const getAllocationLookupToken = (allocation: string) => {
+  const normalized = normalizeAllocationBill(allocation);
+  const digitToken = normalized.match(/\d{6,}/g)?.sort((a, b) => b.length - a.length)[0];
+  return digitToken || (normalized.length >= 6 ? normalized : '');
+};
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '-';
@@ -237,11 +244,52 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
     await scanRows('allocation_bill,allocation_bill_key,action_status', 'allocation_bill_key', billKeys);
   } catch (error) {
     if (!isMissingOptionalColumnError(error, 'allocation_bill_key')) throw error;
+  }
 
-    const billValues = Array.from(new Set(
-      Array.from(pendingBillsByKey.values()).flatMap(values => Array.from(values)),
+  const getMissingBillValues = () => {
+    const missingKeys = new Set(billKeys.filter(billKey => !duplicateBillKeys.has(billKey)));
+    return Array.from(new Set(
+      Array.from(pendingBillsByKey.entries())
+        .filter(([billKey]) => missingKeys.has(billKey))
+        .flatMap(([, values]) => Array.from(values)),
     ));
+  };
+
+  const billValues = getMissingBillValues();
+  if (billValues.length > 0) {
     await scanRows('allocation_bill,action_status', 'allocation_bill', billValues);
+  }
+
+  const fuzzyTokens = Array.from(new Set(
+    getMissingBillValues()
+      .map(getAllocationLookupToken)
+      .filter(Boolean),
+  ));
+
+  for (let index = 0; index < fuzzyTokens.length; index += DUPLICATE_FUZZY_LOOKUP_CHUNK_SIZE) {
+    const chunk = fuzzyTokens.slice(index, index + DUPLICATE_FUZZY_LOOKUP_CHUNK_SIZE);
+    const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
+
+    for (let pageStart = 0; ; pageStart += DUPLICATE_LOOKUP_PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('stock_releases')
+        .select('allocation_bill,action_status')
+        .is('deleted_at', null)
+        .or(orFilter)
+        .range(pageStart, pageStart + DUPLICATE_LOOKUP_PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      ((data || []) as unknown as DuplicateLookupRow[]).forEach((row) => {
+        const billKey = normalizeAllocation(row.allocation_bill);
+        if (!billKey || !pendingRowsByBillKey.has(billKey)) return;
+
+        const isPendingAllocationRow = (PENDING_ALLOCATION_ACTION_STATUSES as string[]).includes(String(row.action_status || ''));
+        if (!isPendingAllocationRow) duplicateBillKeys.add(billKey);
+      });
+
+      if (!data || data.length < DUPLICATE_LOOKUP_PAGE_SIZE) break;
+    }
   }
 
   const duplicateIds = new Set<string>();
