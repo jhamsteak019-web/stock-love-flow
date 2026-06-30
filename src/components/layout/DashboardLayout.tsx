@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamChatBox } from '@/components/chat/TeamChatBox';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { normalizeRoleKey } from '@/lib/roleUtils';
 
 const pageTitles: Record<string, string> = {
   '/inventory': 'Inventory',
@@ -66,6 +67,7 @@ export const DashboardLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
   const { user, loading, userRole } = useAuth();
+  const normalizedUserRole = normalizeRoleKey(userRole);
 
   if (loading) {
     return (
@@ -83,7 +85,7 @@ export const DashboardLayout = () => {
   }
 
   // Redirect pending users to a waiting page
-  if (userRole === 'pending') {
+  if (normalizedUserRole === 'pending') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-center max-w-md px-4">
@@ -108,9 +110,9 @@ export const DashboardLayout = () => {
   }
 
   // Redirect users to dashboard if they try to access restricted routes based on their role
-  const restrictedRoutes = roleRestrictedRoutes[userRole || ''] || [];
+  const restrictedRoutes = roleRestrictedRoutes[normalizedUserRole] || [];
   if (restrictedRoutes.includes(location.pathname)) {
-    const fallbackPath = ['teamleader', 'oic', 'warehouse'].includes(userRole || '') ? '/deliveries' : '/dashboard';
+    const fallbackPath = ['teamleader', 'oic', 'warehouse'].includes(normalizedUserRole) ? '/deliveries' : '/dashboard';
     return <Navigate to={fallbackPath} replace />;
   }
 

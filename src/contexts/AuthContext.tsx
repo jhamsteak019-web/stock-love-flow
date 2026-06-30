@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/inventory';
+import { normalizeRoleKey } from '@/lib/roleUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -46,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) throw error;
-      setUserRole(data?.role as UserRole || null);
+      setUserRole(data?.role ? (normalizeRoleKey(data.role) as UserRole) : null);
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole(null);
