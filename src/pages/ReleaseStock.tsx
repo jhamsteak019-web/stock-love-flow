@@ -42,6 +42,7 @@ const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
 const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
+const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 1000;
 const STOCK_RELEASE_READ_CONCURRENCY = 6;
 const STOCK_RELEASE_WRITE_CONCURRENCY = 3;
 const FAST_CREATED_DATE_SYNC_LIMIT = 750;
@@ -444,24 +445,29 @@ const ReleaseStock = () => {
     if (existingAllocationKeyCacheRef.current.hasKeyColumn !== false) {
       try {
         await runInConcurrentBatches(keyChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
-          const { data, error } = await supabase
-            .from('stock_releases')
-            .select('allocation_bill_key,action_status')
-            .is('deleted_at', null)
-            .in('allocation_bill_key', chunk);
+          for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+            const { data, error } = await supabase
+              .from('stock_releases')
+              .select('allocation_bill_key,action_status')
+              .is('deleted_at', null)
+              .in('allocation_bill_key', chunk)
+              .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-          if (error) throw error;
+            if (error) throw error;
 
-          (data || []).forEach((release) => {
-            const key = normalizeAllocation(release.allocation_bill_key);
-            if (!key) return;
+            (data || []).forEach((release) => {
+              const key = normalizeAllocation(release.allocation_bill_key);
+              if (!key) return;
 
-            existingAllocationKeyCacheRef.current.allKeys.add(key);
-            if (!isPendingAllocationActionStatus(release.action_status)) {
-              existingAllocationKeyCacheRef.current.releasedKeys.add(key);
-            }
-            if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
-          });
+              existingAllocationKeyCacheRef.current.allKeys.add(key);
+              if (!isPendingAllocationActionStatus(release.action_status)) {
+                existingAllocationKeyCacheRef.current.releasedKeys.add(key);
+              }
+              if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
+            });
+
+            if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
+          }
         });
 
         existingAllocationKeyCacheRef.current.hasKeyColumn = true;
@@ -478,24 +484,29 @@ const ReleaseStock = () => {
     }
 
     await runInConcurrentBatches(allocationChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
-      const { data, error } = await supabase
-        .from('stock_releases')
-        .select('allocation_bill,action_status')
-        .is('deleted_at', null)
-        .in('allocation_bill', chunk);
+      for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select('allocation_bill,action_status')
+          .is('deleted_at', null)
+          .in('allocation_bill', chunk)
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      (data || []).forEach((release) => {
-        const key = normalizeAllocation(release.allocation_bill);
-        if (!key) return;
+        (data || []).forEach((release) => {
+          const key = normalizeAllocation(release.allocation_bill);
+          if (!key) return;
 
-        existingAllocationKeyCacheRef.current.allKeys.add(key);
-        if (!isPendingAllocationActionStatus(release.action_status)) {
-          existingAllocationKeyCacheRef.current.releasedKeys.add(key);
-        }
-        if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
-      });
+          existingAllocationKeyCacheRef.current.allKeys.add(key);
+          if (!isPendingAllocationActionStatus(release.action_status)) {
+            existingAllocationKeyCacheRef.current.releasedKeys.add(key);
+          }
+          if (includePendingAllocations || !isPendingAllocationActionStatus(release.action_status)) keys.add(key);
+        });
+
+        if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
+      }
     });
 
     return keys;
@@ -522,18 +533,23 @@ const ReleaseStock = () => {
       try {
         for (let index = 0; index < requestedKeys.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
           const chunk = requestedKeys.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
-          let query = supabase
-            .from('stock_releases')
-            .select('id')
-            .is('deleted_at', null)
-            .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
-            .in('allocation_bill_key', chunk);
+          for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+            let query = supabase
+              .from('stock_releases')
+              .select('id')
+              .is('deleted_at', null)
+              .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+              .in('allocation_bill_key', chunk)
+              .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-          if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
+            if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
 
-          const { data, error } = await query;
-          if (error) throw error;
-          collectPendingIds(data || []);
+            const { data, error } = await query;
+            if (error) throw error;
+            collectPendingIds(data || []);
+
+            if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
+          }
         }
         existingAllocationKeyCacheRef.current.hasKeyColumn = true;
       } catch (error) {
@@ -545,18 +561,23 @@ const ReleaseStock = () => {
     if (existingAllocationKeyCacheRef.current.hasKeyColumn === false) {
       for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
         const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
-        let query = supabase
-          .from('stock_releases')
-          .select('id')
-          .is('deleted_at', null)
-          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
-          .in('allocation_bill', chunk);
+        for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+          let query = supabase
+            .from('stock_releases')
+            .select('id')
+            .is('deleted_at', null)
+            .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+            .in('allocation_bill', chunk)
+            .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-        if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
+          if (selectedBranch?.id) query = query.eq('branch_id', selectedBranch.id);
 
-        const { data, error } = await query;
-        if (error) throw error;
-        collectPendingIds(data || []);
+          const { data, error } = await query;
+          if (error) throw error;
+          collectPendingIds(data || []);
+
+          if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
+        }
       }
     }
 
@@ -634,24 +655,28 @@ const ReleaseStock = () => {
 
     for (let index = 0; index < bills.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
       const chunk = bills.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
-      let query = supabase
-        .from('stock_releases')
-        .select('id,allocation_bill')
-        .is('deleted_at', null)
-        .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
-        .in('allocation_bill', chunk);
+      for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
+        let query = supabase
+          .from('stock_releases')
+          .select('id,allocation_bill')
+          .is('deleted_at', null)
+          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+          .in('allocation_bill', chunk)
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-      if (selectedBranch?.id) {
-        query = query.eq('branch_id', selectedBranch.id);
+        if (selectedBranch?.id) {
+          query = query.eq('branch_id', selectedBranch.id);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          console.warn('Unable to sync pending allocation Created Date:', error);
+          break;
+        }
+
+        existingRows.push(...(data || []));
+        if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
       }
-
-      const { data, error } = await query;
-      if (error) {
-        console.warn('Unable to sync pending allocation Created Date:', error);
-        continue;
-      }
-
-      existingRows.push(...(data || []));
     }
 
     const updatesByPayload = new Map<string, { ids: string[]; createdAt?: string; createdAtDisplay: string }>();

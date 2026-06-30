@@ -53,6 +53,7 @@ const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},impo
 const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_allocation_status`;
 const ITEMS_PER_PAGE = 12;
 const DUPLICATE_LOOKUP_CHUNK_SIZE = 500;
+const DUPLICATE_LOOKUP_PAGE_SIZE = 1000;
 
 interface PendingAllocationGroup {
   key: string;
@@ -204,25 +205,31 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
   ) => {
     for (let index = 0; index < values.length; index += DUPLICATE_LOOKUP_CHUNK_SIZE) {
       const chunk = values.slice(index, index + DUPLICATE_LOOKUP_CHUNK_SIZE);
-      const { data, error } = await supabase
-        .from('stock_releases')
-        .select(selectColumns)
-        .is('deleted_at', null)
-        .in(columnName, chunk);
 
-      if (error) throw error;
+      for (let pageStart = 0; ; pageStart += DUPLICATE_LOOKUP_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('stock_releases')
+          .select(selectColumns)
+          .is('deleted_at', null)
+          .in(columnName, chunk)
+          .range(pageStart, pageStart + DUPLICATE_LOOKUP_PAGE_SIZE - 1);
 
-      ((data || []) as unknown as DuplicateLookupRow[]).forEach((row) => {
-        const billKey = normalizeAllocation(
-          columnName === 'allocation_bill_key'
-            ? row.allocation_bill_key || row.allocation_bill
-            : row.allocation_bill,
-        );
-        if (!billKey || !pendingRowsByBillKey.has(billKey)) return;
+        if (error) throw error;
 
-        const isPendingAllocationRow = (PENDING_ALLOCATION_ACTION_STATUSES as string[]).includes(String(row.action_status || ''));
-        if (!isPendingAllocationRow) duplicateBillKeys.add(billKey);
-      });
+        ((data || []) as unknown as DuplicateLookupRow[]).forEach((row) => {
+          const billKey = normalizeAllocation(
+            columnName === 'allocation_bill_key'
+              ? row.allocation_bill_key || row.allocation_bill
+              : row.allocation_bill,
+          );
+          if (!billKey || !pendingRowsByBillKey.has(billKey)) return;
+
+          const isPendingAllocationRow = (PENDING_ALLOCATION_ACTION_STATUSES as string[]).includes(String(row.action_status || ''));
+          if (!isPendingAllocationRow) duplicateBillKeys.add(billKey);
+        });
+
+        if (!data || data.length < DUPLICATE_LOOKUP_PAGE_SIZE) break;
+      }
     }
   };
 
