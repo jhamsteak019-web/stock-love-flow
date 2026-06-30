@@ -157,6 +157,12 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       label: 'Deliveries',
       roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'warehouse']
     },
+    {
+      to: '/pending-allocation',
+      icon: ClipboardCheck,
+      label: 'Pending Allocation',
+      roles: ['admin', 'staff', 'teamleader', 'oic', 'encoder', 'assistant', 'warehouse']
+    },
     { 
       to: '/history', 
       icon: ClipboardList, 

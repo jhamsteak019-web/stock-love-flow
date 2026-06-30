@@ -46,6 +46,8 @@ type PendingAllocationRow = Pick<
   | 'pending_allocation_status'
 >;
 
+type DuplicateLookupRow = Pick<StockRelease, 'allocation_bill' | 'allocation_bill_key' | 'action_status'>;
+
 const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
 const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
 const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_allocation_status`;
@@ -210,7 +212,7 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
 
       if (error) throw error;
 
-      (data || []).forEach((row) => {
+      ((data || []) as unknown as DuplicateLookupRow[]).forEach((row) => {
         const billKey = normalizeAllocation(
           columnName === 'allocation_bill_key'
             ? row.allocation_bill_key || row.allocation_bill
@@ -332,7 +334,7 @@ const PendingAllocation = () => {
 
       if (error) throw error;
 
-      const currentRows = ((data || []) as PendingAllocationRow[]).map(row => ({
+      const currentRows = ((data || []) as unknown as PendingAllocationRow[]).map(row => ({
         ...row,
         import_created_at: row.import_created_at || null,
         pending_allocation_status: getPendingAllocationStatus(row.pending_allocation_status, row.action_status),

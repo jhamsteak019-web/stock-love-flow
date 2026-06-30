@@ -32,7 +32,6 @@ const pageTitles: Record<string, string> = {
 const limitedViewerRestrictedRoutes = [
   '/dashboard',
   '/release',
-  '/pending-allocation',
   '/import',
   '/users',
   '/notes',
