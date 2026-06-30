@@ -31,7 +31,6 @@ const pageTitles: Record<string, string> = {
 // Role-based route restrictions
 const limitedViewerRestrictedRoutes = [
   '/dashboard',
-  '/release',
   '/import',
   '/users',
   '/notes',

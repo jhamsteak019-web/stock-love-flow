@@ -149,7 +149,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/release', 
       icon: PackagePlus, 
       label: 'OUT WAREHOUSE DELIVERY',
-      roles: ['admin', 'staff', 'encoder', 'assistant']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'warehouse']
     },
     { 
       to: '/deliveries', 
