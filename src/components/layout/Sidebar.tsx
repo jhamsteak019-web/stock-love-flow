@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { getRoleDisplayName } from '@/lib/roleUtils';
+import { getRoleDisplayName, normalizeRoleKey } from '@/lib/roleUtils';
 import { PrivateMessageBox } from '@/components/chat/PrivateMessageBox';
 import { canViewDiscrepancyNotifications, canViewNotifications } from '@/lib/notificationUtils';
 
@@ -56,9 +56,10 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: SidebarProps) => {
   const { userRole, signOut, user } = useAuth();
+  const normalizedUserRole = normalizeRoleKey(userRole);
   const { selectedBranch } = useBranch();
   const location = useLocation();
-  const isAdmin = userRole === 'admin';
+  const isAdmin = normalizedUserRole === 'admin';
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [isDMOpen, setIsDMOpen] = useState(false);
@@ -149,13 +150,19 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
       to: '/release', 
       icon: PackagePlus, 
       label: 'OUT WAREHOUSE DELIVERY',
-      roles: ['admin', 'staff', 'encoder', 'assistant']
+      roles: ['admin', 'staff', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'warehouse']
     },
     { 
       to: '/deliveries', 
       icon: Truck, 
       label: 'Deliveries',
       roles: ['admin', 'staff', 'viewer', 'teamleader', 'uploader', 'oic', 'encoder', 'assistant', 'warehouse']
+    },
+    {
+      to: '/pending-allocation',
+      icon: ClipboardCheck,
+      label: 'Pending Allocation',
+      roles: ['admin', 'staff', 'teamleader', 'oic', 'encoder', 'assistant', 'warehouse']
     },
     { 
       to: '/history', 
@@ -262,7 +269,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed, onCollapsedChange }: Sid
   ];
 
   const filteredNavItems = navItems.filter(item => 
-    item.roles.includes(userRole || '')
+    item.roles.includes(normalizedUserRole)
   );
 
   return (

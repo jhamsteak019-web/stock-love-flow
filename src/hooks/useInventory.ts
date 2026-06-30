@@ -86,7 +86,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
 
         for (const { data, error } of pages) {
           if (error) throw error;
-          const rows = (data ?? []) as StockRelease[];
+          const rows = (data ?? []) as unknown as StockRelease[];
           allReleases.push(...rows);
 
           if (rows.length < STOCK_RELEASE_PAGE_SIZE) {
@@ -126,7 +126,7 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
 
         for (const { data, error } of pages) {
           if (error) throw error;
-          const rows = (data ?? []) as StockRelease[];
+          const rows = (data ?? []) as unknown as StockRelease[];
           allDeleted.push(...rows);
 
           if (rows.length < STOCK_RELEASE_PAGE_SIZE) {
@@ -281,8 +281,9 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
     
     // Refresh items to get updated stock
     await fetchItems();
-    setReleases([data, ...releases]);
-    return data;
+    const release = data as unknown as StockRelease;
+    setReleases([release, ...releases]);
+    return release;
   };
 
   const releaseStockBatch = async (
@@ -333,8 +334,9 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
     
     // Refresh items to get updated stock
     await fetchItems();
-    setReleases([...(data || []), ...releases]);
-    return data;
+    const insertedReleases = (data || []) as unknown as StockRelease[];
+    setReleases([...insertedReleases, ...releases]);
+    return insertedReleases;
   };
 
   const updateDeliveryStatus = async (releaseId: string, status?: DeliveryStatus, dateDelivered?: string) => {
@@ -359,8 +361,9 @@ export const useInventory = (options: UseInventoryOptions = {}) => {
       console.error('Update delivery status error:', error);
       throw error;
     }
-    setReleases(releases.map(r => r.id === releaseId ? data : r));
-    return data;
+    const release = data as unknown as StockRelease;
+    setReleases(releases.map(r => r.id === releaseId ? release : r));
+    return release;
   };
 
   // Fast bulk update: one network call for all release IDs + optimistic local patch (no refetch)

@@ -49,7 +49,7 @@ export interface InventoryItem {
 
 export interface StockRelease {
   id: string;
-  item_id: string;
+  item_id: string | null;
   boxes_released: number;
   destination: string;
   courier: string | null;
@@ -78,7 +78,7 @@ export interface StockRelease {
   product_description?: string | null;
   unit_price?: number | null;
   import_created_at?: string | null;
-  inventory_item?: InventoryItem;
+  inventory_item?: Partial<InventoryItem> | null;
   profile?: Profile;
 }
 
