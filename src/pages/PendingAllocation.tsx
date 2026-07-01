@@ -411,17 +411,26 @@ const PendingAllocation = () => {
         pending_allocation_status: getPendingAllocationStatus(row.pending_allocation_status, row.action_status),
       }));
       const pendingDuplicateCleanup = getPendingAllocationDuplicateCleanup(currentRows);
-      const systemDuplicateCleanup = await getPendingAllocationSystemDuplicateCleanup(pendingDuplicateCleanup.cleanRows);
-      const duplicateIds = Array.from(new Set([
-        ...pendingDuplicateCleanup.duplicateIds,
-        ...systemDuplicateCleanup.duplicateIds,
-      ]));
-      const duplicateBills = Array.from(new Set([
-        ...pendingDuplicateCleanup.duplicateBills,
-        ...systemDuplicateCleanup.duplicateBills,
-      ]));
+      let cleanRows = pendingDuplicateCleanup.cleanRows;
+      let duplicateIds = pendingDuplicateCleanup.duplicateIds;
+      let duplicateBills = pendingDuplicateCleanup.duplicateBills;
 
-      setRows(systemDuplicateCleanup.cleanRows);
+      try {
+        const systemDuplicateCleanup = await getPendingAllocationSystemDuplicateCleanup(pendingDuplicateCleanup.cleanRows);
+        cleanRows = systemDuplicateCleanup.cleanRows;
+        duplicateIds = Array.from(new Set([
+          ...pendingDuplicateCleanup.duplicateIds,
+          ...systemDuplicateCleanup.duplicateIds,
+        ]));
+        duplicateBills = Array.from(new Set([
+          ...pendingDuplicateCleanup.duplicateBills,
+          ...systemDuplicateCleanup.duplicateBills,
+        ]));
+      } catch (cleanupError) {
+        console.warn('Pending allocation duplicate scan skipped:', cleanupError);
+      }
+
+      setRows(cleanRows);
 
       if (duplicateIds.length > 0) {
         void cleanupDuplicatePendingAllocations(duplicateIds, duplicateBills);
