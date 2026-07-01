@@ -375,6 +375,22 @@ const PendingAllocation = () => {
 
       let { data, error } = await fetchRows(PENDING_ALLOCATION_SELECT);
 
+      // Transient/expired session recovery: refresh the token once and retry
+      // before surfacing a hard error to the user.
+      const isAuthError = (err: unknown) => {
+        const status = (err as { status?: number; code?: string })?.status;
+        const code = (err as { code?: string })?.code;
+        const message = String((err as { message?: string })?.message || '').toLowerCase();
+        return status === 401 || code === 'PGRST301' || message.includes('jwt') || message.includes('token');
+      };
+
+      if (error && isAuthError(error)) {
+        await supabase.auth.refreshSession();
+        const retryAuth = await fetchRows(PENDING_ALLOCATION_SELECT);
+        data = retryAuth.data;
+        error = retryAuth.error;
+      }
+
       if (error && isMissingOptionalColumnError(error, 'pending_allocation_status')) {
         const retry = await fetchRows(PENDING_ALLOCATION_IMPORT_SELECT);
         data = retry.data;
