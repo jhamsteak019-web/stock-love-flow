@@ -677,15 +677,35 @@ const ReleaseStock = () => {
       chunks.push(rows.slice(index, index + STOCK_RELEASE_INSERT_CHUNK_SIZE));
     }
 
-    await runInConcurrentBatches(chunks, STOCK_RELEASE_WRITE_CONCURRENCY, async (chunk) => {
+    const isAuthError = (err: unknown) => {
+      const status = (err as { status?: number })?.status;
+      const code = (err as { code?: string })?.code;
+      const message = String((err as { message?: string })?.message || '').toLowerCase();
+      return status === 401 || code === 'PGRST301'
+        || message.includes('jwt') || message.includes('token')
+        || message.includes('row-level security') || message.includes('row level security');
+    };
+
+    const insertChunk = async (chunk: StockReleaseInsertRow[]) => {
       const { error } = await supabase.from('stock_releases').insert(chunk);
       if (!error) return;
-
       if (!isMissingImportCreatedAtError(error)) throw error;
 
       const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
       const { error: fallbackError } = await supabase.from('stock_releases').insert(fallbackChunk);
       if (fallbackError) throw fallbackError;
+    };
+
+    await runInConcurrentBatches(chunks, STOCK_RELEASE_WRITE_CONCURRENCY, async (chunk) => {
+      try {
+        await insertChunk(chunk);
+      } catch (error) {
+        // Recover from an expired/lapsed session (common cause of "Failed to
+        // release stock from import" on staff panels) by refreshing the token once.
+        if (!isAuthError(error)) throw error;
+        await supabase.auth.refreshSession();
+        await insertChunk(chunk);
+      }
     });
   };
 
