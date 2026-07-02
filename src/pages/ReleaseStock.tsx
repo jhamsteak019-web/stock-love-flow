@@ -1367,7 +1367,11 @@ const ReleaseStock = () => {
       });
     } catch (error) {
       console.error('Release error:', error);
-      toast({ title: 'Error', description: 'Failed to release stock from import', variant: 'destructive' });
+      const rawMessage = String((error as { message?: string })?.message || '').toLowerCase();
+      const description = rawMessage.includes('jwt') || rawMessage.includes('token') || rawMessage.includes('session') || (error as { status?: number })?.status === 401
+        ? 'Your session expired. Please sign in again and retry the import.'
+        : ((error as { message?: string })?.message || 'Failed to release stock from import');
+      toast({ title: 'Error', description, variant: 'destructive' });
     } finally {
       setSubmitting(false);
       isReleasingRef.current = false;
