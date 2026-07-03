@@ -498,7 +498,11 @@ const ReleaseStock = () => {
         });
 
         existingAllocationKeyCacheRef.current.hasKeyColumn = true;
-        return keys;
+        // Only stop here if every requested bill was already matched via the
+        // allocation_bill_key column. Older rows may not have that column
+        // populated, so fall through to the allocation_bill / fuzzy lookups
+        // for any bills still missing to avoid re-importing existing bills.
+        if (keys.size === requestedKeys.length) return keys;
       } catch (error) {
         if (!isMissingColumnError(error, 'allocation_bill_key')) throw error;
         existingAllocationKeyCacheRef.current.hasKeyColumn = false;
