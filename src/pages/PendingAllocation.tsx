@@ -51,7 +51,7 @@ type DuplicateLookupRow = Pick<StockRelease, 'allocation_bill' | 'allocation_bil
 const PENDING_ALLOCATION_BASE_SELECT = 'id,boxes_released,destination,courier,allocation_bill,notes,batch_id,category,set_date,total_qty,amount,branch_id,created_at,action_status';
 const PENDING_ALLOCATION_IMPORT_SELECT = `${PENDING_ALLOCATION_BASE_SELECT},import_created_at`;
 const PENDING_ALLOCATION_SELECT = `${PENDING_ALLOCATION_IMPORT_SELECT},pending_allocation_status`;
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 20;
 const DUPLICATE_LOOKUP_CHUNK_SIZE = 500;
 const DUPLICATE_LOOKUP_PAGE_SIZE = 1000;
 const DUPLICATE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
@@ -357,20 +357,32 @@ const PendingAllocation = () => {
 
     setLoading(true);
     try {
+      // PostgREST caps each response at 1,000 rows, so we must paginate with
+      // range() to fetch ALL pending allocations (e.g. 4,000+ imported rows).
       const fetchRows = async (selectColumns: string) => {
-        let query = supabase
-          .from('stock_releases')
-          .select(selectColumns)
-          .is('deleted_at', null)
-          .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
-          .order('created_at', { ascending: false })
-          .limit(5000);
+        const allRows: unknown[] = [];
 
-        if (selectedBranch?.id) {
-          query = query.eq('branch_id', selectedBranch.id);
+        for (let pageStart = 0; ; pageStart += DUPLICATE_LOOKUP_PAGE_SIZE) {
+          let query = supabase
+            .from('stock_releases')
+            .select(selectColumns)
+            .is('deleted_at', null)
+            .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
+            .order('created_at', { ascending: false })
+            .range(pageStart, pageStart + DUPLICATE_LOOKUP_PAGE_SIZE - 1);
+
+          if (selectedBranch?.id) {
+            query = query.eq('branch_id', selectedBranch.id);
+          }
+
+          const { data, error } = await query;
+          if (error) return { data: null, error };
+
+          if (data?.length) allRows.push(...data);
+          if (!data || data.length < DUPLICATE_LOOKUP_PAGE_SIZE) break;
         }
 
-        return query;
+        return { data: allRows, error: null };
       };
 
       let { data, error } = await fetchRows(PENDING_ALLOCATION_SELECT);
