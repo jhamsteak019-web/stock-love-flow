@@ -645,6 +645,7 @@ const ReleaseStock = () => {
     }
 
     const fuzzyTokens = Array.from(new Set(requestedAllocations.map(getAllocationLookupToken).filter(Boolean)));
+    if (fuzzyTokens.length <= STOCK_RELEASE_FUZZY_LOOKUP_MAX_TOKENS) {
     for (let index = 0; index < fuzzyTokens.length; index += STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE) {
       const chunk = fuzzyTokens.slice(index, index + STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE);
       const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
@@ -667,6 +668,7 @@ const ReleaseStock = () => {
 
         if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
       }
+    }
     }
 
     const pendingIdList = Array.from(pendingIds);
