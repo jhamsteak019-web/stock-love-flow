@@ -1072,7 +1072,22 @@ const PendingAllocation = () => {
           </div>
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Pending Allocation</h2>
-            <p className="text-sm text-muted-foreground">P Import items waiting for allocation review.</p>
+            <p className="text-sm text-muted-foreground">
+              P Import items waiting for allocation review.
+            </p>
+            <p className="mt-1 text-xs font-medium text-muted-foreground">
+              {loading ? (
+                <span className="inline-flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Loading rows... {rows.length.toLocaleString()} loaded so far
+                </span>
+              ) : (
+                <>
+                  {rows.length.toLocaleString()} rows loaded ·{' '}
+                  {groupedAllocations.length.toLocaleString()} bills
+                </>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
