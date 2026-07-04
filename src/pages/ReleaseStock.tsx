@@ -46,6 +46,11 @@ const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 1000;
 const STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
 const STOCK_RELEASE_READ_CONCURRENCY = 6;
 const STOCK_RELEASE_WRITE_CONCURRENCY = 3;
+// The fuzzy ilike fallback does a full-table scan per token. For very large
+// imports (thousands of brand-new bills) running it for every missing bill
+// times out the request. Exact allocation_bill_key / allocation_bill lookups
+// already reliably catch existing bills, so we cap the expensive fuzzy net.
+const STOCK_RELEASE_FUZZY_LOOKUP_MAX_TOKENS = 300;
 const FAST_CREATED_DATE_SYNC_LIMIT = 750;
 const PENDING_IMPORT_PREVIEW_LIMIT = 8;
 
@@ -542,7 +547,13 @@ const ReleaseStock = () => {
         .map(getAllocationLookupToken)
         .filter(Boolean),
     ));
+    // Skip the expensive full-table fuzzy scan when too many bills are still
+    // missing. In that case they are genuinely new (large import), so the scan
+    // would only slow things down / time out without finding matches.
     const fuzzyTokenChunks: string[][] = [];
+    if (fuzzyTokens.length > STOCK_RELEASE_FUZZY_LOOKUP_MAX_TOKENS) {
+      return keys;
+    }
     for (let index = 0; index < fuzzyTokens.length; index += STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE) {
       fuzzyTokenChunks.push(fuzzyTokens.slice(index, index + STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE));
     }
@@ -634,6 +645,7 @@ const ReleaseStock = () => {
     }
 
     const fuzzyTokens = Array.from(new Set(requestedAllocations.map(getAllocationLookupToken).filter(Boolean)));
+    if (fuzzyTokens.length <= STOCK_RELEASE_FUZZY_LOOKUP_MAX_TOKENS) {
     for (let index = 0; index < fuzzyTokens.length; index += STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE) {
       const chunk = fuzzyTokens.slice(index, index + STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE);
       const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
@@ -656,6 +668,7 @@ const ReleaseStock = () => {
 
         if (!data || data.length < STOCK_RELEASE_LOOKUP_PAGE_SIZE) break;
       }
+    }
     }
 
     const pendingIdList = Array.from(pendingIds);
