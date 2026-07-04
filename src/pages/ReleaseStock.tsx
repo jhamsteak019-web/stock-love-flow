@@ -547,7 +547,13 @@ const ReleaseStock = () => {
         .map(getAllocationLookupToken)
         .filter(Boolean),
     ));
+    // Skip the expensive full-table fuzzy scan when too many bills are still
+    // missing. In that case they are genuinely new (large import), so the scan
+    // would only slow things down / time out without finding matches.
     const fuzzyTokenChunks: string[][] = [];
+    if (fuzzyTokens.length > STOCK_RELEASE_FUZZY_LOOKUP_MAX_TOKENS) {
+      return keys;
+    }
     for (let index = 0; index < fuzzyTokens.length; index += STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE) {
       fuzzyTokenChunks.push(fuzzyTokens.slice(index, index + STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE));
     }
