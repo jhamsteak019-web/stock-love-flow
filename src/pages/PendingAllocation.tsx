@@ -1079,7 +1079,7 @@ const PendingAllocation = () => {
               {loading ? (
                 <span className="inline-flex items-center gap-1">
                   <RefreshCw className="h-3 w-3 animate-spin" />
-                  Loading rows... {rows.length.toLocaleString()} loaded so far
+                  Loading all rows...
                 </span>
               ) : (
                 <>
