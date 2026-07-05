@@ -1200,14 +1200,16 @@ const PendingAllocation = () => {
                   {selectedGroups.length} selected
                 </Badge>
               )}
-              <Button
-                variant="destructive"
-                onClick={handleDeleteSelected}
-                disabled={selectedReleaseIds.length === 0 || deleting || loading}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {deleting ? 'Deleting...' : 'Delete'}
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedReleaseIds.length === 0 || deleting || loading}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
               <Button
                 onClick={handleMoveToDeliveries}
                 disabled={selectedReleaseIds.length === 0 || moving || loading}
