@@ -1654,15 +1654,17 @@ const ReleaseStock = () => {
               onChange={handlePendingImportUpload}
               className="hidden"
             />
-            <Button
-              variant="default"
-              onClick={() => pendingImportFileInputRef.current?.click()}
-              disabled={pendingImporting || importing || submitting}
-              className="mr-2"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {pendingImporting ? 'P Importing...' : 'P Import'}
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="default"
+                onClick={() => pendingImportFileInputRef.current?.click()}
+                disabled={pendingImporting || importing || submitting}
+                className="mr-2"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {pendingImporting ? 'P Importing...' : 'P Import'}
+              </Button>
+            )}
             <Button 
               variant="outline" 
               onClick={() => fileInputRef.current?.click()}
