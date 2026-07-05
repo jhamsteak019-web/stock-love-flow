@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, ClipboardList, FileDown, FileSpreadsheet, Refr
 import { format, isValid } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { exportToExcel } from '@/lib/excelExport';
@@ -313,6 +314,8 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
 
 const PendingAllocation = () => {
   const { selectedBranch, loading: branchLoading } = useBranch();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const [rows, setRows] = useState<PendingAllocationRow[]>([]);
