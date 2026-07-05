@@ -1173,6 +1173,7 @@ const PendingAllocation = () => {
                   <SelectItem value="all">All Remarks Type</SelectItem>
                   <SelectItem value="ro">R.O</SelectItem>
                   <SelectItem value="new">New Arrival</SelectItem>
+                  <SelectItem value="na">- N.A</SelectItem>
                 </SelectContent>
               </Select>
               {(searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || arrivalFilter !== 'all' || createdFrom || createdTo) && (
