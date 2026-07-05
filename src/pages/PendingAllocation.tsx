@@ -111,6 +111,7 @@ const getRemarksType = (remarks?: string | null) => {
   const normalized = String(remarks || '').toLowerCase();
   if (normalized.includes('r.o') || /\bro\b/.test(normalized) || normalized.includes('repeat')) return 'ro';
   if (normalized.includes('new arrival') || normalized.includes('new')) return 'new';
+  if (!normalized.trim() || normalized.includes('n.a') || /\bna\b/.test(normalized) || normalized === '-') return 'na';
   return 'other';
 };
 
