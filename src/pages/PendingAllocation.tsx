@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, ClipboardList, FileDown, FileSpreadsheet, Refr
 import { format, isValid } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useBranch } from '@/contexts/BranchContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useActivityLog } from '@/hooks/useActivityLog';
 import { exportToExcel } from '@/lib/excelExport';
@@ -110,6 +111,7 @@ const getRemarksType = (remarks?: string | null) => {
   const normalized = String(remarks || '').toLowerCase();
   if (normalized.includes('r.o') || /\bro\b/.test(normalized) || normalized.includes('repeat')) return 'ro';
   if (normalized.includes('new arrival') || normalized.includes('new')) return 'new';
+  if (!normalized.trim() || normalized.includes('n.a') || /\bna\b/.test(normalized) || normalized === '-') return 'na';
   return 'other';
 };
 
@@ -313,6 +315,8 @@ const getPendingAllocationSystemDuplicateCleanup = async (pendingRows: PendingAl
 
 const PendingAllocation = () => {
   const { selectedBranch, loading: branchLoading } = useBranch();
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
   const { toast } = useToast();
   const { logActivity } = useActivityLog();
   const [rows, setRows] = useState<PendingAllocationRow[]>([]);
@@ -1169,6 +1173,7 @@ const PendingAllocation = () => {
                   <SelectItem value="all">All Remarks Type</SelectItem>
                   <SelectItem value="ro">R.O</SelectItem>
                   <SelectItem value="new">New Arrival</SelectItem>
+                  <SelectItem value="na">- N.A</SelectItem>
                 </SelectContent>
               </Select>
               {(searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || arrivalFilter !== 'all' || createdFrom || createdTo) && (
@@ -1197,14 +1202,16 @@ const PendingAllocation = () => {
                   {selectedGroups.length} selected
                 </Badge>
               )}
-              <Button
-                variant="destructive"
-                onClick={handleDeleteSelected}
-                disabled={selectedReleaseIds.length === 0 || deleting || loading}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {deleting ? 'Deleting...' : 'Delete'}
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedReleaseIds.length === 0 || deleting || loading}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
               <Button
                 onClick={handleMoveToDeliveries}
                 disabled={selectedReleaseIds.length === 0 || moving || loading}
