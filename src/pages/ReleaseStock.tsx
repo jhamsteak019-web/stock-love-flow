@@ -1045,7 +1045,7 @@ const ReleaseStock = () => {
           product_code: item.productCode || null,
           product_description: item.productDescription || null,
           unit_price: item.unitPrice || null,
-          created_at: head.createdAt || undefined,
+          created_at: head.createdAt || new Date().toISOString(),
           import_created_at: head.createdAtDisplay || null,
         });
       });
@@ -1093,7 +1093,7 @@ const ReleaseStock = () => {
           product_code: item.productCode || null,
           product_description: item.productDescription || null,
           unit_price: item.unitPrice || null,
-          created_at: head.createdAt || undefined,
+          created_at: head.createdAt || new Date().toISOString(),
           import_created_at: head.createdAtDisplay || null,
         });
       });
