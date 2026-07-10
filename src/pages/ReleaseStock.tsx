@@ -1027,7 +1027,7 @@ const ReleaseStock = () => {
       group.forEach(item => {
         rowsToInsert.push({
           item_id: null,
-          boxes_released: item.qtyBoxes,
+          boxes_released: Number.isFinite(item.qtyBoxes) ? Math.trunc(item.qtyBoxes) : 0,
           destination: head.deliverTo || 'Unknown',
           released_by: user!.id,
           notes: combinedNotes || null,
@@ -1037,9 +1037,9 @@ const ReleaseStock = () => {
           category: resolveCategory(item.category || head.category, item.remarks, head.remarks, combinedNotes) || null,
           waybill_no: null,
           set_date: head.setDate || null,
-          total_qty: item.qtyItem || item.qtyBoxes || 0,
+          total_qty: Number.isFinite(item.qtyItem || item.qtyBoxes) ? Math.trunc(item.qtyItem || item.qtyBoxes) : 0,
           branch_id: selectedBranch?.id || null,
-          amount: item.amount || null,
+          amount: Number.isFinite(item.amount) ? item.amount : null,
           delivery_status: 'pending',
           action_status: 'yes',
           product_code: item.productCode || null,
@@ -1080,9 +1080,9 @@ const ReleaseStock = () => {
           destination: head.deliverTo || 'Unknown',
           released_by: user!.id,
           category: resolveCategory(item.category || head.category, item.remarks, head.remarks, combinedNotes) || null,
-          boxes_released: item.qtyBoxes,
-          amount: item.amount || null,
-          total_qty: item.qtyItem || item.qtyBoxes || 0,
+          boxes_released: Number.isFinite(item.qtyBoxes) ? Math.trunc(item.qtyBoxes) : 0,
+          amount: Number.isFinite(item.amount) ? item.amount : null,
+          total_qty: Number.isFinite(item.qtyItem || item.qtyBoxes) ? Math.trunc(item.qtyItem || item.qtyBoxes) : 0,
           notes: combinedNotes || null,
           set_date: head.setDate || null,
           courier: head.courier || null,
@@ -1280,14 +1280,17 @@ const ReleaseStock = () => {
       await waitForProgressScreen(1200);
     } catch (error) {
       console.error('P Import error:', error);
+      const detail = (error as { message?: string })?.message
+        || (error as { error_description?: string })?.error_description
+        || String(error);
       setPendingImportProgress(prev => ({
         ...prev,
         stage: 'Import failed',
-        message: 'May error habang nag-P Import. Walang dapat i-double import.',
+        message: `May error habang nag-P Import: ${detail}`,
         percent: 100,
       }));
       await waitForProgressScreen(1200);
-      toast({ title: 'Error', description: 'Failed to P Import file.', variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to P Import: ${detail}`, variant: 'destructive' });
     } finally {
       setPendingImporting(false);
       isReleasingRef.current = false;
