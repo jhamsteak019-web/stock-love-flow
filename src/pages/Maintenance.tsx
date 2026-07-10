@@ -1,6 +1,24 @@
+import { useState } from 'react';
 import { AlertTriangle, ShieldCheck, Lock, ShieldAlert } from 'lucide-react';
 
+const BYPASS_CODE = '2468';
+
 const Maintenance = () => {
+  const [showInput, setShowInput] = useState(false);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code === BYPASS_CODE) {
+      localStorage.setItem('maintenance_bypass', 'true');
+      window.location.reload();
+    } else {
+      setError(true);
+      setCode('');
+    }
+  };
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#060b16] text-white flex flex-col items-center justify-center px-4 py-10">
       {/* Subtle grid / glow background */}
@@ -70,6 +88,35 @@ const Maintenance = () => {
           <span>Thank you for your patience and understanding.</span>
         </div>
         <p className="mt-1 text-sm text-blue-400">We're working to serve you better.</p>
+
+        {/* Secret admin bypass */}
+        {showInput ? (
+          <form onSubmit={handleSubmit} className="mt-6 flex items-center gap-2">
+            <input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={code}
+              onChange={(e) => { setCode(e.target.value); setError(false); }}
+              placeholder="Access code"
+              className={`rounded-lg border bg-slate-800/60 px-3 py-2 text-center text-white outline-none ${error ? 'border-red-500' : 'border-blue-500/30'}`}
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+            >
+              Enter
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setShowInput(true)}
+            aria-label="admin access"
+            className="mt-6 h-6 w-6 rounded-full opacity-20 hover:opacity-40"
+          >
+            <Lock className="h-4 w-4 text-blue-400" />
+          </button>
+        )}
       </div>
     </div>
   );
