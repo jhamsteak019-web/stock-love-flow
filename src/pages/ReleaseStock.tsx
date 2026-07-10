@@ -1280,14 +1280,17 @@ const ReleaseStock = () => {
       await waitForProgressScreen(1200);
     } catch (error) {
       console.error('P Import error:', error);
+      const detail = (error as { message?: string })?.message
+        || (error as { error_description?: string })?.error_description
+        || String(error);
       setPendingImportProgress(prev => ({
         ...prev,
         stage: 'Import failed',
-        message: 'May error habang nag-P Import. Walang dapat i-double import.',
+        message: `May error habang nag-P Import: ${detail}`,
         percent: 100,
       }));
       await waitForProgressScreen(1200);
-      toast({ title: 'Error', description: 'Failed to P Import file.', variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to P Import: ${detail}`, variant: 'destructive' });
     } finally {
       setPendingImporting(false);
       isReleasingRef.current = false;
