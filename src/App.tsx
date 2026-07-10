@@ -36,6 +36,10 @@ import Profile from "./pages/Profile";
 import TeamOverview from "./pages/TeamOverview";
 import PendingAllocation from "./pages/PendingAllocation";
 import NotFound from "./pages/NotFound";
+import Maintenance from "./pages/Maintenance";
+
+// Set to false to bring the app back online.
+const MAINTENANCE_MODE = true;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +57,9 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      {MAINTENANCE_MODE ? (
+        <Maintenance />
+      ) : (
       <BrowserRouter>
         <AuthProvider>
           <BranchProvider>
@@ -93,6 +100,7 @@ const App = () => (
           </BranchProvider>
         </AuthProvider>
       </BrowserRouter>
+      )}
     </TooltipProvider>
   </QueryClientProvider>
 );
