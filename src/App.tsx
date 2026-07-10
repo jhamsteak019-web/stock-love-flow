@@ -41,6 +41,11 @@ import Maintenance from "./pages/Maintenance";
 // Set to false to bring the app back online.
 const MAINTENANCE_MODE = true;
 
+// Allow entry via secret access code stored in localStorage.
+const bypassMaintenance =
+  typeof window !== 'undefined' &&
+  localStorage.getItem('maintenance_bypass') === 'true';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -57,7 +62,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      {MAINTENANCE_MODE ? (
+      {MAINTENANCE_MODE && !bypassMaintenance ? (
         <Maintenance />
       ) : (
       <BrowserRouter>
