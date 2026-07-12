@@ -38,8 +38,8 @@ import PendingAllocation from "./pages/PendingAllocation";
 import NotFound from "./pages/NotFound";
 import Maintenance from "./pages/Maintenance";
 
-// Set to false to bring the app back online.
-const MAINTENANCE_MODE = true;
+// Set to true to bring the app back offline.
+const MAINTENANCE_MODE = false;
 
 
 const queryClient = new QueryClient({
