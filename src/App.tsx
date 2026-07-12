@@ -58,7 +58,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      {MAINTENANCE_MODE && !bypassMaintenance ? (
+      {MAINTENANCE_MODE ? (
         <Maintenance />
       ) : (
       <BrowserRouter>
