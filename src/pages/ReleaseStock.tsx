@@ -40,12 +40,12 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
 const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
-const STOCK_RELEASE_INSERT_CHUNK_SIZE = 500;
+const STOCK_RELEASE_INSERT_CHUNK_SIZE = 100;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 1000;
 const STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
 const STOCK_RELEASE_READ_CONCURRENCY = 6;
-const STOCK_RELEASE_WRITE_CONCURRENCY = 3;
+const STOCK_RELEASE_WRITE_CONCURRENCY = 2;
 // The fuzzy ilike fallback does a full-table scan per token. For very large
 // imports (thousands of brand-new bills) running it for every missing bill
 // times out the request. Exact allocation_bill_key / allocation_bill lookups
