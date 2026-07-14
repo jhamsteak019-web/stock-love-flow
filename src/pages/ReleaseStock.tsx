@@ -40,7 +40,7 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
 const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
-const STOCK_RELEASE_INSERT_CHUNK_SIZE = 20;
+const STOCK_RELEASE_INSERT_CHUNK_SIZE = 10;
 const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
 const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 1000;
 const STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
@@ -703,14 +703,33 @@ const ReleaseStock = () => {
         || message.includes('row-level security') || message.includes('row level security');
     };
 
-    const insertChunk = async (chunk: StockReleaseInsertRow[]) => {
-      const { error } = await supabase.from('stock_releases').insert(chunk);
-      if (!error) return;
-      if (!isMissingImportCreatedAtError(error)) throw error;
+    const isTimeoutError = (err: unknown) => {
+      const message = String((err as { message?: string })?.message || '').toLowerCase();
+      const details = String((err as { details?: string })?.details || '').toLowerCase();
+      const hint = String((err as { hint?: string })?.hint || '').toLowerCase();
+      return message.includes('statement timeout') || message.includes('timeout')
+        || details.includes('statement timeout') || details.includes('timeout')
+        || hint.includes('timeout');
+    };
 
-      const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
-      const { error: fallbackError } = await supabase.from('stock_releases').insert(fallbackChunk);
-      if (fallbackError) throw fallbackError;
+    const insertChunk = async (chunk: StockReleaseInsertRow[], retryCount = 0, maxRetries = 3) => {
+      try {
+        const { error } = await supabase.from('stock_releases').insert(chunk);
+        if (!error) return;
+        if (!isMissingImportCreatedAtError(error)) throw error;
+
+        const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
+        const { error: fallbackError } = await supabase.from('stock_releases').insert(fallbackChunk);
+        if (fallbackError) throw fallbackError;
+      } catch (error) {
+        // Retry on timeout errors with exponential backoff
+        if (isTimeoutError(error) && retryCount < maxRetries) {
+          const delayMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          return insertChunk(chunk, retryCount + 1, maxRetries);
+        }
+        throw error;
+      }
     };
 
     await runInConcurrentBatches(chunks, STOCK_RELEASE_WRITE_CONCURRENCY, async (chunk) => {
