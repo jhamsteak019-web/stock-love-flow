@@ -40,12 +40,36 @@ const DEFAULT_RELEASE_COLUMNS: ColumnConfig[] = [
 const ITEMS_PER_PAGE = 25;
 const PARSED_ITEMS_STORAGE_KEY = 'releaseStock_parsedItems';
 const MAX_PERSISTED_PARSED_ITEMS = 1000;
-const STOCK_RELEASE_INSERT_CHUNK_SIZE = 10;
-const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 500;
-const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 1000;
+const STOCK_RELEASE_INSERT_CHUNK_SIZE = 5;
+const STOCK_RELEASE_LOOKUP_CHUNK_SIZE = 200;
+const STOCK_RELEASE_LOOKUP_PAGE_SIZE = 500;
 const STOCK_RELEASE_FUZZY_LOOKUP_CHUNK_SIZE = 75;
-const STOCK_RELEASE_READ_CONCURRENCY = 6;
+const STOCK_RELEASE_READ_CONCURRENCY = 3;
 const STOCK_RELEASE_WRITE_CONCURRENCY = 1;
+const MAX_QUERY_RETRIES = 3;
+const QUERY_RETRY_BASE_DELAY_MS = 800;
+
+const isTimeoutError = (err: unknown) => {
+  if (!err || typeof err !== 'object') return false;
+  const message = String((err as { message?: string })?.message || '').toLowerCase();
+  const details = String((err as { details?: string })?.details || '').toLowerCase();
+  const hint = String((err as { hint?: string })?.hint || '').toLowerCase();
+
+  return message.includes('statement timeout') || message.includes('timeout')
+    || details.includes('statement timeout') || details.includes('timeout')
+    || hint.includes('timeout');
+};
+
+const retryOnTimeout = async <T>(action: () => Promise<T>, retryCount = 0): Promise<T> => {
+  try {
+    return await action();
+  } catch (error) {
+    if (retryCount >= MAX_QUERY_RETRIES || !isTimeoutError(error)) throw error;
+    const delay = QUERY_RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retryOnTimeout(action, retryCount + 1);
+  }
+};
 // The fuzzy ilike fallback does a full-table scan per token. For very large
 // imports (thousands of brand-new bills) running it for every missing bill
 // times out the request. Exact allocation_bill_key / allocation_bill lookups
@@ -482,12 +506,12 @@ const ReleaseStock = () => {
       try {
         await runInConcurrentBatches(keyChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
           for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
-            const { data, error } = await supabase
+            const { data, error } = await retryOnTimeout(() => supabase
               .from('stock_releases')
               .select('allocation_bill_key,action_status')
               .is('deleted_at', null)
               .in('allocation_bill_key', chunk)
-              .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+              .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1));
 
             if (error) throw error;
 
@@ -522,12 +546,12 @@ const ReleaseStock = () => {
 
     await runInConcurrentBatches(allocationChunks, STOCK_RELEASE_READ_CONCURRENCY, async (chunk) => {
       for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
-        const { data, error } = await supabase
+        const { data, error } = await retryOnTimeout(() => supabase
           .from('stock_releases')
           .select('allocation_bill,action_status')
           .is('deleted_at', null)
           .in('allocation_bill', chunk)
-          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1));
 
         if (error) throw error;
 
@@ -562,12 +586,12 @@ const ReleaseStock = () => {
       const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
 
       for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
-        const { data, error } = await supabase
+        const { data, error } = await retryOnTimeout(() => supabase
           .from('stock_releases')
           .select('allocation_bill,action_status')
           .is('deleted_at', null)
           .or(orFilter)
-          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1));
 
         if (error) throw error;
 
@@ -612,7 +636,7 @@ const ReleaseStock = () => {
               .in('allocation_bill_key', chunk)
               .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
 
-            const { data, error } = await query;
+            const { data, error } = await retryOnTimeout(() => query);
             if (error) throw error;
             collectPendingIds(data || []);
 
@@ -629,13 +653,13 @@ const ReleaseStock = () => {
     for (let index = 0; index < requestedAllocations.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
       const chunk = requestedAllocations.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
       for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
-        const { data, error } = await supabase
+        const { data, error } = await retryOnTimeout(() => supabase
           .from('stock_releases')
           .select('id')
           .is('deleted_at', null)
           .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
           .in('allocation_bill', chunk)
-          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1));
 
         if (error) throw error;
         collectPendingIds(data || []);
@@ -651,13 +675,13 @@ const ReleaseStock = () => {
       const orFilter = chunk.map(token => `allocation_bill.ilike.%${token}%`).join(',');
 
       for (let pageStart = 0; ; pageStart += STOCK_RELEASE_LOOKUP_PAGE_SIZE) {
-        const { data, error } = await supabase
+        const { data, error } = await retryOnTimeout(() => supabase
           .from('stock_releases')
           .select('id,allocation_bill')
           .is('deleted_at', null)
           .in('action_status', PENDING_ALLOCATION_ACTION_STATUSES)
           .or(orFilter)
-          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1);
+          .range(pageStart, pageStart + STOCK_RELEASE_LOOKUP_PAGE_SIZE - 1));
 
         if (error) throw error;
 
@@ -677,10 +701,10 @@ const ReleaseStock = () => {
     const deletedAt = new Date().toISOString();
     for (let index = 0; index < pendingIdList.length; index += STOCK_RELEASE_LOOKUP_CHUNK_SIZE) {
       const chunk = pendingIdList.slice(index, index + STOCK_RELEASE_LOOKUP_CHUNK_SIZE);
-      const { error } = await supabase
+      const { error } = await retryOnTimeout(() => supabase
         .from('stock_releases')
         .update({ deleted_at: deletedAt })
-        .in('id', chunk);
+        .in('id', chunk));
 
       if (error) throw error;
     }
@@ -703,33 +727,14 @@ const ReleaseStock = () => {
         || message.includes('row-level security') || message.includes('row level security');
     };
 
-    const isTimeoutError = (err: unknown) => {
-      const message = String((err as { message?: string })?.message || '').toLowerCase();
-      const details = String((err as { details?: string })?.details || '').toLowerCase();
-      const hint = String((err as { hint?: string })?.hint || '').toLowerCase();
-      return message.includes('statement timeout') || message.includes('timeout')
-        || details.includes('statement timeout') || details.includes('timeout')
-        || hint.includes('timeout');
-    };
+    const insertChunk = async (chunk: StockReleaseInsertRow[]) => {
+      const { error } = await retryOnTimeout(() => supabase.from('stock_releases').insert(chunk));
+      if (!error) return;
+      if (!isMissingImportCreatedAtError(error)) throw error;
 
-    const insertChunk = async (chunk: StockReleaseInsertRow[], retryCount = 0, maxRetries = 3) => {
-      try {
-        const { error } = await supabase.from('stock_releases').insert(chunk);
-        if (!error) return;
-        if (!isMissingImportCreatedAtError(error)) throw error;
-
-        const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
-        const { error: fallbackError } = await supabase.from('stock_releases').insert(fallbackChunk);
-        if (fallbackError) throw fallbackError;
-      } catch (error) {
-        // Retry on timeout errors with exponential backoff
-        if (isTimeoutError(error) && retryCount < maxRetries) {
-          const delayMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          return insertChunk(chunk, retryCount + 1, maxRetries);
-        }
-        throw error;
-      }
+      const fallbackChunk = chunk.map(({ import_created_at: _importCreatedAt, ...row }) => row);
+      const { error: fallbackError } = await retryOnTimeout(() => supabase.from('stock_releases').insert(fallbackChunk));
+      if (fallbackError) throw fallbackError;
     };
 
     await runInConcurrentBatches(chunks, STOCK_RELEASE_WRITE_CONCURRENCY, async (chunk) => {
